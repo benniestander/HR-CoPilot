@@ -49,6 +49,10 @@ import {
   AlcoholDrugIcon,
   TerminationOfEmploymentIcon,
   RetrenchmentIcon,
+  // New Icons for new policies
+  DeductionsIcon,
+  AntiBullyingIcon,
+  ItAccessSecurityIcon,
   // Form Icons
   JobApplicationIcon,
   LeaveApplicationIcon,
@@ -656,6 +660,40 @@ export const POLICIES: Record<PolicyType, Policy> = {
       ...commonQuestions,
       { id: 'consultationManager', label: 'Who manages the retrenchment consultation?', type: 'text', placeholder: 'e.g., The HR Director' }
     ],
+  },
+  'deductions': {
+    kind: 'policy',
+    type: 'deductions',
+    title: 'Deductions Policy',
+    description: 'Outline lawful and agreed-upon deductions from an employee\'s salary, compliant with the BCEA.',
+    icon: DeductionsIcon,
+    questions: [
+      ...commonQuestions,
+      { id: 'deductionsContact', label: 'Who to contact for deduction queries?', type: 'text', placeholder: 'e.g., Payroll Department' }
+    ],
+  },
+  'anti-bullying': {
+    kind: 'policy',
+    type: 'anti-bullying',
+    title: 'Anti-Bullying Policy',
+    description: 'Establish a zero-tolerance stance on workplace bullying and outline a clear reporting procedure.',
+    icon: AntiBullyingIcon,
+    questions: [
+      ...commonQuestions,
+      { id: 'confidentialContact', label: 'Confidential Reporting Contact', type: 'text', placeholder: 'e.g., Designated HR representative' }
+    ],
+  },
+  'it-access-security': {
+    kind: 'policy',
+    type: 'it-access-security',
+    title: 'IT Access & Security Policy',
+    description: 'Define rules for accessing company systems and data, ensuring security and POPIA compliance.',
+    icon: ItAccessSecurityIcon,
+    questions: [
+      ...commonQuestions,
+      { id: 'itSupportContact', label: 'IT Support Contact', type: 'text', placeholder: 'e.g., IT Department' }
+    ],
+    industries: ['Technology', 'Professional Services'],
   },
   'employee-handbook': {
     kind: 'policy',
@@ -1450,6 +1488,21 @@ The designated Safety Officer is [safetyOfficerName], who is responsible for ove
   'alcohol-drug': createGenericTemplate('Alcohol and Drug Policy', 'our rules regarding substance use to ensure a safe workplace', 'For assistance with substance abuse issues, contact [substanceAbuseContact].'),
   'termination-of-employment': createGenericTemplate('Termination of Employment Policy', 'the legally compliant procedures for ending an employment contract', 'The standard notice period is [terminationNoticeWeeks] weeks.'),
   'retrenchment': createGenericTemplate('Retrenchment Policy', 'the fair procedure for dismissal based on operational requirements', 'The consultation process will be managed by [consultationManager].'),
+  'deductions': createGenericTemplate(
+    'Deductions Policy',
+    'salary deductions to ensure compliance with the Basic Conditions of Employment Act (BCEA)',
+    'The company will only make deductions from an employee\'s salary that are required by law (e.g., PAYE, UIF) or have been agreed to in writing by the employee. For any queries, please contact the [deductionsContact].'
+  ),
+  'anti-bullying': createGenericTemplate(
+    'Anti-Bullying Policy',
+    'our zero-tolerance stance on bullying in the workplace',
+    '[companyName] is committed to providing a work environment free from bullying. Bullying is defined as repeated, unreasonable behaviour directed towards an employee or group of employees, that creates a risk to health and safety. All complaints will be investigated promptly and confidentially. To report an incident, contact [confidentialContact].'
+  ),
+  'it-access-security': createGenericTemplate(
+    'IT Access and Security Policy',
+    'the secure access and use of company IT resources and data',
+    'All employees are responsible for safeguarding their access credentials and must adhere to the company\'s password and data security protocols. Unauthorised access or misuse of company systems is strictly prohibited and may result in disciplinary action. For support, contact [itSupportContact].'
+  ),
   'employee-handbook': '', // This is dynamically generated, no base template needed
 };
 

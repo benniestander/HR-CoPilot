@@ -50,6 +50,10 @@ export type PolicyType =
   | 'alcohol-drug'
   | 'termination-of-employment'
   | 'retrenchment'
+  // New policies
+  | 'deductions'
+  | 'anti-bullying'
+  | 'it-access-security'
   | 'employee-handbook';
 
 export type FormType =
