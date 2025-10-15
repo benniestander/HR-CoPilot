@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { FORMS } from '../constants';
+import { FORM_CATEGORIES } from '../constants';
 import type { Form } from '../types';
 import { SearchIcon, WordIcon, ExcelIcon } from './Icons';
 
@@ -42,10 +42,15 @@ const FormCard: React.FC<{ form: Form; onSelect: () => void; }> = ({ form, onSel
 const FormSelector: React.FC<FormSelectorProps> = ({ onSelectForm }) => {
   const [searchTerm, setSearchTerm] = useState('');
 
-  const filteredForms = Object.values(FORMS).filter(form => 
+  const categorizedAndFiltered = FORM_CATEGORIES.map(category => {
+    const filteredItems = category.items.filter(form =>
       form.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
       form.description.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+    );
+    return { ...category, items: filteredItems };
+  }).filter(category => category.items.length > 0);
+
+  const hasResults = categorizedAndFiltered.length > 0;
 
   return (
     <div>
@@ -62,14 +67,21 @@ const FormSelector: React.FC<FormSelectorProps> = ({ onSelectForm }) => {
         </div>
       </div>
 
-      {filteredForms.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {filteredForms.map((form) => (
-            <FormCard
-              key={form.type}
-              form={form}
-              onSelect={() => onSelectForm(form)}
-            />
+      {hasResults ? (
+        <div className="space-y-12">
+          {categorizedAndFiltered.map((category) => (
+            <div key={category.title}>
+               <h2 className="text-2xl font-bold text-secondary mb-6 border-b-2 border-primary pb-2">{category.title}</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                {category.items.map((form) => (
+                  <FormCard
+                    key={form.type}
+                    form={form}
+                    onSelect={() => onSelectForm(form)}
+                  />
+                ))}
+              </div>
+            </div>
           ))}
         </div>
       ) : (

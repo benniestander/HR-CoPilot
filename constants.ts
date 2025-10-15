@@ -3321,3 +3321,93 @@ export const FORM_ENRICHMENT_PROMPTS: Partial<Record<FormType, string>> = {
   'resignation-acceptance-letter': "Add a note on next steps: 'The HR department will contact you to schedule an exit interview and to provide details regarding the final handover of your duties and company property.'",
   'payroll-processing-checklist': "Add a compliance reminder: 'Ensure you are using the latest SARS tax tables and UIF/SDL contribution thresholds for the current financial year. Deadlines for EMP201 submissions and payments are critical to avoid penalties.'",
 };
+
+export const POLICY_CATEGORIES = [
+  {
+    title: 'Foundational & Legal Compliance',
+    items: (['alcohol-drug', 'anti-bribery-corruption', 'anti-harassment-discrimination', 'coida', 'communication-retention', 'conflict-of-interest', 'data-protection-privacy', 'data-usage-popia', 'deductions', 'disciplinary-action', 'disciplinary', 'employment-equity', 'grievance', 'leave', 'records-retention-destruction', 'resignation', 'retrenchment', 'sexual-harassment', 'termination-of-employment', 'uif', 'whistleblower', 'working-hours'] as PolicyType[])
+      .map(type => POLICIES[type])
+      .sort((a, b) => a.title.localeCompare(b.title)),
+  },
+  {
+    title: 'Employee Conduct & Workplace Culture',
+    items: (['anti-bullying', 'attendance-punctuality', 'cell-phone', 'code-of-ethics', 'dress-code', 'eeo-diversity', 'employee-conduct', 'social-media', 'telephone-usage', 'visitor'] as PolicyType[])
+      .map(type => POLICIES[type])
+      .sort((a, b) => a.title.localeCompare(b.title)),
+  },
+  {
+    title: 'Operations, IT & Security',
+    items: (['byod', 'company-property', 'company-vehicle', 'electronic-communications', 'it-access-security', 'it-cybersecurity', 'remote-hybrid-work', 'security', 'standby'] as PolicyType[])
+      .map(type => POLICIES[type])
+      .sort((a, b) => a.title.localeCompare(b.title)),
+  },
+  {
+    title: 'Compensation, Performance & Development',
+    items: (['certification', 'compensation-benefits', 'confidentiality', 'employee-separation', 'expense-reimbursement', 'performance-management', 'recruitment-selection', 'salary-structure-guide', 'time-off', 'training-development', 'travel'] as PolicyType[])
+      .map(type => POLICIES[type])
+      .sort((a, b) => a.title.localeCompare(b.title)),
+  },
+  {
+    title: 'Health, Safety & Wellness',
+    items: (['health-and-safety', 'workplace-wellness'] as PolicyType[])
+      .map(type => POLICIES[type])
+      .sort((a, b) => a.title.localeCompare(b.title)),
+  },
+  {
+    title: 'Comprehensive Handbooks',
+    items: (['employee-handbook', 'master'] as PolicyType[])
+      .map(type => POLICIES[type])
+      .sort((a, b) => a.title.localeCompare(b.title)),
+  },
+];
+
+export const FORM_CATEGORIES = [
+  {
+    title: 'Recruitment & Onboarding',
+    items: (['candidate-evaluation', 'confidentiality-agreement', 'employee-handbook-canva', 'employment-contract', 'interview-guide', 'job-advertisement', 'job-application', 'job-description', 'onboarding-checklist', 'onboarding-checklist-canva', 'reference-check', 'restraint-of-trade'] as FormType[])
+      .map(type => FORMS[type])
+      .sort((a, b) => a.title.localeCompare(b.title)),
+  },
+  {
+    title: 'Employee Administration & Records',
+    items: (['attendance-register', 'daily-attendance-canva', 'employee-details', 'leave-register', 'permission-for-deductions', 'salary-bank-details'] as FormType[])
+      .map(type => FORMS[type])
+      .sort((a, b) => a.title.localeCompare(b.title)),
+  },
+  {
+    title: 'Leave & Attendance',
+    items: (['leave-application', 'leave-application-maternity'] as FormType[])
+      .map(type => FORMS[type])
+      .sort((a, b) => a.title.localeCompare(b.title)),
+  },
+  {
+    title: 'Discipline, Grievance & Termination',
+    items: (['appeal-form', 'certificate-of-service', 'disciplinary-enquiry-report', 'disciplinary-hearing-notice', 'exit-interview', 'final-warning-hearing-held', 'final-written-warning', 'fixed-contract-ending-notice', 'grievance-decision-form', 'grievance-form', 'grievance-investigation-notice', 'incident-investigation-report', 'incident-report', 'postponement-of-hearing-notice', 'resignation-acceptance-letter', 'suspension-notice', 'termination-letter', 'verbal-warning-afrikaans', 'verbal-warning', 'voluntary-retrenchment-application', 'written-warning'] as FormType[])
+      .map(type => FORMS[type])
+      .sort((a, b) => a.title.localeCompare(b.title)),
+  },
+  {
+    title: 'Performance & Incapacity',
+    items: (['employee-review-canva', 'incapacity-inquiry-general-notice', 'incapacity-inquiry-ill-health-notice', 'medical-report-template', 'observation-report', 'performance-review', 'poor-performance-inquiry-notice', 'poor-performance-meeting-minutes'] as FormType[])
+      .map(type => FORMS[type])
+      .sort((a, b) => a.title.localeCompare(b.title)),
+  },
+  {
+    title: 'Compensation, Expenses & Training',
+    items: (['annual-training-report', 'employee-training-agreement', 'expense-claim', 'overtime-claim', 'payroll-processing-checklist', 'workplace-skills-plan'] as FormType[])
+      .map(type => FORMS[type])
+      .sort((a, b) => a.title.localeCompare(b.title)),
+  },
+  {
+    title: 'Statutory & Legal Notices',
+    items: (['anticipated-retrenchment-notice', 'consultation-meeting-notice', 'retrenchment-notice'] as FormType[])
+      .map(type => FORMS[type])
+      .sort((a, b) => a.title.localeCompare(b.title)),
+  },
+  {
+    title: 'Internal Communication & Checklists',
+    items: (['bar-cleaning-checklist', 'bar-master-cleaning-schedule', 'cleaning-checklist', 'employee-survey-canva', 'food-dispatch-checklist', 'food-receiving-checklist', 'food-safety-training-modules', 'food-safety-training-register', 'hr-bundle-package', 'master-cleaning-schedule', 'refrigerator-temperature-logsheet', 'staff-grooming-checklist', 'staff-meeting-template', 'thermometer-verification-checklist', 'warehouse-cleaning-checklist', 'warehouse-master-cleaning-checklist'] as FormType[])
+      .map(type => FORMS[type])
+      .sort((a, b) => a.title.localeCompare(b.title)),
+  },
+];

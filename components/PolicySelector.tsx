@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { POLICIES, INDUSTRIES } from '../constants';
+import { POLICY_CATEGORIES, INDUSTRIES } from '../constants';
 import type { Policy } from '../types';
 import { SearchIcon } from './Icons';
 
@@ -25,18 +25,23 @@ const PolicySelector: React.FC<PolicySelectorProps> = ({ onSelectPolicy }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedIndustry, setSelectedIndustry] = useState('All');
 
-  const filteredPolicies = Object.values(POLICIES).filter(policy => {
-    const searchMatch =
-      policy.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      policy.description.toLowerCase().includes(searchTerm.toLowerCase());
+  const categorizedAndFiltered = POLICY_CATEGORIES.map(category => {
+    const filteredItems = category.items.filter(policy => {
+      const searchMatch =
+        policy.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        policy.description.toLowerCase().includes(searchTerm.toLowerCase());
 
-    const industryMatch =
-      selectedIndustry === 'All' ||
-      !policy.industries || // Universal policies (no industry array) are always included
-      policy.industries.includes(selectedIndustry);
+      const industryMatch =
+        selectedIndustry === 'All' ||
+        !policy.industries || // Universal policies (no industry array) are always included
+        policy.industries.includes(selectedIndustry);
 
-    return searchMatch && industryMatch;
-  });
+      return searchMatch && industryMatch;
+    });
+    return { ...category, items: filteredItems };
+  }).filter(category => category.items.length > 0);
+
+  const hasResults = categorizedAndFiltered.length > 0;
 
   return (
     <div>
@@ -82,14 +87,21 @@ const PolicySelector: React.FC<PolicySelectorProps> = ({ onSelectPolicy }) => {
             </div>
         </div>
 
-      {filteredPolicies.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {filteredPolicies.map((policy) => (
-            <PolicyCard
-              key={policy.type}
-              policy={policy}
-              onSelect={() => onSelectPolicy(policy)}
-            />
+      {hasResults ? (
+        <div className="space-y-12">
+          {categorizedAndFiltered.map((category) => (
+            <div key={category.title}>
+              <h2 className="text-2xl font-bold text-secondary mb-6 border-b-2 border-primary pb-2">{category.title}</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                {category.items.map((policy) => (
+                  <PolicyCard
+                    key={policy.type}
+                    policy={policy}
+                    onSelect={() => onSelectPolicy(policy)}
+                  />
+                ))}
+              </div>
+            </div>
           ))}
         </div>
       ) : (
