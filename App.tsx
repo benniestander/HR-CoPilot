@@ -1,21 +1,33 @@
 
-import React, { useState, useCallback, useEffect } from 'react';
-import { onAuthStateChanged, signOut, isSignInWithEmailLink, signInWithEmailLink, User } from 'firebase/auth';
-import { auth } from './services/firebase';
+import React, { useState, useCallback } from 'react';
+// We only need the User type for state, not the auth functions.
+import type { User } from 'firebase/auth';
 
 import HomePage from './components/HomePage';
 import CompanyProfileSetup from './components/CompanyProfileSetup';
 import Questionnaire from './components/Questionnaire';
 import PolicyPreview from './components/PolicyPreview';
 import ConfirmationModal from './components/ConfirmationModal';
-import Login from './components/Login';
-import FullPageLoader from './components/FullPageLoader';
 import { generatePolicyStream, generateFormStream } from './services/geminiService';
 import type { Policy, Form, FormAnswers, AppStatus, CompanyProfile, Source } from './types';
 
+// A mock user object to simulate a logged-in state.
+const mockUser = {
+    uid: 'mock-user-123',
+    email: 'user@example.com',
+    displayName: 'Demo User',
+    photoURL: null,
+    emailVerified: true,
+    isAnonymous: false,
+    metadata: {},
+    providerData: [],
+    providerId: 'password',
+} as User;
+
+
 const App: React.FC = () => {
-  const [user, setUser] = useState<User | null>(null);
-  const [authStatus, setAuthStatus] = useState<'loading' | 'authed' | 'unauthed'>('loading');
+  // Set the user and auth status directly to a logged-in state to bypass login.
+  const [user, setUser] = useState<User | null>(mockUser);
   
   const [selectedItem, setSelectedItem] = useState<Policy | Form | null>(null);
   const [companyProfile, setCompanyProfile] = useState<CompanyProfile | null>(null);
@@ -28,35 +40,12 @@ const App: React.FC = () => {
   
   const hasUnsavedQuestionAnswers = Object.keys(questionAnswers).length > 0;
 
-  useEffect(() => {
-    if (isSignInWithEmailLink(auth, window.location.href)) {
-        let email = window.localStorage.getItem('emailForSignIn');
-        if (!email) {
-            email = window.prompt('Please provide your email for confirmation');
-        }
-        if (email) {
-            signInWithEmailLink(auth, email, window.location.href)
-                .then(() => {
-                    window.localStorage.removeItem('emailForSignIn');
-                    window.history.replaceState({}, document.title, window.location.pathname);
-                })
-                .catch((error) => {
-                    console.error("Sign in with email link error", error);
-                    alert(`Error signing in: ${error.message}`);
-                });
-        }
-    }
-
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-        setUser(currentUser);
-        setAuthStatus(currentUser ? 'authed' : 'unauthed');
-    });
-
-    return () => unsubscribe();
-  }, []);
+  // The original useEffect for handling Firebase auth state has been removed
+  // to bypass the login flow.
 
   const handleLogout = () => {
-    signOut(auth);
+    // Instead of signing out, reset the app's state to the home page,
+    // acting as a "Start Over" button.
     setSelectedItem(null);
     setCompanyProfile(null);
     resetDocumentState();
@@ -164,14 +153,6 @@ const App: React.FC = () => {
     }
   }, [selectedItem, companyProfile, questionAnswers]);
 
-  if (authStatus === 'loading') {
-    return <FullPageLoader />;
-  }
-
-  if (authStatus === 'unauthed') {
-    return <Login />;
-  }
-  
   const AuthHeader = () => (
      <header className="bg-white shadow-sm py-4">
           <div className="container mx-auto flex justify-between items-center px-6">
