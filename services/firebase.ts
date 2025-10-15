@@ -1,14 +1,18 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 
+// This placeholder configuration is used to resolve the "auth/invalid-api-key"
+// error that occurs when environment variables are not defined.
+// In a real-world application, these values would be replaced with actual
+// Firebase project credentials.
 const firebaseConfig = {
-    apiKey: "AIzaSyAfNB-idKEtfh1FjJDTcpbg-pT_aLxI3m0",
-    authDomain: "api-project-940592029946.firebaseapp.com",
-    projectId: "api-project-940592029946",
-    storageBucket: "api-project-940592029946.firebasestorage.app",
-    messagingSenderId: "940592029946",
-    appId: "1:940592029946:web:bc3449b4ca6920e1e5a943",
-    measurementId: "G-V2Q067FD16"
+    apiKey: "AIzaSyC_placeholder_api_key",
+    authDomain: "placeholder-project.firebaseapp.com",
+    projectId: "placeholder-project",
+    storageBucket: "placeholder-project.appspot.com",
+    messagingSenderId: "123456789012",
+    appId: "1:123456789012:web:1234567890abcdef",
+    measurementId: "G-ABCDEFGHIJ"
 };
 
 const app = initializeApp(firebaseConfig);

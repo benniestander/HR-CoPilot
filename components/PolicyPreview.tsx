@@ -1,7 +1,8 @@
-
 import React, { useState, useEffect } from 'react';
 import { LoadingIcon, CopyIcon, DownloadIcon, CheckIcon } from './Icons';
 import type { AppStatus, Source } from '../types';
+import { GLOSSARY } from '../glossary';
+import GlossaryModal from './GlossaryModal';
 
 interface PolicyPreviewProps {
   policyText: string;
@@ -46,6 +47,7 @@ const SourcesUsed: React.FC<{ sources: Source[] }> = ({ sources }) => {
 const PolicyPreview: React.FC<PolicyPreviewProps> = ({ policyText, status, onRetry, isForm, outputFormat, sources }) => {
   const [copied, setCopied] = useState(false);
   const [editableText, setEditableText] = useState(policyText);
+  const [selectedTerm, setSelectedTerm] = useState<{ term: string; definition: string } | null>(null);
 
   useEffect(() => {
     // When the generation is finished, update the editable text.
@@ -62,7 +64,8 @@ const PolicyPreview: React.FC<PolicyPreviewProps> = ({ policyText, status, onRet
   }, [copied]);
 
   const handleCopy = () => {
-    navigator.clipboard.writeText(editableText);
+    const textToCopy = isForm ? editableText : policyText;
+    navigator.clipboard.writeText(textToCopy);
     setCopied(true);
   };
 
@@ -87,13 +90,14 @@ const PolicyPreview: React.FC<PolicyPreviewProps> = ({ policyText, status, onRet
     let filename;
     const title = `hr_${isForm ? 'form' : 'policy'}`;
     const effectiveFormat = isForm ? outputFormat : 'word';
+    const textToDownload = isForm ? editableText : policyText;
 
     if (effectiveFormat === 'excel') {
-      const csvContent = markdownTableToCsv(editableText);
+      const csvContent = markdownTableToCsv(textToDownload);
       blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
       filename = `${title}.csv`;
     } else { // 'word'
-      blob = new Blob([editableText], { type: 'application/msword;charset=utf-8' });
+      blob = new Blob([textToDownload], { type: 'application/msword;charset=utf-8' });
       filename = `${title}.doc`;
     }
     
@@ -106,6 +110,33 @@ const PolicyPreview: React.FC<PolicyPreviewProps> = ({ policyText, status, onRet
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
   };
+
+  const highlightTerms = (text: string): React.ReactNode[] => {
+    if (!text) return [text];
+    
+    const terms = Object.keys(GLOSSARY);
+    const regex = new RegExp(`\\b(${terms.join('|')})\\b`, 'gi');
+    
+    const parts = text.split(regex);
+    
+    return parts.map((part, index) => {
+        const lowerCasePart = part.toLowerCase();
+        if (terms.includes(lowerCasePart)) {
+            return (
+                <button
+                    key={index}
+                    type="button"
+                    onClick={() => setSelectedTerm({ term: part, definition: GLOSSARY[lowerCasePart] })}
+                    className="text-primary font-semibold underline decoration-dotted hover:bg-primary/10 rounded-sm p-0.5 -m-0.5 transition-colors"
+                    aria-label={`View definition for ${part}`}
+                >
+                    {part}
+                </button>
+            );
+        }
+        return <React.Fragment key={index}>{part}</React.Fragment>;
+    });
+};
 
   const renderContent = () => {
     switch (status) {
@@ -140,19 +171,29 @@ const PolicyPreview: React.FC<PolicyPreviewProps> = ({ policyText, status, onRet
       case 'success':
         return (
             <div className="h-full flex flex-col">
-              <textarea
-                value={editableText}
-                onChange={(e) => setEditableText(e.target.value)}
-                className="w-full h-full flex-grow p-4 border border-gray-300 rounded-md resize-none focus:ring-primary focus:border-primary font-sans text-base"
-                aria-label="Editable document content"
-                style={{minHeight: '400px'}}
-              />
+              {isForm ? (
+                <textarea
+                  value={editableText}
+                  onChange={(e) => setEditableText(e.target.value)}
+                  className="w-full h-full flex-grow p-4 border border-gray-300 rounded-md resize-none focus:ring-primary focus:border-primary font-sans text-base"
+                  aria-label="Editable document content"
+                  style={{minHeight: '400px'}}
+                />
+              ) : (
+                <div 
+                   className="w-full h-full flex-grow p-4 border border-gray-300 rounded-md resize-none focus:ring-primary focus:border-primary font-sans text-base overflow-y-auto whitespace-pre-wrap"
+                   aria-label="Document content"
+                   style={{minHeight: '400px'}}
+                >
+                    {highlightTerms(policyText)}
+                </div>
+              )}
                {!isForm && <SourcesUsed sources={sources} />}
                <div className="mt-6 pt-6 border-t border-dashed border-gray-300">
                 <h3 className="text-xl font-bold text-secondary mb-4">Next Steps</h3>
                 <ul className="list-disc list-inside space-y-2 text-gray-700 text-sm">
                   <li>
-                    <strong>Review & Edit:</strong> Make any final adjustments to the text above.
+                    <strong>Review & Edit:</strong> You can copy the text or download the file to make final adjustments.
                   </li>
                   <li>
                     <strong>Legal Check:</strong> We strongly recommend a qualified labour lawyer reviews this document.
@@ -189,6 +230,12 @@ const PolicyPreview: React.FC<PolicyPreviewProps> = ({ policyText, status, onRet
             {renderContent()}
         </div>
       </div>
+       <GlossaryModal
+        isOpen={!!selectedTerm}
+        onClose={() => setSelectedTerm(null)}
+        term={selectedTerm?.term || ''}
+        definition={selectedTerm?.definition || ''}
+      />
     </div>
   );
 };
