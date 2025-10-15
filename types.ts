@@ -1,4 +1,3 @@
-
 import type React from 'react';
 
 export type PolicyType =
@@ -50,7 +49,8 @@ export type PolicyType =
   | 'dress-code'
   | 'alcohol-drug'
   | 'termination-of-employment'
-  | 'retrenchment';
+  | 'retrenchment'
+  | 'employee-handbook';
 
 export type FormType =
   | 'job-application'
@@ -121,7 +121,7 @@ export type FormType =
   | 'incident-investigation-report'
   | 'incident-report';
 
-export type InputType = 'text' | 'number' | 'textarea' | 'select';
+export type InputType = 'text' | 'number' | 'textarea' | 'select' | 'checkbox';
 
 export interface Question {
   id: string;
@@ -130,6 +130,7 @@ export interface Question {
   placeholder?: string;
   tip?: string;
   conditional?: (answers: FormAnswers) => boolean;
+  options?: Array<{ id: string; label: string; }>;
 }
 
 interface Document {
@@ -156,7 +157,7 @@ export type CompanyProfile = {
   industry: string; // Industry is mandatory for policies, but we can make it optional at type level and enforce in logic
 }
 
-export type FormAnswers = Record<string, string>;
+export type FormAnswers = Record<string, any>;
 
 export type AppStatus = 'idle' | 'loading' | 'success' | 'error';
 

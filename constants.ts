@@ -657,6 +657,33 @@ export const POLICIES: Record<PolicyType, Policy> = {
       { id: 'consultationManager', label: 'Who manages the retrenchment consultation?', type: 'text', placeholder: 'e.g., The HR Director' }
     ],
   },
+  'employee-handbook': {
+    kind: 'policy',
+    type: 'employee-handbook',
+    title: 'Employee Handbook',
+    description: 'Combine key HR policies into a single, comprehensive document. Select which sections to include.',
+    icon: MasterPolicyIcon,
+    questions: [
+      ...commonQuestions,
+      { id: 'ceoName', label: 'CEO/Managing Director Name', type: 'text', placeholder: 'e.g., Jane Doe' },
+      {
+        id: 'includedPolicies',
+        label: 'Select policies to include in the handbook',
+        type: 'checkbox',
+        options: [
+          { id: 'leave', label: 'Leave Policy' },
+          { id: 'disciplinary', label: 'Disciplinary Code & Procedure' },
+          { id: 'grievance', label: 'Grievance Procedure' },
+          { id: 'health-and-safety', label: 'Health & Safety' },
+          { id: 'code-of-ethics', label: 'Code of Ethics / Conduct' },
+          { id: 'it-cybersecurity', label: 'IT & Cybersecurity Policy' },
+          { id: 'confidentiality', label: 'Confidentiality Policy' },
+          { id: 'dress-code', label: 'Dress Code Policy' },
+        ],
+        tip: 'Select the core policies you want to form the main sections of your employee handbook.'
+      }
+    ],
+  },
 };
 
 export const FORMS: Record<FormType, Form> = {
@@ -1423,6 +1450,7 @@ The designated Safety Officer is [safetyOfficerName], who is responsible for ove
   'alcohol-drug': createGenericTemplate('Alcohol and Drug Policy', 'our rules regarding substance use to ensure a safe workplace', 'For assistance with substance abuse issues, contact [substanceAbuseContact].'),
   'termination-of-employment': createGenericTemplate('Termination of Employment Policy', 'the legally compliant procedures for ending an employment contract', 'The standard notice period is [terminationNoticeWeeks] weeks.'),
   'retrenchment': createGenericTemplate('Retrenchment Policy', 'the fair procedure for dismissal based on operational requirements', 'The consultation process will be managed by [consultationManager].'),
+  'employee-handbook': '', // This is dynamically generated, no base template needed
 };
 
 export const FORM_BASE_TEMPLATES: Record<FormType, string> = {

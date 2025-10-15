@@ -157,7 +157,7 @@ const App: React.FC = () => {
      <header className="bg-white shadow-sm py-4">
           <div className="container mx-auto flex justify-between items-center px-6">
               <img 
-                  src="https://i.postimg.cc/DyvJchrf/edited-image-11.png" 
+                  src="https://i.postimg.cc/h48FMCNY/edited-image-11-removebg-preview.png" 
                   alt="Ingcweti Logo" 
                   className="h-12"
               />
@@ -175,7 +175,7 @@ const App: React.FC = () => {
       <footer className="bg-secondary text-white py-8">
           <div className="container mx-auto px-6 text-center">
               <img 
-              src="https://i.postimg.cc/DyvJchrf/edited-image-11.png" 
+              src="https://i.postimg.cc/h48FMCNY/edited-image-11-removebg-preview.png" 
               alt="Ingcweti Logo" 
               className="h-10 mx-auto mb-4"
               />

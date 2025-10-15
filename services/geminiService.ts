@@ -31,6 +31,24 @@ export async function* generatePolicyStream(
   delete specificAnswers.industry;
   delete specificAnswers.companyVoice; // Remove voice from context
 
+  if (policyType === 'employee-handbook') {
+    const includedPolicies = specificAnswers.includedPolicies as Record<string, boolean> || {};
+    const selectedPolicyTitles = Object.entries(includedPolicies)
+        .filter(([, isSelected]) => isSelected)
+        .map(([policyId]) => {
+            const policyData = POLICIES[policyId as PolicyType];
+            return policyData ? policyData.title : policyId; // Fallback to id if not found
+        });
+
+    if (selectedPolicyTitles.length > 0) {
+        userContext += `- The handbook must be a comprehensive document containing detailed sections for the following policies: **${selectedPolicyTitles.join(', ')}**.\n`;
+    } else {
+        userContext += '- The user has not selected any specific policies to include. Please generate a standard employee handbook structure including a welcome message and general code of conduct.\n';
+    }
+    // Remove it from specificAnswers so it's not processed again
+    delete specificAnswers.includedPolicies;
+  }
+
   for (const key in specificAnswers) {
     if (Object.prototype.hasOwnProperty.call(specificAnswers, key)) {
       const question = policyQuestions.find(q => q.id === key);
@@ -42,16 +60,27 @@ export async function* generatePolicyStream(
 
   const systemInstruction = "You are an expert South African HR consultant and legal drafter specializing in creating compliant HR policies for small businesses. Your primary goal is to generate legally sound, comprehensive, and practical documents based on current South African labour law. When using Google Search for grounding, you MUST prioritize information from official South African government websites (e.g., those with a .gov.za domain, like the Department of Employment and Labour) and reputable South African legal publications or law firms. This is critical for accuracy and authority. You must generate the full policy in Markdown format. Ensure the final document is well-structured, professional, and ready for use.";
 
-  const fullPrompt = `
-Please generate a comprehensive **"${policyTitle}"** for a South African company named **"${answers.companyName}"**, which operates in the **"${industry}"** industry.
+  const promptIntro = policyType === 'employee-handbook' 
+    ? `Please generate a comprehensive **"${policyTitle}"** for a South African company named **"${answers.companyName}"**, which operates in the **"${industry}"** industry.`
+    : `Please generate a comprehensive **"${policyTitle}"** for a South African company named **"${answers.companyName}"**, which operates in the **"${industry}"** industry.`;
 
-**The tone of the document must be "${companyVoice}".** Adapt the language and phrasing to reflect this voice throughout the policy.
+  const handbookInstructions = policyType === 'employee-handbook'
+    ? "The handbook must be a cohesive, well-structured document, not just a list of separate policies. It should include an introduction, a welcome message from the CEO/MD, and then the detailed policy sections."
+    : "";
+
+
+  const fullPrompt = `
+${promptIntro}
+
+**The tone of the document must be "${companyVoice}".** Adapt the language and phrasing to reflect this voice throughout the document.
+
+${handbookInstructions}
 
 The policy must be fully compliant with current South African legislation. Focus your search on the latest versions and any recent amendments to key acts like the Basic Conditions of Employment Act (BCEA), the Labour Relations Act (LRA), the Employment Equity Act (EEA), and the Protection of Personal Information Act (POPIA), as applicable to the policy.
 
-When performing your search, use specific queries like "latest amendments to BCEA South Africa" or "COIDA compliance requirements for ${industry} industry South Africa". This will help ground the policy in the most current and authoritative information available.
+When performing your search, use specific queries like "latest amendments to BCEA South Africa" or "standard employee handbook clauses South Africa". This will help ground the policy in the most current and authoritative information available.
 
-${userContext ? `**Crucially, you must incorporate the following user-provided details into the policy clauses to make them specific and relevant:**\n${userContext}` : ''}
+${userContext ? `**Crucially, you must incorporate the following user-provided details and instructions into the document:**\n${userContext}` : ''}
 
 Structure the final document with clear Markdown formatting, including a main title, numbered sections (e.g., "1. Introduction", "2. Scope"), and sub-sections as needed. The language must be professional South African English.
 `;

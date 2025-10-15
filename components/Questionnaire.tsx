@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import type { Policy, Form, FormAnswers, AppStatus, CompanyProfile } from '../types';
 import { LoadingIcon, TipIcon, InfoIcon } from './Icons';
@@ -42,6 +41,15 @@ const Questionnaire: React.FC<QuestionnaireProps> = ({
 
   const handleInputChange = (id: string, value: string) => {
     onAnswersChange({ ...answers, [id]: value });
+  };
+
+  const handleCheckboxChange = (questionId: string, optionId: string, isChecked: boolean) => {
+    const currentSelection = answers[questionId] || {};
+    const newSelection = {
+      ...currentSelection,
+      [optionId]: isChecked,
+    };
+    onAnswersChange({ ...answers, [questionId]: newSelection });
   };
   
   const handleExplain = async () => {
@@ -112,6 +120,43 @@ const Questionnaire: React.FC<QuestionnaireProps> = ({
 
             if (q.conditional && !q.conditional(answers)) {
                 return null;
+            }
+
+            if (q.type === 'checkbox') {
+              return (
+                <div key={q.id} className="space-y-2">
+                  <fieldset>
+                    <legend className="block text-sm font-medium text-gray-700">{q.label}</legend>
+                    <div className="mt-2 space-y-2 border border-gray-200 rounded-md p-4">
+                      {q.options?.map((option) => (
+                        <div key={option.id} className="relative flex items-start">
+                          <div className="flex h-6 items-center">
+                            <input
+                              id={`${q.id}-${option.id}`}
+                              name={`${q.id}-${option.id}`}
+                              type="checkbox"
+                              checked={answers[q.id]?.[option.id] || false}
+                              onChange={(e) => handleCheckboxChange(q.id, option.id, e.target.checked)}
+                              className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                            />
+                          </div>
+                          <div className="ml-3 text-sm leading-6">
+                            <label htmlFor={`${q.id}-${option.id}`} className="font-medium text-gray-900">
+                              {option.label}
+                            </label>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </fieldset>
+                  {q.tip && (
+                    <div className="flex items-start text-xs text-gray-500 mt-1 p-2 bg-yellow-50 border border-yellow-200 rounded-md">
+                      <TipIcon className="w-4 h-4 mr-2 flex-shrink-0 mt-0.5 text-accent"/>
+                      <span>{q.tip}</span>
+                    </div>
+                  )}
+                </div>
+              );
             }
 
           return (

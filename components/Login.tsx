@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { auth } from '../services/firebase';
 import { sendSignInLinkToEmail, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
@@ -54,7 +55,7 @@ const Login: React.FC = () => {
             <header className="bg-white shadow-sm py-6">
                 <div className="container mx-auto flex justify-center items-center">
                     <img
-                        src="https://i.postimg.cc/DyvJchrf/edited-image-11.png"
+                        src="https://i.postimg.cc/h48FMCNY/edited-image-11-removebg-preview.png"
                         alt="Ingcweti Logo"
                         className="h-12"
                     />
@@ -121,7 +122,7 @@ const Login: React.FC = () => {
             <footer className="bg-secondary text-white py-8">
                 <div className="container mx-auto px-6 text-center">
                     <img
-                      src="https://i.postimg.cc/DyvJchrf/edited-image-11.png"
+                      src="https://i.postimg.cc/h48FMCNY/edited-image-11-removebg-preview.png"
                       alt="Ingcweti Logo"
                       className="h-10 mx-auto mb-4"
                     />
