@@ -1,5 +1,5 @@
 import { GoogleGenAI, GenerateContentResponse } from "@google/genai";
-import { POLICIES, FORM_BASE_TEMPLATES, FORMS } from '../constants';
+import { POLICIES, FORM_BASE_TEMPLATES, FORMS, FORM_ENRICHMENT_PROMPTS } from '../constants';
 import type { PolicyType, FormType, FormAnswers } from '../types';
 
 if (!process.env.API_KEY) {
@@ -103,6 +103,7 @@ export async function* generateFormStream(
       formatInstruction = `Because this document is best used in Excel, ensure the primary output is a single, well-structured, and clean Markdown table that can be easily copied into a spreadsheet. Avoid complex text outside the table where possible.`;
   }
 
+  const enrichmentPrompt = FORM_ENRICHMENT_PROMPTS[formType] || '';
 
   const enrichmentInstruction = `
 Based on the provided form text for a "${form.title}", please perform the following actions:
@@ -111,7 +112,7 @@ Based on the provided form text for a "${form.title}", please perform the follow
 3.  Ensure all fields intended for user input are clearly marked with a line of underscores, like this: \`_________________________\`.
 4.  If there are sections for signatures, ensure there is a clear line for the signature and a separate line for the date.
 5.  **Formatting Guidance:** ${formatInstruction}
-6.  Do not add new sections or fields beyond what is in the template. Your role is to refine and format the existing structure.
+6.  ${enrichmentPrompt ? `**Crucially, enhance the form by adding the following context-specific information. Integrate this naturally, for example, in a 'Notes for Employee' or 'Important Information' section to make the form more comprehensive and legally sound for a South African context:**\n*${enrichmentPrompt}*` : 'Your role is to refine and format the existing structure. Do not add new sections or fields beyond what is in the template.'}
 7.  The final output must be only the complete, refined Markdown for the form.
 `;
   
