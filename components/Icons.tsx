@@ -370,6 +370,28 @@ export const WorkplaceWellnessIcon: React.FC<{ className?: string }> = ({ classN
   ]} />
 );
 
+// New Policy Icons
+export const ConflictOfInterestIcon: React.FC<{ className?: string }> = ({ className }) => (
+    <DuotoneIcon className={className} paths={[
+        "M12 22a10 10 0 100-20 10 10 0 000 20z",
+        "M15 9l-6 6m0-6l6 6"
+    ]} />
+);
+
+export const RecordsRetentionIcon: React.FC<{ className?: string }> = ({ className }) => (
+    <DuotoneIcon className={className} paths={[
+        "M6 3h8l6 6v10a2 2 0 01-2 2H6a2 2 0 01-2-2V5a2 2 0 012-2z",
+        "M13 3v6h6m-9 5a3 3 0 100-6 3 3 0 000 6zm-1 1v2m2-2v2"
+    ]} />
+);
+
+export const SalaryStructureIcon: React.FC<{ className?: string }> = ({ className }) => (
+    <DuotoneIcon className={className} paths={[
+        "M4 4h16v16H4z",
+        "M8 16v-4m4 4v-8m4 8v-2"
+    ]} />
+);
+
 
 // --- Form Icons ---
 
@@ -536,6 +558,32 @@ export const OvertimeClaimIcon: React.FC<{ className?: string }> = ({ className 
   ]} />
 );
 
+export const EmploymentContractIcon: React.FC<{ className?: string }> = ({ className }) => (
+  <DuotoneIcon className={className} paths={[ "M18 3H6a2 2 0 00-2 2v14a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2z", "M15.5 5.5l-9 9L4 18l3.5-2.5 9-9L15.5 5.5z" ]} />
+);
+
+export const PermissionForDeductionsIcon: React.FC<{ className?: string }> = ({ className }) => (
+  <DuotoneIcon className={className} paths={[ "M6 3h12a2 2 0 012 2v14a2 2 0 01-2 2H6a2 2 0 01-2-2V5a2 2 0 012-2z", "M9 12h6" ]} />
+);
+
+export const SkillsDevelopmentIcon: React.FC<{ className?: string }> = ({ className }) => (
+    <DuotoneIcon className={className} paths={[ "M22 9.5l-10-7-10 7 3 2-3 2 10 7 10-7-3-2 3-2zM4 11.5v4", "M12 21v-7" ]} />
+);
+
+// New Form Icons
+export const CertificateOfServiceIcon: React.FC<{ className?: string }> = ({ className }) => (
+    <DuotoneIcon className={className} paths={[
+        "M18 7H6a2 2 0 00-2 2v8a2 2 0 002 2h12a2 2 0 002-2V9a2 2 0 00-2-2z",
+        "M9 4a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1V4zm4 12a3 3 0 10-6 0 3 3 0 006 0z"
+    ]} />
+);
+
+export const PayrollProcessingIcon: React.FC<{ className?: string }> = ({ className }) => (
+    <DuotoneIcon className={className} paths={[
+        "M18 3H6a2 2 0 00-2 2v14a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2z",
+        "M12 14a2 2 0 100-4 2 2 0 000 4zm-4-1h2m2 4H8m3-7l2 2 4-4"
+    ]} />
+);
 
 // --- Generic Icons ---
 

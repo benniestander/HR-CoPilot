@@ -53,6 +53,10 @@ import {
   DeductionsIcon,
   AntiBullyingIcon,
   ItAccessSecurityIcon,
+  // New Policy Icons
+  ConflictOfInterestIcon,
+  RecordsRetentionIcon,
+  SalaryStructureIcon,
   // Form Icons
   JobApplicationIcon,
   LeaveApplicationIcon,
@@ -78,6 +82,12 @@ import {
   PerformanceReviewIcon,
   SalaryBankIcon,
   OvertimeClaimIcon,
+  EmploymentContractIcon,
+  PermissionForDeductionsIcon,
+  SkillsDevelopmentIcon,
+  // New Form Icons
+  CertificateOfServiceIcon,
+  PayrollProcessingIcon,
   // New Generic Icons
   ChecklistIcon,
   CleaningIcon,
@@ -722,6 +732,40 @@ export const POLICIES: Record<PolicyType, Policy> = {
       }
     ],
   },
+  'conflict-of-interest': {
+    kind: 'policy',
+    type: 'conflict-of-interest',
+    title: 'Conflict of Interest Policy',
+    description: "Govern situations where an employee's personal interests may clash with their professional duties and the company's integrity.",
+    icon: ConflictOfInterestIcon,
+    questions: [
+      ...commonQuestions,
+      { id: 'disclosureContact', label: 'Who should employees disclose potential conflicts to?', type: 'text', placeholder: 'e.g., Their immediate manager or HR' }
+    ],
+  },
+  'records-retention-destruction': {
+    kind: 'policy',
+    type: 'records-retention-destruction',
+    title: 'Records Retention & Destruction Policy',
+    description: 'Define how long to store records and how to securely destroy them, ensuring POPIA compliance.',
+    icon: RecordsRetentionIcon,
+    questions: [
+      ...commonQuestions,
+      { id: 'infoOfficer', label: 'Information Officer Name', type: 'text', placeholder: 'e.g., John Smith' },
+      { id: 'retentionPeriod', label: 'Standard retention period for employee records (years)', type: 'number', placeholder: 'e.g., 5', tip: 'Certain records (e.g., COIDA) may have different legal retention requirements.' }
+    ],
+  },
+  'salary-structure-guide': {
+    kind: 'policy',
+    type: 'salary-structure-guide',
+    title: 'Salary Structure Guide',
+    description: "Document the company's approach to compensation, including pay bands, to ensure fairness and transparency.",
+    icon: SalaryStructureIcon,
+    questions: [
+      ...commonQuestions,
+      { id: 'compensationPhilosophy', label: 'Briefly describe your compensation philosophy', type: 'textarea', placeholder: 'e.g., To offer competitive market-related salaries that attract and retain talent.' }
+    ],
+  },
 };
 
 export const FORMS: Record<FormType, Form> = {
@@ -946,6 +990,66 @@ export const FORMS: Record<FormType, Form> = {
     icon: OvertimeClaimIcon,
     questions: employeeAndManagerQuestions,
     outputFormat: 'excel',
+  },
+  'employment-contract': {
+    kind: 'form',
+    type: 'employment-contract',
+    title: 'Employment Contract',
+    description: 'Generate a legally compliant permanent employment contract for a new hire.',
+    icon: EmploymentContractIcon,
+    questions: [
+      ...employeeAndManagerQuestions,
+      { id: 'jobTitle', label: 'Job Title', type: 'text' },
+      { id: 'startDate', label: 'Start Date', type: 'text', placeholder: 'e.g., 1 November 2024' },
+      { id: 'probationPeriod', label: 'Probation Period (Months)', type: 'number', placeholder: 'e.g., 3' },
+      { id: 'grossSalary', label: 'Gross Monthly Salary (ZAR)', type: 'text', placeholder: 'e.g., 25000' },
+      { id: 'workingHours', label: 'Normal Working Hours', type: 'text', placeholder: 'e.g., 08:00 to 17:00, Monday to Friday' },
+      { id: 'annualLeaveDays', label: 'Annual Leave Days', type: 'number', placeholder: 'e.g., 15' },
+      { id: 'noticePeriod', label: 'Notice Period (Weeks)', type: 'number', placeholder: 'e.g., 4' },
+    ],
+    outputFormat: 'word',
+  },
+  'permission-for-deductions': {
+    kind: 'form',
+    type: 'permission-for-deductions',
+    title: 'Permission for Salary Deduction',
+    description: 'A form for an employee to authorize a specific deduction from their salary, as required by the BCEA.',
+    icon: PermissionForDeductionsIcon,
+    questions: [
+      ...employeeAndManagerQuestions,
+      { id: 'deductionAmount', label: 'Total Amount to be Deducted (ZAR)', type: 'text' },
+      { id: 'deductionReason', label: 'Reason for Deduction', type: 'textarea', placeholder: 'e.g., For loss of company property (laptop)' },
+      { id: 'repaymentSchedule', label: 'Repayment Schedule', type: 'textarea', placeholder: 'e.g., R500 per month for 3 months, starting on [date]' },
+    ],
+    outputFormat: 'word',
+  },
+  'workplace-skills-plan': {
+    kind: 'form',
+    type: 'workplace-skills-plan',
+    title: 'Workplace Skills Plan (WSP)',
+    description: 'A template to structure a Workplace Skills Plan for submission to your relevant SETA.',
+    icon: SkillsDevelopmentIcon,
+    questions: [
+      ...commonQuestions,
+      { id: 'sdlNumber', label: 'Skills Development Levy (SDL) Number', type: 'text' },
+      { id: 'setaName', label: 'Name of your SETA', type: 'text', placeholder: 'e.g., Services SETA' },
+      { id: 'reportingPeriod', label: 'Reporting Period', type: 'text', placeholder: 'e.g., 1 April 2024 - 31 March 2025' },
+    ],
+    outputFormat: 'word',
+  },
+  'annual-training-report': {
+    kind: 'form',
+    type: 'annual-training-report',
+    title: 'Annual Training Report (ATR)',
+    description: 'A template for an Annual Training Report, documenting training completed in the previous year for SETA submission.',
+    icon: SkillsDevelopmentIcon,
+    questions: [
+      ...commonQuestions,
+      { id: 'sdlNumber', label: 'Skills Development Levy (SDL) Number', type: 'text' },
+      { id: 'setaName', label: 'Name of your SETA', type: 'text', placeholder: 'e.g., Services SETA' },
+      { id: 'reportingPeriod', label: 'Reporting Period', type: 'text', placeholder: 'e.g., 1 April 2023 - 31 March 2024' },
+    ],
+    outputFormat: 'word',
   },
    // Newly Added Forms
   'staff-grooming-checklist': {
@@ -1326,6 +1430,62 @@ export const FORMS: Record<FormType, Form> = {
     questions: [...commonQuestions],
     outputFormat: 'word',
   },
+  // New forms from list
+  'certificate-of-service': {
+    kind: 'form',
+    type: 'certificate-of-service',
+    title: 'Certificate of Service',
+    description: 'Generate a BCEA-compliant Certificate of Service for a departing employee.',
+    icon: CertificateOfServiceIcon,
+    questions: [
+      ...employeeAndManagerQuestions,
+      { id: 'employeePosition', label: 'Employee\'s Position at Termination', type: 'text' },
+      { id: 'employeeStartDate', label: 'Employment Start Date', type: 'text', placeholder: 'e.g., 1 January 2020' },
+      { id: 'employeeEndDate', label: 'Employment End Date', type: 'text', placeholder: 'e.g., 31 October 2024' },
+      { id: 'reasonForTermination', label: 'Reason for Termination', type: 'text', placeholder: 'e.g., Resignation', tip: 'As per the BCEA, the reason for termination is only included if the employee requests it.' },
+    ],
+    outputFormat: 'word',
+  },
+  'termination-letter': {
+    kind: 'form',
+    type: 'termination-letter',
+    title: 'Termination Letter Template',
+    description: 'A formal letter for concluding an employment relationship, outlining final details.',
+    icon: TerminationOfEmploymentIcon,
+    questions: [
+      ...employeeAndManagerQuestions,
+      { id: 'terminationDate', label: 'Date of Termination', type: 'text', placeholder: 'e.g., 31 October 2024' },
+      { id: 'noticePeriod', label: 'Notice Period Served', type: 'text', placeholder: 'e.g., 4 weeks' },
+      { id: 'reasonForTermination', label: 'Reason for Termination', type: 'textarea', placeholder: 'e.g., Dismissal for misconduct following a disciplinary hearing.' },
+    ],
+    outputFormat: 'word',
+  },
+  'resignation-acceptance-letter': {
+    kind: 'form',
+    type: 'resignation-acceptance-letter',
+    title: 'Resignation Acceptance Letter',
+    description: 'Formally acknowledge an employee\'s resignation and confirm their last working day.',
+    icon: ReferenceCheckIcon,
+    questions: [
+      ...employeeAndManagerQuestions,
+      { id: 'resignationDateReceived', label: 'Date Resignation was Received', type: 'text', placeholder: 'e.g., 1 October 2024' },
+      { id: 'lastWorkingDay', label: 'Confirmed Last Working Day', type: 'text', placeholder: 'e.g., 31 October 2024' },
+    ],
+    outputFormat: 'word',
+  },
+  'payroll-processing-checklist': {
+    kind: 'form',
+    type: 'payroll-processing-checklist',
+    title: 'Payroll Processing Checklist',
+    description: 'A checklist to ensure accurate and compliant payroll processing, covering all statutory requirements.',
+    icon: PayrollProcessingIcon,
+    questions: [
+      ...commonQuestions,
+      { id: 'payPeriod', label: 'Payroll Month/Year', type: 'text', placeholder: 'e.g., October 2024' },
+      { id: 'processedBy', label: 'Payroll Processed By', type: 'text', placeholder: 'e.g., Jane Doe' },
+    ],
+    outputFormat: 'excel',
+  },
 };
 
 
@@ -1504,6 +1664,21 @@ The designated Safety Officer is [safetyOfficerName], who is responsible for ove
     'All employees are responsible for safeguarding their access credentials and must adhere to the company\'s password and data security protocols. Unauthorised access or misuse of company systems is strictly prohibited and may result in disciplinary action. For support, contact [itSupportContact].'
   ),
   'employee-handbook': '', // This is dynamically generated, no base template needed
+  'conflict-of-interest': createGenericTemplate(
+    'Conflict of Interest Policy',
+    'the identification and management of potential conflicts of interest',
+    'Employees must avoid any activity or interest that might interfere with their objectivity in performing company duties. All potential conflicts must be disclosed to [disclosureContact] for review. Failure to disclose a conflict of interest may result in disciplinary action.'
+  ),
+  'records-retention-destruction': createGenericTemplate(
+    'Records Retention and Destruction Policy',
+    'the management, retention, and secure destruction of company and employee records in compliance with POPIA',
+    `All company records must be retained for the period specified in our Records Retention Schedule, with a standard period of [retentionPeriod] years for general employee files unless otherwise required by law. After the retention period, records must be securely destroyed. The Information Officer, [infoOfficer], is responsible for overseeing this policy.`
+  ),
+  'salary-structure-guide': createGenericTemplate(
+    'Salary Structure Guide',
+    'our approach to employee compensation',
+    `This guide outlines the principles of our salary structure, which is designed to be fair, equitable, and competitive. Our philosophy is: [compensationPhilosophy]. The structure consists of salary bands based on job roles, responsibilities, and market data. This policy does not constitute a contract of employment.`
+  ),
 };
 
 export const FORM_BASE_TEMPLATES: Record<FormType, string> = {
@@ -2104,6 +2279,115 @@ I, the undersigned, authorize [companyName] to deposit my salary into the above 
 **Manager Approval ([managerName]):** _________________________
 **Date:** _________________________
 `,
+'employment-contract': `
+# Contract of Employment
+
+Entered into between:
+
+**[companyName]**
+("The Employer")
+
+and
+
+**[employeeName]**
+("The Employee")
+
+### 1. Commencement and Position
+1.1. This contract will commence on **[startDate]**.
+1.2. The Employee is appointed to the position of **[jobTitle]**.
+
+### 2. Probation
+2.1. A probation period of **[probationPeriod]** months will apply.
+
+### 3. Remuneration
+3.1. The Employee's gross monthly salary will be **ZAR [grossSalary]**.
+
+### 4. Hours of Work
+4.1. Normal working hours are from **[workingHours]**.
+
+### 5. Leave
+5.1. The Employee is entitled to **[annualLeaveDays]** days of annual leave per annum.
+5.2. Sick leave and family responsibility leave will be as per the Basic Conditions of Employment Act.
+
+### 6. Termination
+6.1. The required notice period for termination by either party is **[noticePeriod]** weeks.
+
+Signed at _________________________ on this ______ day of ______________ 20____.
+
+**For the Employer:** _________________________
+Name: [managerName]
+
+**Employee:** _________________________
+Name: [employeeName]
+`,
+'permission-for-deductions': `
+# Employee Authorisation for Salary Deduction
+
+| | |
+|---|---|
+| **Employee Name:** | [employeeName] |
+| **Date:** | _________________________ |
+
+I, the undersigned, hereby voluntarily authorize [companyName] to deduct the following amount from my salary:
+
+- **Total Amount:** ZAR [deductionAmount]
+- **Reason for Deduction:** [deductionReason]
+- **Repayment Schedule:** [repaymentSchedule]
+
+I confirm that I have been consulted on this matter and agree to this deduction.
+
+**Employee Signature:** _________________________
+
+**For the Employer ([managerName]):** _________________________
+`,
+'workplace-skills-plan': `
+# Workplace Skills Plan (WSP)
+## [companyName]
+
+| | |
+|---|---|
+| **Company Legal Name:** | [companyName] |
+| **SDL Number:** | [sdlNumber] |
+| **SETA:** | [setaName] |
+| **Reporting Period:** | [reportingPeriod] |
+
+### Section 1: Skills Priorities
+(List the key skills priorities for the upcoming year based on business goals)
+1. _________________________
+2. _________________________
+
+### Section 2: Planned Training Interventions
+| Training Programme / Course | Number of Staff |
+|---|---|
+| | |
+| | |
+| | |
+
+**Submitted by:** _________________________
+**Date:** _________________________
+`,
+'annual-training-report': `
+# Annual Training Report (ATR)
+## [companyName]
+
+| | |
+|---|---|
+| **Company Legal Name:** | [companyName] |
+| **SDL Number:** | [sdlNumber] |
+| **SETA:** | [setaName] |
+| **Reporting Period:** | [reportingPeriod] |
+
+### Section 1: Training Completed
+(Report on the training that was conducted in the past year)
+| Training Programme / Course | Number of Staff Trained |
+|---|---|
+| | |
+| | |
+| | |
+
+**Submitted by:** _________________________
+**Date:** _________________________
+`,
 // Templates for newly added forms
 'staff-grooming-checklist': `
 # Staff Grooming Checklist
@@ -2353,7 +2637,6 @@ I have received and understood the content of these training modules.
 
 | Employee Name | Leave Type | From Date | To Date | Total Days |
 |---|---|---|---|---|
-| | | | | |
 | | | | | |
 `,
 'voluntary-retrenchment-application': `
@@ -2841,6 +3124,125 @@ _________________________
 **Signature:** _________________________
 **Date:** _________________________
 `,
+'certificate-of-service': `
+# Certificate of Service
+## [companyName]
+
+This is to certify that:
+
+**[employeeName]**
+
+Was employed by **[companyName]**
+
+From: **[employeeStartDate]**
+To: **[employeeEndDate]**
+
+The employee's position upon termination of service was:
+**[employeePosition]**
+
+Reason for termination of service: **[reasonForTermination]**
+
+---
+**Signed by:**
+
+_________________________
+**[managerName]**
+(Manager/Director)
+**Date:** _________________
+`,
+'termination-letter': `
+# Letter of Termination
+
+**Date:** _________________
+
+**To:**
+[employeeName]
+[Employee Address]
+
+**From:**
+[managerName]
+[companyName]
+
+**Subject: Notice of Termination of Employment**
+
+Dear [employeeName],
+
+This letter serves to confirm the termination of your employment with [companyName], effective **[terminationDate]**.
+
+This decision is based on: [reasonForTermination].
+
+You will be required to serve your contractual notice period of **[noticePeriod]**. Your last working day will be **[terminationDate]**.
+
+Details regarding your final salary, outstanding leave pay, and other statutory payments will be provided to you separately.
+
+We wish you the best in your future endeavours.
+
+Sincerely,
+
+_________________________
+**[managerName]**
+For [companyName]
+`,
+'resignation-acceptance-letter': `
+# Acceptance of Resignation
+
+**Date:** _________________
+
+**To:**
+[employeeName]
+
+**From:**
+[managerName]
+[companyName]
+
+**Subject: Acknowledgement and Acceptance of Resignation**
+
+Dear [employeeName],
+
+This letter is to formally acknowledge receipt of your letter of resignation on **[resignationDateReceived]**.
+
+We accept your resignation and confirm that your last day of employment with [companyName] will be **[lastWorkingDay]**.
+
+We will be in contact shortly to arrange a handover process and an exit interview.
+
+We thank you for your service and wish you well for the future.
+
+Sincerely,
+
+_________________________
+**[managerName]**
+For [companyName]
+`,
+'payroll-processing-checklist': `
+# Payroll Processing Checklist
+## [companyName] - [payPeriod]
+
+| Task | Status (Done/NA) | Notes |
+|---|---|---|
+| **PRE-PROCESSING** | | |
+| Confirm all new hires are on the system | | |
+| Confirm all terminations are processed | | |
+| Verify and input all leave taken | | |
+| Verify and input all approved overtime | | |
+| Verify all salary changes/increases | | |
+| Check for any ad-hoc deductions/allowances | | |
+| **PROCESSING** | | |
+| Run provisional payroll | | |
+| Reconcile payroll with previous month | | |
+| Get final payroll report approved | | |
+| Process final payroll | | |
+| **POST-PROCESSING** | | |
+| Distribute payslips to employees | | |
+| Submit EMP201 (PAYE, SDL, UIF) to SARS | | |
+| Submit UIF Declaration to Dept. of Labour | | |
+| Make payments to third parties (e.g., medical aid) | | |
+
+**Processed by:** [processedBy]
+**Date:** _________________
+
+**Reviewed by:** _________________
+**Date:** _________________
+`,
 };
 
 export const FORM_ENRICHMENT_PROMPTS: Partial<Record<FormType, string>> = {
@@ -2868,6 +3270,10 @@ export const FORM_ENRICHMENT_PROMPTS: Partial<Record<FormType, string>> = {
   'performance-review': "Frame the review as a two-way discussion. Add an introductory note: 'This performance review is a collaborative process and a two-way conversation. It is an opportunity to discuss your achievements, challenges, and career aspirations at [companyName].'",
   'salary-bank-details': "Include a security and privacy note: 'This information is strictly confidential and will be used solely for payroll purposes in accordance with the Protection of Personal Information Act (POPIA).'",
   'overtime-claim': "Add a note about payment rates and policy: 'Approved overtime will be compensated in accordance with the company's Working Hours Policy and the rates prescribed by the Basic Conditions of Employment Act (BCEA).'",
+  'employment-contract': "Add a clause stating that the contract is subject to the company's policies and procedures, which may be amended from time to time. Also include a POPIA consent clause for processing employee information for HR and payroll purposes.",
+  'permission-for-deductions': "Add a legal note for the employee: 'Please note: As per the Basic Conditions of Employment Act, deductions from your salary (other than statutory deductions) are only lawful with your written consent. The total deduction cannot exceed 25% of your total remuneration in cash. By signing this form, you confirm that you agree to this deduction freely and voluntarily.'",
+  'workplace-skills-plan': "Add an introductory paragraph explaining the purpose of the WSP, which is to outline the company's plan to develop its employees' skills in line with its operational needs and the National Skills Development Strategy. Mention that its submission is a requirement for claiming back a portion of the Skills Development Levy (SDL).",
+  'annual-training-report': "Add an introductory paragraph explaining that the ATR is a factual report on the training and skills development that took place during the specified period. It must be submitted along with the WSP to the relevant SETA.",
   'staff-grooming-checklist': "Add a reference note: 'This checklist is a summary of our grooming standards. For full details, please refer to the company's Dress Code and Personal Appearance Policy.'",
   'warehouse-master-cleaning-checklist': "Add a Health & Safety note: 'Safety First: Always use the required Personal Protective Equipment (PPE) when handling cleaning chemicals. Report any safety hazards to your supervisor immediately.'",
   'master-cleaning-schedule': "Add a compliance note: 'Consistent completion of this schedule is essential for maintaining a clean, safe, and hygienic work environment for all employees and visitors.'",
@@ -2910,4 +3316,8 @@ export const FORM_ENRICHMENT_PROMPTS: Partial<Record<FormType, string>> = {
   'final-warning-hearing-held': "Clarify the severity: 'A final written warning is the last step before a dismissal may be considered for any future transgressions of the company's code of conduct. This warning is valid for twelve (12) months.'",
   'incident-investigation-report': "State the primary goal: 'The primary purpose of this investigation is not to assign blame, but to identify the root cause(s) of the incident and to implement effective corrective actions to prevent a recurrence.'",
   'incident-report': "Add an urgency note: 'This form must be completed as soon as is reasonably possible after an incident occurs to ensure that the details are recorded accurately. It is the first step in the company's safety and incident management procedure.'",
+  'certificate-of-service': "Add a compliance note: 'As per the Basic Conditions of Employment Act (BCEA), an employer is legally required to provide a Certificate of Service to an employee upon termination of employment.'",
+  'termination-letter': "Add a procedural note: 'Please ensure all company property is returned on or before your last day. You will also be provided with the necessary UI-19 form for UIF purposes.'",
+  'resignation-acceptance-letter': "Add a note on next steps: 'The HR department will contact you to schedule an exit interview and to provide details regarding the final handover of your duties and company property.'",
+  'payroll-processing-checklist': "Add a compliance reminder: 'Ensure you are using the latest SARS tax tables and UIF/SDL contribution thresholds for the current financial year. Deadlines for EMP201 submissions and payments are critical to avoid penalties.'",
 };

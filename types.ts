@@ -54,7 +54,11 @@ export type PolicyType =
   | 'deductions'
   | 'anti-bullying'
   | 'it-access-security'
-  | 'employee-handbook';
+  | 'employee-handbook'
+  // New policies from list
+  | 'conflict-of-interest'
+  | 'records-retention-destruction'
+  | 'salary-structure-guide';
 
 export type FormType =
   | 'job-application'
@@ -82,6 +86,10 @@ export type FormType =
   | 'salary-bank-details'
   | 'overtime-claim'
   // New Forms
+  | 'employment-contract'
+  | 'permission-for-deductions'
+  | 'workplace-skills-plan'
+  | 'annual-training-report'
   | 'staff-grooming-checklist'
   | 'warehouse-master-cleaning-checklist'
   | 'master-cleaning-schedule'
@@ -123,7 +131,12 @@ export type FormType =
   | 'poor-performance-meeting-minutes'
   | 'final-warning-hearing-held'
   | 'incident-investigation-report'
-  | 'incident-report';
+  | 'incident-report'
+  // New forms from list
+  | 'certificate-of-service'
+  | 'termination-letter'
+  | 'resignation-acceptance-letter'
+  | 'payroll-processing-checklist';
 
 export type InputType = 'text' | 'number' | 'textarea' | 'select' | 'checkbox';
 
