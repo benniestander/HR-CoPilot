@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { LoadingIcon, CopyIcon, DownloadIcon, CheckIcon } from './Icons';
+import React, { useState, useEffect, useRef } from 'react';
+import { LoadingIcon, CopyIcon, DownloadIcon, CheckIcon, WordIcon, ExcelIcon, PdfIcon, TxtIcon } from './Icons';
 import type { AppStatus, Source } from '../types';
 import { GLOSSARY } from '../glossary';
 import GlossaryModal from './GlossaryModal';
@@ -17,7 +17,7 @@ const SourcesUsed: React.FC<{ sources: Source[] }> = ({ sources }) => {
   if (sources.length === 0) return null;
 
   return (
-    <div className="mt-6 pt-6 border-t border-dashed border-gray-300">
+    <div className="mt-6 pt-6 border-t border-dashed border-gray-300 next-steps-print-hide">
       <h3 className="text-xl font-bold text-secondary mb-4">Sources Used</h3>
       <p className="text-sm text-gray-600 mb-4">
         This document was generated using information from the following web sources for grounding and accuracy. It is recommended to review them for further context.
@@ -48,6 +48,8 @@ const PolicyPreview: React.FC<PolicyPreviewProps> = ({ policyText, status, onRet
   const [copied, setCopied] = useState(false);
   const [editableText, setEditableText] = useState(policyText);
   const [selectedTerm, setSelectedTerm] = useState<{ term: string; definition: string } | null>(null);
+  const [isDownloadMenuOpen, setDownloadMenuOpen] = useState(false);
+  const downloadMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     // When the generation is finished, update the editable text.
@@ -62,6 +64,18 @@ const PolicyPreview: React.FC<PolicyPreviewProps> = ({ policyText, status, onRet
       return () => clearTimeout(timer);
     }
   }, [copied]);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (downloadMenuRef.current && !downloadMenuRef.current.contains(event.target as Node)) {
+        setDownloadMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
 
   const handleCopy = () => {
     const textToCopy = isForm ? editableText : policyText;
@@ -84,21 +98,109 @@ const PolicyPreview: React.FC<PolicyPreviewProps> = ({ policyText, status, onRet
       row.map(cell => `"${cell.replace(/"/g, '""')}"`).join(',')
     ).join('\n');
   };
+
+  const handlePrintToPdf = () => {
+    const previewContainer = document.getElementById('policy-preview-content');
+    if (!previewContainer) return;
+
+    let contentToPrint = '';
+    const textarea = previewContainer.querySelector('textarea');
+    
+    if (textarea) {
+        // It's a form, get textarea value and wrap in <pre>
+        const escapedText = textarea.value.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        contentToPrint = `<pre style="white-space: pre-wrap; font-family: sans-serif; font-size: 14px;">${escapedText}</pre>`;
+    } else {
+        // It's a policy, get the rendered HTML
+        contentToPrint = previewContainer.innerHTML;
+    }
+
+    const iframe = document.createElement('iframe');
+    iframe.style.position = 'absolute';
+    iframe.style.width = '0';
+    iframe.style.height = '0';
+    iframe.style.border = 'none';
+    document.body.appendChild(iframe);
+
+    const doc = iframe.contentWindow?.document;
+    if (doc) {
+        doc.open();
+        doc.write(`
+        <!DOCTYPE html>
+        <html>
+            <head>
+            <title>Print Document</title>
+            <script src="https://cdn.tailwindcss.com"></script>
+            <script>
+                tailwind.config = {
+                    theme: {
+                        extend: {
+                            typography: ({ theme }) => ({
+                                DEFAULT: {
+                                    css: {
+                                        // Custom prose styles for printing if needed
+                                    },
+                                },
+                            }),
+                        }
+                    }
+                }
+            </script>
+            <style>
+                @media print {
+                    body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+                    button { display: none !important; }
+                    .next-steps-print-hide { display: none !important; }
+                }
+            </style>
+            </head>
+            <body>
+                <div class="p-4">
+                    <div class="${textarea ? '' : 'prose max-w-none'}">${contentToPrint}</div>
+                </div>
+            </body>
+        </html>
+        `);
+        doc.close();
+    }
+    
+    iframe.onload = () => {
+        iframe.contentWindow?.focus();
+        iframe.contentWindow?.print();
+        setTimeout(() => {
+            document.body.removeChild(iframe);
+        }, 1000);
+    };
+  };
   
-  const handleDownload = () => {
+  const handleDownload = (format: 'word' | 'csv' | 'txt' | 'pdf') => {
+    setDownloadMenuOpen(false);
+    const textToDownload = isForm ? editableText : policyText;
+
+    if (format === 'pdf') {
+        handlePrintToPdf();
+        return;
+    }
+
     let blob;
     let filename;
     const title = `hr_${isForm ? 'form' : 'policy'}`;
-    const effectiveFormat = isForm ? outputFormat : 'word';
-    const textToDownload = isForm ? editableText : policyText;
 
-    if (effectiveFormat === 'excel') {
-      const csvContent = markdownTableToCsv(textToDownload);
-      blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-      filename = `${title}.csv`;
-    } else { // 'word'
-      blob = new Blob([textToDownload], { type: 'application/msword;charset=utf-8' });
-      filename = `${title}.doc`;
+    switch(format) {
+      case 'csv':
+        const csvContent = markdownTableToCsv(textToDownload);
+        blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        filename = `${title}.csv`;
+        break;
+      case 'txt':
+        blob = new Blob([textToDownload], { type: 'text/plain;charset=utf-8;' });
+        filename = `${title}.txt`;
+        break;
+      case 'word':
+      default:
+        blob = new Blob([textToDownload], { type: 'application/msword;charset=utf-8' });
+        filename = `${title}.doc`;
+        break;
     }
     
     const url = URL.createObjectURL(blob);
@@ -170,7 +272,7 @@ const PolicyPreview: React.FC<PolicyPreviewProps> = ({ policyText, status, onRet
         );
       case 'success':
         return (
-            <div className="h-full flex flex-col">
+            <div id="policy-preview-content" className="h-full flex flex-col">
               {isForm ? (
                 <textarea
                   value={editableText}
@@ -181,19 +283,19 @@ const PolicyPreview: React.FC<PolicyPreviewProps> = ({ policyText, status, onRet
                 />
               ) : (
                 <div 
-                   className="w-full h-full flex-grow p-4 border border-gray-300 rounded-md resize-none focus:ring-primary focus:border-primary font-sans text-base overflow-y-auto whitespace-pre-wrap"
+                   className="w-full h-full flex-grow p-4 border border-gray-300 rounded-md resize-none focus:ring-primary focus:border-primary font-sans text-base overflow-y-auto"
                    aria-label="Document content"
                    style={{minHeight: '400px'}}
                 >
-                    {highlightTerms(policyText)}
+                    <div className="whitespace-pre-wrap">{highlightTerms(policyText)}</div>
                 </div>
               )}
                {!isForm && <SourcesUsed sources={sources} />}
-               <div className="mt-6 pt-6 border-t border-dashed border-gray-300">
+               <div className="mt-6 pt-6 border-t border-dashed border-gray-300 next-steps-print-hide">
                 <h3 className="text-xl font-bold text-secondary mb-4">Next Steps</h3>
                 <ul className="list-disc list-inside space-y-2 text-gray-700 text-sm">
                   <li>
-                    <strong>Review & Edit:</strong> You can copy the text or download the file to make final adjustments.
+                    <strong>Review & Finalize:</strong> Use the download options to get the document in your preferred format for final edits.
                   </li>
                   <li>
                     <strong>Legal Check:</strong> We strongly recommend a qualified labour lawyer reviews this document.
@@ -208,10 +310,16 @@ const PolicyPreview: React.FC<PolicyPreviewProps> = ({ policyText, status, onRet
     }
   };
 
-  const effectiveFormat = isForm ? outputFormat : 'word';
-  const downloadTitle = effectiveFormat === 'excel'
-    ? 'Download as .csv (Excel compatible)'
-    : 'Download as .doc (Word compatible)';
+  const downloadOptions = [
+    { format: 'word', label: 'Download as .doc', icon: WordIcon, color: 'text-blue-700' },
+    { format: 'pdf', label: 'Download as PDF', icon: PdfIcon, color: 'text-red-700' },
+    { format: 'txt', label: 'Download as .txt', icon: TxtIcon, color: 'text-gray-700' },
+  ];
+
+  if (isForm && outputFormat === 'excel') {
+    downloadOptions.push({ format: 'csv', label: 'Download as .csv', icon: ExcelIcon, color: 'text-green-700' });
+  }
+
 
   return (
     <div className="bg-white p-8 rounded-lg shadow-md border border-gray-200 relative flex flex-col h-full">
@@ -220,9 +328,36 @@ const PolicyPreview: React.FC<PolicyPreviewProps> = ({ policyText, status, onRet
           <button onClick={handleCopy} className="p-2 rounded-full bg-gray-100 hover:bg-gray-200 transition-colors" title="Copy to Clipboard">
             {copied ? <CheckIcon className="w-5 h-5 text-green-600" /> : <CopyIcon className="w-5 h-5 text-gray-600" />}
           </button>
-          <button onClick={handleDownload} className="p-2 rounded-full bg-gray-100 hover:bg-gray-200 transition-colors" title={downloadTitle}>
-            <DownloadIcon className="w-5 h-5 text-gray-600" />
-          </button>
+          
+          <div ref={downloadMenuRef} className="relative">
+            <button 
+              onClick={() => setDownloadMenuOpen(prev => !prev)} 
+              className="p-2 rounded-full bg-gray-100 hover:bg-gray-200 transition-colors" 
+              title="Download Options"
+              aria-haspopup="true"
+              aria-expanded={isDownloadMenuOpen}
+            >
+              <DownloadIcon className="w-5 h-5 text-gray-600" />
+            </button>
+            
+            {isDownloadMenuOpen && (
+              <div className="absolute right-0 mt-2 w-56 origin-top-right bg-white rounded-md shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
+                <div className="py-1" role="menu" aria-orientation="vertical" aria-labelledby="options-menu">
+                  {downloadOptions.map((option) => (
+                     <button
+                        key={option.format}
+                        onClick={() => handleDownload(option.format as any)}
+                        className="w-full text-left flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                        role="menuitem"
+                      >
+                        <option.icon className={`w-5 h-5 mr-3 ${option.color}`} />
+                        {option.label}
+                      </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       )}
       <div className="h-full flex-grow flex items-center justify-center">

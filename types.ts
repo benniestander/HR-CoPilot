@@ -1,3 +1,4 @@
+
 import type React from 'react';
 
 export type PolicyType =
@@ -183,4 +184,17 @@ export interface Source {
     uri: string;
     title: string;
   };
+}
+
+// Types for the Policy Updater feature
+export interface PolicyUpdateChange {
+  changeDescription: string;
+  reason: string;
+  originalText?: string;
+  updatedText: string;
+}
+
+export interface PolicyUpdateResult {
+  updatedPolicyText: string;
+  changes: PolicyUpdateChange[];
 }

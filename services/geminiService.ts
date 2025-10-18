@@ -1,6 +1,7 @@
-import { GoogleGenAI, GenerateContentResponse } from "@google/genai";
+
+import { GoogleGenAI, GenerateContentResponse, Type } from "@google/genai";
 import { POLICIES, FORM_BASE_TEMPLATES, FORMS, FORM_ENRICHMENT_PROMPTS } from '../constants';
-import type { PolicyType, FormType, FormAnswers } from '../types';
+import type { PolicyType, FormType, FormAnswers, PolicyUpdateResult } from '../types';
 
 if (!process.env.API_KEY) {
   throw new Error("API_KEY environment variable is not set");
@@ -227,5 +228,81 @@ Use simple, clear language suitable for someone who is not an HR expert. Use bul
   } catch (error) {
     console.error("Error calling Gemini API for form explanation:", error);
     throw new Error("Failed to generate explanation from AI. Please try again.");
+  }
+}
+
+export async function updatePolicy(
+  currentPolicyText: string,
+): Promise<PolicyUpdateResult> {
+  const systemInstruction = `You are an expert South African HR consultant and legal drafter specializing in reviewing and updating HR policies for small businesses to ensure compliance with the latest South African labour law. Your goal is to return a JSON object containing the updated policy and a detailed log of changes.
+- You MUST only update what is legally necessary or outdated to comply with current South African legislation (e.g., BCEA, LRA, POPIA).
+- You MUST preserve the original tone, structure, and wording as much as possible. Do not rewrite entire sections unless essential for compliance.
+- For each change, you MUST provide a concise reason, citing the relevant legislation where possible.
+- The output MUST be a valid JSON object matching the provided schema. Do not include any markdown formatting or introductory text outside of the JSON structure.`;
+  
+  const prompt = `
+Please review the following South African HR policy. Identify any sections that are outdated or non-compliant with current labour laws. Provide an updated version of the policy and a list of all changes made.
+
+**Current Policy Text:**
+---
+${currentPolicyText}
+---
+`;
+
+  const responseSchema = {
+    type: Type.OBJECT,
+    properties: {
+      updatedPolicyText: {
+        type: Type.STRING,
+        description: 'The full, updated text of the policy in Markdown format.',
+      },
+      changes: {
+        type: Type.ARRAY,
+        description: 'An array of objects detailing each change made to the policy.',
+        items: {
+          type: Type.OBJECT,
+          properties: {
+            changeDescription: {
+              type: Type.STRING,
+              description: 'A brief summary of what was changed, e.g., "Updated leave days calculation".',
+            },
+            reason: {
+              type: Type.STRING,
+              description: 'The educational reason for the change, citing relevant SA legislation (e.g., "This aligns with the latest amendment to the BCEA regarding parental leave.").',
+            },
+            originalText: {
+              type: Type.STRING,
+              description: 'The original text snippet that was changed or removed. Omit if the change is a pure addition.',
+            },
+            updatedText: {
+              type: Type.STRING,
+              description: 'The new text snippet that was added or that replaced the original.',
+            },
+          },
+          required: ['changeDescription', 'reason', 'updatedText'],
+        },
+      },
+    },
+    required: ['updatedPolicyText', 'changes'],
+  };
+
+  try {
+    const response = await ai.models.generateContent({
+      model: "gemini-2.5-flash",
+      contents: [{ role: "user", parts: [{ text: prompt }] }],
+      config: {
+        systemInstruction: systemInstruction,
+        responseMimeType: "application/json",
+        responseSchema: responseSchema,
+      },
+    });
+    
+    // The response.text is a JSON string.
+    const jsonText = response.text.trim();
+    return JSON.parse(jsonText) as PolicyUpdateResult;
+
+  } catch (error) {
+    console.error("Error calling Gemini API for policy update:", error);
+    throw new Error("Failed to update policy from AI. Please check the input and try again.");
   }
 }

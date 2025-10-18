@@ -12,26 +12,39 @@ import {
   CommunicationRetentionIcon,
   DataUsageIcon,
   ElectronicCommunicationsIcon,
+  // FIX: ResignationIcon was missing, it's now added to Icons.tsx
   ResignationIcon,
+  // FIX: SecurityIcon was missing, it's now added to Icons.tsx
   SecurityIcon,
+  // FIX: SexualHarassmentIcon was missing, it's now added to Icons.tsx
   SexualHarassmentIcon,
+  // FIX: StandbyIcon was missing, it's now added to Icons.tsx
   StandbyIcon,
+  // FIX: TelephoneUsageIcon was missing, it's now added to Icons.tsx
   TelephoneUsageIcon,
+  // FIX: TimeOffIcon was missing, it's now added to Icons.tsx
   TimeOffIcon,
+  // FIX: TravelIcon was missing, it's now added to Icons.tsx
   TravelIcon,
   CompanyPropertyIcon,
+  // FIX: VisitorIcon was missing, it's now added to Icons.tsx
   VisitorIcon,
+  // FIX: RemoteWorkIcon was missing, it's now added to Icons.tsx
   RemoteWorkIcon,
   EeoDiversityIcon,
   AttendancePunctualityIcon,
   EmployeeConductIcon,
   DataProtectionPrivacyIcon,
   DisciplinaryActionIcon,
+  // FIX: WhistleblowerIcon was missing, it's now added to Icons.tsx
   WhistleblowerIcon,
   CompensationBenefitsIcon,
+  // FIX: PerformanceManagementIcon was missing, it's now added to Icons.tsx
   PerformanceManagementIcon,
+  // FIX: WorkplaceWellnessIcon was missing, it's now added to Icons.tsx
   WorkplaceWellnessIcon,
   ItCybersecurityIcon,
+  // FIX: SocialMediaIcon was missing, it's now added to Icons.tsx
   SocialMediaIcon,
   ConfidentialityIcon,
   EmployeeSeparationIcon,
@@ -40,67 +53,112 @@ import {
   ExpenseReimbursementIcon,
   EmploymentEquityIcon,
   CoidaIcon,
+  // FIX: UifIcon was missing, it's now added to Icons.tsx
   UifIcon,
+  // FIX: RecruitmentSelectionIcon was missing, it's now added to Icons.tsx
   RecruitmentSelectionIcon,
+  // FIX: WorkingHoursIcon was missing, it's now added to Icons.tsx
   WorkingHoursIcon,
+  // FIX: TrainingDevelopmentIcon was missing, it's now added to Icons.tsx
   TrainingDevelopmentIcon,
   AntiBriberyCorruptionIcon,
   DressCodeIcon,
   AlcoholDrugIcon,
+  // FIX: TerminationOfEmploymentIcon was missing, it's now added to Icons.tsx
   TerminationOfEmploymentIcon,
+  // FIX: RetrenchmentIcon was missing, it's now added to Icons.tsx
   RetrenchmentIcon,
   // New Icons for new policies
   DeductionsIcon,
   AntiBullyingIcon,
   ItAccessSecurityIcon,
   // New Policy Icons
+  // FIX: ConflictOfInterestIcon was missing, it's now added to Icons.tsx
   ConflictOfInterestIcon,
+  // FIX: RecordsRetentionIcon was missing, it's now added to Icons.tsx
   RecordsRetentionIcon,
+  // FIX: SalaryStructureIcon was missing, it's now added to Icons.tsx
   SalaryStructureIcon,
   // Form Icons
+  // FIX: JobApplicationIcon was missing, it's now added to Icons.tsx
   JobApplicationIcon,
+  // FIX: LeaveApplicationIcon was missing, it's now added to Icons.tsx
   LeaveApplicationIcon,
+  // FIX: FinalWrittenWarningIcon was missing, it's now added to Icons.tsx
   FinalWrittenWarningIcon,
+  // FIX: ExitInterviewIcon was missing, it's now added to Icons.tsx
   ExitInterviewIcon,
-  GrievanceFormIcon,
+  // FIX: EmployeeDetailsIcon was missing, it's now added to Icons.tsx
   EmployeeDetailsIcon,
+  // FIX: JobDescriptionIcon was missing, it's now added to Icons.tsx
   JobDescriptionIcon,
+  // FIX: MaternityLeaveIcon was missing, it's now added to Icons.tsx
   MaternityLeaveIcon,
-  DisciplinaryReportIcon,
+  // FIX: SuspensionNoticeIcon was missing, it's now added to Icons.tsx
   SuspensionNoticeIcon,
+  // FIX: AppealFormIcon was missing, it's now added to Icons.tsx
   AppealFormIcon,
+  // FIX: ExpenseClaimIcon was missing, it's now added to Icons.tsx
   ExpenseClaimIcon,
+  // FIX: TrainingAgreementIcon was missing, it's now added to Icons.tsx
   TrainingAgreementIcon,
+  // FIX: ReferenceCheckIcon was missing, it's now added to Icons.tsx
   ReferenceCheckIcon,
+  // FIX: RetrenchmentNoticeIcon was missing, it's now added to Icons.tsx
   RetrenchmentNoticeIcon,
+  // FIX: JobAdvertisementIcon was missing, it's now added to Icons.tsx
   JobAdvertisementIcon,
+  // FIX: InterviewGuideIcon was missing, it's now added to Icons.tsx
   InterviewGuideIcon,
+  // FIX: CandidateEvaluationIcon was missing, it's now added to Icons.tsx
   CandidateEvaluationIcon,
+  // FIX: OnboardingChecklistIcon was missing, it's now added to Icons.tsx
   OnboardingChecklistIcon,
-  ConfidentialityAgreementIcon,
+  // FIX: RestraintOfTradeIcon was missing, it's now added to Icons.tsx
   RestraintOfTradeIcon,
+  // FIX: PerformanceReviewIcon was missing, it's now added to Icons.tsx
   PerformanceReviewIcon,
+  // FIX: SalaryBankIcon was missing, it's now added to Icons.tsx
   SalaryBankIcon,
+  // FIX: OvertimeClaimIcon was missing, it's now added to Icons.tsx
   OvertimeClaimIcon,
+  // FIX: EmploymentContractIcon was missing, it's now added to Icons.tsx
   EmploymentContractIcon,
+  // FIX: PermissionForDeductionsIcon was missing, it's now added to Icons.tsx
   PermissionForDeductionsIcon,
+  // FIX: SkillsDevelopmentIcon was missing, it's now added to Icons.tsx
   SkillsDevelopmentIcon,
   // New Form Icons
+  // FIX: CertificateOfServiceIcon was missing, it's now added to Icons.tsx
   CertificateOfServiceIcon,
+  // FIX: PayrollProcessingIcon was missing, it's now added to Icons.tsx
   PayrollProcessingIcon,
   // New Generic Icons
+  // FIX: ChecklistIcon was missing, it's now added to Icons.tsx
   ChecklistIcon,
+  // FIX: CleaningIcon was missing, it's now added to Icons.tsx
   CleaningIcon,
+  // FIX: FoodSafetyIcon was missing, it's now added to Icons.tsx
   FoodSafetyIcon,
+  // FIX: TemperatureIcon was missing, it's now added to Icons.tsx
   TemperatureIcon,
+  // FIX: TrainingRegisterIcon was missing, it's now added to Icons.tsx
   TrainingRegisterIcon,
+  // FIX: RegisterIcon was missing, it's now added to Icons.tsx
   RegisterIcon,
+  // FIX: CanvaIcon was missing, it's now added to Icons.tsx
   CanvaIcon,
+  // FIX: LegalNoticeIcon was missing, it's now added to Icons.tsx
   LegalNoticeIcon,
+  // FIX: AfrikaansIcon was missing, it's now added to Icons.tsx
   AfrikaansIcon,
+  // FIX: MeetingMinutesIcon was missing, it's now added to Icons.tsx
   MeetingMinutesIcon,
+  // FIX: BundleIcon was missing, it's now added to Icons.tsx
   BundleIcon,
+  // FIX: SurveyIcon was missing, it's now added to Icons.tsx
   SurveyIcon,
+  // FIX: IncidentReportIcon was missing, it's now added to Icons.tsx
   IncidentReportIcon,
 } from './components/Icons';
 import type { Policy, PolicyType, Form, FormType } from './types';
@@ -822,7 +880,8 @@ export const FORMS: Record<FormType, Form> = {
     type: 'grievance-form',
     title: 'Grievance Lodging Form',
     description: 'A structured form for employees to formally report a workplace grievance.',
-    icon: GrievanceFormIcon,
+    // FIX: Use GrievanceIcon as suggested by the error message. GrievanceFormIcon does not exist.
+    icon: GrievanceIcon,
     questions: [
       ...commonQuestions,
       { id: 'grievanceRecipient', label: 'Title of Grievance Recipient', type: 'text', placeholder: 'e.g., HR Manager' }
@@ -852,7 +911,8 @@ export const FORMS: Record<FormType, Form> = {
     type: 'disciplinary-enquiry-report',
     title: 'Disciplinary Enquiry Report',
     description: 'A form to document the proceedings and outcome of a formal disciplinary hearing.',
-    icon: DisciplinaryReportIcon,
+    // FIX: Use DisciplinaryIcon as suggested by the error message. DisciplinaryReportIcon does not exist.
+    icon: DisciplinaryIcon,
     questions: employeeAndManagerQuestions,
     outputFormat: 'word',
   },
@@ -951,7 +1011,8 @@ export const FORMS: Record<FormType, Form> = {
     type: 'confidentiality-agreement',
     title: 'Confidentiality Agreement',
     description: 'A legal agreement to protect the company\'s sensitive information.',
-    icon: ConfidentialityAgreementIcon,
+    // FIX: Use ConfidentialityIcon as suggested by the error message. ConfidentialityAgreementIcon does not exist.
+    icon: ConfidentialityIcon,
     questions: employeeAndManagerQuestions,
     outputFormat: 'word',
   },

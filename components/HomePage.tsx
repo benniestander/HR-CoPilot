@@ -1,15 +1,17 @@
+
 import React, { useState } from 'react';
 import PolicySelector from './PolicySelector';
 import FormSelector from './FormSelector';
 import type { Policy, Form } from '../types';
-import { MasterPolicyIcon, FormsIcon, HelpIcon } from './Icons';
+import { MasterPolicyIcon, FormsIcon, HelpIcon, UpdateIcon } from './Icons';
 import HowToUseModal from './HowToUseModal';
 
 interface HomePageProps {
   onSelectItem: (item: Policy | Form) => void;
+  onStartUpdate: () => void;
 }
 
-const HomePage: React.FC<HomePageProps> = ({ onSelectItem }) => {
+const HomePage: React.FC<HomePageProps> = ({ onSelectItem, onStartUpdate }) => {
   const [activeTab, setActiveTab] = useState<'policies' | 'forms'>('policies');
   const [isHowToUseModalOpen, setIsHowToUseModalOpen] = useState(false);
 
@@ -62,6 +64,22 @@ const HomePage: React.FC<HomePageProps> = ({ onSelectItem }) => {
         ) : (
           <FormSelector onSelectForm={onSelectItem} />
         )}
+      </div>
+
+      <div className="mt-20 py-12 bg-white border-t border-b border-gray-200">
+        <div className="text-center max-w-3xl mx-auto">
+            <UpdateIcon className="w-12 h-12 text-primary mx-auto mb-4" />
+            <h3 className="text-2xl font-bold text-secondary">Have an Existing Policy?</h3>
+            <p className="text-gray-600 mt-2 mb-6">
+                Don't let your documents fall out of date. Use our AI to scan and update your existing HR policies for compliance with the latest South African labour laws.
+            </p>
+            <button
+            onClick={onStartUpdate}
+            className="inline-flex items-center px-8 py-3 border border-transparent text-base font-medium rounded-full shadow-sm text-white bg-primary hover:bg-opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
+            >
+            Update My Policy Now
+            </button>
+        </div>
       </div>
 
        <HowToUseModal

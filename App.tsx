@@ -7,6 +7,7 @@ import HomePage from './components/HomePage';
 import CompanyProfileSetup from './components/CompanyProfileSetup';
 import Questionnaire from './components/Questionnaire';
 import PolicyPreview from './components/PolicyPreview';
+import PolicyUpdater from './components/PolicyUpdater';
 import ConfirmationModal from './components/ConfirmationModal';
 import { generatePolicyStream, generateFormStream } from './services/geminiService';
 import type { Policy, Form, FormAnswers, AppStatus, CompanyProfile, Source } from './types';
@@ -29,6 +30,7 @@ const App: React.FC = () => {
   // Set the user and auth status directly to a logged-in state to bypass login.
   const [user, setUser] = useState<User | null>(mockUser);
   
+  const [currentView, setCurrentView] = useState<'home' | 'generator' | 'updater'>('home');
   const [selectedItem, setSelectedItem] = useState<Policy | Form | null>(null);
   const [companyProfile, setCompanyProfile] = useState<CompanyProfile | null>(null);
   const [questionAnswers, setQuestionAnswers] = useState<FormAnswers>({});
@@ -43,9 +45,10 @@ const App: React.FC = () => {
   // The original useEffect for handling Firebase auth state has been removed
   // to bypass the login flow.
 
-  const handleLogout = () => {
+  const handleStartOver = () => {
     // Instead of signing out, reset the app's state to the home page,
     // acting as a "Start Over" button.
+    setCurrentView('home');
     setSelectedItem(null);
     setCompanyProfile(null);
     resetDocumentState();
@@ -60,7 +63,15 @@ const App: React.FC = () => {
 
   const handleSelectItem = (item: Policy | Form) => {
     setSelectedItem(item);
+    setCurrentView('generator');
     // Reset everything downstream
+    setCompanyProfile(null);
+    resetDocumentState();
+  };
+
+  const handleStartUpdate = () => {
+    setCurrentView('updater');
+    setSelectedItem(null);
     setCompanyProfile(null);
     resetDocumentState();
   };
@@ -69,8 +80,10 @@ const App: React.FC = () => {
     setCompanyProfile(profile);
   };
   
-  const handleBack = (currentView: 'profile' | 'document') => {
-     if (currentView === 'document' && hasUnsavedQuestionAnswers) {
+  const handleBack = (currentView: 'profile' | 'document' | 'updater') => {
+     if (currentView === 'updater') {
+        setCurrentView('home');
+     } else if (currentView === 'document' && hasUnsavedQuestionAnswers) {
         setNavDestination('profile');
         setShowConfirmation(true);
      } else if (currentView === 'document') {
@@ -78,6 +91,7 @@ const App: React.FC = () => {
         resetDocumentState();
      } else { // currentView is 'profile'
         setSelectedItem(null);
+        setCurrentView('home');
      }
   }
 
@@ -89,6 +103,7 @@ const App: React.FC = () => {
        setSelectedItem(null);
        setCompanyProfile(null);
        resetDocumentState();
+       setCurrentView('home');
     }
     setShowConfirmation(false);
     setNavDestination(null);
@@ -163,8 +178,8 @@ const App: React.FC = () => {
               />
               <div className="flex items-center space-x-4">
                   <span className="text-sm text-gray-600 hidden sm:block">{user?.email}</span>
-                  <button onClick={handleLogout} className="text-sm font-semibold text-primary hover:underline">
-                      Logout
+                  <button onClick={handleStartOver} className="text-sm font-semibold text-primary hover:underline">
+                      Start Over
                   </button>
               </div>
           </div>
@@ -186,54 +201,67 @@ const App: React.FC = () => {
       </footer>
   );
   
-  const renderMainContent = () => {
-    if (!selectedItem) {
-      return (
-          <HomePage onSelectItem={handleSelectItem} />
-      );
-    }
+  const renderGeneratorFlow = () => {
+      if (!selectedItem) {
+        // This shouldn't happen if view logic is correct, but as a fallback:
+        setCurrentView('home');
+        return null;
+      }
 
-    if (!companyProfile) {
-      return (
-          <CompanyProfileSetup 
-              item={selectedItem}
-              onProfileSubmit={handleProfileSubmit}
-              onBack={() => handleBack('profile')}
-          />
-      )
-    }
+      if (!companyProfile) {
+        return (
+            <CompanyProfileSetup 
+                item={selectedItem}
+                onProfileSubmit={handleProfileSubmit}
+                onBack={() => handleBack('profile')}
+            />
+        )
+      }
 
-    return (
-      <div>
-          <button
-            onClick={() => handleBack('document')}
-            className="mb-6 text-primary font-semibold hover:underline flex items-center"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
-            </svg>
-            Back to Profile Setup
-          </button>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            <Questionnaire
-              item={selectedItem}
-              companyProfile={companyProfile}
-              answers={questionAnswers}
-              onAnswersChange={setQuestionAnswers}
-              onGenerate={handleGenerateDocument}
-              status={status}
-            />
-            <PolicyPreview
-              policyText={generatedDocument}
-              status={status}
-              onRetry={handleGenerateDocument}
-              isForm={selectedItem.kind === 'form'}
-              outputFormat={selectedItem.kind === 'form' ? selectedItem.outputFormat : 'word'}
-              sources={sources}
-            />
+      return (
+        <div>
+            <button
+              onClick={() => handleBack('document')}
+              className="mb-6 text-primary font-semibold hover:underline flex items-center"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
+              </svg>
+              Back to Profile Setup
+            </button>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              <Questionnaire
+                item={selectedItem}
+                companyProfile={companyProfile}
+                answers={questionAnswers}
+                onAnswersChange={setQuestionAnswers}
+                onGenerate={handleGenerateDocument}
+                status={status}
+              />
+              <PolicyPreview
+                policyText={generatedDocument}
+                status={status}
+                onRetry={handleGenerateDocument}
+                isForm={selectedItem.kind === 'form'}
+                outputFormat={selectedItem.kind === 'form' ? selectedItem.outputFormat : 'word'}
+                sources={sources}
+              />
+            </div>
           </div>
-        </div>
-    );
+      );
+  }
+
+  const renderMainContent = () => {
+    switch (currentView) {
+        case 'home':
+            return <HomePage onSelectItem={handleSelectItem} onStartUpdate={handleStartUpdate} />;
+        case 'generator':
+            return renderGeneratorFlow();
+        case 'updater':
+            return <PolicyUpdater onBack={() => handleBack('updater')} />;
+        default:
+             return <HomePage onSelectItem={handleSelectItem} onStartUpdate={handleStartUpdate} />;
+    }
   }
 
   return (
