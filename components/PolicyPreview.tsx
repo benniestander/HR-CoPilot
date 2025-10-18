@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { LoadingIcon, CopyIcon, DownloadIcon, CheckIcon, WordIcon, ExcelIcon, PdfIcon, TxtIcon } from './Icons';
+import { LoadingIcon, CopyIcon, DownloadIcon, CheckIcon, WordIcon, ExcelIcon, PdfIcon, TxtIcon, CreditCardIcon } from './Icons';
 import type { AppStatus, Source } from '../types';
 import { GLOSSARY } from '../glossary';
 import GlossaryModal from './GlossaryModal';
+import PaymentModal from './PaymentModal';
 
 interface PolicyPreviewProps {
   policyText: string;
@@ -49,12 +50,14 @@ const PolicyPreview: React.FC<PolicyPreviewProps> = ({ policyText, status, onRet
   const [editableText, setEditableText] = useState(policyText);
   const [selectedTerm, setSelectedTerm] = useState<{ term: string; definition: string } | null>(null);
   const [isDownloadMenuOpen, setDownloadMenuOpen] = useState(false);
+  const [isPaymentModalOpen, setPaymentModalOpen] = useState(false);
+  const [isPaid, setIsPaid] = useState(false);
   const downloadMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    // When the generation is finished, update the editable text.
     if (status === 'success') {
       setEditableText(policyText);
+      setIsPaid(false); // Reset payment status for new document
     }
   }, [policyText, status]);
 
@@ -107,11 +110,9 @@ const PolicyPreview: React.FC<PolicyPreviewProps> = ({ policyText, status, onRet
     const textarea = previewContainer.querySelector('textarea');
     
     if (textarea) {
-        // It's a form, get textarea value and wrap in <pre>
         const escapedText = textarea.value.replace(/</g, "&lt;").replace(/>/g, "&gt;");
         contentToPrint = `<pre style="white-space: pre-wrap; font-family: sans-serif; font-size: 14px;">${escapedText}</pre>`;
     } else {
-        // It's a policy, get the rendered HTML
         contentToPrint = previewContainer.innerHTML;
     }
 
@@ -138,7 +139,6 @@ const PolicyPreview: React.FC<PolicyPreviewProps> = ({ policyText, status, onRet
                             typography: ({ theme }) => ({
                                 DEFAULT: {
                                     css: {
-                                        // Custom prose styles for printing if needed
                                     },
                                 },
                             }),
@@ -277,13 +277,16 @@ const PolicyPreview: React.FC<PolicyPreviewProps> = ({ policyText, status, onRet
                 <textarea
                   value={editableText}
                   onChange={(e) => setEditableText(e.target.value)}
-                  className="w-full h-full flex-grow p-4 border border-gray-300 rounded-md resize-none focus:ring-primary focus:border-primary font-sans text-base"
+                  readOnly={!isPaid}
+                  onContextMenu={!isPaid ? (e) => e.preventDefault() : undefined}
+                  className={`w-full h-full flex-grow p-4 border border-gray-300 rounded-md resize-none focus:ring-primary focus:border-primary font-sans text-base ${!isPaid ? 'select-none bg-gray-50' : ''}`}
                   aria-label="Editable document content"
                   style={{minHeight: '400px'}}
                 />
               ) : (
                 <div 
-                   className="w-full h-full flex-grow p-4 border border-gray-300 rounded-md resize-none focus:ring-primary focus:border-primary font-sans text-base overflow-y-auto"
+                   onContextMenu={!isPaid ? (e) => e.preventDefault() : undefined}
+                   className={`w-full h-full flex-grow p-4 border border-gray-300 rounded-md resize-none focus:ring-primary focus:border-primary font-sans text-base overflow-y-auto ${!isPaid ? 'select-none' : ''}`}
                    aria-label="Document content"
                    style={{minHeight: '400px'}}
                 >
@@ -295,7 +298,7 @@ const PolicyPreview: React.FC<PolicyPreviewProps> = ({ policyText, status, onRet
                 <h3 className="text-xl font-bold text-secondary mb-4">Next Steps</h3>
                 <ul className="list-disc list-inside space-y-2 text-gray-700 text-sm">
                   <li>
-                    <strong>Review & Finalize:</strong> Use the download options to get the document in your preferred format for final edits.
+                    <strong>Review & Finalize:</strong> {isPaid ? "Use the download options to get the document." : "Unlock downloads to get the document in your preferred format."}
                   </li>
                   <li>
                     <strong>Legal Check:</strong> We strongly recommend a qualified labour lawyer reviews this document.
@@ -320,10 +323,16 @@ const PolicyPreview: React.FC<PolicyPreviewProps> = ({ policyText, status, onRet
     downloadOptions.push({ format: 'csv', label: 'Download as .csv', icon: ExcelIcon, color: 'text-green-700' });
   }
 
+  const handlePaymentSuccess = () => {
+    setIsPaid(true);
+    setPaymentModalOpen(false);
+  };
 
-  return (
-    <div className="bg-white p-8 rounded-lg shadow-md border border-gray-200 relative flex flex-col h-full">
-      {status === 'success' && (
+  const renderActionButtons = () => {
+    if (status !== 'success') return null;
+
+    if (isPaid) {
+      return (
         <div className="absolute top-4 right-4 flex space-x-2 z-10">
           <button onClick={handleCopy} className="p-2 rounded-full bg-gray-100 hover:bg-gray-200 transition-colors" title="Copy to Clipboard">
             {copied ? <CheckIcon className="w-5 h-5 text-green-600" /> : <CopyIcon className="w-5 h-5 text-gray-600" />}
@@ -359,7 +368,25 @@ const PolicyPreview: React.FC<PolicyPreviewProps> = ({ policyText, status, onRet
             )}
           </div>
         </div>
-      )}
+      );
+    } else {
+      return (
+        <div className="absolute top-4 right-4 z-10">
+          <button 
+            onClick={() => setPaymentModalOpen(true)}
+            className="flex items-center justify-center px-4 py-2 bg-accent text-secondary font-bold rounded-full hover:bg-opacity-90 transition-colors shadow-md"
+          >
+            <CreditCardIcon className="w-5 h-5 mr-2" />
+            Unlock & Download
+          </button>
+        </div>
+      );
+    }
+  };
+
+  return (
+    <div className="bg-white p-8 rounded-lg shadow-md border border-gray-200 relative flex flex-col h-full">
+      {renderActionButtons()}
       <div className="h-full flex-grow flex items-center justify-center">
         <div className="w-full h-full">
             {renderContent()}
@@ -370,6 +397,13 @@ const PolicyPreview: React.FC<PolicyPreviewProps> = ({ policyText, status, onRet
         onClose={() => setSelectedTerm(null)}
         term={selectedTerm?.term || ''}
         definition={selectedTerm?.definition || ''}
+      />
+      <PaymentModal
+        isOpen={isPaymentModalOpen}
+        onClose={() => setPaymentModalOpen(false)}
+        onSuccess={handlePaymentSuccess}
+        amountInCents={4900}
+        itemName={`HR ${isForm ? 'Form' : 'Policy'} Document`}
       />
     </div>
   );
