@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { LoadingIcon, CopyIcon, DownloadIcon, CheckIcon, WordIcon, ExcelIcon, PdfIcon, TxtIcon, CreditCardIcon } from './Icons';
 import type { AppStatus, Source } from '../types';
-import { GLOSSARY } from '../glossary';
-import GlossaryModal from './GlossaryModal';
 import PaymentModal from './PaymentModal';
+import ReactMarkdown from 'https://esm.sh/react-markdown@9?deps=react@^19.2.0';
+import rehypeSanitize from 'https://esm.sh/rehype-sanitize@6?deps=react@^19.2.0';
+import { marked } from 'https://esm.sh/marked@12';
 
 interface PolicyPreviewProps {
   policyText: string;
@@ -13,6 +14,55 @@ interface PolicyPreviewProps {
   outputFormat?: 'word' | 'excel';
   sources: Source[];
 }
+
+// Define the standard document styles in a constant to be reused.
+const WORD_DOCUMENT_STYLES = `
+  .word-document-preview {
+    font-family: Calibri, sans-serif;
+    font-size: 11pt;
+    line-height: 1.15;
+    color: black;
+    text-align: left;
+  }
+  .word-document-preview p {
+    margin-top: 0;
+    margin-bottom: 8pt;
+  }
+  .word-document-preview h1,
+  .word-document-preview h2,
+  .word-document-preview h3,
+  .word-document-preview h4,
+  .word-document-preview h5,
+  .word-document-preview h6 {
+    margin-top: 12pt;
+    margin-bottom: 3pt;
+    font-weight: bold;
+  }
+  .word-document-preview h1 { font-size: 16pt; }
+  .word-document-preview h2 { font-size: 14pt; }
+  .word-document-preview h3 { font-size: 12pt; }
+  .word-document-preview ul,
+  .word-document-preview ol {
+    margin-top: 0;
+    margin-bottom: 8pt;
+    padding-left: 40px;
+  }
+  .word-document-preview table {
+    border-collapse: collapse;
+    width: 100%;
+    margin-bottom: 8pt;
+  }
+  .word-document-preview th,
+  .word-document-preview td {
+    border: 1px solid #999;
+    padding: 5pt;
+    text-align: left;
+  }
+  .word-document-preview th {
+    background-color: #f2f2f2;
+    font-weight: bold;
+  }
+`;
 
 const SourcesUsed: React.FC<{ sources: Source[] }> = ({ sources }) => {
   if (sources.length === 0) return null;
@@ -48,16 +98,27 @@ const SourcesUsed: React.FC<{ sources: Source[] }> = ({ sources }) => {
 const PolicyPreview: React.FC<PolicyPreviewProps> = ({ policyText, status, onRetry, isForm, outputFormat, sources }) => {
   const [copied, setCopied] = useState(false);
   const [editableText, setEditableText] = useState(policyText);
-  const [selectedTerm, setSelectedTerm] = useState<{ term: string; definition: string } | null>(null);
   const [isDownloadMenuOpen, setDownloadMenuOpen] = useState(false);
   const [isPaymentModalOpen, setPaymentModalOpen] = useState(false);
-  const [isPaid, setIsPaid] = useState(false);
+  const [isPaid, setIsPaid] = useState(true);
   const downloadMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    // Inject the Word document styles into the page head for the preview component.
+    const styleEl = document.createElement('style');
+    styleEl.innerHTML = WORD_DOCUMENT_STYLES;
+    document.head.appendChild(styleEl);
+    
+    // Cleanup function to remove the styles when the component unmounts.
+    return () => {
+        document.head.removeChild(styleEl);
+    };
+  }, []);
 
   useEffect(() => {
     if (status === 'success') {
       setEditableText(policyText);
-      setIsPaid(false); // Reset payment status for new document
+      setIsPaid(true); // Payment is disabled, so always true.
     }
   }, [policyText, status]);
 
@@ -102,19 +163,38 @@ const PolicyPreview: React.FC<PolicyPreviewProps> = ({ policyText, status, onRet
     ).join('\n');
   };
 
-  const handlePrintToPdf = () => {
-    const previewContainer = document.getElementById('policy-preview-content');
-    if (!previewContainer) return;
+  const getStyledHtml = async (markdownText: string, docTitle: string) => {
+    const markdownHtml = await marked(markdownText);
+    // Adapt the preview styles for the downloaded document body.
+    const bodyStyles = WORD_DOCUMENT_STYLES.replace(/\.word-document-preview/g, 'body');
 
-    let contentToPrint = '';
-    const textarea = previewContainer.querySelector('textarea');
-    
-    if (textarea) {
-        const escapedText = textarea.value.replace(/</g, "&lt;").replace(/>/g, "&gt;");
-        contentToPrint = `<pre style="white-space: pre-wrap; font-family: sans-serif; font-size: 14px;">${escapedText}</pre>`;
-    } else {
-        contentToPrint = previewContainer.innerHTML;
-    }
+    return `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="UTF-8">
+          <title>${docTitle}</title>
+          <style>
+            @page {
+              size: A4;
+              margin: 1in;
+            }
+            ${bodyStyles}
+            .next-steps-print-hide { display: none !important; }
+          </style>
+        </head>
+        <body>
+          ${markdownHtml}
+        </body>
+      </html>
+    `;
+  };
+
+  const handlePrintToPdf = async () => {
+    const textToPrint = isForm ? editableText : policyText;
+    const title = `hr_${isForm ? 'form' : 'policy'}`;
+
+    const printHtml = await getStyledHtml(textToPrint, title);
 
     const iframe = document.createElement('iframe');
     iframe.style.position = 'absolute';
@@ -126,41 +206,7 @@ const PolicyPreview: React.FC<PolicyPreviewProps> = ({ policyText, status, onRet
     const doc = iframe.contentWindow?.document;
     if (doc) {
         doc.open();
-        doc.write(`
-        <!DOCTYPE html>
-        <html>
-            <head>
-            <title>Print Document</title>
-            <script src="https://cdn.tailwindcss.com"></script>
-            <script>
-                tailwind.config = {
-                    theme: {
-                        extend: {
-                            typography: ({ theme }) => ({
-                                DEFAULT: {
-                                    css: {
-                                    },
-                                },
-                            }),
-                        }
-                    }
-                }
-            </script>
-            <style>
-                @media print {
-                    body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-                    button { display: none !important; }
-                    .next-steps-print-hide { display: none !important; }
-                }
-            </style>
-            </head>
-            <body>
-                <div class="p-4">
-                    <div class="${textarea ? '' : 'prose max-w-none'}">${contentToPrint}</div>
-                </div>
-            </body>
-        </html>
-        `);
+        doc.write(printHtml);
         doc.close();
     }
     
@@ -173,7 +219,7 @@ const PolicyPreview: React.FC<PolicyPreviewProps> = ({ policyText, status, onRet
     };
   };
   
-  const handleDownload = (format: 'word' | 'csv' | 'txt' | 'pdf') => {
+  const handleDownload = async (format: 'word' | 'csv' | 'txt' | 'pdf') => {
     setDownloadMenuOpen(false);
     const textToDownload = isForm ? editableText : policyText;
 
@@ -184,7 +230,7 @@ const PolicyPreview: React.FC<PolicyPreviewProps> = ({ policyText, status, onRet
 
     let blob;
     let filename;
-    const title = `hr_${isForm ? 'form' : 'policy'}`;
+    const title = `hr_${isForm ? 'form' : 'policy'}_${new Date().toISOString().split('T')[0]}`;
 
     switch(format) {
       case 'csv':
@@ -198,7 +244,8 @@ const PolicyPreview: React.FC<PolicyPreviewProps> = ({ policyText, status, onRet
         break;
       case 'word':
       default:
-        blob = new Blob([textToDownload], { type: 'application/msword;charset=utf-8' });
+        const htmlDoc = await getStyledHtml(textToDownload, title);
+        blob = new Blob([htmlDoc], { type: 'application/msword;charset=utf-8' });
         filename = `${title}.doc`;
         break;
     }
@@ -212,33 +259,6 @@ const PolicyPreview: React.FC<PolicyPreviewProps> = ({ policyText, status, onRet
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
   };
-
-  const highlightTerms = (text: string): React.ReactNode[] => {
-    if (!text) return [text];
-    
-    const terms = Object.keys(GLOSSARY);
-    const regex = new RegExp(`\\b(${terms.join('|')})\\b`, 'gi');
-    
-    const parts = text.split(regex);
-    
-    return parts.map((part, index) => {
-        const lowerCasePart = part.toLowerCase();
-        if (terms.includes(lowerCasePart)) {
-            return (
-                <button
-                    key={index}
-                    type="button"
-                    onClick={() => setSelectedTerm({ term: part, definition: GLOSSARY[lowerCasePart] })}
-                    className="text-primary font-semibold underline decoration-dotted hover:bg-primary/10 rounded-sm p-0.5 -m-0.5 transition-colors"
-                    aria-label={`View definition for ${part}`}
-                >
-                    {part}
-                </button>
-            );
-        }
-        return <React.Fragment key={index}>{part}</React.Fragment>;
-    });
-};
 
   const renderContent = () => {
     switch (status) {
@@ -286,11 +306,13 @@ const PolicyPreview: React.FC<PolicyPreviewProps> = ({ policyText, status, onRet
               ) : (
                 <div 
                    onContextMenu={!isPaid ? (e) => e.preventDefault() : undefined}
-                   className={`w-full h-full flex-grow p-4 border border-gray-300 rounded-md resize-none focus:ring-primary focus:border-primary font-sans text-base overflow-y-auto ${!isPaid ? 'select-none' : ''}`}
+                   className={`w-full h-full flex-grow p-4 border border-gray-300 rounded-md resize-none bg-white text-base overflow-y-auto ${!isPaid ? 'select-none' : ''}`}
                    aria-label="Document content"
                    style={{minHeight: '400px'}}
                 >
-                    <div className="whitespace-pre-wrap">{highlightTerms(policyText)}</div>
+                    <article className="word-document-preview">
+                        <ReactMarkdown rehypePlugins={[rehypeSanitize]}>{policyText}</ReactMarkdown>
+                    </article>
                 </div>
               )}
                {!isForm && <SourcesUsed sources={sources} />}
@@ -392,12 +414,6 @@ const PolicyPreview: React.FC<PolicyPreviewProps> = ({ policyText, status, onRet
             {renderContent()}
         </div>
       </div>
-       <GlossaryModal
-        isOpen={!!selectedTerm}
-        onClose={() => setSelectedTerm(null)}
-        term={selectedTerm?.term || ''}
-        definition={selectedTerm?.definition || ''}
-      />
       <PaymentModal
         isOpen={isPaymentModalOpen}
         onClose={() => setPaymentModalOpen(false)}
