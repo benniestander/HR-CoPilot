@@ -191,7 +191,7 @@ export const EmployeeConductIcon: React.FC<{ className?: string }> = ({ classNam
 
 export const EmployeeSeparationIcon: React.FC<{ className?: string }> = ({ className }) => (
   <DuotoneIcon className={className} paths={[
-    "M14 4a2 2 0 00-2-2H6a2 2 0 00-2 2v16a2 2 0 002 2h6a2 2 0 002-2v-5",
+    "M14 4a2 2 0 00-2-2H6a2 2 0 00-4 2v16a2 2 0 002 2h6a2 2 0 002-2v-5",
     "M17 14l4-4-4-4m3 4H9"
   ]} />
 );
@@ -252,7 +252,7 @@ export const MasterPolicyIcon: React.FC<{ className?: string }> = ({ className }
 // FIX: Add all missing icons
 export const ResignationIcon: React.FC<{ className?: string }> = ({ className }) => (
   <DuotoneIcon className={className} paths={[
-    "M14 4a2 2 0 00-2-2H6a2 2 0 00-2 2v16a2 2 0 002 2h6a2 2 0 002-2V4z",
+    "M14 4a2 2 0 00-2-2H6a2 2 0 00-4 2v16a2 2 0 002 2h6a2 2 0 002-2V4z",
     "M20 12l-4 4-4-4m4 4V4"
   ]} />
 );
@@ -740,4 +740,11 @@ export const GoogleIcon: React.FC<{ className?: string }> = ({ className }) => (
     <path fill="#4CAF50" d="M24 44c5.166 0 9.86-1.977 13.409-5.192l-6.19-5.238A8 8 0 0124 36c-5.222 0-9.612-3.87-11.08-9.023l-6.571 4.82C9.656 39.663 16.318 44 24 44z"></path>
     <path fill="#1976D2" d="M43.611 20.083H42V20H24v8h11.303c-.792 2.237-2.231 4.16-4.087 5.571l6.19 5.238C42.612 34.869 44 30.013 44 24c0-1.341-.138-2.65-.389-3.917z"></path>
   </svg>
+);
+
+export const ComplianceIcon: React.FC<{ className?: string }> = ({ className }) => (
+  <DuotoneIcon className={className} paths={[
+    "M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z",
+    "M9 12l2 2 4-4"
+  ]} />
 );

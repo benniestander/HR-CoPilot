@@ -1,4 +1,3 @@
-
 import type React from 'react';
 
 export type PolicyType =
@@ -197,4 +196,29 @@ export interface PolicyUpdateChange {
 export interface PolicyUpdateResult {
   updatedPolicyText: string;
   changes: PolicyUpdateChange[];
+}
+
+// Types for the Compliance Checklist feature
+export interface ComplianceChecklistItem {
+  name: string;
+  reason: string;
+}
+
+export interface ComplianceChecklistResult {
+  policies: ComplianceChecklistItem[];
+  forms: ComplianceChecklistItem[];
+}
+
+// Type for storing generated documents in state for the dashboard
+export interface GeneratedDocument {
+  id: string;
+  title: string;
+  kind: 'policy' | 'form';
+  type: PolicyType | FormType;
+  content: string; // The generated markdown/text
+  createdAt: string; // ISO string for simplicity
+  companyProfile: CompanyProfile;
+  questionAnswers: FormAnswers;
+  outputFormat?: 'word' | 'excel';
+  sources?: Source[];
 }

@@ -1,10 +1,58 @@
-
 import React, { useState } from 'react';
 import { updatePolicy } from '../services/geminiService';
 import type { PolicyUpdateResult } from '../types';
 import { LoadingIcon, UpdateIcon } from './Icons';
-import ReactMarkdown from 'https://esm.sh/react-markdown@9?deps=react@^19.2.0';
-import rehypeSanitize from 'https://esm.sh/rehype-sanitize@6?deps=react@^19.2.0';
+
+// Simple Diffing function (line-based)
+const createDiff = (original: string, updated: string) => {
+    const originalLines = original.split('\n');
+    const updatedLines = updated.split('\n');
+    const diff: { type: 'added' | 'removed' | 'same'; line: string }[] = [];
+    let i = 0, j = 0;
+    while (i < originalLines.length || j < updatedLines.length) {
+        if (i < originalLines.length && j < updatedLines.length && originalLines[i] === updatedLines[j]) {
+            diff.push({ type: 'same', line: originalLines[i] });
+            i++; j++;
+        } else {
+            const lookahead = updatedLines.indexOf(originalLines[i], j);
+            if (i < originalLines.length && (lookahead === -1 || lookahead > j + 5)) {
+                diff.push({ type: 'removed', line: originalLines[i] });
+                i++;
+            } else if (j < updatedLines.length) {
+                diff.push({ type: 'added', line: updatedLines[j] });
+                j++;
+            }
+        }
+    }
+    return diff;
+};
+
+const DiffViewer: React.FC<{ originalText: string; updatedText: string }> = ({ originalText, updatedText }) => {
+    const diff = createDiff(originalText, updatedText);
+
+    return (
+        <div className="font-mono text-sm border border-gray-200 rounded-md bg-white p-4 whitespace-pre-wrap break-words">
+            {diff.map((item, index) => {
+                let bgClass = '';
+                let symbol = '';
+                if (item.type === 'added') {
+                    bgClass = 'bg-green-100';
+                    symbol = '+ ';
+                } else if (item.type === 'removed') {
+                    bgClass = 'bg-red-100';
+                    symbol = '- ';
+                }
+                return (
+                    <div key={index} className={bgClass}>
+                        <span className={`mr-2 ${item.type === 'added' ? 'text-green-700' : item.type === 'removed' ? 'text-red-700' : 'text-gray-400'}`}>{symbol}</span>
+                        <span>{item.line}</span>
+                    </div>
+                );
+            })}
+        </div>
+    );
+};
+
 
 interface PolicyUpdaterProps {
   onBack: () => void;
@@ -37,20 +85,18 @@ const PolicyUpdater: React.FC<PolicyUpdaterProps> = ({ onBack }) => {
       <div className="mt-8">
         <h2 className="text-3xl font-bold text-secondary mb-6 text-center">Analysis Complete</h2>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            {/* Left Panel: Updated Policy */}
+            {/* Left Panel: Visual Diff */}
             <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200 flex flex-col">
-                <h3 className="text-xl font-bold text-secondary mb-4">Updated Policy</h3>
-                <p className="text-sm text-gray-600 mb-4">Review the updated version of your policy below. We've preserved your original wording where possible.</p>
-                <div className="border border-gray-200 rounded-md bg-gray-50 flex-grow" style={{ minHeight: '400px', maxHeight: '60vh', overflowY: 'auto' }}>
-                    <article className="prose max-w-none p-4">
-                        <ReactMarkdown rehypePlugins={[rehypeSanitize]}>{updateResult.updatedPolicyText}</ReactMarkdown>
-                    </article>
+                <h3 className="text-xl font-bold text-secondary mb-4">Visual Comparison</h3>
+                <p className="text-sm text-gray-600 mb-4">See exactly what's changed in your policy. <span className="text-red-600">Red lines</span> are removed, <span className="text-green-600">green lines</span> are added.</p>
+                <div className="flex-grow" style={{ minHeight: '400px', maxHeight: '60vh', overflowY: 'auto' }}>
+                    <DiffViewer originalText={originalPolicy} updatedText={updateResult.updatedPolicyText} />
                 </div>
             </div>
-            {/* Right Panel: Changes */}
+            {/* Right Panel: AI's Summary of Changes */}
             <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200 flex flex-col">
-                <h3 className="text-xl font-bold text-secondary mb-4">Summary of Changes</h3>
-                 <p className="text-sm text-gray-600 mb-4">Here's what we changed and why, based on current SA legislation.</p>
+                <h3 className="text-xl font-bold text-secondary mb-4">AI's Summary of Changes</h3>
+                 <p className="text-sm text-gray-600 mb-4">Here's why we made these changes, based on current SA legislation.</p>
                 <div className="space-y-4 flex-grow" style={{ minHeight: '400px', maxHeight: '60vh', overflowY: 'auto' }}>
                     {updateResult.changes.length > 0 ? (
                         updateResult.changes.map((change, index) => (
@@ -80,7 +126,7 @@ const PolicyUpdater: React.FC<PolicyUpdaterProps> = ({ onBack }) => {
         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
           <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
         </svg>
-        Back to Home
+        Back to Dashboard
       </button>
 
       <div className="bg-white p-8 rounded-lg shadow-md border border-gray-200">

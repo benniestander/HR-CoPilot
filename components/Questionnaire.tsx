@@ -72,8 +72,6 @@ const Questionnaire: React.FC<QuestionnaireProps> = ({
     }
   };
 
-  const isGenerateDisabled = status === 'loading';
-
   return (
     <div className="bg-white p-8 rounded-lg shadow-md border border-gray-200">
       <div className="flex justify-between items-start mb-1">
@@ -115,7 +113,6 @@ const Questionnaire: React.FC<QuestionnaireProps> = ({
 
       <div className="space-y-6">
         {item.questions.map((q) => {
-            // Skip companyName as it's now in the profile
             if (q.id === 'companyName') return null;
 
             if (q.conditional && !q.conditional(answers)) {
@@ -124,9 +121,22 @@ const Questionnaire: React.FC<QuestionnaireProps> = ({
 
             if (q.type === 'checkbox') {
               return (
-                <div key={q.id} className="space-y-2">
+                <div key={q.id}>
                   <fieldset>
-                    <legend className="block text-sm font-medium text-gray-700">{q.label}</legend>
+                     <div className="relative flex items-center group w-fit">
+                        <legend className="block text-sm font-medium text-gray-700">{q.label}</legend>
+                        {q.tip && (
+                           <div className="relative flex items-center group ml-2">
+                                <InfoIcon className="w-5 h-5 text-gray-400 cursor-help" />
+                                <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 w-max max-w-xs p-3 text-xs text-white bg-gray-900 rounded-md shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300 invisible group-hover:visible pointer-events-none z-10">
+                                    {q.tip}
+                                    <svg className="absolute text-gray-900 h-2 w-full left-0 top-full" x="0px" y="0px" viewBox="0 0 255 255">
+                                        <polygon className="fill-current" points="0,0 127.5,127.5 255,0"/>
+                                    </svg>
+                                </div>
+                            </div>
+                        )}
+                    </div>
                     <div className="mt-2 space-y-2 border border-gray-200 rounded-md p-4">
                       {q.options?.map((option) => (
                         <div key={option.id} className="relative flex items-start">
@@ -149,19 +159,26 @@ const Questionnaire: React.FC<QuestionnaireProps> = ({
                       ))}
                     </div>
                   </fieldset>
-                  {q.tip && (
-                    <div className="flex items-start text-xs text-gray-500 mt-1 p-2 bg-yellow-50 border border-yellow-200 rounded-md">
-                      <TipIcon className="w-4 h-4 mr-2 flex-shrink-0 mt-0.5 text-accent"/>
-                      <span>{q.tip}</span>
-                    </div>
-                  )}
                 </div>
               );
             }
 
           return (
             <div key={q.id} className="space-y-2">
-              <label htmlFor={q.id} className="block text-sm font-medium text-gray-700">{q.label}</label>
+                 <div className="flex items-center">
+                    <label htmlFor={q.id} className="block text-sm font-medium text-gray-700">{q.label}</label>
+                    {q.tip && (
+                        <div className="relative flex items-center group ml-2">
+                            <InfoIcon className="w-5 h-5 text-gray-400 cursor-help" />
+                            <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 w-max max-w-xs p-3 text-xs text-white bg-gray-900 rounded-md shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300 invisible group-hover:visible pointer-events-none z-10">
+                                {q.tip}
+                                <svg className="absolute text-gray-900 h-2 w-full left-0 top-full" x="0px" y="0px" viewBox="0 0 255 255">
+                                    <polygon className="fill-current" points="0,0 127.5,127.5 255,0"/>
+                                </svg>
+                            </div>
+                        </div>
+                    )}
+                </div>
               {q.type === 'textarea' ? (
                 <textarea
                   id={q.id}
@@ -183,12 +200,6 @@ const Questionnaire: React.FC<QuestionnaireProps> = ({
                   className="w-full p-3 border border-gray-300 rounded-md shadow-sm focus:ring-primary focus:border-primary"
                 />
               )}
-              {q.tip && (
-                <div className="flex items-start text-xs text-gray-500 mt-1 p-2 bg-yellow-50 border border-yellow-200 rounded-md">
-                  <TipIcon className="w-4 h-4 mr-2 flex-shrink-0 mt-0.5 text-accent"/>
-                  <span>{q.tip}</span>
-                </div>
-              )}
             </div>
           );
         })}
@@ -196,17 +207,12 @@ const Questionnaire: React.FC<QuestionnaireProps> = ({
 
       <button
         onClick={onGenerate}
-        disabled={isGenerateDisabled}
-        className="mt-8 w-full bg-primary text-white font-bold py-3 px-4 rounded-md hover:bg-opacity-90 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
+        className="mt-8 w-full bg-primary text-white font-bold py-3 px-4 rounded-md hover:bg-opacity-90 transition-colors flex items-center justify-center"
       >
-        {status === 'loading' ? (
-          <>
-            <LoadingIcon className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" />
-            Generating...
-          </>
-        ) : (
-          'Generate My Document'
-        )}
+        Continue to Finalize
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 ml-2" viewBox="0 0 20 20" fill="currentColor">
+            <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
+        </svg>
       </button>
 
       <ExplainPolicyModal

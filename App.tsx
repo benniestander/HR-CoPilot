@@ -1,16 +1,15 @@
 
-import React, { useState, useCallback } from 'react';
-// We only need the User type for state, not the auth functions.
-import type { User } from 'firebase/auth';
 
-import HomePage from './components/HomePage';
-import CompanyProfileSetup from './components/CompanyProfileSetup';
-import Questionnaire from './components/Questionnaire';
-import PolicyPreview from './components/PolicyPreview';
+import React, { useState, useCallback } from 'react';
+import type { User } from 'firebase/auth';
+import { POLICIES, FORMS } from './constants';
+
+import Dashboard from './components/Dashboard';
+import GeneratorPage from './components/GeneratorPage';
 import PolicyUpdater from './components/PolicyUpdater';
-import ConfirmationModal from './components/ConfirmationModal';
-import { generatePolicyStream, generateFormStream } from './services/geminiService';
-import type { Policy, Form, FormAnswers, AppStatus, CompanyProfile, Source } from './types';
+import ComplianceChecklist from './components/ComplianceChecklist';
+
+import type { Policy, Form, AppStatus, GeneratedDocument, PolicyType, FormType } from './types';
 
 // A mock user object to simulate a logged-in state.
 const mockUser = {
@@ -27,146 +26,50 @@ const mockUser = {
 
 
 const App: React.FC = () => {
-  // Set the user and auth status directly to a logged-in state to bypass login.
   const [user, setUser] = useState<User | null>(mockUser);
   
-  const [currentView, setCurrentView] = useState<'home' | 'generator' | 'updater'>('home');
+  const [currentView, setCurrentView] = useState<'dashboard' | 'generator' | 'updater' | 'checklist'>('dashboard');
   const [selectedItem, setSelectedItem] = useState<Policy | Form | null>(null);
-  const [companyProfile, setCompanyProfile] = useState<CompanyProfile | null>(null);
-  const [questionAnswers, setQuestionAnswers] = useState<FormAnswers>({});
-  const [generatedDocument, setGeneratedDocument] = useState<string>('');
-  const [sources, setSources] = useState<Source[]>([]);
-  const [status, setStatus] = useState<AppStatus>('idle');
-  const [showConfirmation, setShowConfirmation] = useState(false);
-  const [navDestination, setNavDestination] = useState<'home' | 'profile' | null>(null);
-  
-  const hasUnsavedQuestionAnswers = Object.keys(questionAnswers).length > 0;
-
-  // The original useEffect for handling Firebase auth state has been removed
-  // to bypass the login flow.
+  const [generatedDocuments, setGeneratedDocuments] = useState<GeneratedDocument[]>([]);
+  const [documentToView, setDocumentToView] = useState<GeneratedDocument | null>(null);
 
   const handleStartOver = () => {
-    // Instead of signing out, reset the app's state to the home page,
-    // acting as a "Start Over" button.
-    setCurrentView('home');
+    setCurrentView('dashboard');
     setSelectedItem(null);
-    setCompanyProfile(null);
-    resetDocumentState();
-  };
-
-  const resetDocumentState = () => {
-    setQuestionAnswers({});
-    setGeneratedDocument('');
-    setSources([]);
-    setStatus('idle');
+    setDocumentToView(null);
   };
 
   const handleSelectItem = (item: Policy | Form) => {
     setSelectedItem(item);
+    setDocumentToView(null); // Ensure we are in "create" mode
     setCurrentView('generator');
-    // Reset everything downstream
-    setCompanyProfile(null);
-    resetDocumentState();
   };
 
   const handleStartUpdate = () => {
     setCurrentView('updater');
-    setSelectedItem(null);
-    setCompanyProfile(null);
-    resetDocumentState();
   };
 
-  const handleProfileSubmit = (profile: CompanyProfile) => {
-    setCompanyProfile(profile);
+  const handleStartChecklist = () => {
+    setCurrentView('checklist');
   };
   
-  const handleBack = (currentView: 'profile' | 'document' | 'updater') => {
-     if (currentView === 'updater') {
-        setCurrentView('home');
-     } else if (currentView === 'document' && hasUnsavedQuestionAnswers) {
-        setNavDestination('profile');
-        setShowConfirmation(true);
-     } else if (currentView === 'document') {
-        setCompanyProfile(null);
-        resetDocumentState();
-     } else { // currentView is 'profile'
-        setSelectedItem(null);
-        setCurrentView('home');
-     }
+  const handleBackToDashboard = () => {
+      setCurrentView('dashboard');
+      setSelectedItem(null);
+      setDocumentToView(null);
   }
 
-  const confirmNavigation = () => {
-    if (navDestination === 'profile') {
-      setCompanyProfile(null);
-      resetDocumentState();
-    } else if (navDestination === 'home') {
-       setSelectedItem(null);
-       setCompanyProfile(null);
-       resetDocumentState();
-       setCurrentView('home');
-    }
-    setShowConfirmation(false);
-    setNavDestination(null);
+  const handleDocumentGenerated = (doc: GeneratedDocument) => {
+    setGeneratedDocuments(prev => [doc, ...prev].slice(0, 5)); // Keep last 5 docs
+    handleBackToDashboard();
   };
-
-  const cancelNavigation = () => {
-    setShowConfirmation(false);
-    setNavDestination(null);
+  
+  const handleViewDocument = (doc: GeneratedDocument) => {
+    setDocumentToView(doc);
+    const item = doc.kind === 'policy' ? POLICIES[doc.type as PolicyType] : FORMS[doc.type as FormType];
+    setSelectedItem(item);
+    setCurrentView('generator');
   };
-
-  const handleGenerateDocument = useCallback(async () => {
-    if (!selectedItem || !companyProfile) return;
-
-    setStatus('loading');
-    setGeneratedDocument('');
-    setSources([]);
-
-    // Combine profile and specific answers for the service
-    const allAnswers: FormAnswers = {
-        ...companyProfile,
-        ...questionAnswers
-    };
-
-    try {
-      if (selectedItem.kind === 'policy') {
-        const stream = generatePolicyStream(selectedItem.type, allAnswers);
-        for await (const chunk of stream) {
-          // Append text
-          if (chunk.text) {
-              setGeneratedDocument((prev) => prev + chunk.text);
-          }
-          
-          // Collect unique sources
-          const newSources = chunk.candidates?.[0]?.groundingMetadata?.groundingChunks;
-          if (newSources) {
-            setSources(prevSources => {
-              const existingUris = new Set(prevSources.map(s => s.web?.uri));
-              // FIX: Map `GroundingChunk` objects from the API to `Source` objects to fix a type error.
-              // `Source` requires `web.uri` and `web.title`, which are optional on the API's `GroundingChunk`.
-              const uniqueNewSources: Source[] = newSources
-                .filter(s => s.web?.uri && !existingUris.has(s.web.uri))
-                .map(s => ({
-                  web: {
-                    uri: s.web!.uri!,
-                    title: s.web!.title || s.web!.uri!,
-                  },
-                }));
-              return [...prevSources, ...uniqueNewSources];
-            });
-          }
-        }
-      } else {
-        const stream = generateFormStream(selectedItem.type, allAnswers);
-         for await (const chunk of stream) {
-            setGeneratedDocument((prev) => prev + chunk);
-        }
-      }
-      setStatus('success');
-    } catch (error) {
-      console.error('Failed to generate document:', error);
-      setStatus('error');
-    }
-  }, [selectedItem, companyProfile, questionAnswers]);
 
   const AuthHeader = () => (
      <header className="bg-white shadow-sm py-4">
@@ -174,12 +77,13 @@ const App: React.FC = () => {
               <img 
                   src="https://i.postimg.cc/h48FMCNY/edited-image-11-removebg-preview.png" 
                   alt="Ingcweti Logo" 
-                  className="h-12"
+                  className="h-12 cursor-pointer"
+                  onClick={handleStartOver}
               />
               <div className="flex items-center space-x-4">
                   <span className="text-sm text-gray-600 hidden sm:block">{user?.email}</span>
                   <button onClick={handleStartOver} className="text-sm font-semibold text-primary hover:underline">
-                      Start Over
+                      Dashboard
                   </button>
               </div>
           </div>
@@ -201,66 +105,39 @@ const App: React.FC = () => {
       </footer>
   );
   
-  const renderGeneratorFlow = () => {
-      if (!selectedItem) {
-        // This shouldn't happen if view logic is correct, but as a fallback:
-        setCurrentView('home');
-        return null;
-      }
-
-      if (!companyProfile) {
-        return (
-            <CompanyProfileSetup 
-                item={selectedItem}
-                onProfileSubmit={handleProfileSubmit}
-                onBack={() => handleBack('profile')}
-            />
-        )
-      }
-
-      return (
-        <div>
-            <button
-              onClick={() => handleBack('document')}
-              className="mb-6 text-primary font-semibold hover:underline flex items-center"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
-              </svg>
-              Back to Profile Setup
-            </button>
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-              <Questionnaire
-                item={selectedItem}
-                companyProfile={companyProfile}
-                answers={questionAnswers}
-                onAnswersChange={setQuestionAnswers}
-                onGenerate={handleGenerateDocument}
-                status={status}
-              />
-              <PolicyPreview
-                policyText={generatedDocument}
-                status={status}
-                onRetry={handleGenerateDocument}
-                isForm={selectedItem.kind === 'form'}
-                outputFormat={selectedItem.kind === 'form' ? selectedItem.outputFormat : 'word'}
-                sources={sources}
-              />
-            </div>
-          </div>
-      );
-  }
-
   const renderMainContent = () => {
     switch (currentView) {
-        case 'home':
-            return <HomePage onSelectItem={handleSelectItem} onStartUpdate={handleStartUpdate} />;
+        case 'dashboard':
+            return <Dashboard 
+                        onSelectItem={handleSelectItem} 
+                        onStartUpdate={handleStartUpdate} 
+                        onStartChecklist={handleStartChecklist}
+                        generatedDocuments={generatedDocuments}
+                        onViewDocument={handleViewDocument}
+                    />;
         case 'generator':
-            return renderGeneratorFlow();
+            if (!selectedItem) {
+                handleBackToDashboard();
+                return null;
+            }
+            return <GeneratorPage 
+                        selectedItem={selectedItem}
+                        initialData={documentToView}
+                        onDocumentGenerated={handleDocumentGenerated}
+                        onBack={handleBackToDashboard}
+                    />;
         case 'updater':
-            return <PolicyUpdater onBack={() => handleBack('updater')} />;
+            return <PolicyUpdater onBack={handleBackToDashboard} />;
+        case 'checklist':
+            return <ComplianceChecklist onBack={handleBackToDashboard} onSelectItem={handleSelectItem} />;
         default:
-             return <HomePage onSelectItem={handleSelectItem} onStartUpdate={handleStartUpdate} />;
+             return <Dashboard 
+                        onSelectItem={handleSelectItem} 
+                        onStartUpdate={handleStartUpdate} 
+                        onStartChecklist={handleStartChecklist} 
+                        generatedDocuments={generatedDocuments}
+                        onViewDocument={handleViewDocument}
+                    />;
     }
   }
 
@@ -271,11 +148,6 @@ const App: React.FC = () => {
         {renderMainContent()}
       </main>
       <AppFooter />
-      <ConfirmationModal
-        isOpen={showConfirmation}
-        onConfirm={confirmNavigation}
-        onCancel={cancelNavigation}
-      />
     </div>
   );
 };

@@ -1,13 +1,60 @@
 
+
 import { GoogleGenAI, GenerateContentResponse, Type } from "@google/genai";
 import { POLICIES, FORM_BASE_TEMPLATES, FORMS, FORM_ENRICHMENT_PROMPTS } from '../constants';
-import type { PolicyType, FormType, FormAnswers, PolicyUpdateResult } from '../types';
+import type { PolicyType, FormType, FormAnswers, PolicyUpdateResult, ComplianceChecklistResult } from '../types';
 
 if (!process.env.API_KEY) {
   throw new Error("API_KEY environment variable is not set");
 }
 
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+
+const INDUSTRY_SPECIFIC_PROMPTS: Record<string, Partial<Record<PolicyType, string>>> = {
+  'Construction': {
+    'health-and-safety': "Incorporate specific clauses relating to the Construction Regulations of the OHS Act. This must include Personal Protective Equipment (PPE) requirements, site safety inductions, and mandatory incident reporting procedures.",
+    'working-hours': "Address project-based work schedules, the management of overtime during critical project phases, and adherence to the Sectoral Determination for the building industry.",
+    'coida': "Emphasize the high-risk nature of the industry and the critical importance of immediate reporting of any Injury on Duty (IOD) to facilitate COIDA claims.",
+    'alcohol-drug': "Include a strict zero-tolerance policy, especially regarding the operation of heavy machinery and working at heights. Mention the company's right to conduct lawful testing."
+  },
+  'Manufacturing': {
+    'health-and-safety': "Focus on machine guarding, lockout-tagout procedures, handling of hazardous materials (if applicable), and the specific PPE required for a factory environment.",
+    'working-hours': "Detail rules for shift work, including night shifts and rotating schedules, ensuring full compliance with BCEA regulations for such arrangements.",
+    'alcohol-drug': "Implement a zero-tolerance policy for employees operating machinery and mention the right to conduct testing where lawful and appropriate to ensure safety.",
+    'company-property': "Add clauses related to the proper use and maintenance of factory machinery and tools."
+  },
+  'Hospitality': {
+    'working-hours': "Address irregular hours, work on weekends and public holidays, and split shifts, ensuring payment rates align with the relevant Sectoral Determination.",
+    'dress-code': "Be specific about uniform standards, personal hygiene (especially for food and beverage staff), and maintaining a professional appearance when interacting with guests.",
+    'leave': "Clarify how leave is calculated and managed for employees who do not work a standard Monday-to-Friday week.",
+    'employee-conduct': "Include clauses on professional interaction with guests, handling of customer complaints, and the importance of maintaining the establishment's reputation."
+  },
+  'Technology': {
+    'remote-hybrid-work': "Provide detailed expectations for remote work, covering data security protocols, availability during core hours, and the proper use and care of company-issued equipment.",
+    'confidentiality': "Strengthen clauses on protecting intellectual property, source code, client data, and proprietary information. Clearly state the consequences of data breaches.",
+    'it-cybersecurity': "Elaborate on password policies, two-factor authentication (2FA), acceptable use of company networks, and the protocol for reporting suspected phishing or security threats.",
+    'byod': "Detail the mandatory security requirements for personal devices connecting to the company network, such as encryption, antivirus software, and mobile device management (MDM) if applicable."
+  },
+  'Retail': {
+    'working-hours': "Cover variable work hours based on store needs, including weekends, public holidays, and extended hours during peak seasons, aligning with the retail Sectoral Determination.",
+    'employee-conduct': "Incorporate clauses on customer service excellence, cash handling procedures, point-of-sale (POS) usage, and policies regarding staff purchases and discounts.",
+    'security': "Address procedures for managing shoplifting, internal theft, handling of cash floats, and end-of-day closing and security protocols.",
+    'dress-code': "Define the dress code or uniform requirements clearly to ensure a professional and consistent brand image for customer-facing staff."
+  },
+  'Agriculture': {
+    'health-and-safety': "Focus on safety protocols for operating farm machinery (e.g., tractors), handling pesticides and chemicals, and managing risks associated with livestock and extreme weather.",
+    'working-hours': "Address the nature of seasonal work, piece-work systems (if used), and the legal requirements for any on-site accommodation provided to farmworkers, referencing the relevant Sectoral Determination.",
+    'leave': "Explain how leave entitlement and calculation differs for seasonal workers compared to permanent staff.",
+    'coida': "Highlight the importance of reporting all farm-related injuries, from minor cuts to major incidents, to ensure proper COIDA compliance."
+  },
+  'Professional Services': {
+    'confidentiality': "Place a strong emphasis on client confidentiality, professional ethics, and the secure handling of sensitive client documents and data. Reference professional body codes of conduct where applicable.",
+    'conflict-of-interest': "Include a detailed process for declaring and managing potential conflicts of interest, which is critical in consulting, legal, and financial advisory roles.",
+    'travel': "If client travel is frequent, create a comprehensive section covering booking procedures, expense claims, per diems, and maintaining professional conduct while representing the firm.",
+    'electronic-communications': "Define clear rules for professional communication with clients via email and other platforms, including disclaimers and record-keeping requirements."
+  }
+};
+
 
 export async function* generatePolicyStream(
   policyType: PolicyType,
@@ -23,6 +70,8 @@ export async function* generatePolicyStream(
   const industry = answers.industry || 'general';
   const companyVoice = answers.companyVoice || 'Formal & Corporate'; // Safety default
   
+  const industryInstructions = INDUSTRY_SPECIFIC_PROMPTS[industry]?.[policyType] || '';
+
   let userContext = '';
   const policyQuestions = POLICIES[policyType].questions;
 
@@ -81,7 +130,9 @@ The policy must be fully compliant with current South African legislation. Focus
 
 When performing your search, use specific queries like "latest amendments to BCEA South Africa" or "standard employee handbook clauses South Africa". This will help ground the policy in the most current and authoritative information available.
 
-${userContext ? `**Crucially, you must incorporate the following user-provided details and instructions into the document:**\n${userContext}` : ''}
+${industryInstructions ? `**For a company in the "${industry}" industry, it is essential that you specifically address the following points:**\n- ${industryInstructions}\n` : ''}
+
+${userContext ? `**In addition, integrate the following specific details provided by the user:**\n${userContext}` : ''}
 
 Structure the final document with clear Markdown formatting, including a main title, numbered sections (e.g., "1. Introduction", "2. Scope"), and sub-sections as needed. The language must be professional South African English.
 `;
@@ -304,5 +355,84 @@ ${currentPolicyText}
   } catch (error) {
     console.error("Error calling Gemini API for policy update:", error);
     throw new Error("Failed to update policy from AI. Please check the input and try again.");
+  }
+}
+
+export async function generateComplianceChecklist(
+  businessDescription: string,
+): Promise<ComplianceChecklistResult> {
+  const systemInstruction = `You are an expert South African HR consultant. Your task is to analyze a business description and recommend a checklist of essential HR policies and forms for legal compliance in South Africa. You must provide clear, concise reasons for each recommendation, tailored to the business described. Your output must be a valid JSON object that adheres strictly to the provided schema.`;
+
+  const prompt = `
+Based on the following business description, please generate a list of recommended HR policies and forms that are essential for a small business in South Africa.
+
+**Business Description:**
+---
+${businessDescription}
+---
+
+For each recommended policy and form, provide a short, practical reason why it is important for this specific business. Focus on the most critical documents for legal compliance and good practice.
+`;
+
+  const responseSchema = {
+    type: Type.OBJECT,
+    properties: {
+      policies: {
+        type: Type.ARRAY,
+        description: 'A list of recommended HR policies.',
+        items: {
+          type: Type.OBJECT,
+          properties: {
+            name: {
+              type: Type.STRING,
+              description: 'The full name of the policy, e.g., "Disciplinary Code and Procedure".'
+            },
+            reason: {
+              type: Type.STRING,
+              description: 'A brief, tailored explanation of why this policy is recommended for this specific business.'
+            }
+          },
+          required: ['name', 'reason'],
+        },
+      },
+      forms: {
+        type: Type.ARRAY,
+        description: 'A list of recommended HR forms.',
+        items: {
+          type: Type.OBJECT,
+          properties: {
+            name: {
+              type: Type.STRING,
+              description: 'The full name of the form, e.g., "Leave Application Form".'
+            },
+            reason: {
+              type: Type.STRING,
+              description: 'A brief, tailored explanation of why this form is recommended for this specific business.'
+            }
+          },
+          required: ['name', 'reason'],
+        },
+      },
+    },
+    required: ['policies', 'forms'],
+  };
+  
+  try {
+    const response = await ai.models.generateContent({
+      model: "gemini-2.5-flash",
+      contents: [{ role: "user", parts: [{ text: prompt }] }],
+      config: {
+        systemInstruction: systemInstruction,
+        responseMimeType: "application/json",
+        responseSchema: responseSchema,
+      },
+    });
+
+    const jsonText = response.text.trim();
+    return JSON.parse(jsonText) as ComplianceChecklistResult;
+
+  } catch (error) {
+    console.error("Error calling Gemini API for compliance checklist:", error);
+    throw new Error("Failed to generate compliance checklist from AI. Please try again.");
   }
 }
