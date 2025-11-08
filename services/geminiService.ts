@@ -76,12 +76,6 @@ export async function* generatePolicyStream(
     if (answers.companySize) {
         companyContext += `- Company Size: ${answers.companySize} employees\n`;
     }
-    if (answers.address) {
-    companyContext += `- Company Address: ${answers.address}\n`;
-    }
-    if (answers.companyUrl) {
-    companyContext += `- Company Website: ${answers.companyUrl}\n`;
-    }
     if (answers.summary) {
     companyContext += `- Company Summary: ${answers.summary}\n`;
     }
@@ -99,6 +93,8 @@ export async function* generatePolicyStream(
   delete specificAnswers.summary;
   delete specificAnswers.companyUrl;
   delete specificAnswers.companySize;
+  delete specificAnswers.effectiveDate;
+  delete specificAnswers.reviewDate;
 
 
   if (policyType === 'employee-handbook') {
@@ -130,19 +126,18 @@ export async function* generatePolicyStream(
 
   const systemInstruction = "You are an expert South African HR consultant and legal drafter specializing in creating compliant HR policies for small businesses. Your primary goal is to generate legally sound, comprehensive, and practical documents based on current South African labour law. When using Google Search for grounding, you MUST prioritize information from official South African government websites (e.g., those with a .gov.za domain, like the Department of Employment and Labour) and reputable South African legal publications or law firms. This is critical for accuracy and authority. You must generate the full policy in Markdown format. Ensure the final document is well-structured, professional, and ready for use.";
 
-  const promptIntro = policyType === 'employee-handbook' 
-    ? `Please generate a comprehensive **"${policyTitle}"** for a South African company named **"${answers.companyName}"**, which operates in the **"${industry}"** industry.`
-    : `Please generate a comprehensive **"${policyTitle}"** for a South African company named **"${answers.companyName}"**, which operates in the **"${industry}"** industry.`;
-
   const handbookInstructions = policyType === 'employee-handbook'
     ? "The handbook must be a cohesive, well-structured document, not just a list of separate policies. It should include an introduction, a welcome message from the CEO/MD, and then the detailed policy sections."
     : "";
 
-
   const fullPrompt = `
-${promptIntro}
+Please generate a comprehensive **"${policyTitle}"** for a South African company.
 
-**The tone of the document must be "${companyVoice}".** Adapt the language and phrasing to reflect this voice throughout the document.
+**Main Policy Content:**
+
+The policy is for a company named **"${answers.companyName}"**, which operates in the **"${industry}"** industry.
+
+The tone of the document must be "${companyVoice}". Adapt the language and phrasing to reflect this voice throughout the document.
 
 ${companyContext ? `Here is some additional context about the company to inform the policy's content and tone:\n${companyContext}` : ''}
 
@@ -157,6 +152,17 @@ ${industryInstructions ? `**For a company in the "${industry}" industry, it is e
 ${userContext ? `**In addition, integrate the following specific details provided by the user:**\n${userContext}` : ''}
 
 Structure the final document with clear Markdown formatting, including a main title, numbered sections (e.g., "1. Introduction", "2. Scope"), and sub-sections as needed. The language must be professional South African English.
+
+---
+
+**IMPORTANT: Document Footer**
+At the absolute end of the generated policy, after all other content and sections, you MUST add the following company details as a footer. This footer must be visually separated (e.g., with a horizontal rule) and be in a smaller font size, like a small script.
+
+Company Name: ${answers.companyName}
+Company Address: ${answers.address || 'Not Provided'}
+Company Website: ${answers.companyUrl || 'Not Provided'}
+Effective Date: ${answers.effectiveDate || 'Not Provided'}
+Review Date: ${answers.reviewDate || 'Not Provided'}
 `;
   
   try {

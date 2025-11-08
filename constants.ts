@@ -169,6 +169,11 @@ const commonQuestions = [
   { id: 'companyName', label: 'Company Name', type: 'text' as const, placeholder: 'e.g., ABC (Pty) Ltd' },
 ];
 
+const commonPolicyMetadataQuestions = [
+  { id: 'effectiveDate', label: 'Effective Date', type: 'text' as const, placeholder: 'e.g., 01 November 2024', tip: 'The date from which this policy is active.' },
+  { id: 'reviewDate', label: 'Next Review Date', type: 'text' as const, placeholder: 'e.g., 01 November 2025', tip: 'The date when this policy should be reviewed, typically one year from the effective date.' },
+];
+
 const employeeAndManagerQuestions = [
     ...commonQuestions,
     { id: 'employeeName', label: 'Employee Name', type: 'text' as const, placeholder: 'e.g., John Smith' },
@@ -185,6 +190,7 @@ export const POLICIES: Record<PolicyType, Policy> = {
     icon: LeaveIcon,
     questions: [
       ...commonQuestions,
+      ...commonPolicyMetadataQuestions,
       { id: 'annualLeaveDays', label: 'Annual Leave Days', type: 'number', placeholder: 'e.g., 15', tip: 'The BCEA minimum is 21 consecutive days or 1 day for every 17 days worked.' },
       { id: 'sickLeaveCycleDays', label: 'Sick Leave Cycle Days', type: 'number', placeholder: 'e.g., 30', tip: 'A sick leave cycle is 36 months. The minimum is 1 day of sick leave for every 26 days worked.' },
     ],
@@ -197,6 +203,7 @@ export const POLICIES: Record<PolicyType, Policy> = {
     icon: DisciplinaryIcon,
     questions: [
       ...commonQuestions,
+      ...commonPolicyMetadataQuestions,
       { id: 'hrContactPerson', label: 'HR Contact Person/Department', type: 'text', placeholder: 'e.g., The HR Manager' },
     ],
   },
@@ -207,7 +214,8 @@ export const POLICIES: Record<PolicyType, Policy> = {
     description: 'Create a fair process for employees to raise and resolve workplace issues.',
     icon: GrievanceIcon,
     questions: [
-        ...commonQuestions,
+      ...commonQuestions,
+      ...commonPolicyMetadataQuestions,
       { id: 'firstStepContact', label: 'First Point of Contact for Grievances', type: 'text', placeholder: 'e.g., Immediate Supervisor' },
       { id: 'escalationContact', label: 'Escalation Point', type: 'text', placeholder: 'e.g., Department Head' },
     ],
@@ -219,7 +227,8 @@ export const POLICIES: Record<PolicyType, Policy> = {
     description: 'Commit to a safe working environment compliant with the OHS Act.',
     icon: HealthSafetyIcon,
     questions: [
-        ...commonQuestions,
+      ...commonQuestions,
+      ...commonPolicyMetadataQuestions,
       { id: 'safetyOfficerName', label: 'Appointed Safety Officer (if any)', type: 'text', placeholder: 'Leave blank if not applicable' },
     ],
     industries: ['Construction', 'Manufacturing', 'Agriculture', 'Hospitality'],
@@ -231,8 +240,9 @@ export const POLICIES: Record<PolicyType, Policy> = {
     description: 'A comprehensive document combining all essential HR policies into a single employee handbook.',
     icon: MasterPolicyIcon,
     questions: [
-        ...commonQuestions,
-        { id: 'ceoName', label: 'CEO/Managing Director Name', type: 'text', placeholder: 'e.g., Jane Doe' }
+      ...commonQuestions,
+      ...commonPolicyMetadataQuestions,
+      { id: 'ceoName', label: 'CEO/Managing Director Name', type: 'text', placeholder: 'e.g., Jane Doe' }
     ],
   },
   'byod': {
@@ -242,8 +252,9 @@ export const POLICIES: Record<PolicyType, Policy> = {
     description: 'Set guidelines for employees using personal devices (laptops, phones) for work.',
     icon: ByodIcon,
     questions: [
-        ...commonQuestions,
-        { id: 'itSupportContact', label: 'IT Support Contact', type: 'text', placeholder: 'e.g., IT Department' }
+      ...commonQuestions,
+      ...commonPolicyMetadataQuestions,
+      { id: 'itSupportContact', label: 'IT Support Contact', type: 'text', placeholder: 'e.g., IT Department' }
     ],
     industries: ['Technology', 'Professional Services'],
   },
@@ -254,8 +265,9 @@ export const POLICIES: Record<PolicyType, Policy> = {
     description: 'Define rules for personal and company-provided cell phone usage during work hours.',
     icon: CellPhoneIcon,
     questions: [
-        ...commonQuestions,
-        { id: 'usageRestrictions', label: 'Usage Restrictions', type: 'textarea', placeholder: 'e.g., Personal calls are limited to break times.' }
+      ...commonQuestions,
+      ...commonPolicyMetadataQuestions,
+      { id: 'usageRestrictions', label: 'Usage Restrictions', type: 'textarea', placeholder: 'e.g., Personal calls are limited to break times.' }
     ],
   },
   'certification': {
@@ -265,8 +277,9 @@ export const POLICIES: Record<PolicyType, Policy> = {
     description: 'Outline requirements and support for employee professional certifications.',
     icon: CertificationIcon,
     questions: [
-        ...commonQuestions,
-        { id: 'reimbursementPolicy', label: 'Reimbursement Details', type: 'text', placeholder: 'e.g., 100% reimbursement on passing the exam.' }
+      ...commonQuestions,
+      ...commonPolicyMetadataQuestions,
+      { id: 'reimbursementPolicy', label: 'Reimbursement Details', type: 'text', placeholder: 'e.g., 100% reimbursement on passing the exam.' }
     ],
   },
   'code-of-ethics': {
@@ -276,8 +289,9 @@ export const POLICIES: Record<PolicyType, Policy> = {
     description: 'Establish principles of conduct, integrity, and ethical behaviour for all employees.',
     icon: CodeOfEthicsIcon,
     questions: [
-        ...commonQuestions,
-        { id: 'reportingChannel', label: 'Ethics Reporting Channel', type: 'text', placeholder: 'e.g., Ethics Hotline or HR Manager' }
+      ...commonQuestions,
+      ...commonPolicyMetadataQuestions,
+      { id: 'reportingChannel', label: 'Ethics Reporting Channel', type: 'text', placeholder: 'e.g., Ethics Hotline or HR Manager' }
     ],
   },
   'communication-retention': {
@@ -287,8 +301,9 @@ export const POLICIES: Record<PolicyType, Policy> = {
     description: 'Define how electronic communications (email, messages) are stored and for how long.',
     icon: CommunicationRetentionIcon,
     questions: [
-        ...commonQuestions,
-        { id: 'retentionPeriod', label: 'Data Retention Period (Years)', type: 'number', placeholder: 'e.g., 5' }
+      ...commonQuestions,
+      ...commonPolicyMetadataQuestions,
+      { id: 'retentionPeriod', label: 'Data Retention Period (Years)', type: 'number', placeholder: 'e.g., 5' }
     ],
   },
   'data-usage-popia': {
@@ -298,8 +313,9 @@ export const POLICIES: Record<PolicyType, Policy> = {
     description: 'Ensure compliance with the Protection of Personal Information Act (POPIA).',
     icon: DataUsageIcon,
     questions: [
-        ...commonQuestions,
-        { id: 'infoOfficer', label: 'Information Officer Name', type: 'text', placeholder: 'e.g., John Smith' }
+      ...commonQuestions,
+      ...commonPolicyMetadataQuestions,
+      { id: 'infoOfficer', label: 'Information Officer Name', type: 'text', placeholder: 'e.g., John Smith' }
     ],
   },
   'electronic-communications': {
@@ -309,8 +325,9 @@ export const POLICIES: Record<PolicyType, Policy> = {
     description: 'Govern the use of company email, internet, and other electronic systems.',
     icon: ElectronicCommunicationsIcon,
     questions: [
-        ...commonQuestions,
-        { id: 'monitoringStatement', label: 'Monitoring Clause', type: 'textarea', placeholder: 'e.g., The company reserves the right to monitor all electronic communications.' }
+      ...commonQuestions,
+      ...commonPolicyMetadataQuestions,
+      { id: 'monitoringStatement', label: 'Monitoring Clause', type: 'textarea', placeholder: 'e.g., The company reserves the right to monitor all electronic communications.' }
     ],
   },
   'resignation': {
@@ -320,8 +337,9 @@ export const POLICIES: Record<PolicyType, Policy> = {
     description: 'Detail the formal procedure for employees leaving the company, including notice periods.',
     icon: ResignationIcon,
     questions: [
-        ...commonQuestions,
-        { id: 'noticePeriodWeeks', label: 'Standard Notice Period (Weeks)', type: 'number', placeholder: 'e.g., 4' }
+      ...commonQuestions,
+      ...commonPolicyMetadataQuestions,
+      { id: 'noticePeriodWeeks', label: 'Standard Notice Period (Weeks)', type: 'number', placeholder: 'e.g., 4' }
     ],
   },
   'security': {
@@ -331,8 +349,9 @@ export const POLICIES: Record<PolicyType, Policy> = {
     description: 'Establish rules for physical and digital security to protect company assets.',
     icon: SecurityIcon,
     questions: [
-        ...commonQuestions,
-        { id: 'accessControl', label: 'Access Control Manager', type: 'text', placeholder: 'e.g., Head of Security' }
+      ...commonQuestions,
+      ...commonPolicyMetadataQuestions,
+      { id: 'accessControl', label: 'Access Control Manager', type: 'text', placeholder: 'e.g., Head of Security' }
     ],
   },
   'sexual-harassment': {
@@ -342,8 +361,9 @@ export const POLICIES: Record<PolicyType, Policy> = {
     description: 'Define and prohibit sexual harassment, and outline reporting and investigation procedures.',
     icon: SexualHarassmentIcon,
     questions: [
-        ...commonQuestions,
-        { id: 'confidentialContact', label: 'Confidential Reporting Contact', type: 'text', placeholder: 'e.g., Designated HR representative' }
+      ...commonQuestions,
+      ...commonPolicyMetadataQuestions,
+      { id: 'confidentialContact', label: 'Confidential Reporting Contact', type: 'text', placeholder: 'e.g., Designated HR representative' }
     ],
   },
   'standby': {
@@ -353,8 +373,9 @@ export const POLICIES: Record<PolicyType, Policy> = {
     description: 'Outline compensation and expectations for employees required to be on standby.',
     icon: StandbyIcon,
     questions: [
-        ...commonQuestions,
-        { id: 'standbyAllowance', label: 'Standby Allowance (per shift/day)', type: 'text', placeholder: 'e.g., R250 per day' }
+      ...commonQuestions,
+      ...commonPolicyMetadataQuestions,
+      { id: 'standbyAllowance', label: 'Standby Allowance (per shift/day)', type: 'text', placeholder: 'e.g., R250 per day' }
     ],
     industries: ['Technology', 'Manufacturing', 'Professional Services'],
   },
@@ -365,8 +386,9 @@ export const POLICIES: Record<PolicyType, Policy> = {
     description: 'Set guidelines for the use of company landlines for personal and business calls.',
     icon: TelephoneUsageIcon,
     questions: [
-        ...commonQuestions,
-        { id: 'personalCallRule', label: 'Personal Call Rule', type: 'text', placeholder: 'e.g., Permitted for emergencies only.' }
+      ...commonQuestions,
+      ...commonPolicyMetadataQuestions,
+      { id: 'personalCallRule', label: 'Personal Call Rule', type: 'text', placeholder: 'e.g., Permitted for emergencies only.' }
     ],
   },
   'time-off': {
@@ -376,8 +398,9 @@ export const POLICIES: Record<PolicyType, Policy> = {
     description: 'Define the process for requesting and approving unpaid time off or special leave.',
     icon: TimeOffIcon,
     questions: [
-        ...commonQuestions,
-        { id: 'approvalAuthority', label: 'Approval Authority', type: 'text', placeholder: 'e.g., Department Manager' }
+      ...commonQuestions,
+      ...commonPolicyMetadataQuestions,
+      { id: 'approvalAuthority', label: 'Approval Authority', type: 'text', placeholder: 'e.g., Department Manager' }
     ],
   },
   'travel': {
@@ -387,8 +410,9 @@ export const POLICIES: Record<PolicyType, Policy> = {
     description: 'Govern procedures and reimbursements for business-related travel.',
     icon: TravelIcon,
     questions: [
-        ...commonQuestions,
-        { id: 'expenseContact', label: 'Expense Claim Contact', type: 'text', placeholder: 'e.g., Finance Department' }
+      ...commonQuestions,
+      ...commonPolicyMetadataQuestions,
+      { id: 'expenseContact', label: 'Expense Claim Contact', type: 'text', placeholder: 'e.g., Finance Department' }
     ],
     industries: ['Professional Services', 'Construction', 'Manufacturing', 'Retail'],
   },
@@ -399,8 +423,9 @@ export const POLICIES: Record<PolicyType, Policy> = {
     description: 'Outline the responsible use, care, and return of all company-issued equipment.',
     icon: CompanyPropertyIcon,
     questions: [
-        ...commonQuestions,
-        { id: 'itManager', label: 'IT Manager', type: 'text', placeholder: 'e.g., IT Department Head' }
+      ...commonQuestions,
+      ...commonPolicyMetadataQuestions,
+      { id: 'itManager', label: 'IT Manager', type: 'text', placeholder: 'e.g., IT Department Head' }
     ],
   },
   'visitor': {
@@ -410,8 +435,9 @@ export const POLICIES: Record<PolicyType, Policy> = {
     description: 'Establish procedures for managing non-employees visiting company premises.',
     icon: VisitorIcon,
     questions: [
-        ...commonQuestions,
-        { id: 'receptionContact', label: 'Reception/Front Desk Contact', type: 'text', placeholder: 'e.g., The Receptionist' }
+      ...commonQuestions,
+      ...commonPolicyMetadataQuestions,
+      { id: 'receptionContact', label: 'Reception/Front Desk Contact', type: 'text', placeholder: 'e.g., The Receptionist' }
     ],
   },
   'remote-hybrid-work': {
@@ -421,9 +447,10 @@ export const POLICIES: Record<PolicyType, Policy> = {
     description: 'Defines expectations for remote working arrangements including security and communication protocols.',
     icon: RemoteWorkIcon,
     questions: [
-        ...commonQuestions,
-        { id: 'remoteWorkContact', label: 'Remote Work Coordinator', type: 'text', placeholder: 'e.g., HR Manager' },
-        { id: 'coreHours', label: 'Core Collaboration Hours', type: 'text', placeholder: 'e.g., 10:00 AM to 3:00 PM' }
+      ...commonQuestions,
+      ...commonPolicyMetadataQuestions,
+      { id: 'remoteWorkContact', label: 'Remote Work Coordinator', type: 'text', placeholder: 'e.g., HR Manager' },
+      { id: 'coreHours', label: 'Core Collaboration Hours', type: 'text', placeholder: 'e.g., 10:00 AM to 3:00 PM' }
     ],
     industries: ['Technology', 'Professional Services'],
   },
@@ -434,8 +461,9 @@ export const POLICIES: Record<PolicyType, Policy> = {
     description: 'Promotes nondiscrimination, fairness in hiring and promotions, and supports inclusion.',
     icon: EeoDiversityIcon,
     questions: [
-        ...commonQuestions,
-        { id: 'eeoOfficerName', label: 'EEO / Diversity Officer', type: 'text', placeholder: 'e.g., Head of HR' }
+      ...commonQuestions,
+      ...commonPolicyMetadataQuestions,
+      { id: 'eeoOfficerName', label: 'EEO / Diversity Officer', type: 'text', placeholder: 'e.g., Head of HR' }
     ],
   },
   'attendance-punctuality': {
@@ -445,8 +473,9 @@ export const POLICIES: Record<PolicyType, Policy> = {
     description: 'Defines expectations on work hours, attendance, punctuality, and consequences for violations.',
     icon: AttendancePunctualityIcon,
     questions: [
-        ...commonQuestions,
-        { id: 'lateArrivalPolicy', label: 'Consequence for late arrival', type: 'text', placeholder: 'e.g., Verbal warning after 3 instances' }
+      ...commonQuestions,
+      ...commonPolicyMetadataQuestions,
+      { id: 'lateArrivalPolicy', label: 'Consequence for late arrival', type: 'text', placeholder: 'e.g., Verbal warning after 3 instances' }
     ],
   },
   'employee-conduct': {
@@ -456,8 +485,9 @@ export const POLICIES: Record<PolicyType, Policy> = {
     description: 'Covers professional behavior, dress code, communication standards, and conflict resolution.',
     icon: EmployeeConductIcon,
     questions: [
-        ...commonQuestions,
-        { id: 'dressCodeSummary', label: 'Briefly describe the dress code', type: 'textarea', placeholder: 'e.g., Business casual. No jeans or t-shirts.' }
+      ...commonQuestions,
+      ...commonPolicyMetadataQuestions,
+      { id: 'dressCodeSummary', label: 'Briefly describe the dress code', type: 'textarea', placeholder: 'e.g., Business casual. No jeans or t-shirts.' }
     ],
   },
   'data-protection-privacy': {
@@ -467,8 +497,9 @@ export const POLICIES: Record<PolicyType, Policy> = {
     description: 'Covers handling and protection of employee and customer data comprehensively.',
     icon: DataProtectionPrivacyIcon,
     questions: [
-        ...commonQuestions,
-        { id: 'dataBreachContact', label: 'Who to contact in case of a data breach?', type: 'text', placeholder: 'e.g., The Information Officer' }
+      ...commonQuestions,
+      ...commonPolicyMetadataQuestions,
+      { id: 'dataBreachContact', label: 'Who to contact in case of a data breach?', type: 'text', placeholder: 'e.g., The Information Officer' }
     ],
   },
   'disciplinary-action': {
@@ -478,8 +509,9 @@ export const POLICIES: Record<PolicyType, Policy> = {
     description: 'Details grounds for discipline and the process for addressing misconduct or performance issues.',
     icon: DisciplinaryActionIcon,
     questions: [
-        ...commonQuestions,
-        { id: 'appealProcessContact', label: 'Who manages disciplinary appeals?', type: 'text', placeholder: 'e.g., The CEO' }
+      ...commonQuestions,
+      ...commonPolicyMetadataQuestions,
+      { id: 'appealProcessContact', label: 'Who manages disciplinary appeals?', type: 'text', placeholder: 'e.g., The CEO' }
     ],
   },
   'whistleblower': {
@@ -489,8 +521,9 @@ export const POLICIES: Record<PolicyType, Policy> = {
     description: 'Provides a safe, confidential channel for reporting unethical or illegal activities without retaliation.',
     icon: WhistleblowerIcon,
     questions: [
-        ...commonQuestions,
-        { id: 'whistleblowerHotline', label: 'Anonymous reporting channel/hotline', type: 'text', placeholder: 'e.g., ethics@company.com or 0800-123-456' }
+      ...commonQuestions,
+      ...commonPolicyMetadataQuestions,
+      { id: 'whistleblowerHotline', label: 'Anonymous reporting channel/hotline', type: 'text', placeholder: 'e.g., ethics@company.com or 0800-123-456' }
     ],
   },
   'compensation-benefits': {
@@ -500,8 +533,9 @@ export const POLICIES: Record<PolicyType, Policy> = {
     description: 'Clarifies salary, bonuses, benefits, and pay review procedures.',
     icon: CompensationBenefitsIcon,
     questions: [
-        ...commonQuestions,
-        { id: 'payrollContact', label: 'Who to contact for payroll queries?', type: 'text', placeholder: 'e.g., The Payroll Department' }
+      ...commonQuestions,
+      ...commonPolicyMetadataQuestions,
+      { id: 'payrollContact', label: 'Who to contact for payroll queries?', type: 'text', placeholder: 'e.g., The Payroll Department' }
     ],
   },
   'performance-management': {
@@ -511,8 +545,9 @@ export const POLICIES: Record<PolicyType, Policy> = {
     description: 'Sets criteria for employee performance reviews, goal setting, and career development.',
     icon: PerformanceManagementIcon,
     questions: [
-        ...commonQuestions,
-        { id: 'reviewFrequency', label: 'How often are performance reviews conducted?', type: 'text', placeholder: 'e.g., Annually' }
+      ...commonQuestions,
+      ...commonPolicyMetadataQuestions,
+      { id: 'reviewFrequency', label: 'How often are performance reviews conducted?', type: 'text', placeholder: 'e.g., Annually' }
     ],
   },
   'workplace-wellness': {
@@ -522,8 +557,9 @@ export const POLICIES: Record<PolicyType, Policy> = {
     description: 'Includes emergency protocols, wellness programs, and mental health support.',
     icon: WorkplaceWellnessIcon,
     questions: [
-        ...commonQuestions,
-        { id: 'wellnessProgramManager', label: 'Who manages wellness initiatives?', type: 'text', placeholder: 'e.g., The HR Manager' }
+      ...commonQuestions,
+      ...commonPolicyMetadataQuestions,
+      { id: 'wellnessProgramManager', label: 'Who manages wellness initiatives?', type: 'text', placeholder: 'e.g., The HR Manager' }
     ],
   },
   'it-cybersecurity': {
@@ -533,8 +569,9 @@ export const POLICIES: Record<PolicyType, Policy> = {
     description: 'Covers secure use of company technology, password protocols, and cyber threat awareness.',
     icon: ItCybersecurityIcon,
     questions: [
-        ...commonQuestions,
-        { id: 'passwordPolicySummary', label: 'Summarize the password requirements', type: 'textarea', placeholder: 'e.g., Minimum 8 characters, with uppercase, lowercase, and a number.' }
+      ...commonQuestions,
+      ...commonPolicyMetadataQuestions,
+      { id: 'passwordPolicySummary', label: 'Summarize the password requirements', type: 'textarea', placeholder: 'e.g., Minimum 8 characters, with uppercase, lowercase, and a number.' }
     ],
     industries: ['Technology', 'Professional Services', 'Retail'],
   },
@@ -545,8 +582,9 @@ export const POLICIES: Record<PolicyType, Policy> = {
     description: 'Guidelines on employees’ use of social media related to the company.',
     icon: SocialMediaIcon,
     questions: [
-        ...commonQuestions,
-        { id: 'socialMediaApprovalContact', label: 'Who approves official social media posts?', type: 'text', placeholder: 'e.g., Marketing Department' }
+      ...commonQuestions,
+      ...commonPolicyMetadataQuestions,
+      { id: 'socialMediaApprovalContact', label: 'Who approves official social media posts?', type: 'text', placeholder: 'e.g., Marketing Department' }
     ],
   },
   'confidentiality': {
@@ -556,8 +594,9 @@ export const POLICIES: Record<PolicyType, Policy> = {
     description: 'Protects sensitive company information and proprietary data.',
     icon: ConfidentialityIcon,
     questions: [
-        ...commonQuestions,
-        { id: 'confidentialInfoExamples', label: 'Examples of confidential information', type: 'textarea', placeholder: 'e.g., Client lists, financial data, trade secrets.' }
+      ...commonQuestions,
+      ...commonPolicyMetadataQuestions,
+      { id: 'confidentialInfoExamples', label: 'Examples of confidential information', type: 'textarea', placeholder: 'e.g., Client lists, financial data, trade secrets.' }
     ],
   },
   'employee-separation': {
@@ -567,8 +606,9 @@ export const POLICIES: Record<PolicyType, Policy> = {
     description: 'Formalizes offboarding procedures, notice periods, and exit interviews.',
     icon: EmployeeSeparationIcon,
     questions: [
-        ...commonQuestions,
-        { id: 'exitInterviewContact', label: 'Who conducts exit interviews?', type: 'text', placeholder: 'e.g., The HR Department' }
+      ...commonQuestions,
+      ...commonPolicyMetadataQuestions,
+      { id: 'exitInterviewContact', label: 'Who conducts exit interviews?', type: 'text', placeholder: 'e.g., The HR Department' }
     ],
   },
   'anti-harassment-discrimination': {
@@ -578,8 +618,9 @@ export const POLICIES: Record<PolicyType, Policy> = {
     description: 'Enforces a zero-tolerance stance on all forms of harassment and discrimination.',
     icon: AntiHarassmentDiscriminationIcon,
     questions: [
-        ...commonQuestions,
-        { id: 'harassmentReportingContact', label: 'Primary contact for reporting harassment?', type: 'text', placeholder: 'e.g., Designated HR Manager' }
+      ...commonQuestions,
+      ...commonPolicyMetadataQuestions,
+      { id: 'harassmentReportingContact', label: 'Primary contact for reporting harassment?', type: 'text', placeholder: 'e.g., Designated HR Manager' }
     ],
   },
   'company-vehicle': {
@@ -589,8 +630,9 @@ export const POLICIES: Record<PolicyType, Policy> = {
     description: 'Rules and procedures for employees provided with a company vehicle.',
     icon: CompanyVehicleIcon,
     questions: [
-        ...commonQuestions,
-        { id: 'vehicleManager', label: 'Who manages the company vehicle fleet?', type: 'text', placeholder: 'e.g., Fleet Manager or Operations Head' }
+      ...commonQuestions,
+      ...commonPolicyMetadataQuestions,
+      { id: 'vehicleManager', label: 'Who manages the company vehicle fleet?', type: 'text', placeholder: 'e.g., Fleet Manager or Operations Head' }
     ],
     industries: ['Construction', 'Manufacturing', 'Retail', 'Agriculture'],
   },
@@ -601,8 +643,9 @@ export const POLICIES: Record<PolicyType, Policy> = {
     description: 'Procedures for claiming business-related expenses.',
     icon: ExpenseReimbursementIcon,
     questions: [
-        ...commonQuestions,
-        { id: 'reimbursementTimeframe', label: 'Typical timeframe for reimbursement (days)', type: 'number', placeholder: 'e.g., 14' }
+      ...commonQuestions,
+      ...commonPolicyMetadataQuestions,
+      { id: 'reimbursementTimeframe', label: 'Typical timeframe for reimbursement (days)', type: 'number', placeholder: 'e.g., 14' }
     ],
   },
   // New Policies Added
@@ -614,6 +657,7 @@ export const POLICIES: Record<PolicyType, Policy> = {
     icon: EmploymentEquityIcon,
     questions: [
       ...commonQuestions,
+      ...commonPolicyMetadataQuestions,
       { id: 'eeManager', label: 'Senior Manager for Employment Equity', type: 'text', placeholder: 'e.g., Jane Doe, HR Director' }
     ],
   },
@@ -625,6 +669,7 @@ export const POLICIES: Record<PolicyType, Policy> = {
     icon: CoidaIcon,
     questions: [
       ...commonQuestions,
+      ...commonPolicyMetadataQuestions,
       { id: 'iodContact', label: 'Person responsible for IOD reporting', type: 'text', placeholder: 'e.g., The Safety Officer', tip: 'This is the main contact for all COIDA-related matters, including submitting claims.' },
       { 
         id: 'internalReportingDeadline', 
@@ -651,6 +696,7 @@ export const POLICIES: Record<PolicyType, Policy> = {
     icon: UifIcon,
     questions: [
       ...commonQuestions,
+      ...commonPolicyMetadataQuestions,
       { id: 'payrollContact', label: 'Who manages payroll and UIF submissions?', type: 'text', placeholder: 'e.g., Finance Department' }
     ],
   },
@@ -662,6 +708,7 @@ export const POLICIES: Record<PolicyType, Policy> = {
     icon: RecruitmentSelectionIcon,
     questions: [
       ...commonQuestions,
+      ...commonPolicyMetadataQuestions,
       { id: 'recruitmentContact', label: 'Primary contact for recruitment', type: 'text', placeholder: 'e.g., The HR Manager' }
     ],
   },
@@ -673,6 +720,7 @@ export const POLICIES: Record<PolicyType, Policy> = {
     icon: WorkingHoursIcon,
     questions: [
       ...commonQuestions,
+      ...commonPolicyMetadataQuestions,
       { id: 'standardHours', label: 'Standard working hours', type: 'text', placeholder: 'e.g., 8:00 AM to 5:00 PM' }
     ],
   },
@@ -684,6 +732,7 @@ export const POLICIES: Record<PolicyType, Policy> = {
     icon: TrainingDevelopmentIcon,
     questions: [
       ...commonQuestions,
+      ...commonPolicyMetadataQuestions,
       { id: 'trainingApprover', label: 'Who approves training requests?', type: 'text', placeholder: 'e.g., Department Head' }
     ],
   },
@@ -695,6 +744,7 @@ export const POLICIES: Record<PolicyType, Policy> = {
     icon: AntiBriberyCorruptionIcon,
     questions: [
       ...commonQuestions,
+      ...commonPolicyMetadataQuestions,
       { id: 'briberyReportContact', label: 'Who to report suspected bribery to?', type: 'text', placeholder: 'e.g., The CEO or an anonymous hotline' }
     ],
     industries: ['Professional Services', 'Construction'],
@@ -707,6 +757,7 @@ export const POLICIES: Record<PolicyType, Policy> = {
     icon: DressCodeIcon,
     questions: [
       ...commonQuestions,
+      ...commonPolicyMetadataQuestions,
       { id: 'dressCodeSummary', label: 'Briefly describe the dress code', type: 'textarea', placeholder: 'e.g., Business casual. No shorts or open-toed shoes.' }
     ],
     industries: ['Hospitality', 'Retail', 'Professional Services'],
@@ -719,6 +770,7 @@ export const POLICIES: Record<PolicyType, Policy> = {
     icon: AlcoholDrugIcon,
     questions: [
       ...commonQuestions,
+      ...commonPolicyMetadataQuestions,
       { id: 'substanceAbuseContact', label: 'Who to contact for assistance?', type: 'text', placeholder: 'e.g., HR or an EAP provider' }
     ],
     industries: ['Construction', 'Manufacturing'],
@@ -731,6 +783,7 @@ export const POLICIES: Record<PolicyType, Policy> = {
     icon: TerminationOfEmploymentIcon,
     questions: [
       ...commonQuestions,
+      ...commonPolicyMetadataQuestions,
       { id: 'terminationNoticeWeeks', label: 'Standard notice period for termination (weeks)', type: 'number', placeholder: 'e.g., 4' }
     ],
   },
@@ -742,6 +795,7 @@ export const POLICIES: Record<PolicyType, Policy> = {
     icon: RetrenchmentIcon,
     questions: [
       ...commonQuestions,
+      ...commonPolicyMetadataQuestions,
       { id: 'consultationManager', label: 'Who manages the retrenchment consultation?', type: 'text', placeholder: 'e.g., The HR Director' }
     ],
   },
@@ -753,6 +807,7 @@ export const POLICIES: Record<PolicyType, Policy> = {
     icon: DeductionsIcon,
     questions: [
       ...commonQuestions,
+      ...commonPolicyMetadataQuestions,
       { id: 'deductionsContact', label: 'Who to contact for deduction queries?', type: 'text', placeholder: 'e.g., Payroll Department' }
     ],
   },
@@ -764,6 +819,7 @@ export const POLICIES: Record<PolicyType, Policy> = {
     icon: AntiBullyingIcon,
     questions: [
       ...commonQuestions,
+      ...commonPolicyMetadataQuestions,
       { id: 'confidentialContact', label: 'Confidential Reporting Contact', type: 'text', placeholder: 'e.g., Designated HR representative' }
     ],
   },
@@ -775,6 +831,7 @@ export const POLICIES: Record<PolicyType, Policy> = {
     icon: ItAccessSecurityIcon,
     questions: [
       ...commonQuestions,
+      ...commonPolicyMetadataQuestions,
       { id: 'itSupportContact', label: 'IT Support Contact', type: 'text', placeholder: 'e.g., IT Department' }
     ],
     industries: ['Technology', 'Professional Services'],
@@ -787,6 +844,7 @@ export const POLICIES: Record<PolicyType, Policy> = {
     icon: MasterPolicyIcon,
     questions: [
       ...commonQuestions,
+      ...commonPolicyMetadataQuestions,
       { id: 'ceoName', label: 'CEO/Managing Director Name', type: 'text', placeholder: 'e.g., Jane Doe' },
       {
         id: 'includedPolicies',
@@ -815,6 +873,7 @@ export const POLICIES: Record<PolicyType, Policy> = {
     icon: ConflictOfInterestIcon,
     questions: [
       ...commonQuestions,
+      ...commonPolicyMetadataQuestions,
       { id: 'disclosureContact', label: 'Who should employees disclose potential conflicts to?', type: 'text', placeholder: 'e.g., Their immediate manager or HR' }
     ],
   },
@@ -826,6 +885,7 @@ export const POLICIES: Record<PolicyType, Policy> = {
     icon: RecordsRetentionIcon,
     questions: [
       ...commonQuestions,
+      ...commonPolicyMetadataQuestions,
       { id: 'infoOfficer', label: 'Information Officer Name', type: 'text', placeholder: 'e.g., John Smith' },
       { id: 'retentionPeriod', label: 'Standard retention period for employee records (years)', type: 'number', placeholder: 'e.g., 5', tip: 'Certain records (e.g., COIDA) may have different legal retention requirements.' }
     ],
@@ -838,6 +898,7 @@ export const POLICIES: Record<PolicyType, Policy> = {
     icon: SalaryStructureIcon,
     questions: [
       ...commonQuestions,
+      ...commonPolicyMetadataQuestions,
       { id: 'compensationPhilosophy', label: 'Briefly describe your compensation philosophy', type: 'textarea', placeholder: 'e.g., To offer competitive market-related salaries that attract and retain talent.' }
     ],
   },
@@ -849,6 +910,7 @@ export const POLICIES: Record<PolicyType, Policy> = {
     icon: LanguagePolicyIcon,
     questions: [
       ...commonQuestions,
+      ...commonPolicyMetadataQuestions,
       {
         id: 'officialLanguage',
         label: 'Official Business Language(s)',
@@ -874,6 +936,7 @@ export const POLICIES: Record<PolicyType, Policy> = {
     icon: FamilyResponsibilityLeaveIcon,
     questions: [
       ...commonQuestions,
+      ...commonPolicyMetadataQuestions,
       {
         id: 'leaveContactPerson',
         label: 'Who should employees submit leave requests to?',
