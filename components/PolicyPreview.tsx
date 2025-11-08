@@ -1,9 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { LoadingIcon, CopyIcon, DownloadIcon, CheckIcon, WordIcon, ExcelIcon, PdfIcon, TxtIcon } from './Icons';
+import { LoadingIcon, CopyIcon, DownloadIcon, CheckIcon, WordIcon, TxtIcon } from './Icons';
 import type { AppStatus, Source } from '../types';
 import { marked } from 'https://esm.sh/marked@12';
-import { GLOSSARY } from '../glossary';
-import GlossaryModal from './GlossaryModal';
 
 interface PolicyPreviewProps {
   policyText: string;
@@ -25,7 +23,6 @@ const WORD_DOCUMENT_STYLES = `
   .word-document-preview table { border-collapse: collapse; width: 100%; margin-bottom: 8pt; }
   .word-document-preview th, .word-document-preview td { border: 1px solid #999; padding: 5pt; text-align: left; }
   .word-document-preview th { background-color: #f2f2f2; font-weight: bold; }
-  .glossary-term { background-color: #f8b43b40; cursor: pointer; border-bottom: 1px dotted #f8b43b; }
 `;
 
 const SourcesUsed: React.FC<{ sources: Source[] }> = ({ sources }) => {
@@ -51,8 +48,6 @@ const SourcesUsed: React.FC<{ sources: Source[] }> = ({ sources }) => {
 const PolicyPreview: React.FC<PolicyPreviewProps> = ({ policyText, status, onRetry, isForm, outputFormat, sources }) => {
   const [copied, setCopied] = useState(false);
   const [isDownloadMenuOpen, setDownloadMenuOpen] = useState(false);
-  const [editedHtml, setEditedHtml] = useState('');
-  const [glossaryTerm, setGlossaryTerm] = useState<{term: string, definition: string} | null>(null);
 
   const downloadMenuRef = useRef<HTMLDivElement>(null);
   const editorRef = useRef<HTMLDivElement>(null);
@@ -65,32 +60,15 @@ const PolicyPreview: React.FC<PolicyPreviewProps> = ({ policyText, status, onRet
   }, []);
 
   useEffect(() => {
-    if (status === 'success') {
+    if (status === 'success' && editorRef.current) {
       (async () => {
         const html = await marked.parse(policyText);
-        setEditedHtml(html);
+        editorRef.current.innerHTML = html;
       })();
+    } else if (editorRef.current) {
+      editorRef.current.innerHTML = '';
     }
   }, [policyText, status]);
-
-  const highlightGlossaryTerms = (html: string) => {
-    const glossaryKeys = Object.keys(GLOSSARY);
-    const regex = new RegExp(`\\b(${glossaryKeys.join('|')})\\b`, 'gi');
-    return html.replace(regex, (match) => {
-        const termKey = match.toLowerCase();
-        return `<span class="glossary-term" data-term="${termKey}">${match}</span>`;
-    });
-  };
-
-  const handleEditorClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    const target = e.target as HTMLElement;
-    if (target.classList.contains('glossary-term')) {
-      const termKey = target.dataset.term;
-      if (termKey && GLOSSARY[termKey]) {
-        setGlossaryTerm({ term: target.innerText, definition: GLOSSARY[termKey] });
-      }
-    }
-  };
 
   const handleCopy = () => {
     if (editorRef.current) {
@@ -101,14 +79,14 @@ const PolicyPreview: React.FC<PolicyPreviewProps> = ({ policyText, status, onRet
   };
 
   const getStyledHtmlForDownload = (contentHtml: string, docTitle: string) => {
-    const bodyStyles = WORD_DOCUMENT_STYLES.replace(/\.word-document-preview/g, 'body').replace(/\.glossary-term \{[^}]+\}/g, '');
+    const bodyStyles = WORD_DOCUMENT_STYLES.replace(/\.word-document-preview/g, 'body');
     return `
       <!DOCTYPE html><html><head><meta charset="UTF-8"><title>${docTitle}</title>
       <style>
         @page { size: A4; margin: 1in; }
         ${bodyStyles}
         .print-hide { display: none !important; }
-      </style></head><body>${contentHtml.replace(/ class="glossary-term"/g, '')}</body></html>
+      </style></head><body>${contentHtml}</body></html>
     `;
   };
   
@@ -154,11 +132,8 @@ const PolicyPreview: React.FC<PolicyPreviewProps> = ({ policyText, status, onRet
                    ref={editorRef}
                    contentEditable={true}
                    suppressContentEditableWarning={true}
-                   onInput={(e) => setEditedHtml((e.target as HTMLDivElement).innerHTML)}
-                   onClick={handleEditorClick}
                    className="word-document-preview w-full h-full flex-grow p-4 border border-gray-300 rounded-md bg-white text-base overflow-y-auto"
                    style={{minHeight: '400px'}}
-                   dangerouslySetInnerHTML={{ __html: highlightGlossaryTerms(editedHtml) }}
                 />
                {!isForm && <SourcesUsed sources={sources} />}
                <div className="mt-6 pt-6 border-t border-dashed border-gray-300 print-hide">
@@ -211,12 +186,6 @@ const PolicyPreview: React.FC<PolicyPreviewProps> = ({ policyText, status, onRet
             {renderContent()}
         </div>
       </div>
-       <GlossaryModal 
-        isOpen={!!glossaryTerm}
-        onClose={() => setGlossaryTerm(null)}
-        term={glossaryTerm?.term || ''}
-        definition={glossaryTerm?.definition || ''}
-      />
     </div>
   );
 };

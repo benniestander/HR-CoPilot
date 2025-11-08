@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import type { Policy, Form, CompanyProfile } from '../types';
 import { INDUSTRIES } from '../constants';
+import { InfoIcon } from './Icons';
 
 interface CompanyProfileSetupProps {
   item: Policy | Form;
@@ -8,6 +9,20 @@ interface CompanyProfileSetupProps {
   onProfileSubmit: (profile: CompanyProfile) => void;
   onBack: () => void;
 }
+
+const LabelWithTooltip: React.FC<{ htmlFor: string; label: string; tooltip: string; }> = ({ htmlFor, label, tooltip }) => (
+    <div className="flex items-center">
+        <label htmlFor={htmlFor} className="block text-sm font-medium text-gray-700">{label}</label>
+        <div className="relative flex items-center group ml-2">
+            <InfoIcon className="w-5 h-5 text-gray-400 cursor-help" />
+            <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 w-max max-w-xs p-3 text-xs text-white bg-gray-900 rounded-md shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300 invisible group-hover:visible pointer-events-none z-10">
+                {tooltip}
+                <svg className="absolute text-gray-900 h-2 w-full left-0 top-full" x="0px" y="0px" viewBox="0 0 255 255"><polygon className="fill-current" points="0,0 127.5,127.5 255,0"/></svg>
+            </div>
+        </div>
+    </div>
+);
+
 
 const CompanyProfileSetup: React.FC<CompanyProfileSetupProps> = ({ item, initialProfile, onProfileSubmit, onBack }) => {
   const [companyName, setCompanyName] = useState(initialProfile.companyName || '');
@@ -59,9 +74,11 @@ const CompanyProfileSetup: React.FC<CompanyProfileSetupProps> = ({ item, initial
         <form onSubmit={handleSubmit} className="mt-8 space-y-6">
           <div className="space-y-6">
             <div className="space-y-2">
-              <label htmlFor="companyName" className="block text-sm font-medium text-gray-700">
-                Company's Legal Name
-              </label>
+               <LabelWithTooltip
+                    htmlFor="companyName"
+                    label="Company's Legal Name"
+                    tooltip="This is the most important field. Your company's legal name will appear on all official documents."
+                />
               <input
                 id="companyName"
                 name="companyName"
@@ -76,9 +93,11 @@ const CompanyProfileSetup: React.FC<CompanyProfileSetupProps> = ({ item, initial
 
             {isPolicy && (
               <div className="space-y-2">
-                <label htmlFor="industry" className="block text-sm font-medium text-gray-700">
-                  Which industry best describes your business?
-                </label>
+                <LabelWithTooltip
+                    htmlFor="industry"
+                    label="Which industry best describes your business?"
+                    tooltip="Selecting your industry allows the AI to add specific clauses relevant to your sector (e.g., safety rules for construction)."
+                />
                 <select
                   id="industry"
                   name="industry"
@@ -102,9 +121,11 @@ const CompanyProfileSetup: React.FC<CompanyProfileSetupProps> = ({ item, initial
              <p className="text-sm text-gray-500 mb-4">Providing more details helps the AI generate more personalized and context-aware documents.</p>
              <div className="space-y-6">
                 <div className="space-y-2">
-                    <label htmlFor="address" className="block text-sm font-medium text-gray-700">
-                    Company Address
-                    </label>
+                    <LabelWithTooltip
+                        htmlFor="address"
+                        label="Company Address"
+                        tooltip="Your official address will be included in the header or footer of your documents for a professional look."
+                    />
                     <input
                     id="address"
                     name="address"
@@ -116,9 +137,11 @@ const CompanyProfileSetup: React.FC<CompanyProfileSetupProps> = ({ item, initial
                     />
                 </div>
                 <div className="space-y-2">
-                    <label htmlFor="companyUrl" className="block text-sm font-medium text-gray-700">
-                    Company Website
-                    </label>
+                    <LabelWithTooltip
+                        htmlFor="companyUrl"
+                        label="Company Website"
+                        tooltip="Your website can be added to document footers, reinforcing your company's brand and contact information."
+                    />
                     <input
                     id="companyUrl"
                     name="companyUrl"
@@ -130,9 +153,11 @@ const CompanyProfileSetup: React.FC<CompanyProfileSetupProps> = ({ item, initial
                     />
                 </div>
                 <div className="space-y-2">
-                    <label htmlFor="summary" className="block text-sm font-medium text-gray-700">
-                    Brief Company Summary
-                    </label>
+                    <LabelWithTooltip
+                        htmlFor="summary"
+                        label="Brief Company Summary"
+                        tooltip="This summary helps the AI understand your business's mission and tone, which can be reflected in introductions or preambles."
+                    />
                     <textarea
                     id="summary"
                     name="summary"
@@ -144,9 +169,11 @@ const CompanyProfileSetup: React.FC<CompanyProfileSetupProps> = ({ item, initial
                     />
                 </div>
                 <div className="space-y-2">
-                    <label htmlFor="companySize" className="block text-sm font-medium text-gray-700">
-                    Company Size (Number of Employees)
-                    </label>
+                    <LabelWithTooltip
+                        htmlFor="companySize"
+                        label="Company Size (Number of Employees)"
+                        tooltip="Some legal requirements (like Employment Equity) depend on your number of employees. This helps ensure compliance."
+                    />
                     <select
                         id="companySize"
                         name="companySize"

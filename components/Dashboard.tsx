@@ -160,7 +160,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onSelectItem, onStartUpdate
                     onClick={onStartUpdate}
                     className="inline-flex items-center px-8 py-3 border border-transparent text-base font-medium rounded-full shadow-sm text-white bg-primary hover:bg-opacity-90"
                     >
-                    Update My Policy
+                    Update Policy
                     </button>
                 </div>
             </div>
