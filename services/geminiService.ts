@@ -2,7 +2,7 @@
 
 import { GoogleGenAI, GenerateContentResponse, Type } from "@google/genai";
 import { POLICIES, FORM_BASE_TEMPLATES, FORMS, FORM_ENRICHMENT_PROMPTS } from '../constants';
-import type { PolicyType, FormType, FormAnswers, PolicyUpdateResult, ComplianceChecklistResult } from '../types';
+import type { PolicyType, FormType, FormAnswers, PolicyUpdateResult, ComplianceChecklistResult, CompanyProfile } from '../types';
 
 if (!process.env.API_KEY) {
   throw new Error("API_KEY environment variable is not set");
@@ -72,14 +72,34 @@ export async function* generatePolicyStream(
   
   const industryInstructions = INDUSTRY_SPECIFIC_PROMPTS[industry]?.[policyType] || '';
 
+  let companyContext = '';
+    if (answers.companySize) {
+        companyContext += `- Company Size: ${answers.companySize} employees\n`;
+    }
+    if (answers.address) {
+    companyContext += `- Company Address: ${answers.address}\n`;
+    }
+    if (answers.companyUrl) {
+    companyContext += `- Company Website: ${answers.companyUrl}\n`;
+    }
+    if (answers.summary) {
+    companyContext += `- Company Summary: ${answers.summary}\n`;
+    }
+
   let userContext = '';
   const policyQuestions = POLICIES[policyType].questions;
 
   // Create a context string from user answers to specific questions for the policy
   const specificAnswers = { ...answers };
+  // Remove fields that are already handled separately to avoid duplication
   delete specificAnswers.companyName;
   delete specificAnswers.industry;
-  delete specificAnswers.companyVoice; // Remove voice from context
+  delete specificAnswers.companyVoice;
+  delete specificAnswers.address;
+  delete specificAnswers.summary;
+  delete specificAnswers.companyUrl;
+  delete specificAnswers.companySize;
+
 
   if (policyType === 'employee-handbook') {
     const includedPolicies = specificAnswers.includedPolicies as Record<string, boolean> || {};
@@ -123,6 +143,8 @@ export async function* generatePolicyStream(
 ${promptIntro}
 
 **The tone of the document must be "${companyVoice}".** Adapt the language and phrasing to reflect this voice throughout the document.
+
+${companyContext ? `Here is some additional context about the company to inform the policy's content and tone:\n${companyContext}` : ''}
 
 ${handbookInstructions}
 
@@ -284,15 +306,27 @@ Use simple, clear language suitable for someone who is not an HR expert. Use bul
 
 export async function updatePolicy(
   currentPolicyText: string,
+  instructions?: string
 ): Promise<PolicyUpdateResult> {
   const systemInstruction = `You are an expert South African HR consultant and legal drafter specializing in reviewing and updating HR policies for small businesses to ensure compliance with the latest South African labour law. Your goal is to return a JSON object containing the updated policy and a detailed log of changes.
-- You MUST only update what is legally necessary or outdated to comply with current South African legislation (e.g., BCEA, LRA, POPIA).
-- You MUST preserve the original tone, structure, and wording as much as possible. Do not rewrite entire sections unless essential for compliance.
-- For each change, you MUST provide a concise reason, citing the relevant legislation where possible.
+- You MUST only update what is legally necessary, outdated, or specifically requested by the user.
+- You MUST preserve the original tone, structure, and wording as much as possible. Do not rewrite entire sections unless essential.
+- For each change, you MUST provide a concise reason, citing relevant legislation where possible, or referencing the user's instructions.
 - The output MUST be a valid JSON object matching the provided schema. Do not include any markdown formatting or introductory text outside of the JSON structure.`;
   
-  const prompt = `
-Please review the following South African HR policy. Identify any sections that are outdated or non-compliant with current labour laws. Provide an updated version of the policy and a list of all changes made.
+  const prompt = instructions
+    ? `Please update the following South African HR policy based *specifically* on these user instructions. Integrate the changes naturally and professionally, ensuring the rest of the policy remains coherent and legally sound. Provide an updated version of the policy and a list of changes made *in direct response to the instructions*.
+
+**User Instructions:**
+---
+${instructions}
+---
+
+**Current Policy Text:**
+---
+${currentPolicyText}
+---`
+    : `Please review the following South African HR policy. Identify any sections that are outdated or non-compliant with current labour laws. Provide an updated version of the policy and a list of all changes made.
 
 **Current Policy Text:**
 ---
@@ -359,16 +393,21 @@ ${currentPolicyText}
 }
 
 export async function generateComplianceChecklist(
-  businessDescription: string,
+  profile: CompanyProfile,
 ): Promise<ComplianceChecklistResult> {
-  const systemInstruction = `You are an expert South African HR consultant. Your task is to analyze a business description and recommend a checklist of essential HR policies and forms for legal compliance in South Africa. You must provide clear, concise reasons for each recommendation, tailored to the business described. Your output must be a valid JSON object that adheres strictly to the provided schema.`;
+  const systemInstruction = `You are an expert South African HR consultant. Your task is to analyze a business profile and recommend a checklist of essential HR policies and forms for legal compliance in South Africa. You must provide clear, concise reasons for each recommendation, tailored to the business described. Your output must be a valid JSON object that adheres strictly to the provided schema.`;
 
   const prompt = `
-Based on the following business description, please generate a list of recommended HR policies and forms that are essential for a small business in South Africa.
+Based on the following company profile, please generate a list of recommended HR policies and forms that are essential for a small business in South Africa.
 
-**Business Description:**
+**Company Profile:**
 ---
-${businessDescription}
+- Company Name: ${profile.companyName}
+- Industry: ${profile.industry}
+${profile.companySize ? `- Company Size: ${profile.companySize} employees\n` : ''}
+${profile.companyUrl ? `- Website: ${profile.companyUrl}\n` : ''}
+${profile.summary ? `- Summary: ${profile.summary}\n` : ''}
+${profile.address ? `- Address: ${profile.address}\n` : ''}
 ---
 
 For each recommended policy and form, provide a short, practical reason why it is important for this specific business. Focus on the most critical documents for legal compliance and good practice.

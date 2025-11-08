@@ -4,13 +4,18 @@ import { INDUSTRIES } from '../constants';
 
 interface CompanyProfileSetupProps {
   item: Policy | Form;
+  initialProfile: CompanyProfile;
   onProfileSubmit: (profile: CompanyProfile) => void;
   onBack: () => void;
 }
 
-const CompanyProfileSetup: React.FC<CompanyProfileSetupProps> = ({ item, onProfileSubmit, onBack }) => {
-  const [companyName, setCompanyName] = useState('');
-  const [industry, setIndustry] = useState('');
+const CompanyProfileSetup: React.FC<CompanyProfileSetupProps> = ({ item, initialProfile, onProfileSubmit, onBack }) => {
+  const [companyName, setCompanyName] = useState(initialProfile.companyName || '');
+  const [industry, setIndustry] = useState(initialProfile.industry || '');
+  const [address, setAddress] = useState(initialProfile.address || '');
+  const [companyUrl, setCompanyUrl] = useState(initialProfile.companyUrl || '');
+  const [summary, setSummary] = useState(initialProfile.summary || '');
+  const [companySize, setCompanySize] = useState(initialProfile.companySize || '');
 
   const isPolicy = item.kind === 'policy';
   const isContinueDisabled = !companyName || (isPolicy && !industry);
@@ -18,7 +23,16 @@ const CompanyProfileSetup: React.FC<CompanyProfileSetupProps> = ({ item, onProfi
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (isContinueDisabled) return;
-    onProfileSubmit({ companyName, industry });
+    const newProfile: CompanyProfile = {
+      ...initialProfile,
+      companyName,
+      industry,
+      address,
+      companyUrl,
+      summary,
+      companySize,
+    };
+    onProfileSubmit(newProfile);
   };
 
   return (
@@ -43,43 +57,113 @@ const CompanyProfileSetup: React.FC<CompanyProfileSetupProps> = ({ item, onProfi
         </div>
         
         <form onSubmit={handleSubmit} className="mt-8 space-y-6">
-          <div className="space-y-2">
-            <label htmlFor="companyName" className="block text-sm font-medium text-gray-700">
-              Company's Legal Name
-            </label>
-            <input
-              id="companyName"
-              name="companyName"
-              type="text"
-              value={companyName}
-              onChange={(e) => setCompanyName(e.target.value)}
-              placeholder="e.g., ABC (Pty) Ltd"
-              required
-              className="w-full p-3 border border-gray-300 rounded-md shadow-sm focus:ring-primary focus:border-primary"
-            />
-          </div>
-
-          {isPolicy && (
+          <div className="space-y-6">
             <div className="space-y-2">
-              <label htmlFor="industry" className="block text-sm font-medium text-gray-700">
-                Which industry best describes your business?
+              <label htmlFor="companyName" className="block text-sm font-medium text-gray-700">
+                Company's Legal Name
               </label>
-              <select
-                id="industry"
-                name="industry"
-                value={industry}
-                onChange={(e) => setIndustry(e.target.value)}
+              <input
+                id="companyName"
+                name="companyName"
+                type="text"
+                value={companyName}
+                onChange={(e) => setCompanyName(e.target.value)}
+                placeholder="e.g., ABC (Pty) Ltd"
                 required
                 className="w-full p-3 border border-gray-300 rounded-md shadow-sm focus:ring-primary focus:border-primary"
-              >
-                <option value="" disabled>Choose an industry...</option>
-                {INDUSTRIES.map((ind) => (
-                  <option key={ind} value={ind}>{ind}</option>
-                ))}
-              </select>
-               <p className="text-xs text-gray-500 mt-1">This helps tailor the policy to your specific sector.</p>
+              />
             </div>
-          )}
+
+            {isPolicy && (
+              <div className="space-y-2">
+                <label htmlFor="industry" className="block text-sm font-medium text-gray-700">
+                  Which industry best describes your business?
+                </label>
+                <select
+                  id="industry"
+                  name="industry"
+                  value={industry}
+                  onChange={(e) => setIndustry(e.target.value)}
+                  required
+                  className="w-full p-3 border border-gray-300 rounded-md shadow-sm focus:ring-primary focus:border-primary"
+                >
+                  <option value="" disabled>Choose an industry...</option>
+                  {INDUSTRIES.map((ind) => (
+                    <option key={ind} value={ind}>{ind}</option>
+                  ))}
+                </select>
+                 <p className="text-xs text-gray-500 mt-1">This helps tailor the policy to your specific sector.</p>
+              </div>
+            )}
+          </div>
+
+          <div className="pt-6 border-t border-gray-200">
+             <h3 className="text-lg font-semibold text-gray-800">Optional Details</h3>
+             <p className="text-sm text-gray-500 mb-4">Providing more details helps the AI generate more personalized and context-aware documents.</p>
+             <div className="space-y-6">
+                <div className="space-y-2">
+                    <label htmlFor="address" className="block text-sm font-medium text-gray-700">
+                    Company Address
+                    </label>
+                    <input
+                    id="address"
+                    name="address"
+                    type="text"
+                    value={address}
+                    onChange={(e) => setAddress(e.target.value)}
+                    placeholder="e.g., 123 Tech Street, Cape Town, 8001"
+                    className="w-full p-3 border border-gray-300 rounded-md shadow-sm focus:ring-primary focus:border-primary"
+                    />
+                </div>
+                <div className="space-y-2">
+                    <label htmlFor="companyUrl" className="block text-sm font-medium text-gray-700">
+                    Company Website
+                    </label>
+                    <input
+                    id="companyUrl"
+                    name="companyUrl"
+                    type="url"
+                    value={companyUrl}
+                    onChange={(e) => setCompanyUrl(e.target.value)}
+                    placeholder="e.g., https://www.yourcompany.co.za"
+                    className="w-full p-3 border border-gray-300 rounded-md shadow-sm focus:ring-primary focus:border-primary"
+                    />
+                </div>
+                <div className="space-y-2">
+                    <label htmlFor="summary" className="block text-sm font-medium text-gray-700">
+                    Brief Company Summary
+                    </label>
+                    <textarea
+                    id="summary"
+                    name="summary"
+                    rows={3}
+                    value={summary}
+                    onChange={(e) => setSummary(e.target.value)}
+                    placeholder="e.g., A leading provider of widgets in the manufacturing sector."
+                    className="w-full p-3 border border-gray-300 rounded-md shadow-sm focus:ring-primary focus:border-primary"
+                    />
+                </div>
+                <div className="space-y-2">
+                    <label htmlFor="companySize" className="block text-sm font-medium text-gray-700">
+                    Company Size (Number of Employees)
+                    </label>
+                    <select
+                        id="companySize"
+                        name="companySize"
+                        value={companySize}
+                        onChange={(e) => setCompanySize(e.target.value)}
+                        className="w-full p-3 border border-gray-300 rounded-md shadow-sm focus:ring-primary focus:border-primary bg-white"
+                    >
+                        <option value="">Select a size...</option>
+                        <option value="1-10">1-10 employees</option>
+                        <option value="11-50">11-50 employees</option>
+                        <option value="51-200">51-200 employees</option>
+                        <option value="201-500">201-500 employees</option>
+                        <option value="500+">500+ employees</option>
+                    </select>
+                </div>
+             </div>
+          </div>
 
           <button
             type="submit"

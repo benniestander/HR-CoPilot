@@ -58,7 +58,9 @@ export type PolicyType =
   // New policies from list
   | 'conflict-of-interest'
   | 'records-retention-destruction'
-  | 'salary-structure-guide';
+  | 'salary-structure-guide'
+  | 'workplace-language'
+  | 'family-responsibility-leave';
 
 export type FormType =
   | 'job-application'
@@ -148,6 +150,7 @@ export interface Question {
   tip?: string;
   conditional?: (answers: FormAnswers) => boolean;
   options?: Array<{ id: string; label: string; }>;
+  required?: boolean;
 }
 
 interface Document {
@@ -171,8 +174,21 @@ export interface Form extends Document {
 
 export type CompanyProfile = {
   companyName: string;
-  industry: string; // Industry is mandatory for policies, but we can make it optional at type level and enforce in logic
+  industry: string;
+  address?: string;
+  companyUrl?: string;
+  summary?: string;
+  companySize?: string;
 }
+
+export type User = {
+  email: string;
+  profile: CompanyProfile;
+  name?: string;
+  contactNumber?: string;
+  plan: 'trial' | 'pro';
+  trialPoliciesGenerated: number;
+};
 
 export type FormAnswers = Record<string, any>;
 
@@ -221,4 +237,10 @@ export interface GeneratedDocument {
   questionAnswers: FormAnswers;
   outputFormat?: 'word' | 'excel';
   sources?: Source[];
+  version: number;
+  history?: Array<{
+    version: number;
+    createdAt: string;
+    content: string;
+  }>;
 }

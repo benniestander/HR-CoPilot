@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import type { Policy, Form, FormAnswers, AppStatus, CompanyProfile } from '../types';
 import { LoadingIcon, TipIcon, InfoIcon } from './Icons';
 import { explainPolicyTypeStream, explainFormTypeStream } from '../services/geminiService';
@@ -30,6 +30,7 @@ const Questionnaire: React.FC<QuestionnaireProps> = ({
   const [isExplainModalOpen, setIsExplainModalOpen] = useState(false);
   const [explanation, setExplanation] = useState('');
   const [explanationStatus, setExplanationStatus] = useState<AppStatus>('idle');
+  const [errors, setErrors] = useState<Record<string, string>>({});
   
   const isPolicy = item.kind === 'policy';
 
@@ -37,18 +38,87 @@ const Questionnaire: React.FC<QuestionnaireProps> = ({
     if (isPolicy && !answers.companyVoice) {
       onAnswersChange({ ...answers, companyVoice: COMPANY_VOICES[0] });
     }
+    // Clear errors when item changes
+    setErrors({});
   }, [item.type]);
+
+  const validateField = (id: string, value: any): boolean => {
+    const question = item.questions.find(q => q.id === id);
+    if (!question) return true;
+
+    // Skip validation for conditional fields that are not shown
+    if (question.conditional && !question.conditional(answers)) {
+        // Clear any previous error for this field
+        if (errors[id]) {
+            setErrors(prev => {
+                const newErrors = { ...prev };
+                delete newErrors[id];
+                return newErrors;
+            });
+        }
+        return true;
+    }
+
+    let error = '';
+    if (question.required && (!value || (typeof value === 'string' && !value.trim()))) {
+        error = `${question.label} is required.`;
+    } else if (question.type === 'number' && value && isNaN(Number(value))) {
+        error = 'Please enter a valid number.';
+    }
+
+    setErrors(prev => ({ ...prev, [id]: error }));
+    return !error;
+  };
+  
+  const isFormInvalid = useMemo(() => {
+    // Immediately invalid if there's an active error message from user interaction
+    if (Object.values(errors).some(e => !!e)) {
+        return true;
+    }
+
+    // Proactively check for empty required fields, even before interaction
+    for (const q of item.questions) {
+        const isVisible = !q.conditional || q.conditional(answers);
+        if (isVisible && q.required) {
+            const value = answers[q.id];
+            if (!value || (typeof value === 'string' && value.trim() === '')) {
+                return true; // Form is invalid if a visible required field is empty
+            }
+        }
+    }
+
+    return false; // If all checks pass, the form is valid
+  }, [answers, errors, item.questions]);
+
 
   const handleInputChange = (id: string, value: string) => {
     onAnswersChange({ ...answers, [id]: value });
+    validateField(id, value);
   };
 
   const handleCheckboxChange = (questionId: string, optionId: string, isChecked: boolean) => {
+    const question = item.questions.find(q => q.id === questionId);
+    if (!question || !question.options) return;
+
     const currentSelection = answers[questionId] || {};
-    const newSelection = {
-      ...currentSelection,
-      [optionId]: isChecked,
-    };
+    let newSelection = { ...currentSelection };
+
+    if (optionId === 'select-all') {
+        // If 'select-all' is clicked, update all options accordingly
+        newSelection = {}; // Reset selection
+        question.options.forEach(opt => {
+            newSelection[opt.id] = isChecked;
+        });
+    } else {
+        // If an individual option is clicked, update it
+        newSelection[optionId] = isChecked;
+        
+        // Then, determine the state of 'select-all'
+        const allOtherOptions = question.options.filter(opt => opt.id !== 'select-all');
+        const allOthersChecked = allOtherOptions.every(opt => newSelection[opt.id]);
+        newSelection['select-all'] = allOthersChecked;
+    }
+
     onAnswersChange({ ...answers, [questionId]: newSelection });
   };
   
@@ -69,6 +139,17 @@ const Questionnaire: React.FC<QuestionnaireProps> = ({
     } catch (error) {
       console.error('Failed to explain item:', error);
       setExplanationStatus('error');
+    }
+  };
+
+  const handleGenerateClick = () => {
+    // Run validation for all fields to display any remaining error messages
+    const allValid = item.questions
+        .map(q => validateField(q.id, answers[q.id]))
+        .every(isValid => isValid);
+
+    if (allValid) {
+        onGenerate();
     }
   };
 
@@ -138,25 +219,33 @@ const Questionnaire: React.FC<QuestionnaireProps> = ({
                         )}
                     </div>
                     <div className="mt-2 space-y-2 border border-gray-200 rounded-md p-4">
-                      {q.options?.map((option) => (
-                        <div key={option.id} className="relative flex items-start">
-                          <div className="flex h-6 items-center">
-                            <input
-                              id={`${q.id}-${option.id}`}
-                              name={`${q.id}-${option.id}`}
-                              type="checkbox"
-                              checked={answers[q.id]?.[option.id] || false}
-                              onChange={(e) => handleCheckboxChange(q.id, option.id, e.target.checked)}
-                              className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
-                            />
-                          </div>
-                          <div className="ml-3 text-sm leading-6">
-                            <label htmlFor={`${q.id}-${option.id}`} className="font-medium text-gray-900">
-                              {option.label}
-                            </label>
-                          </div>
-                        </div>
-                      ))}
+                      {q.options?.map((option, index) => {
+                        const isSelectAll = option.id === 'select-all';
+                        const showSeparator = isSelectAll && index === 0 && q.options && q.options.length > 1;
+
+                        return (
+                            <React.Fragment key={option.id}>
+                                <div className="relative flex items-start">
+                                <div className="flex h-6 items-center">
+                                    <input
+                                    id={`${q.id}-${option.id}`}
+                                    name={`${q.id}-${option.id}`}
+                                    type="checkbox"
+                                    checked={answers[q.id]?.[option.id] || false}
+                                    onChange={(e) => handleCheckboxChange(q.id, option.id, e.target.checked)}
+                                    className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                                    />
+                                </div>
+                                <div className="ml-3 text-sm leading-6">
+                                    <label htmlFor={`${q.id}-${option.id}`} className={`font-medium ${isSelectAll ? 'text-primary' : 'text-gray-900'}`}>
+                                    {option.label}
+                                    </label>
+                                </div>
+                                </div>
+                                {showSeparator && <hr className="my-2 border-gray-200" />}
+                            </React.Fragment>
+                        )
+                      })}
                     </div>
                   </fieldset>
                 </div>
@@ -186,8 +275,9 @@ const Questionnaire: React.FC<QuestionnaireProps> = ({
                   rows={3}
                   value={answers[q.id] || ''}
                   onChange={(e) => handleInputChange(q.id, e.target.value)}
+                  onBlur={(e) => validateField(q.id, e.target.value)}
                   placeholder={q.placeholder}
-                  className="w-full p-3 border border-gray-300 rounded-md shadow-sm focus:ring-primary focus:border-primary"
+                  className={`w-full p-3 border rounded-md shadow-sm focus:ring-primary focus:border-primary ${errors[q.id] ? 'border-red-500' : 'border-gray-300'}`}
                 />
               ) : (
                 <input
@@ -196,18 +286,21 @@ const Questionnaire: React.FC<QuestionnaireProps> = ({
                   type={q.type}
                   value={answers[q.id] || ''}
                   onChange={(e) => handleInputChange(q.id, e.target.value)}
+                  onBlur={(e) => validateField(q.id, e.target.value)}
                   placeholder={q.placeholder}
-                  className="w-full p-3 border border-gray-300 rounded-md shadow-sm focus:ring-primary focus:border-primary"
+                  className={`w-full p-3 border rounded-md shadow-sm focus:ring-primary focus:border-primary ${errors[q.id] ? 'border-red-500' : 'border-gray-300'}`}
                 />
               )}
+               {errors[q.id] && <p className="text-red-600 text-xs mt-1">{errors[q.id]}</p>}
             </div>
           );
         })}
       </div>
 
       <button
-        onClick={onGenerate}
-        className="mt-8 w-full bg-primary text-white font-bold py-3 px-4 rounded-md hover:bg-opacity-90 transition-colors flex items-center justify-center"
+        onClick={handleGenerateClick}
+        disabled={isFormInvalid}
+        className="mt-8 w-full bg-primary text-white font-bold py-4 px-4 rounded-md hover:bg-opacity-90 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
       >
         Continue to Finalize
         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 ml-2" viewBox="0 0 20 20" fill="currentColor">

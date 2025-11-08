@@ -339,6 +339,13 @@ export const SocialMediaIcon: React.FC<{ className?: string }> = ({ className })
   ]} />
 );
 
+export const LanguagePolicyIcon: React.FC<{ className?: string }> = ({ className }) => (
+    <DuotoneIcon className={className} paths={[
+        "M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2v10z",
+        "M8 9h8m-8 3h8m-8 3h5"
+    ]} />
+);
+
 export const UifIcon: React.FC<{ className?: string }> = ({ className }) => (
   <DuotoneIcon className={className} paths={[
     "M10 7H4v10h6", "M12 5a3 3 0 013 3v8a3 3 0 01-3 3h-2V5h2a3 3 0 013-3v1a2 2 0 100 4v2a2 2 0 100 4v1a3 3 0 01-3 3H5m14-3a3 3 0 100-6 3 3 0 000 6z"
@@ -395,6 +402,13 @@ export const RecordsRetentionIcon: React.FC<{ className?: string }> = ({ classNa
 export const SalaryStructureIcon: React.FC<{ className?: string }> = ({ className }) => (
   <DuotoneIcon className={className} paths={[
     "M4 16h16", "M4 12h10m-10-4h16"
+  ]} />
+);
+
+export const FamilyResponsibilityLeaveIcon: React.FC<{ className?: string }> = ({ className }) => (
+  <DuotoneIcon className={className} paths={[
+    "M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2V9z",
+    "M12 18.22l-1.41-1.41C8.21 14.51 7 13.06 7 11.5 7 10.12 8.12 9 9.5 9c.74 0 1.41.33 1.88.88L12 10.5l.62-.62c.47-.55 1.14-.88 1.88-.88 1.38 0 2.5 1.12 2.5 2.5 0 1.56-1.21 2.99-3.59 5.31L12 18.22z"
   ]} />
 );
 
@@ -733,18 +747,25 @@ export const CreditCardIcon: React.FC<{ className?: string }> = ({ className }) 
   <OutlineIcon className={className} path="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h6m3-5.25h6m-6 2.25h6M3 7.5l-1.5-1.5M3 12l-1.5-1.5M3 16.5l-1.5-1.5M21 7.5l1.5-1.5M21 12l1.5-1.5M21 16.5l1.5-1.5M5.25 6H18.75a2.25 2.25 0 012.25 2.25v6.75a2.25 2.25 0 01-2.25 2.25H5.25a2.25 2.25 0 01-2.25-2.25V8.25a2.25 2.25 0 012.25-2.25z" />
 );
 
-export const GoogleIcon: React.FC<{ className?: string }> = ({ className }) => (
-  <svg className={className} viewBox="0 0 48 48">
-    <path fill="#FFC107" d="M43.611 20.083H42V20H24v8h11.303c-1.649 4.657-6.08 8-11.303 8c-6.627 0-12-5.373-12-12s5.373-12 12-12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4C12.955 4 4 12.955 4 24s8.955 20 20 20s20-8.955 20-20c0-1.341-.138-2.65-.389-3.917z"></path>
-    <path fill="#FF3D00" d="M6.306 14.691l6.571 4.819C14.655 15.108 18.961 12 24 12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4C16.318 4 9.656 8.337 6.306 14.691z"></path>
-    <path fill="#4CAF50" d="M24 44c5.166 0 9.86-1.977 13.409-5.192l-6.19-5.238A8 8 0 0124 36c-5.222 0-9.612-3.87-11.08-9.023l-6.571 4.82C9.656 39.663 16.318 44 24 44z"></path>
-    <path fill="#1976D2" d="M43.611 20.083H42V20H24v8h11.303c-.792 2.237-2.231 4.16-4.087 5.571l6.19 5.238C42.612 34.869 44 30.013 44 24c0-1.341-.138-2.65-.389-3.917z"></path>
-  </svg>
-);
-
 export const ComplianceIcon: React.FC<{ className?: string }> = ({ className }) => (
   <DuotoneIcon className={className} paths={[
     "M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z",
     "M9 12l2 2 4-4"
   ]} />
+);
+
+export const UserIcon: React.FC<{ className?: string }> = ({ className }) => (
+    <OutlineIcon className={className} path="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
+);
+
+export const ShieldCheckIcon: React.FC<{ className?: string }> = ({ className }) => (
+    <OutlineIcon className={className} path="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.286zm0 13.036h.008v.016h-.008v-.016z" />
+);
+
+export const EditIcon: React.FC<{ className?: string }> = ({ className }) => (
+  <OutlineIcon className={className} path="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" />
+);
+
+export const HistoryIcon: React.FC<{ className?: string }> = ({ className }) => (
+  <OutlineIcon className={className} path="M12 6v6l4 2m8-4a10 10 0 11-20 0 10 10 0 0120 0z" />
 );

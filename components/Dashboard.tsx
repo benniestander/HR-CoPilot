@@ -1,23 +1,46 @@
-
-
 import React, { useState } from 'react';
 import PolicySelector from './PolicySelector';
 import FormSelector from './FormSelector';
-import type { Policy, Form, GeneratedDocument } from '../types';
-import { MasterPolicyIcon, FormsIcon, HelpIcon, UpdateIcon, ComplianceIcon, WordIcon, ExcelIcon } from './Icons';
+import type { Policy, Form, GeneratedDocument, User } from '../types';
+import { MasterPolicyIcon, FormsIcon, HelpIcon, UpdateIcon, ComplianceIcon, WordIcon, ExcelIcon, InfoIcon } from './Icons';
 import HowToUseModal from './HowToUseModal';
+import OnboardingWalkthrough from './OnboardingWalkthrough';
 
 interface DashboardProps {
+  user: User | null;
   onSelectItem: (item: Policy | Form) => void;
   onStartUpdate: () => void;
   onStartChecklist: () => void;
   generatedDocuments: GeneratedDocument[];
   onViewDocument: (doc: GeneratedDocument) => void;
+  showOnboardingWalkthrough?: boolean;
+  onCloseWalkthrough?: () => void;
 }
 
-const Dashboard: React.FC<DashboardProps> = ({ onSelectItem, onStartUpdate, onStartChecklist, generatedDocuments, onViewDocument }) => {
+const Dashboard: React.FC<DashboardProps> = ({ user, onSelectItem, onStartUpdate, onStartChecklist, generatedDocuments, onViewDocument, showOnboardingWalkthrough, onCloseWalkthrough }) => {
   const [activeTab, setActiveTab] = useState<'policies' | 'forms'>('policies');
   const [isHowToUseModalOpen, setIsHowToUseModalOpen] = useState(false);
+
+  const TrialBanner: React.FC = () => {
+    if (user?.plan !== 'trial') return null;
+
+    const policiesLeft = 1 - user.trialPoliciesGenerated;
+
+    return (
+      <div className="mb-8 p-4 bg-accent/20 border-l-4 border-accent text-accent-800 rounded-r-lg flex items-center">
+        <InfoIcon className="w-6 h-6 mr-3 text-accent-700 flex-shrink-0" />
+        <div>
+          <h3 className="font-bold">You are currently on a Free Trial.</h3>
+          {policiesLeft > 0 ? (
+             <p className="text-sm">You can generate {policiesLeft} more policy document(s). Upgrade to Pro for unlimited access.</p>
+          ) : (
+             <p className="text-sm">You have used your free policy. Please upgrade to the Pro plan to continue generating policies.</p>
+          )}
+        </div>
+      </div>
+    );
+  };
+
 
   const DocumentHistory: React.FC = () => {
     if (generatedDocuments.length === 0) {
@@ -55,12 +78,13 @@ const Dashboard: React.FC<DashboardProps> = ({ onSelectItem, onStartUpdate, onSt
 
   return (
     <div>
+        {showOnboardingWalkthrough && onCloseWalkthrough && <OnboardingWalkthrough onClose={onCloseWalkthrough} />}
         <div className="text-center">
             <h2 className="text-4xl font-bold text-secondary mb-3 leading-tight">
                 HR Co-Pilot Dashboard
             </h2>
             <p className="text-lg text-gray-600 mb-8 max-w-3xl mx-auto">
-                Welcome back! Manage your HR documents or generate a new one below.
+                Welcome back, {user?.name || 'User'}! Manage your HR documents or generate a new one below.
             </p>
              <button
                 onClick={() => setIsHowToUseModalOpen(true)}
@@ -71,6 +95,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onSelectItem, onStartUpdate, onSt
               </button>
         </div>
         
+        <TrialBanner />
         <DocumentHistory />
 
         <div className="flex justify-center border-b border-gray-200 mb-8">
@@ -130,6 +155,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onSelectItem, onStartUpdate, onSt
                     <p className="text-gray-600 mt-2 mb-6">
                         Scan your policies for compliance with the latest South African labour laws.
                     </p>
+                    {/* Button to navigate to the Policy Updater view */}
                     <button
                     onClick={onStartUpdate}
                     className="inline-flex items-center px-8 py-3 border border-transparent text-base font-medium rounded-full shadow-sm text-white bg-primary hover:bg-opacity-90"

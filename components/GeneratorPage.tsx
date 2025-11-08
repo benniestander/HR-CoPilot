@@ -11,15 +11,25 @@ import { marked } from 'https://esm.sh/marked@12';
 interface GeneratorPageProps {
     selectedItem: Policy | Form;
     initialData: GeneratedDocument | null;
-    onDocumentGenerated: (doc: GeneratedDocument) => void;
+    userProfile: CompanyProfile;
+    onDocumentGenerated: (doc: GeneratedDocument, originalId?: string) => void;
     onBack: () => void;
 }
 
-const GeneratorPage: React.FC<GeneratorPageProps> = ({ selectedItem, initialData, onDocumentGenerated, onBack }) => {
-    const STEPS = ["Profile", "Customize", "Finalize"];
-    const [currentStep, setCurrentStep] = useState(initialData ? 3 : 1);
+const GeneratorPage: React.FC<GeneratorPageProps> = ({ selectedItem, initialData, userProfile, onDocumentGenerated, onBack }) => {
+    const isPolicy = selectedItem.kind === 'policy';
+    const isProfileSufficient = userProfile && userProfile.companyName && (!isPolicy || userProfile.industry);
 
-    const [companyProfile, setCompanyProfile] = useState<CompanyProfile | null>(initialData?.companyProfile || null);
+    const STEPS = ["Profile", "Customize", "Finalize"];
+    const [currentStep, setCurrentStep] = useState(() => {
+        if (initialData) return 3;
+        if (isProfileSufficient) return 2;
+        return 1;
+    });
+
+    const [companyProfile, setCompanyProfile] = useState<CompanyProfile | null>(
+        initialData?.companyProfile || (isProfileSufficient ? userProfile : null)
+    );
     const [questionAnswers, setQuestionAnswers] = useState<FormAnswers>(initialData?.questionAnswers || {});
     const [generatedDocument, setGeneratedDocument] = useState<string>(initialData?.content || '');
     const [sources, setSources] = useState<Source[]>(initialData?.sources || []);
@@ -44,6 +54,7 @@ const GeneratorPage: React.FC<GeneratorPageProps> = ({ selectedItem, initialData
 
         try {
             let fullText = '';
+            let finalSources: Source[] = [];
             if (selectedItem.kind === 'policy') {
                 const stream = generatePolicyStream(selectedItem.type, allAnswers);
                 for await (const chunk of stream) {
@@ -53,13 +64,18 @@ const GeneratorPage: React.FC<GeneratorPageProps> = ({ selectedItem, initialData
                     }
                     const newSources = chunk.candidates?.[0]?.groundingMetadata?.groundingChunks;
                     if (newSources) {
-                        setSources(prevSources => {
-                            const existingUris = new Set(prevSources.map(s => s.web?.uri));
-                            const uniqueNewSources: Source[] = newSources
-                                .filter(s => s.web?.uri && !existingUris.has(s.web.uri))
-                                .map(s => ({ web: { uri: s.web!.uri!, title: s.web!.title || s.web!.uri! } }));
-                            return [...prevSources, ...uniqueNewSources];
-                        });
+                        const uniqueNewSources: Source[] = newSources
+                            .filter(s => s.web?.uri)
+                            .map(s => ({ web: { uri: s.web!.uri!, title: s.web!.title || s.web!.uri! } }));
+                        
+                        finalSources = [...finalSources, ...uniqueNewSources].reduce((acc, current) => {
+                            if (!acc.find(item => item.web?.uri === current.web?.uri)) {
+                                acc.push(current);
+                            }
+                            return acc;
+                        }, [] as Source[]);
+
+                        setSources(finalSources);
                     }
                 }
             } else {
@@ -71,22 +87,21 @@ const GeneratorPage: React.FC<GeneratorPageProps> = ({ selectedItem, initialData
             }
             setStatus('success');
             
-            // Only create a new document if it's not a view/edit session
-            if (!initialData) {
-                const newDoc: GeneratedDocument = {
-                    id: `${selectedItem.type}-${Date.now()}`,
-                    title: selectedItem.title,
-                    kind: selectedItem.kind,
-                    type: selectedItem.type,
-                    content: fullText,
-                    createdAt: new Date().toISOString(),
-                    companyProfile,
-                    questionAnswers,
-                    outputFormat: selectedItem.kind === 'form' ? selectedItem.outputFormat : 'word',
-                    sources: selectedItem.kind === 'policy' ? sources : []
-                };
-                onDocumentGenerated(newDoc);
-            }
+            const newDoc: GeneratedDocument = {
+                id: initialData?.id || `${selectedItem.type}-${Date.now()}`,
+                title: selectedItem.title,
+                kind: selectedItem.kind,
+                type: selectedItem.type,
+                content: fullText,
+                createdAt: new Date().toISOString(),
+                companyProfile,
+                questionAnswers,
+                outputFormat: selectedItem.kind === 'form' ? selectedItem.outputFormat : 'word',
+                sources: finalSources,
+                version: initialData?.version || 0 // Version is handled by parent
+            };
+            onDocumentGenerated(newDoc, initialData?.id);
+
 
         } catch (error) {
             console.error('Failed to generate document:', error);
@@ -122,7 +137,12 @@ const GeneratorPage: React.FC<GeneratorPageProps> = ({ selectedItem, initialData
     const renderStepContent = () => {
         switch (currentStep) {
             case 1:
-                return <CompanyProfileSetup item={selectedItem} onProfileSubmit={handleProfileSubmit} onBack={onBack} />;
+                return <CompanyProfileSetup 
+                            item={selectedItem}
+                            initialProfile={userProfile}
+                            onProfileSubmit={handleProfileSubmit} 
+                            onBack={onBack} 
+                        />;
             case 2:
                 if (!companyProfile) {
                     setCurrentStep(1);
