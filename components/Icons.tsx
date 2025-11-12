@@ -769,3 +769,9 @@ export const EditIcon: React.FC<{ className?: string }> = ({ className }) => (
 export const HistoryIcon: React.FC<{ className?: string }> = ({ className }) => (
   <OutlineIcon className={className} path="M12 6v6l4 2m8-4a10 10 0 11-20 0 10 10 0 0120 0z" />
 );
+
+export const FileAnalyticsIcon: React.FC<{ className?: string }> = ({ className }) => (
+    <DuotoneIcon className={className} paths={[
+        "M9 19H5V5h4m5 14h4V9h-4", "M14 19h-4"
+    ]} />
+);

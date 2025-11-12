@@ -34,6 +34,9 @@ const FormCard: React.FC<{ form: Form; onSelect: () => void; }> = ({ form, onSel
         <h3 className="text-xl font-bold text-secondary mb-2 pr-8">{form.title}</h3>
       </div>
       <p className="text-gray-600 flex-grow">{form.description}</p>
+       <div className="mt-4 pt-4 border-t border-gray-100">
+          <p className="text-lg font-bold text-primary">R{(form.price / 100).toFixed(2)}</p>
+        </div>
     </div>
   );
 };
@@ -42,11 +45,13 @@ const FormCard: React.FC<{ form: Form; onSelect: () => void; }> = ({ form, onSel
 const FormSelector: React.FC<FormSelectorProps> = ({ onSelectForm }) => {
   const [searchTerm, setSearchTerm] = useState('');
 
+  const searchWords = searchTerm.toLowerCase().split(' ').filter(word => word.length > 0);
+
   const categorizedAndFiltered = FORM_CATEGORIES.map(category => {
-    const filteredItems = category.items.filter(form =>
-      form.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      form.description.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    const filteredItems = category.items.filter(form => {
+        const formText = `${form.title.toLowerCase()} ${form.description.toLowerCase()}`;
+        return searchWords.every(word => formText.includes(word));
+    });
     return { ...category, items: filteredItems };
   }).filter(category => category.items.length > 0);
 

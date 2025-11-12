@@ -164,12 +164,14 @@ export interface Policy extends Document {
   kind: 'policy';
   type: PolicyType;
   industries?: string[];
+  price: number; // Price in cents
 }
 
 export interface Form extends Document {
   kind: 'form';
   type: FormType;
   outputFormat?: 'word' | 'excel';
+  price: number; // Price in cents
 }
 
 export type CompanyProfile = {
@@ -181,13 +183,25 @@ export type CompanyProfile = {
   companySize?: string;
 }
 
+export type Transaction = {
+  id: string;
+  date: string; // ISO string
+  description: string;
+  amount: number; // in cents, positive for deposits, negative for deductions
+  userId?: string; // Added for admin transaction log
+  userEmail?: string; // Added for admin transaction log
+};
+
 export type User = {
+  uid: string;
   email: string;
   profile: CompanyProfile;
   name?: string;
   contactNumber?: string;
-  plan: 'trial' | 'pro';
-  trialPoliciesGenerated: number;
+  plan: 'payg' | 'pro';
+  creditBalance: number; // in cents
+  transactions: Transaction[];
+  createdAt: string; // ISO string
 };
 
 export type FormAnswers = Record<string, any>;
@@ -244,3 +258,13 @@ export interface GeneratedDocument {
     content: string;
   }>;
 }
+
+export type AdminActionLog = {
+  id: string;
+  timestamp: string; // ISO String
+  adminEmail: string;
+  action: string; // e.g., "Updated User Profile", "Adjusted Credit"
+  targetUserId: string;
+  targetUserEmail: string;
+  details?: Record<string, any>; // e.g., { from: 'payg', to: 'pro' } or { amount: 5000, reason: 'Goodwill gesture' }
+};

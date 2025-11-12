@@ -1,15 +1,19 @@
+
 import React from 'react';
 
 interface EmailSentPageProps {
   email: string;
-  flowType: 'signup' | 'login';
+  flowType: 'signup' | 'login' | 'payg_signup';
   onVerify: () => void;
+  onShowPrivacyPolicy: () => void;
+  onShowTerms: () => void;
 }
 
-const EmailSentPage: React.FC<EmailSentPageProps> = ({ email, flowType, onVerify }) => {
-  const title = flowType === 'signup' ? 'Almost there! Check Your Inbox.' : 'Check Your Inbox';
-  const primaryText = `We've sent a ${flowType === 'signup' ? 'sign-up' : 'sign-in'} link to`;
-  const buttonText = `Simulate Clicking the ${flowType === 'signup' ? 'Sign-Up' : 'Sign-In'} Link`;
+const EmailSentPage: React.FC<EmailSentPageProps> = ({ email, flowType, onVerify, onShowPrivacyPolicy, onShowTerms }) => {
+  const isSignUpFlow = flowType === 'signup' || flowType === 'payg_signup';
+  const title = isSignUpFlow ? 'Almost there! Check Your Inbox.' : 'Check Your Inbox';
+  const primaryText = `We've sent a ${isSignUpFlow ? 'sign-up' : 'sign-in'} link to`;
+  const buttonText = `Simulate Clicking the ${isSignUpFlow ? 'Sign-Up' : 'Sign-In'} Link`;
   
   return (
     <div className="min-h-screen bg-light text-secondary flex flex-col">
@@ -47,6 +51,14 @@ const EmailSentPage: React.FC<EmailSentPageProps> = ({ email, flowType, onVerify
        <footer className="bg-secondary text-white py-8">
             <div className="container mx-auto px-6 text-center">
                 <img src="https://i.postimg.cc/h48FMCNY/edited-image-11-removebg-preview.png" alt="Ingcweti Logo" className="h-10 mx-auto mb-4" />
+                <div className="flex justify-center space-x-6 mb-4">
+                    <button onClick={onShowPrivacyPolicy} className="text-sm text-gray-300 hover:text-white hover:underline">
+                        Privacy Policy
+                    </button>
+                    <button onClick={onShowTerms} className="text-sm text-gray-300 hover:text-white hover:underline">
+                        Terms of Use
+                    </button>
+                </div>
                 <p className="text-sm text-gray-300">© {new Date().getFullYear()} Ingcweti. All rights reserved.</p>
             </div>
         </footer>

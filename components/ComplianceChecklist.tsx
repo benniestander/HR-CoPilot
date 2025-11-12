@@ -116,16 +116,6 @@ const ComplianceChecklist: React.FC<ComplianceChecklistProps> = ({
       );
     };
 
-  if (status === 'loading') {
-    return (
-      <div className="text-center p-12 bg-white rounded-lg shadow-md border border-gray-200">
-        <LoadingIcon className="w-12 h-12 animate-spin mx-auto mb-4 text-primary" />
-        <h2 className="text-2xl font-bold text-secondary">Generating Your Personalized Checklist...</h2>
-        <p className="text-gray-600 mt-2">Analyzing your company profile to recommend the best documents for you.</p>
-      </div>
-    );
-  }
-
   if (status === 'success' && result) {
      return (
         <div>
@@ -157,6 +147,7 @@ const ComplianceChecklist: React.FC<ComplianceChecklistProps> = ({
     );
   }
 
+  // FIX: Refactored to handle idle, loading, and error states in one block to resolve TypeScript control-flow error.
   return (
     <div className="max-w-4xl mx-auto">
       <button onClick={onBack} className="mb-6 text-primary font-semibold hover:underline flex items-center">
@@ -166,9 +157,19 @@ const ComplianceChecklist: React.FC<ComplianceChecklistProps> = ({
 
       <div className="bg-white p-8 rounded-lg shadow-md border border-gray-200">
         <div className="text-center">
-            <ComplianceIcon className="w-12 h-12 text-primary mx-auto mb-4" />
-            <h2 className="text-3xl font-bold text-secondary">HR Compliance Checklist Generator</h2>
-            <p className="text-gray-600 mt-2 mb-6 max-w-3xl mx-auto">Click the button below to generate a personalized checklist of essential HR documents based on your saved company profile.</p>
+          {status === 'loading' ? (
+            <>
+              <LoadingIcon className="w-12 h-12 animate-spin mx-auto mb-4 text-primary" />
+              <h2 className="text-2xl font-bold text-secondary">Generating Your Personalized Checklist...</h2>
+              <p className="text-gray-600 mt-2">Analyzing your company profile to recommend the best documents for you.</p>
+            </>
+          ) : (
+            <>
+              <ComplianceIcon className="w-12 h-12 text-primary mx-auto mb-4" />
+              <h2 className="text-3xl font-bold text-secondary">HR Compliance Checklist Generator</h2>
+              <p className="text-gray-600 mt-2 mb-6 max-w-3xl mx-auto">Click the button below to generate a personalized checklist of essential HR documents based on your saved company profile.</p>
+            </>
+          )}
         </div>
 
         <div className="mt-6 flex justify-center">

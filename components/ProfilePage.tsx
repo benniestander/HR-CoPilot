@@ -1,28 +1,29 @@
+
 import React, { useState, useEffect } from 'react';
-import { UserIcon, ShieldCheckIcon, EditIcon, MasterPolicyIcon, FormsIcon, WordIcon, ExcelIcon, CheckIcon, CreditCardIcon, LoadingIcon } from './Icons';
-import { CompanyProfile, GeneratedDocument } from '../types';
+import { UserIcon, ShieldCheckIcon, EditIcon, MasterPolicyIcon, FormsIcon, WordIcon, ExcelIcon, CheckIcon, CreditCardIcon, LoadingIcon, HistoryIcon } from './Icons';
+import { CompanyProfile, GeneratedDocument, User } from '../types';
 import { INDUSTRIES } from '../constants';
+import PaymentModal from './PaymentModal';
 
-
-// Yoco SDK type
-declare global {
-  interface Window {
-    YocoSDK: any;
-  }
-}
 
 interface ProfilePageProps {
-  user: {
-    email: string;
-    profile: CompanyProfile;
-  };
+  user: User;
   isOnboarding: boolean;
   onUpdateProfile: (profile: CompanyProfile) => void;
   onSubscriptionSuccess: () => void;
+  onTopUpSuccess: (amountInCents: number) => void;
   onLogout: () => void;
   onBack: () => void;
   generatedDocuments: GeneratedDocument[];
   onViewDocument: (doc: GeneratedDocument) => void;
+}
+
+type PaymentModalState = {
+    isOpen: boolean;
+    amountInCents: number;
+    itemName: string;
+    itemDescription: string;
+    type: 'pro' | 'topup';
 }
 
 const ProfilePage: React.FC<ProfilePageProps> = ({ 
@@ -30,17 +31,17 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
     isOnboarding, 
     onUpdateProfile, 
     onSubscriptionSuccess,
+    onTopUpSuccess,
     onLogout, 
     onBack, 
     generatedDocuments, 
     onViewDocument 
 }) => {
-  const [isEditing, setIsEditing] = useState(isOnboarding);
+  const [isEditing, setIsEditing] = useState(isOnboarding && user.plan === 'pro');
   const [formData, setFormData] = useState<CompanyProfile>(user.profile);
   const [errors, setErrors] = useState<Partial<Record<keyof CompanyProfile, string>>>({});
-  const [isPaymentLoading, setIsPaymentLoading] = useState(false);
-  const [paymentApiError, setPaymentApiError] = useState<string | null>(null);
-
+  const [paymentModalState, setPaymentModalState] = useState<PaymentModalState | null>(null);
+  
   const generatedPolicies = generatedDocuments.filter(doc => doc.kind === 'policy');
   const generatedForms = generatedDocuments.filter(doc => doc.kind === 'form');
 
@@ -97,35 +98,29 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
     setFormData(user.profile);
     setIsEditing(false);
   };
-
-  const handlePayment = () => {
-    setIsPaymentLoading(true);
-    setPaymentApiError(null);
-
-    const yoco = new (window as any).YocoSDK({
-      publicKey: 'pk_test_53ac2c42lWPdK17b8ac4',
+  
+  const handleOpenPaymentModal = (amount: number, type: 'pro' | 'topup') => {
+    if(!isProfileComplete && type === 'pro') {
+        alert('Please complete your company profile before subscribing.');
+        return;
+    }
+    setPaymentModalState({
+        isOpen: true,
+        amountInCents: amount,
+        itemName: type === 'pro' ? 'Ingcweti Pro Subscription' : `Credit Top-Up R${amount / 100}`,
+        itemDescription: type === 'pro' ? '12 months full access.' : 'Add funds to your account.',
+        type: type,
     });
+  };
 
-    yoco.showPopup({
-      amountInCents: 50000,
-      currency: 'ZAR',
-      name: "Ingcweti Pro (12 Months)",
-      description: '12 months full access to the HR Co-Pilot platform.',
-      customer: {
-        email: user.email,
-        name: formData.companyName, // Use company name for simplicity
-      },
-      callback: (result: any) => {
-        setIsPaymentLoading(false);
-        if (result.error) {
-          if (result.error.message !== "User closed popup") {
-            setPaymentApiError(`Payment failed: ${result.error.message}`);
-          }
-        } else {
-          onSubscriptionSuccess();
-        }
-      },
-    });
+  const handlePaymentSuccess = () => {
+    if(!paymentModalState) return;
+    if (paymentModalState.type === 'pro') {
+        onSubscriptionSuccess();
+    } else {
+        onTopUpSuccess(paymentModalState.amountInCents);
+    }
+    setPaymentModalState(null);
   };
 
   const getExpiryDate = () => {
@@ -165,8 +160,69 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
     </div>
   );
 
-  if (isOnboarding) {
+  if (isOnboarding && user.plan === 'payg') {
     return (
+        <div className="max-w-4xl mx-auto">
+             <div className="bg-white p-8 rounded-lg shadow-md border border-gray-200">
+                <h2 className="text-3xl font-bold text-secondary text-center">Welcome to Ingcweti!</h2>
+                <p className="text-gray-600 mt-2 mb-8 text-center">Let's get your account started. First, complete your profile, then make your first deposit.</p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    {/* Step 1: Profile */}
+                    <div className={`p-6 border rounded-lg ${isProfileComplete ? 'border-green-400 bg-green-50' : 'border-gray-200'}`}>
+                        <div className="flex items-center mb-4">
+                            <div className={`w-8 h-8 rounded-full flex items-center justify-center mr-3 text-white font-bold ${isProfileComplete ? 'bg-green-500' : 'bg-primary'}`}>1</div>
+                            <h3 className="text-xl font-semibold text-secondary">Set Up Your Company Profile</h3>
+                        </div>
+                        <form onSubmit={handleSave} className="space-y-4">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700">Company Name</label>
+                                <input type="text" name="companyName" value={formData.companyName || ''} onChange={handleInputChange} className={`mt-1 block w-full p-2 border rounded-md shadow-sm focus:ring-primary focus:border-primary ${errors.companyName ? 'border-red-500' : 'border-gray-300'}`} />
+                                {errors.companyName && <p className="text-red-600 text-xs mt-1">{errors.companyName}</p>}
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700">Industry</label>
+                                <select name="industry" value={formData.industry || ''} onChange={handleInputChange} className={`mt-1 block w-full p-2 border rounded-md shadow-sm bg-white focus:ring-primary focus:border-primary ${errors.industry ? 'border-red-500' : 'border-gray-300'}`}>
+                                    <option value="" disabled>Select an industry...</option>
+                                    {INDUSTRIES.map(ind => <option key={ind} value={ind}>{ind}</option>)}
+                                </select>
+                                {errors.industry && <p className="text-red-600 text-xs mt-1">{errors.industry}</p>}
+                            </div>
+                            <button type="submit" className="w-full mt-2 px-4 py-2 text-sm font-medium text-white bg-primary rounded-md hover:bg-opacity-90 disabled:bg-gray-400 flex items-center justify-center">
+                                <CheckIcon className="w-5 h-5 mr-2" /> Save Profile
+                            </button>
+                        </form>
+                    </div>
+
+                    {/* Step 2: Deposit */}
+                    <div className="p-6 border border-gray-200 rounded-lg">
+                         <div className="flex items-center mb-4">
+                            <div className={`w-8 h-8 rounded-full flex items-center justify-center mr-3 text-white font-bold ${!isProfileComplete ? 'bg-gray-400' : 'bg-primary'}`}>2</div>
+                            <h3 className="text-xl font-semibold text-secondary">Make Your First Deposit</h3>
+                        </div>
+                        <div className={`transition-opacity space-y-3 ${!isProfileComplete ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                             <p className="text-sm text-gray-600">Choose an amount to add to your account. You can use this credit to generate any document.</p>
+                            <button onClick={() => handleOpenPaymentModal(10000, 'topup')} disabled={!isProfileComplete} className="w-full bg-primary text-white font-bold py-3 px-4 rounded-md hover:bg-opacity-90 disabled:bg-gray-400">Deposit R100.00</button>
+                            <button onClick={() => handleOpenPaymentModal(20000, 'topup')} disabled={!isProfileComplete} className="w-full bg-primary text-white font-bold py-3 px-4 rounded-md hover:bg-opacity-90 disabled:bg-gray-400">Deposit R200.00</button>
+                             <button onClick={() => handleOpenPaymentModal(50000, 'topup')} disabled={!isProfileComplete} className="w-full bg-primary text-white font-bold py-3 px-4 rounded-md hover:bg-opacity-90 disabled:bg-gray-400">Deposit R500.00</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+             {paymentModalState?.isOpen && (
+                <PaymentModal 
+                    isOpen={paymentModalState.isOpen}
+                    onClose={() => setPaymentModalState(null)}
+                    onSuccess={handlePaymentSuccess}
+                    amountInCents={paymentModalState.amountInCents}
+                    itemName={paymentModalState.itemName}
+                />
+            )}
+        </div>
+    );
+  }
+
+  if (isOnboarding && user.plan === 'pro') {
+     return (
         <div className="max-w-4xl mx-auto">
              <div className="bg-white p-8 rounded-lg shadow-md border border-gray-200">
                 <h2 className="text-3xl font-bold text-secondary text-center">Complete Your Profile & Subscribe</h2>
@@ -192,14 +248,6 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
                                 </select>
                                 {errors.industry && <p className="text-red-600 text-xs mt-1">{errors.industry}</p>}
                             </div>
-                             <div className="relative flex items-start pt-2">
-                                <div className="flex h-6 items-center">
-                                    <input id="engagement-emails" type="checkbox" defaultChecked className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary" />
-                                </div>
-                                <div className="ml-3 text-sm leading-6">
-                                    <label htmlFor="engagement-emails" className="font-medium text-gray-700">Receive helpful tips and product updates from Ingcweti.</label>
-                                </div>
-                            </div>
                             <button type="submit" className="w-full mt-2 px-4 py-2 text-sm font-medium text-white bg-primary rounded-md hover:bg-opacity-90 disabled:bg-gray-400 flex items-center justify-center">
                                 <CheckIcon className="w-5 h-5 mr-2" /> Save Profile
                             </button>
@@ -215,19 +263,27 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
                         <div className={`transition-opacity ${!isProfileComplete ? 'opacity-50' : ''}`}>
                             <div className="text-center py-4">
                                 <p className="text-lg text-gray-600">12-Month Membership</p>
-                                <p className="text-4xl font-bold text-secondary my-2">R500.00</p>
+                                <p className="text-4xl font-bold text-secondary my-2">R747.00</p>
                                 <p className="text-xs text-gray-500">One-time payment for a full year of access.</p>
                             </div>
-                            <button onClick={handlePayment} disabled={!isProfileComplete || isPaymentLoading} className="w-full bg-primary text-white font-bold py-3 px-4 rounded-md hover:bg-opacity-90 disabled:bg-gray-400 transition-colors flex items-center justify-center">
-                                {isPaymentLoading ? <><LoadingIcon className="animate-spin -ml-1 mr-3 h-5 w-5" /> Processing...</> : <><CreditCardIcon className="w-5 h-5 mr-2" /> Pay with Yoco</>}
+                            <button onClick={() => handleOpenPaymentModal(74700, 'pro')} disabled={!isProfileComplete} className="w-full bg-primary text-white font-bold py-3 px-4 rounded-md hover:bg-opacity-90 disabled:bg-gray-400 transition-colors flex items-center justify-center">
+                                <CreditCardIcon className="w-5 h-5 mr-2" /> Pay with Yoco
                             </button>
-                            {paymentApiError && <p className="text-xs text-red-600 text-center mt-2">{paymentApiError}</p>}
                         </div>
                     </div>
                 </div>
             </div>
+             {paymentModalState?.isOpen && (
+                <PaymentModal 
+                    isOpen={paymentModalState.isOpen}
+                    onClose={() => setPaymentModalState(null)}
+                    onSuccess={handlePaymentSuccess}
+                    amountInCents={paymentModalState.amountInCents}
+                    itemName={paymentModalState.itemName}
+                />
+            )}
         </div>
-    );
+     )
   }
 
   // Standard Profile Page for subscribed users
@@ -248,7 +304,6 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
         </div>
         
         <div className="space-y-6">
-            {/* ... rest of the standard profile page component ... */}
              <div className="p-6 border border-gray-200 rounded-lg">
                 <h3 className="text-xl font-semibold text-secondary mb-4">Account Details</h3>
                 <div className="flex items-center text-sm">
@@ -269,7 +324,6 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
                 </div>
                 {isEditing ? (
                     <form onSubmit={handleSave} className="space-y-4">
-                        {/* Form fields */}
                          <div>
                             <label className="block text-sm font-medium text-gray-700">Company Name</label>
                             <input type="text" name="companyName" value={formData.companyName || ''} onChange={handleInputChange} className={`mt-1 block w-full p-2 border rounded-md shadow-sm focus:ring-primary focus:border-primary ${errors.companyName ? 'border-red-500' : 'border-gray-300'}`} />
@@ -324,28 +378,74 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
                 )}
             </div>
             
-            <DocumentHistorySection title="Policies Generated" documents={generatedPolicies} icon={MasterPolicyIcon} />
-            <DocumentHistorySection title="Forms Generated" documents={generatedForms} icon={FormsIcon} />
-
-             <div className="p-6 border border-gray-200 rounded-lg bg-light">
-                <div className="flex items-start justify-between">
-                    <div>
-                        <h3 className="text-xl font-semibold text-secondary mb-2">Subscription</h3>
-                        <div className="flex items-center text-green-600 font-bold">
-                            <ShieldCheckIcon className="w-6 h-6 mr-2" />
-                            <span>Ingcweti Pro</span>
+            {user.plan === 'pro' ? (
+                <div className="p-6 border border-gray-200 rounded-lg bg-light">
+                    <div className="flex items-start justify-between">
+                        <div>
+                            <h3 className="text-xl font-semibold text-secondary mb-2">Subscription</h3>
+                            <div className="flex items-center text-green-600 font-bold">
+                                <ShieldCheckIcon className="w-6 h-6 mr-2" />
+                                <span>Ingcweti Pro</span>
+                            </div>
+                        </div>
+                        <button disabled className="px-4 py-2 text-sm font-semibold text-gray-500 bg-gray-200 rounded-md cursor-not-allowed" title="Feature coming soon">
+                            Manage Subscription
+                        </button>
+                    </div>
+                    <div className="mt-4 pt-4 border-t border-gray-300">
+                        <div className="flex items-center text-sm"><span className="text-gray-500 w-24">Plan:</span><span className="font-medium text-secondary">12 Months Access</span></div>
+                        <div className="flex items-center text-sm mt-2"><span className="text-gray-500 w-24">Valid Until:</span><span className="font-medium text-secondary">{getExpiryDate()}</span></div>
+                        <p className="text-xs text-gray-500 mt-3">You will receive an email reminder before your subscription expires.</p>
+                    </div>
+                </div>
+            ) : (
+                <div className="p-6 border border-gray-200 rounded-lg">
+                    <h3 className="text-xl font-semibold text-secondary mb-4">Manage Your Credit</h3>
+                    <div className="p-4 bg-green-50 border border-green-200 rounded-lg text-center mb-4">
+                        <p className="text-sm text-green-800">Your current balance is</p>
+                        <p className="text-4xl font-bold text-green-900">R{(user.creditBalance / 100).toFixed(2)}</p>
+                    </div>
+                    <div className="space-y-3">
+                        <h4 className="font-semibold text-gray-800">Top Up Your Account:</h4>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                             <button onClick={() => handleOpenPaymentModal(10000, 'topup')} className="w-full bg-primary text-white font-bold py-2 px-3 rounded-md hover:bg-opacity-90">Top Up R100</button>
+                             <button onClick={() => handleOpenPaymentModal(20000, 'topup')} className="w-full bg-primary text-white font-bold py-2 px-3 rounded-md hover:bg-opacity-90">Top Up R200</button>
+                             <button onClick={() => handleOpenPaymentModal(50000, 'topup')} className="w-full bg-primary text-white font-bold py-2 px-3 rounded-md hover:bg-opacity-90">Top Up R500</button>
                         </div>
                     </div>
-                     <button disabled className="px-4 py-2 text-sm font-semibold text-gray-500 bg-gray-200 rounded-md cursor-not-allowed" title="Feature coming soon">
-                        Manage Subscription
-                    </button>
+                    <div className="mt-6 pt-6 border-t border-gray-200 bg-accent/20 p-4 rounded-lg text-center">
+                         <h4 className="font-bold text-accent-800">Go Unlimited!</h4>
+                         <p className="text-sm text-accent-700 my-2">Upgrade to Ingcweti Pro for R747 and get unlimited document generation for a full year.</p>
+                         <button onClick={() => handleOpenPaymentModal(74700, 'pro')} className="bg-accent text-white font-bold py-2 px-4 rounded-md hover:bg-accent-dark">Upgrade to Pro</button>
+                    </div>
                 </div>
-                <div className="mt-4 pt-4 border-t border-gray-300">
-                     <div className="flex items-center text-sm"><span className="text-gray-500 w-24">Plan:</span><span className="font-medium text-secondary">12 Months Access</span></div>
-                     <div className="flex items-center text-sm mt-2"><span className="text-gray-500 w-24">Valid Until:</span><span className="font-medium text-secondary">{getExpiryDate()}</span></div>
-                     <p className="text-xs text-gray-500 mt-3">You will receive an email reminder before your subscription expires.</p>
+            )}
+
+            {user.plan === 'payg' && (
+                <div className="p-6 border border-gray-200 rounded-lg">
+                    <h3 className="text-xl font-semibold text-secondary mb-4 flex items-center"><HistoryIcon className="w-6 h-6 mr-2" />Transaction History</h3>
+                    {user.transactions && user.transactions.length > 0 ? (
+                        <ul className="space-y-2 max-h-60 overflow-y-auto">
+                            {user.transactions.map(tx => (
+                                <li key={tx.id} className="flex justify-between items-center text-sm p-2 bg-light rounded-md">
+                                    <div>
+                                        <p className="font-medium text-gray-800">{tx.description}</p>
+                                        <p className="text-xs text-gray-500">{new Date(tx.date).toLocaleString()}</p>
+                                    </div>
+                                    <span className={`font-semibold ${tx.amount > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                        {tx.amount > 0 ? '+' : ''}R{(tx.amount / 100).toFixed(2)}
+                                    </span>
+                                </li>
+                            ))}
+                        </ul>
+                    ) : (
+                        <p className="text-sm text-gray-500 text-center py-4">No transactions yet.</p>
+                    )}
                 </div>
-            </div>
+            )}
+
+            <DocumentHistorySection title="Policies Generated" documents={generatedPolicies} icon={MasterPolicyIcon} />
+            <DocumentHistorySection title="Forms Generated" documents={generatedForms} icon={FormsIcon} />
         </div>
 
         <div className="mt-8 pt-8 border-t border-gray-200">
@@ -354,6 +454,15 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
           </button>
         </div>
       </div>
+      {paymentModalState?.isOpen && (
+        <PaymentModal 
+            isOpen={paymentModalState.isOpen}
+            onClose={() => setPaymentModalState(null)}
+            onSuccess={handlePaymentSuccess}
+            amountInCents={paymentModalState.amountInCents}
+            itemName={paymentModalState.itemName}
+        />
+    )}
     </div>
   );
 };

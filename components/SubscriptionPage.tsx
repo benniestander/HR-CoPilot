@@ -21,7 +21,7 @@ const SubscriptionPage: React.FC<SubscriptionPageProps> = ({ onSuccess, onLogout
   const [isLoading, setIsLoading] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
   
-  const amountInCents = 50000;
+  const amountInCents = 74700;
   const itemName = "Ingcweti Pro (12 Months)";
 
   const features = [
@@ -119,7 +119,7 @@ const SubscriptionPage: React.FC<SubscriptionPageProps> = ({ onSuccess, onLogout
               <div className="border-2 border-primary rounded-lg p-4 bg-primary/5 relative">
                 <div className="absolute top-4 right-4 bg-primary text-white text-xs font-bold px-3 py-1 rounded-full">Selected</div>
                 <h3 className="text-lg font-bold text-secondary">12-Month Membership</h3>
-                <p className="text-2xl font-bold text-secondary mt-1">R500 <span className="text-base font-normal text-gray-600">/ for 12 months</span></p>
+                <p className="text-2xl font-bold text-secondary mt-1">R747 <span className="text-base font-normal text-gray-600">/ for 12 months</span></p>
               </div>
             </div>
 
@@ -178,11 +178,11 @@ const SubscriptionPage: React.FC<SubscriptionPageProps> = ({ onSuccess, onLogout
               <div className="mt-6 pt-6 border-t border-gray-200">
                 <div className="flex justify-between items-center text-gray-600">
                     <span>12-Month Membership</span>
-                    <span>R500.00</span>
+                    <span>R747.00</span>
                 </div>
                 <div className="flex justify-between items-center font-bold text-lg mt-4">
                     <span>Total Due Today</span>
-                    <span>R500.00</span>
+                    <span>R747.00</span>
                 </div>
               </div>
             </div>

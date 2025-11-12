@@ -11,32 +11,35 @@ interface DashboardProps {
   onSelectItem: (item: Policy | Form) => void;
   onStartUpdate: () => void;
   onStartChecklist: () => void;
+  onGoToProfile: () => void;
   generatedDocuments: GeneratedDocument[];
   onViewDocument: (doc: GeneratedDocument) => void;
   showOnboardingWalkthrough?: boolean;
   onCloseWalkthrough?: () => void;
 }
 
-const Dashboard: React.FC<DashboardProps> = ({ user, onSelectItem, onStartUpdate, onStartChecklist, generatedDocuments, onViewDocument, showOnboardingWalkthrough, onCloseWalkthrough }) => {
+const Dashboard: React.FC<DashboardProps> = ({ user, onSelectItem, onStartUpdate, onStartChecklist, onGoToProfile, generatedDocuments, onViewDocument, showOnboardingWalkthrough, onCloseWalkthrough }) => {
   const [activeTab, setActiveTab] = useState<'policies' | 'forms'>('policies');
   const [isHowToUseModalOpen, setIsHowToUseModalOpen] = useState(false);
 
-  const TrialBanner: React.FC = () => {
-    if (user?.plan !== 'trial') return null;
-
-    const policiesLeft = 1 - user.trialPoliciesGenerated;
+  const PaygBanner: React.FC = () => {
+    if (user?.plan !== 'payg') return null;
 
     return (
-      <div className="mb-8 p-4 bg-accent/20 border-l-4 border-accent text-accent-800 rounded-r-lg flex items-center">
-        <InfoIcon className="w-6 h-6 mr-3 text-accent-700 flex-shrink-0" />
-        <div>
-          <h3 className="font-bold">You are currently on a Free Trial.</h3>
-          {policiesLeft > 0 ? (
-             <p className="text-sm">You can generate {policiesLeft} more policy document(s). Upgrade to Pro for unlimited access.</p>
-          ) : (
-             <p className="text-sm">You have used your free policy. Please upgrade to the Pro plan to continue generating policies.</p>
-          )}
+      <div className="mb-8 p-4 bg-accent/20 border-l-4 border-accent text-accent-800 rounded-r-lg flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div className="flex items-center">
+            <InfoIcon className="w-6 h-6 mr-3 text-accent-700 flex-shrink-0" />
+            <div>
+              <h3 className="font-bold">You are on the Pay-As-You-Go plan.</h3>
+              <p className="text-sm">Your current balance is <strong>R{(user.creditBalance / 100).toFixed(2)}</strong>.</p>
+            </div>
         </div>
+        <button 
+            onClick={onGoToProfile} 
+            className="bg-primary text-white font-semibold py-2 px-4 rounded-md hover:bg-opacity-90 transition-colors flex-shrink-0 self-start sm:self-center"
+        >
+          Top Up Credit
+        </button>
       </div>
     );
   };
@@ -95,7 +98,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onSelectItem, onStartUpdate
               </button>
         </div>
         
-        <TrialBanner />
+        <PaygBanner />
         <DocumentHistory />
 
         <div className="flex justify-center border-b border-gray-200 mb-8">

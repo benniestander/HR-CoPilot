@@ -17,6 +17,9 @@ const PolicyCard: React.FC<{ policy: Policy; onSelect: () => void; }> = ({ polic
       <h3 className="text-xl font-bold text-secondary mb-2">{policy.title}</h3>
     </div>
     <p className="text-gray-600 flex-grow">{policy.description}</p>
+    <div className="mt-4 pt-4 border-t border-gray-100">
+      <p className="text-lg font-bold text-primary">R{(policy.price / 100).toFixed(2)}</p>
+    </div>
   </div>
 );
 
@@ -26,10 +29,10 @@ const PolicySelector: React.FC<PolicySelectorProps> = ({ onSelectPolicy }) => {
   const [selectedIndustry, setSelectedIndustry] = useState('All');
 
   const categorizedAndFiltered = POLICY_CATEGORIES.map(category => {
+    const searchWords = searchTerm.toLowerCase().split(' ').filter(word => word.length > 0);
     const filteredItems = category.items.filter(policy => {
-      const searchMatch =
-        policy.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        policy.description.toLowerCase().includes(searchTerm.toLowerCase());
+      const policyText = `${policy.title.toLowerCase()} ${policy.description.toLowerCase()}`;
+      const searchMatch = searchWords.every(word => policyText.includes(word));
 
       const industryMatch =
         selectedIndustry === 'All' ||

@@ -1,11 +1,14 @@
+
 import React, { useState } from 'react';
 
 interface LoginProps {
   onLogin: (email: string) => void;
   onShowLanding: () => void;
+  onShowPrivacyPolicy: () => void;
+  onShowTerms: () => void;
 }
 
-const Login: React.FC<LoginProps> = ({ onLogin, onShowLanding }) => {
+const Login: React.FC<LoginProps> = ({ onLogin, onShowLanding, onShowPrivacyPolicy, onShowTerms }) => {
     const [email, setEmail] = useState('');
     const [emailError, setEmailError] = useState('');
     const [loading, setLoading] = useState(false);
@@ -103,6 +106,14 @@ const Login: React.FC<LoginProps> = ({ onLogin, onShowLanding }) => {
                       alt="Ingcweti Logo"
                       className="h-10 mx-auto mb-4"
                     />
+                    <div className="flex justify-center space-x-6 mb-4">
+                        <button onClick={onShowPrivacyPolicy} className="text-sm text-gray-300 hover:text-white hover:underline">
+                            Privacy Policy
+                        </button>
+                        <button onClick={onShowTerms} className="text-sm text-gray-300 hover:text-white hover:underline">
+                            Terms of Use
+                        </button>
+                    </div>
                     <p className="text-sm text-gray-300">© {new Date().getFullYear()} Ingcweti. All rights reserved.</p>
                 </div>
             </footer>
