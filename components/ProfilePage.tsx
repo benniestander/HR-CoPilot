@@ -1,7 +1,6 @@
-
-import React, { useState, useEffect } from 'react';
-import { UserIcon, ShieldCheckIcon, EditIcon, MasterPolicyIcon, FormsIcon, WordIcon, ExcelIcon, CheckIcon, CreditCardIcon, LoadingIcon, HistoryIcon } from './Icons';
-import { CompanyProfile, GeneratedDocument, User } from '../types';
+import React, { useState, useEffect, useRef } from 'react';
+import { UserIcon, ShieldCheckIcon, EditIcon, MasterPolicyIcon, FormsIcon, WordIcon, ExcelIcon, CheckIcon, CreditCardIcon, LoadingIcon, HistoryIcon, FileUploadIcon, FileIcon, TrashIcon } from './Icons';
+import { CompanyProfile, GeneratedDocument, User, UserFile } from '../types';
 import { INDUSTRIES } from '../constants';
 import PaymentModal from './PaymentModal';
 
@@ -15,7 +14,12 @@ interface ProfilePageProps {
   onLogout: () => void;
   onBack: () => void;
   generatedDocuments: GeneratedDocument[];
+  userFiles: UserFile[];
+  onFileUpload: (file: File, notes: string) => Promise<void>;
+  onFileDownload: (storagePath: string) => void;
   onViewDocument: (doc: GeneratedDocument) => void;
+  onProfilePhotoUpload: (file: File) => Promise<void>;
+  onProfilePhotoDelete: () => Promise<void>;
 }
 
 type PaymentModalState = {
@@ -34,14 +38,29 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
     onTopUpSuccess,
     onLogout, 
     onBack, 
-    generatedDocuments, 
-    onViewDocument 
+    generatedDocuments,
+    userFiles,
+    onFileUpload,
+    onFileDownload,
+    onViewDocument,
+    onProfilePhotoUpload,
+    onProfilePhotoDelete,
 }) => {
   const [isEditing, setIsEditing] = useState(isOnboarding && user.plan === 'pro');
   const [formData, setFormData] = useState<CompanyProfile>(user.profile);
   const [errors, setErrors] = useState<Partial<Record<keyof CompanyProfile, string>>>({});
   const [paymentModalState, setPaymentModalState] = useState<PaymentModalState | null>(null);
+  const [customAmount, setCustomAmount] = useState('');
+  const [customAmountError, setCustomAmountError] = useState('');
   
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [fileNotes, setFileNotes] = useState('');
+  const [isUploading, setIsUploading] = useState(false);
+
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [isPhotoUploading, setIsPhotoUploading] = useState(false);
+  const photoInputRef = useRef<HTMLInputElement>(null);
+
   const generatedPolicies = generatedDocuments.filter(doc => doc.kind === 'policy');
   const generatedForms = generatedDocuments.filter(doc => doc.kind === 'form');
 
@@ -122,6 +141,75 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
     }
     setPaymentModalState(null);
   };
+  
+  const handleCustomAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setCustomAmount(value);
+
+    const numValue = Number(value);
+    if (!value) {
+        setCustomAmountError('');
+    } else if (isNaN(numValue) || numValue < 50) {
+        setCustomAmountError('Please enter an amount of at least R50.');
+    } else {
+        setCustomAmountError('');
+    }
+  };
+
+  const handleCustomDeposit = () => {
+      const amountInRands = Number(customAmount);
+      if (!isNaN(amountInRands) && amountInRands >= 50) {
+          handleOpenPaymentModal(amountInRands * 100, 'topup');
+      }
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      setSelectedFile(e.target.files[0]);
+    }
+  };
+
+  const handleUploadClick = async () => {
+    if (!selectedFile) {
+      alert("Please select a file to upload.");
+      return;
+    }
+    setIsUploading(true);
+    await onFileUpload(selectedFile, fileNotes);
+    setSelectedFile(null);
+    setFileNotes('');
+    setIsUploading(false);
+  };
+
+  const handlePhotoFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      if (file.size > 2 * 1024 * 1024) { // 2MB limit
+          alert("File is too large. Please select an image under 2MB.");
+          return;
+      }
+      if (!file.type.startsWith('image/')) {
+          alert("Please select an image file (JPEG, PNG, etc.).");
+          return;
+      }
+      setPhotoFile(file);
+    }
+  };
+
+  const handlePhotoUpload = async () => {
+    if (!photoFile) return;
+    setIsPhotoUploading(true);
+    await onProfilePhotoUpload(photoFile);
+    setIsPhotoUploading(false);
+    setPhotoFile(null);
+  };
+
+  const handleDeletePhoto = async () => {
+    setIsPhotoUploading(true);
+    await onProfilePhotoDelete();
+    setIsPhotoUploading(false);
+  };
+
 
   const getExpiryDate = () => {
     const date = new Date();
@@ -204,6 +292,39 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
                             <button onClick={() => handleOpenPaymentModal(10000, 'topup')} disabled={!isProfileComplete} className="w-full bg-primary text-white font-bold py-3 px-4 rounded-md hover:bg-opacity-90 disabled:bg-gray-400">Deposit R100.00</button>
                             <button onClick={() => handleOpenPaymentModal(20000, 'topup')} disabled={!isProfileComplete} className="w-full bg-primary text-white font-bold py-3 px-4 rounded-md hover:bg-opacity-90 disabled:bg-gray-400">Deposit R200.00</button>
                              <button onClick={() => handleOpenPaymentModal(50000, 'topup')} disabled={!isProfileComplete} className="w-full bg-primary text-white font-bold py-3 px-4 rounded-md hover:bg-opacity-90 disabled:bg-gray-400">Deposit R500.00</button>
+                            <div className="relative flex py-2 items-center">
+                                <div className="flex-grow border-t border-gray-300"></div>
+                                <span className="flex-shrink mx-4 text-sm text-gray-500">OR</span>
+                                <div className="flex-grow border-t border-gray-300"></div>
+                            </div>
+                    
+                            <div>
+                                <label htmlFor="customAmount" className="block text-sm font-medium text-gray-700 mb-1">
+                                    Select own amount (Min R50)
+                                </label>
+                                <div className="flex items-start gap-2">
+                                    <div className="flex-grow">
+                                        <input
+                                            id="customAmount"
+                                            type="number"
+                                            value={customAmount}
+                                            onChange={handleCustomAmountChange}
+                                            placeholder="e.g., 150"
+                                            min="50"
+                                            className={`w-full p-2 border rounded-md shadow-sm focus:ring-primary focus:border-primary ${customAmountError ? 'border-red-500' : 'border-gray-300'}`}
+                                            disabled={!isProfileComplete}
+                                        />
+                                        {customAmountError && <p className="text-red-600 text-xs mt-1">{customAmountError}</p>}
+                                    </div>
+                                    <button
+                                        onClick={handleCustomDeposit}
+                                        disabled={!isProfileComplete || !customAmount || !!customAmountError}
+                                        className="bg-accent text-white font-bold py-2 px-4 rounded-md hover:bg-opacity-90 disabled:bg-gray-400"
+                                    >
+                                        Deposit
+                                    </button>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -295,12 +416,43 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
       </button>
 
       <div className="bg-white p-8 rounded-lg shadow-md border border-gray-200">
-        <div className="flex items-center mb-8">
-          <UserIcon className="w-12 h-12 text-primary mr-4" />
-          <div>
-            <h2 className="text-3xl font-bold text-secondary">My Profile</h2>
-            <p className="text-gray-600">Manage your account and generated documents.</p>
-          </div>
+        <div className="flex flex-col sm:flex-row items-center pb-8 border-b border-gray-200 mb-8">
+            <div className="relative mb-4 sm:mb-0 sm:mr-6">
+                {user.photoURL ? (
+                    <img src={user.photoURL} alt="Profile" className="w-24 h-24 rounded-full object-cover border-4 border-white shadow-lg" />
+                ) : (
+                    <div className="w-24 h-24 rounded-full bg-gray-200 flex items-center justify-center border-4 border-white shadow-lg">
+                        <UserIcon className="w-12 h-12 text-gray-400" />
+                    </div>
+                )}
+                {isPhotoUploading && (
+                    <div className="absolute inset-0 rounded-full bg-black bg-opacity-50 flex items-center justify-center">
+                        <svg className="animate-spin h-8 w-8 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                    </div>
+                )}
+            </div>
+            <div className="flex flex-col items-center sm:items-start">
+                <h2 className="text-2xl font-bold text-secondary">{user.name || user.email}</h2>
+                <p className="text-gray-500 mb-4">Manage your profile picture.</p>
+                <div className="flex items-center space-x-2">
+                    <input type="file" ref={photoInputRef} onChange={handlePhotoFileChange} accept="image/*" className="hidden" />
+                    <button onClick={() => photoInputRef.current?.click()} disabled={isPhotoUploading} className="px-4 py-2 text-sm font-medium text-white bg-primary rounded-md hover:bg-opacity-90 disabled:bg-gray-400">
+                        {user.photoURL ? 'Change Photo' : 'Upload Photo'}
+                    </button>
+                    {user.photoURL && (
+                        <button onClick={handleDeletePhoto} disabled={isPhotoUploading} className="p-2 text-sm font-medium text-red-600 bg-red-100 rounded-md hover:bg-red-200 disabled:bg-gray-200" title="Delete Photo">
+                            <TrashIcon className="w-5 h-5" />
+                        </button>
+                    )}
+                </div>
+                {photoFile && !isPhotoUploading && (
+                    <div className="mt-3 flex items-center space-x-2 p-2 bg-gray-100 rounded-md">
+                        <span className="text-sm text-gray-600 truncate max-w-[150px]">{photoFile.name}</span>
+                        <button onClick={handlePhotoUpload} className="px-3 py-1 text-xs font-bold text-white bg-green-600 rounded-md hover:bg-green-700">Confirm</button>
+                    </div>
+                )}
+                <p className="text-xs text-gray-500 mt-2">Max 2MB. JPG, PNG.</p>
+            </div>
         </div>
         
         <div className="space-y-6">
@@ -443,6 +595,46 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
                     )}
                 </div>
             )}
+
+            <div className="p-6 border border-gray-200 rounded-lg">
+                <h3 className="text-xl font-semibold text-secondary mb-4 flex items-center"><FileUploadIcon className="w-6 h-6 mr-2" />My Files</h3>
+                <div className="p-4 bg-light rounded-lg border border-gray-200 space-y-4">
+                    <h4 className="font-semibold text-gray-800">Upload a new file</h4>
+                    <div>
+                        <label htmlFor="file-upload" className="block text-sm font-medium text-gray-700">File</label>
+                        <input id="file-upload" name="file-upload" type="file" onChange={handleFileChange} className="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20"/>
+                    </div>
+                     <div>
+                        <label htmlFor="file-notes" className="block text-sm font-medium text-gray-700">Notes (Optional)</label>
+                        <textarea id="file-notes" name="file-notes" rows={2} value={fileNotes} onChange={(e) => setFileNotes(e.target.value)} placeholder="e.g., Employment contract for John Doe" className="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-primary focus:border-primary" />
+                    </div>
+                    <button onClick={handleUploadClick} disabled={!selectedFile || isUploading} className="w-full bg-primary text-white font-bold py-2 px-4 rounded-md hover:bg-opacity-90 disabled:bg-gray-400 flex items-center justify-center">
+                        {isUploading ? <><LoadingIcon className="animate-spin -ml-1 mr-3 h-5 w-5" /> Uploading...</> : <><FileUploadIcon className="w-5 h-5 mr-2"/> Upload File</>}
+                    </button>
+                </div>
+                <div className="mt-6">
+                    <h4 className="font-semibold text-gray-800 mb-2">Uploaded Files</h4>
+                    {userFiles.length > 0 ? (
+                        <ul className="space-y-2 max-h-60 overflow-y-auto p-1">
+                            {userFiles.map(file => (
+                                <li key={file.id} className="flex justify-between items-center text-sm p-3 bg-light rounded-md border border-gray-200">
+                                    <div className="flex items-center flex-1 overflow-hidden">
+                                        <FileIcon className="w-6 h-6 text-primary mr-3 flex-shrink-0" />
+                                        <div className="flex-1 overflow-hidden">
+                                            <p className="font-medium text-gray-800 truncate" title={file.name}>{file.name}</p>
+                                            <p className="text-xs text-gray-500 truncate" title={file.notes}>{file.notes || 'No notes'}</p>
+                                            <p className="text-xs text-gray-500">{new Date(file.createdAt).toLocaleString()} &bull; {(file.size / 1024).toFixed(2)} KB</p>
+                                        </div>
+                                    </div>
+                                    <button onClick={() => onFileDownload(file.storagePath)} className="ml-4 flex-shrink-0 px-3 py-1.5 text-xs font-semibold text-primary bg-white border border-primary rounded-md hover:bg-primary hover:text-white transition-colors">Download</button>
+                                </li>
+                            ))}
+                        </ul>
+                    ) : (
+                        <p className="text-sm text-gray-500 text-center py-4">No files uploaded yet.</p>
+                    )}
+                </div>
+            </div>
 
             <DocumentHistorySection title="Policies Generated" documents={generatedPolicies} icon={MasterPolicyIcon} />
             <DocumentHistorySection title="Forms Generated" documents={generatedForms} icon={FormsIcon} />

@@ -12,6 +12,7 @@ interface AdminDashboardProps {
     updateUser: (targetUid: string, updates: Partial<User>) => Promise<void>;
     adjustCredit: (targetUid: string, amountInCents: number, reason: string) => Promise<void>;
     changePlan: (targetUid: string, newPlan: 'pro' | 'payg') => Promise<void>;
+    simulateFailedPayment: (targetUid: string, targetUserEmail: string) => Promise<void>;
   };
 }
 
@@ -57,7 +58,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ allUsers, allDocuments,
   const stats = useMemo(() => {
     const proUsers = allUsers.filter(u => u.plan === 'pro' && u.email !== 'admin@hrcopilot.co.za').length;
     const paygUsers = allUsers.filter(u => u.plan === 'payg').length;
-    const totalRevenue = allTransactions.reduce((acc, tx) => tx.amount > 0 ? acc + tx.amount : acc, 0);
+    // FIX: Ensure tx.amount is treated as a number in the addition to prevent string concatenation.
+    const totalRevenue = allTransactions.reduce((acc, tx) => (Number(tx.amount) > 0 ? acc + Number(tx.amount) : acc), 0);
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
     const newUsersLast30Days = allUsers.filter(u => new Date(u.createdAt) > thirtyDaysAgo).length;
@@ -221,8 +223,10 @@ const DocumentAnalytics: React.FC<{ documents: GeneratedDocument[] }> = ({ docum
 };
 
 const TransactionLog: React.FC<{ transactions: Transaction[] }> = ({ transactions }) => {
+    // FIX: Add Number() cast to ensure t.amount is treated as a number before division.
     const handleExport = () => exportToCsv('transactions.csv', transactions.map(t => ({
-        date: t.date, user_email: t.userEmail, description: t.description, amount: (t.amount / 100).toFixed(2)
+        date: t.date, user_email: t.userEmail, description: t.description, 
+        amount: (Number(t.amount) / 100).toFixed(2)
     })));
 
     return (
@@ -244,7 +248,8 @@ const TransactionLog: React.FC<{ transactions: Transaction[] }> = ({ transaction
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{new Date(tx.date).toLocaleString()}</td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{tx.userEmail}</td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{tx.description}</td>
-                        <td className={`px-6 py-4 whitespace-nowrap text-sm font-semibold ${tx.amount > 0 ? 'text-green-600' : 'text-red-600'}`}>R{(tx.amount / 100).toFixed(2)}</td>
+                        {/* FIX: Add Number() cast to ensure tx.amount is treated as a number for comparison and calculation. */}
+                        <td className={`px-6 py-4 whitespace-nowrap text-sm font-semibold ${Number(tx.amount) > 0 ? 'text-green-600' : 'text-red-600'}`}>R{(Number(tx.amount) / 100).toFixed(2)}</td>
                     </tr>
                 ))}
                 </tbody></table>

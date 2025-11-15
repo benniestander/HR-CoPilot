@@ -198,6 +198,7 @@ export type User = {
   profile: CompanyProfile;
   name?: string;
   contactNumber?: string;
+  photoURL?: string;
   plan: 'payg' | 'pro';
   creditBalance: number; // in cents
   transactions: Transaction[];
@@ -267,4 +268,22 @@ export type AdminActionLog = {
   targetUserId: string;
   targetUserEmail: string;
   details?: Record<string, any>; // e.g., { from: 'payg', to: 'pro' } or { amount: 5000, reason: 'Goodwill gesture' }
+};
+
+export type AdminNotification = {
+  id: string;
+  timestamp: string; // ISO String
+  type: 'new_user' | 'payment_failed' | 'important_update';
+  message: string;
+  isRead: boolean;
+  relatedUserId?: string;
+};
+
+export type UserFile = {
+  id: string;
+  name: string;
+  notes: string;
+  size: number;
+  storagePath: string;
+  createdAt: string; // ISO string
 };

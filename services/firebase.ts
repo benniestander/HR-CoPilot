@@ -1,17 +1,20 @@
-
 import { initializeApp } from 'firebase/app';
+import { getAuth } from 'firebase/auth';
+import { getFirestore } from 'firebase/firestore';
+import { getStorage } from 'firebase/storage';
 
-// This configuration uses placeholder values to allow the application to initialize
-// without crashing due to missing environment variables. In a real-world deployment, 
-// these values would be replaced with actual Firebase project credentials.
-// Authentication has been removed from this file as it was not functional with placeholders.
+// Your web app's Firebase configuration
 const firebaseConfig = {
-    apiKey: "AIzaSyXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
-    authDomain: "project-id.firebaseapp.com",
-    projectId: "project-id",
-    storageBucket: "project-id.appspot.com",
-    messagingSenderId: "123456789012",
-    appId: "1:123456789012:web:1234567890abcdef"
+  apiKey: "AIzaSyC9yDcm6qSU-Q7UA9YrE3J3KZXEBqbQT2U",
+  authDomain: "daily-affection-ugq98.firebaseapp.com",
+  projectId: "daily-affection-ugq98",
+  storageBucket: "daily-affection-ugq98.appspot.com",
+  messagingSenderId: "319019411756",
+  appId: "1:319019411756:web:60dbde136cf8b57a9aa489"
 };
 
-initializeApp(firebaseConfig);
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+export const auth = getAuth(app);
+export const firestore = getFirestore(app);
+export const storage = getStorage(app);

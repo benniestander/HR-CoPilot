@@ -34,6 +34,7 @@ const GeneratorPage: React.FC<GeneratorPageProps> = ({ selectedItem, initialData
     const [generatedDocument, setGeneratedDocument] = useState<string>(initialData?.content || '');
     const [sources, setSources] = useState<Source[]>(initialData?.sources || []);
     const [status, setStatus] = useState<AppStatus>(initialData ? 'success' : 'idle');
+    const [errorMessage, setErrorMessage] = useState<string | null>(null);
     
     const isLivePreviewVisible = currentStep === 2 && companyProfile;
 
@@ -49,6 +50,7 @@ const GeneratorPage: React.FC<GeneratorPageProps> = ({ selectedItem, initialData
         setStatus('loading');
         setGeneratedDocument('');
         setSources([]);
+        setErrorMessage(null);
 
         const allAnswers: FormAnswers = { ...companyProfile, ...questionAnswers };
 
@@ -103,9 +105,10 @@ const GeneratorPage: React.FC<GeneratorPageProps> = ({ selectedItem, initialData
             onDocumentGenerated(newDoc, initialData?.id);
 
 
-        } catch (error) {
+        } catch (error: any) {
             console.error('Failed to generate document:', error);
             setStatus('error');
+            setErrorMessage(error.message || 'An unexpected error occurred. Please try again.');
         }
     }, [selectedItem, companyProfile, questionAnswers, initialData, onDocumentGenerated]);
 
@@ -174,6 +177,7 @@ const GeneratorPage: React.FC<GeneratorPageProps> = ({ selectedItem, initialData
                         isForm={selectedItem.kind === 'form'}
                         outputFormat={selectedItem.kind === 'form' ? selectedItem.outputFormat : 'word'}
                         sources={sources}
+                        errorMessage={errorMessage}
                     />
                 );
             default:

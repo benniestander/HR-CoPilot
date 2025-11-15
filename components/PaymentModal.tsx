@@ -102,8 +102,6 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onSuccess,
     });
   };
   
-  // FIX: Added a `typeof val === 'string'` check to ensure val is a string before calling .trim().
-  // This resolves the TypeScript error where `val` was being inferred as `unknown`.
   const isFormValid = Object.values(formData).every(val => typeof val === 'string' && val.trim() !== '') && Object.values(errors).every(err => err === '');
 
   return (

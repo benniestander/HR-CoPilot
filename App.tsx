@@ -1,4 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import {
+  onAuthStateChanged,
+  createUserWithEmailAndPassword,
+  sendEmailVerification,
+  signInWithEmailAndPassword,
+  signOut,
+  type User as FirebaseUser,
+} from 'firebase/auth';
+import { auth } from './services/firebase';
 
 import { POLICIES, FORMS } from './constants';
 import { PRIVACY_POLICY_CONTENT, TERMS_OF_USE_CONTENT } from './legalContent';
@@ -11,15 +20,17 @@ import Login from './components/Login';
 import ProfilePage from './components/ProfilePage';
 import PlanSelectionPage from './components/PlanSelectionPage';
 import EmailSentPage from './components/EmailSentPage';
+import VerifyEmailPage from './components/VerifyEmailPage';
 import Toast from './components/Toast';
 import FullPageLoader from './components/FullPageLoader';
 import PaymentModal from './components/PaymentModal';
 import LegalModal from './components/LegalModal';
 import AdminDashboard from './components/AdminDashboard';
+import AdminNotificationPanel from './components/AdminNotificationPanel';
 
 
-import type { Policy, Form, GeneratedDocument, PolicyType, FormType, CompanyProfile, User, Transaction, AdminActionLog } from './types';
-import { UserIcon } from './components/Icons';
+import type { Policy, Form, GeneratedDocument, PolicyType, FormType, CompanyProfile, User, Transaction, AdminActionLog, AdminNotification, UserFile } from './types';
+import { UserIcon, BellIcon } from './components/Icons';
 
 import {
   getUserProfile,
@@ -35,24 +46,33 @@ import {
   updateUserByAdmin,
   adjustUserCreditByAdmin,
   changeUserPlanByAdmin,
+  getAdminNotifications,
+  markNotificationAsRead,
+  markAllNotificationsAsRead,
+  simulateFailedPaymentForUser,
+  getUserFiles,
+  uploadUserFile,
+  getDownloadUrlForFile,
+  uploadProfilePhoto,
+  deleteProfilePhoto,
 } from './services/firestoreService';
 
-type AuthPage = 'landing' | 'login' | 'email-sent';
+type AuthPage = 'landing' | 'login' | 'email-sent' | 'verify-email';
 type AuthFlow = 'signup' | 'login' | 'payg_signup';
 
 const ADMIN_EMAIL = 'admin@hrcopilot.co.za';
 
 const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
+  const [unverifiedUser, setUnverifiedUser] = useState<FirebaseUser | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isSubscribed, setIsSubscribed] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   
   // Auth state
   const [authPage, setAuthPage] = useState<AuthPage>('landing');
   const [authEmail, setAuthEmail] = useState<string | null>(null);
   const [authFlow, setAuthFlow] = useState<AuthFlow | null>(null);
-  const [authDetails, setAuthDetails] = useState<{name: string, contactNumber: string} | null>(null);
   const [showOnboardingWalkthrough, setShowOnboardingWalkthrough] = useState(false);
 
 
@@ -60,6 +80,7 @@ const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<'dashboard' | 'generator' | 'updater' | 'checklist' | 'profile' | 'upgrade'>('dashboard');
   const [selectedItem, setSelectedItem] = useState<Policy | Form | null>(null);
   const [generatedDocuments, setGeneratedDocuments] = useState<GeneratedDocument[]>([]);
+  const [userFiles, setUserFiles] = useState<UserFile[]>([]);
   const [documentToView, setDocumentToView] = useState<GeneratedDocument | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
@@ -68,83 +89,155 @@ const App: React.FC = () => {
   const [allDocuments, setAllDocuments] = useState<GeneratedDocument[]>([]);
   const [allTransactions, setAllTransactions] = useState<Transaction[]>([]);
   const [adminActionLogs, setAdminActionLogs] = useState<AdminActionLog[]>([]);
-
+  const [adminNotifications, setAdminNotifications] = useState<AdminNotification[]>([]);
+  const [isNotificationPanelOpen, setNotificationPanelOpen] = useState(false);
+  const notificationPanelRef = useRef<HTMLDivElement>(null);
 
   // State for legal modals
   const [legalModalContent, setLegalModalContent] = useState<{ title: string; content: string } | null>(null);
 
-  const handleStartAuthFlow = (flow: AuthFlow, email: string, details?: { name: string, contactNumber: string }) => {
-    setAuthEmail(email);
-    setAuthFlow(flow);
-     if (details) {
-        setAuthDetails(details);
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+        if (notificationPanelRef.current && !notificationPanelRef.current.contains(event.target as Node)) {
+            setNotificationPanelOpen(false);
+        }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  useEffect(() => {
+    // Listen for auth state changes
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser: FirebaseUser | null) => {
+      setIsLoading(true);
+      if (firebaseUser) {
+        // User is signed in. Check if their email is verified.
+        if (!firebaseUser.emailVerified) {
+          // Logged in but not verified. Show verification screen.
+          setUnverifiedUser(firebaseUser);
+          setUser(null);
+          setAuthPage('verify-email');
+          setIsLoading(false);
+          return;
+        }
+
+        // User is signed in AND verified.
+        setUnverifiedUser(null);
+        let appUser = await getUserProfile(firebaseUser.uid);
+        
+        if (!appUser) {
+          // This is a new, verified user. Create their profile.
+          const flow = window.localStorage.getItem('authFlow') as AuthFlow | null;
+          const detailsJson = window.localStorage.getItem('authDetails');
+          const details = detailsJson ? JSON.parse(detailsJson) : null;
+          
+          let plan: 'pro' | 'payg' = 'payg';
+          if (flow === 'signup') plan = 'pro';
+
+          appUser = await createUserProfile(firebaseUser.uid, firebaseUser.email, plan, details?.name, details?.contactNumber);
+
+          if (plan === 'payg') {
+            setCurrentView('upgrade');
+          }
+          // Clean up local storage after profile creation
+          window.localStorage.removeItem('authFlow');
+          window.localStorage.removeItem('authDetails');
+        }
+
+        setUser(appUser);
+        setIsSubscribed(appUser.plan === 'pro');
+        setAuthPage('landing');
+        
+        if (appUser.email === ADMIN_EMAIL) {
+          setIsAdmin(true);
+          await fetchAdminData();
+        } else {
+          const [docs, files] = await Promise.all([
+            getGeneratedDocuments(appUser.uid),
+            getUserFiles(appUser.uid)
+          ]);
+          setGeneratedDocuments(docs);
+          setUserFiles(files);
+        }
+      } else {
+        // User is signed out. Reset all state.
+        setUser(null);
+        setUnverifiedUser(null);
+        setIsAdmin(false);
+        setIsSubscribed(false);
+        setCurrentView('dashboard');
+        setSelectedItem(null);
+        setGeneratedDocuments([]);
+        setUserFiles([]);
+        setDocumentToView(null);
+        setShowOnboardingWalkthrough(false);
+        setAllUsers([]);
+        setAllDocuments([]);
+        setAuthPage('landing');
+        setAuthEmail(null);
+        setAuthFlow(null);
+      }
+      setIsLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  const handleStartAuthFlow = async (
+    flow: 'signup' | 'payg_signup', 
+    email: string, 
+    details: { password: string; name?: string; contactNumber?: string }
+  ) => {
+    const { password, name, contactNumber } = details;
+    setIsLoading(true);
+
+    try {
+        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        await sendEmailVerification(userCredential.user);
+        await signOut(auth); // Sign out immediately to force verification.
+
+        // Store details for profile creation after verification
+        window.localStorage.setItem('authFlow', flow);
+        if (name || contactNumber) {
+            window.localStorage.setItem('authDetails', JSON.stringify({ name, contactNumber }));
+        }
+
+        setAuthEmail(email);
+        setAuthFlow(flow);
+        setAuthPage('email-sent');
+    } catch (error: any) {
+        setToastMessage(`Sign up error: ${error.message}`);
+    } finally {
+        setIsLoading(false);
     }
-    setAuthPage('email-sent');
+  };
+
+  const handleLogin = async (email: string, password: string) => {
+    setIsLoading(true);
+    try {
+      await signInWithEmailAndPassword(auth, email, password);
+      // onAuthStateChanged will handle routing to the app or verification screen.
+    } catch (error: any) {
+      setToastMessage(`Login failed: ${error.message}`);
+    } finally {
+      setIsLoading(false);
+    }
   };
   
   const fetchAdminData = async () => {
-      const [users, docs, transactions, logs] = await Promise.all([
+      const [users, docs, transactions, logs, notifications] = await Promise.all([
         getAllUsers(), 
         getAllDocumentsForAllUsers(),
         getAllTransactions(),
         getAdminActionLogs(),
+        getAdminNotifications(),
       ]);
       setAllUsers(users);
       setAllDocuments(docs);
       setAllTransactions(transactions);
       setAdminActionLogs(logs);
+      setAdminNotifications(notifications);
   }
-
-  const handleAuthVerified = async () => {
-    if (!authEmail) return;
-    setIsLoading(true);
-
-    const lowerCaseEmail = authEmail.toLowerCase();
-    const isDemoUser = lowerCaseEmail === 'a@b.com';
-    const uid = isDemoUser ? 'demo-user-uid' : `user-uid-${lowerCaseEmail}`;
-
-    let currentUser = await getUserProfile(uid);
-
-    if (!currentUser) {
-        switch (authFlow) {
-            case 'payg_signup':
-                currentUser = await createUserProfile(uid, lowerCaseEmail, 'payg', authDetails?.name, authDetails?.contactNumber);
-                setCurrentView('upgrade');
-                break;
-            case 'signup':
-                currentUser = await createUserProfile(uid, lowerCaseEmail, 'pro', authDetails?.name, authDetails?.contactNumber);
-                break;
-            case 'login':
-                if (isDemoUser) {
-                    currentUser = await createUserProfile(uid, lowerCaseEmail, 'pro', 'Demo User', '0821234567');
-                } else if (lowerCaseEmail === ADMIN_EMAIL) {
-                    currentUser = await createUserProfile(uid, lowerCaseEmail, 'pro', 'Admin', '0000000000');
-                }
-                else {
-                    currentUser = await createUserProfile(uid, lowerCaseEmail, 'payg');
-                    setCurrentView('upgrade'); 
-                }
-                break;
-        }
-    }
-
-    setUser(currentUser);
-    setIsSubscribed(currentUser?.plan === 'pro');
-
-    if (currentUser?.email === ADMIN_EMAIL) {
-        setIsAdmin(true);
-        await fetchAdminData();
-    } else if (currentUser) {
-        const docs = await getGeneratedDocuments(currentUser.uid);
-        setGeneratedDocuments(docs);
-    }
-
-    setAuthEmail(null);
-    setAuthFlow(null);
-    setAuthDetails(null);
-    setAuthPage('landing');
-    setIsLoading(false);
-  };
 
   const handleUpdateProfile = async (updatedProfile: CompanyProfile) => {
     if (!user) return;
@@ -152,6 +245,73 @@ const App: React.FC = () => {
     setUser(updatedUser);
     await updateUser(user.uid, { profile: updatedProfile });
     setToastMessage("Profile updated successfully!");
+  };
+
+  const handleProfilePhotoUpload = async (file: File) => {
+    if (!user) {
+        setToastMessage("You must be logged in to upload a photo.");
+        return;
+    }
+    setIsLoading(true);
+    try {
+        const photoURL = await uploadProfilePhoto(user.uid, file);
+        const updatedUser = { ...user, photoURL };
+        setUser(updatedUser);
+        setToastMessage("Profile photo updated successfully!");
+    } catch (error: any) {
+        setToastMessage(`Upload failed: ${error.message}`);
+        console.error("Photo upload error:", error);
+    } finally {
+        setIsLoading(false);
+    }
+  };
+
+  const handleProfilePhotoDelete = async () => {
+    if (!user) {
+        setToastMessage("You must be logged in to delete your photo.");
+        return;
+    }
+    if (window.confirm("Are you sure you want to delete your profile photo?")) {
+        setIsLoading(true);
+        try {
+            await deleteProfilePhoto(user.uid);
+            const updatedUser = { ...user };
+            delete updatedUser.photoURL;
+            setUser(updatedUser);
+            setToastMessage("Profile photo deleted.");
+        } catch (error: any) {
+            setToastMessage(`Deletion failed: ${error.message}`);
+            console.error("Photo deletion error:", error);
+        } finally {
+            setIsLoading(false);
+        }
+    }
+  };
+
+  const handleFileUpload = async (file: File, notes: string) => {
+    if (!user) {
+        setToastMessage("You must be logged in to upload files.");
+        return;
+    }
+    try {
+        await uploadUserFile(user.uid, file, notes);
+        const updatedFiles = await getUserFiles(user.uid);
+        setUserFiles(updatedFiles);
+        setToastMessage("File uploaded successfully!");
+    } catch (error: any) {
+        setToastMessage(`Upload failed: ${error.message}`);
+        console.error("File upload error:", error);
+    }
+  };
+
+  const handleFileDownload = async (storagePath: string) => {
+      try {
+          const url = await getDownloadUrlForFile(storagePath);
+          window.open(url, '_blank');
+      } catch (error: any) {
+          setToastMessage(`Download failed: ${error.message}`);
+          console.error("File download error:", error);
+      }
   };
 
   // Admin action handlers
@@ -175,6 +335,24 @@ const App: React.FC = () => {
     await changeUserPlanByAdmin(user.email, targetUid, newPlan);
     await fetchAdminData();
     setToastMessage("User plan changed successfully.");
+  };
+
+  const handleSimulateFailedPayment = async (targetUid: string, targetUserEmail: string) => {
+    if (!user || user.email !== ADMIN_EMAIL) return;
+    await simulateFailedPaymentForUser(user.email, targetUid, targetUserEmail);
+    await fetchAdminData();
+    setToastMessage(`Simulated a failed payment for ${targetUserEmail}.`);
+  };
+
+  const handleMarkNotificationRead = async (notificationId: string) => {
+    await markNotificationAsRead(notificationId);
+    await fetchAdminData();
+  };
+
+  const handleMarkAllNotificationsRead = async () => {
+    await markAllNotificationsAsRead();
+    await fetchAdminData();
+    setNotificationPanelOpen(false);
   };
 
 
@@ -204,20 +382,10 @@ const App: React.FC = () => {
   };
 
   const handleLogout = () => {
-    setUser(null);
-    setIsAdmin(false);
-    setIsSubscribed(false);
-    setAuthPage('landing');
-    setCurrentView('dashboard');
-    setSelectedItem(null);
-    setGeneratedDocuments([]);
-    setDocumentToView(null);
-    setAuthEmail(null);
-    setAuthFlow(null);
-    setAuthDetails(null);
-    setShowOnboardingWalkthrough(false);
-    setAllUsers([]);
-    setAllDocuments([]);
+    signOut(auth).catch((error) => {
+        console.error("Logout Error:", error);
+        setToastMessage("Failed to log out.");
+    });
   };
 
   const handleStartOver = () => {
@@ -314,42 +482,63 @@ const App: React.FC = () => {
     setLegalModalContent({ title: 'Terms of Use', content: TERMS_OF_USE_CONTENT });
   };
 
-  const AuthHeader = ({ isAdminHeader = false }: { isAdminHeader?: boolean }) => (
-     <header className="bg-white shadow-sm py-4">
-          <div className="container mx-auto flex justify-between items-center px-6">
-              <img 
-                  src="https://i.postimg.cc/h48FMCNY/edited-image-11-removebg-preview.png" 
-                  alt="Ingcweti Logo" 
-                  className="h-12 cursor-pointer"
-                  onClick={handleStartOver}
-              />
-               {isAdminHeader ? (
-                 <div className="flex items-center space-x-4">
-                    <span className="font-bold text-red-600">ADMIN PANEL</span>
-                    <button onClick={handleLogout} className="text-sm font-semibold text-red-600 hover:underline">
-                        Logout
-                    </button>
-                 </div>
-               ) : (
-                <div className="flex items-center space-x-4">
-                    <span className="text-sm text-gray-600 hidden sm:block">{user?.email}</span>
-                    {user?.plan === 'payg' && (
-                        <div className="text-sm font-semibold bg-green-100 text-green-800 px-3 py-1 rounded-full">
-                            Credit: R{(user.creditBalance / 100).toFixed(2)}
+  const AuthHeader = ({ isAdminHeader = false }: { isAdminHeader?: boolean }) => {
+     const unreadCount = adminNotifications.filter(n => !n.isRead).length;
+
+     return (
+        <header className="bg-white shadow-sm py-4">
+            <div className="container mx-auto flex justify-between items-center px-6">
+                <img 
+                    src="https://i.postimg.cc/h48FMCNY/edited-image-11-removebg-preview.png" 
+                    alt="Ingcweti Logo" 
+                    className="h-12 cursor-pointer"
+                    onClick={handleStartOver}
+                />
+                {isAdminHeader ? (
+                    <div className="flex items-center space-x-6">
+                        <span className="font-bold text-red-600">ADMIN PANEL</span>
+                        <div className="relative" ref={notificationPanelRef}>
+                            <button onClick={() => setNotificationPanelOpen(prev => !prev)} className="relative text-gray-600 hover:text-primary">
+                                <BellIcon className="w-6 h-6" />
+                                {unreadCount > 0 && <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-xs text-white">{unreadCount}</span>}
+                            </button>
+                            {isNotificationPanelOpen && (
+                                <AdminNotificationPanel 
+                                    notifications={adminNotifications}
+                                    onMarkAsRead={handleMarkNotificationRead}
+                                    onMarkAllAsRead={handleMarkAllNotificationsRead}
+                                />
+                            )}
                         </div>
-                    )}
-                    <button onClick={handleShowProfile} className="flex items-center text-sm font-semibold text-primary hover:underline">
-                        <UserIcon className="w-5 h-5 mr-1" />
-                        My Profile
-                    </button>
-                    <button onClick={handleLogout} className="text-sm font-semibold text-red-600 hover:underline">
-                        Logout
-                    </button>
-                </div>
-               )}
-          </div>
-      </header>
-  );
+                        <button onClick={handleLogout} className="text-sm font-semibold text-red-600 hover:underline">
+                            Logout
+                        </button>
+                    </div>
+                ) : (
+                    <div className="flex items-center space-x-4">
+                        <span className="text-sm text-gray-600 hidden sm:block">{user?.email}</span>
+                        {user?.plan === 'payg' && (
+                            <div className="text-sm font-semibold bg-green-100 text-green-800 px-3 py-1 rounded-full">
+                                Credit: R{(user.creditBalance / 100).toFixed(2)}
+                            </div>
+                        )}
+                        <button onClick={handleShowProfile} className="flex items-center text-sm font-semibold text-primary hover:underline">
+                            {user?.photoURL ? (
+                                <img src={user.photoURL} alt="Profile" className="w-6 h-6 rounded-full mr-2 object-cover" />
+                            ) : (
+                                <UserIcon className="w-5 h-5 mr-1" />
+                            )}
+                            My Profile
+                        </button>
+                        <button onClick={handleLogout} className="text-sm font-semibold text-red-600 hover:underline">
+                            Logout
+                        </button>
+                    </div>
+                )}
+            </div>
+        </header>
+    );
+  };
 
   const AppFooter = () => (
       <footer className="bg-secondary text-white py-8">
@@ -427,7 +616,12 @@ const App: React.FC = () => {
                         onLogout={handleLogout} 
                         onBack={handleBackToDashboard}
                         generatedDocuments={generatedDocuments}
+                        userFiles={userFiles}
+                        onFileUpload={handleFileUpload}
+                        onFileDownload={handleFileDownload}
                         onViewDocument={handleViewDocument}
+                        onProfilePhotoUpload={handleProfilePhotoUpload}
+                        onProfilePhotoDelete={handleProfilePhotoDelete}
                     />;
         default:
              return <Dashboard 
@@ -465,6 +659,7 @@ const App: React.FC = () => {
                             updateUser: handleAdminUpdateUser,
                             adjustCredit: handleAdminAdjustCredit,
                             changePlan: handleAdminChangePlan,
+                            simulateFailedPayment: handleSimulateFailedPayment,
                         }}
                     />
                 </main>
@@ -474,13 +669,17 @@ const App: React.FC = () => {
     }
     
     // Auth Flow
+    if (unverifiedUser) {
+        return <VerifyEmailPage user={unverifiedUser} onLogout={handleLogout} />;
+    }
+    
     if (!user) {
       if (authPage === 'email-sent' && authEmail && authFlow) {
-        return <EmailSentPage email={authEmail} flowType={authFlow} onVerify={handleAuthVerified} onShowPrivacyPolicy={handleShowPrivacyPolicy} onShowTerms={handleShowTerms} />;
+        return <EmailSentPage email={authEmail} flowType={authFlow} onShowPrivacyPolicy={handleShowPrivacyPolicy} onShowTerms={handleShowTerms} />;
       }
       
       if (authPage === 'login') {
-        return <Login onLogin={(email) => handleStartAuthFlow('login', email)} onShowLanding={() => setAuthPage('landing')} onShowPrivacyPolicy={handleShowPrivacyPolicy} onShowTerms={handleShowTerms} />;
+        return <Login onLogin={handleLogin} onShowLanding={() => setAuthPage('landing')} onShowPrivacyPolicy={handleShowPrivacyPolicy} onShowTerms={handleShowTerms} />;
       }
 
       return <PlanSelectionPage onStartAuthFlow={handleStartAuthFlow} onShowLogin={() => setAuthPage('login')} onShowPrivacyPolicy={handleShowPrivacyPolicy} onShowTerms={handleShowTerms} />;
@@ -501,7 +700,12 @@ const App: React.FC = () => {
               onLogout={handleLogout}
               onBack={handleBackToDashboard}
               generatedDocuments={[]}
+              userFiles={[]}
+              onFileUpload={handleFileUpload}
+              onFileDownload={handleFileDownload}
               onViewDocument={() => {}}
+              onProfilePhotoUpload={handleProfilePhotoUpload}
+              onProfilePhotoDelete={handleProfilePhotoDelete}
             />
           </main>
           <AppFooter />
@@ -524,7 +728,7 @@ const App: React.FC = () => {
     }
 
     // Fallback, should not be reached
-    return <div>Loading...</div>;
+    return <FullPageLoader />;
   };
 
   return (

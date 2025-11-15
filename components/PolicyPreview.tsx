@@ -10,6 +10,7 @@ interface PolicyPreviewProps {
   isForm: boolean;
   outputFormat?: 'word' | 'excel';
   sources: Source[];
+  errorMessage?: string | null;
 }
 
 const WORD_DOCUMENT_STYLES = `
@@ -45,7 +46,7 @@ const SourcesUsed: React.FC<{ sources: Source[] }> = ({ sources }) => {
   );
 };
 
-const PolicyPreview: React.FC<PolicyPreviewProps> = ({ policyText, status, onRetry, isForm, outputFormat, sources }) => {
+const PolicyPreview: React.FC<PolicyPreviewProps> = ({ policyText, status, onRetry, isForm, outputFormat, sources, errorMessage }) => {
   const [copied, setCopied] = useState(false);
   const [isDownloadMenuOpen, setDownloadMenuOpen] = useState(false);
 
@@ -124,7 +125,7 @@ const PolicyPreview: React.FC<PolicyPreviewProps> = ({ policyText, status, onRet
       case 'loading':
         return <div className="text-center text-gray-500"><LoadingIcon className="w-12 h-12 animate-spin mx-auto mb-4 text-primary" /><h3 className="text-lg font-semibold">Generating your document...</h3><p>This may take a moment.</p></div>;
       case 'error':
-        return <div className="text-center text-red-600 bg-red-50 p-6 rounded-md"><h3 className="text-lg font-semibold mb-2">An Error Occurred</h3><p className="mb-4">Couldn't generate document. Please try again.</p><button onClick={onRetry} className="bg-primary text-white font-semibold py-2 px-4 rounded-md">Retry</button></div>;
+        return <div className="text-center text-red-600 bg-red-50 p-6 rounded-md"><h3 className="text-lg font-semibold mb-2">An Error Occurred</h3><p className="mb-4">{errorMessage || "Couldn't generate document. Please try again."}</p><button onClick={onRetry} className="bg-primary text-white font-semibold py-2 px-4 rounded-md">Retry</button></div>;
       case 'success':
         return (
             <div id="policy-preview-content" className="h-full flex flex-col">

@@ -122,6 +122,21 @@ const PolicyUpdater: React.FC<PolicyUpdaterProps> = ({ onBack, generatedDocument
     setIsHistoryModalOpen(true);
   };
 
+  const handleRevertToVersion = (historyItem: HistoryItem) => {
+    if (!selectedDocument) return;
+
+    if (window.confirm(`Are you sure you want to revert to Version ${historyItem.version}? Your current version (${selectedDocument.version}) will be archived, and this content will become the new latest version.`)) {
+        const revertedDoc: GeneratedDocument = {
+            ...selectedDocument,
+            content: historyItem.content,
+        };
+        
+        onDocumentGenerated(revertedDoc, selectedDocument.id);
+        
+        setIsHistoryModalOpen(false);
+    }
+  };
+
 
   const renderSelectStep = () => (
     <div className="bg-white p-8 rounded-lg shadow-md border border-gray-200">
@@ -327,7 +342,14 @@ const PolicyUpdater: React.FC<PolicyUpdaterProps> = ({ onBack, generatedDocument
               {selectedHistoryItem.content}
             </pre>
           </div>
-           <div className="p-4 bg-gray-100 border-t border-gray-200 flex justify-end">
+           <div className="p-4 bg-gray-100 border-t border-gray-200 flex justify-between items-center">
+            <button
+                onClick={() => handleRevertToVersion(selectedHistoryItem)}
+                className="px-4 py-2 rounded-md text-white bg-amber-600 hover:bg-amber-700 transition flex items-center text-sm font-semibold"
+            >
+                <HistoryIcon className="w-5 h-5 mr-2" />
+                Revert to this Version
+            </button>
             <button onClick={() => setIsHistoryModalOpen(false)} className="px-6 py-2 rounded-md text-white bg-primary hover:bg-opacity-90 transition">
               Close
             </button>

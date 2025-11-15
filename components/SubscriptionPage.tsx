@@ -36,7 +36,6 @@ const SubscriptionPage: React.FC<SubscriptionPageProps> = ({ onSuccess, onLogout
   const validateField = (name: keyof typeof formData, value: string) => {
     let error = '';
     if (!value.trim()) {
-        // FIX: Cast `name` to string to ensure .replace() is available.
         const fieldName = String(name).replace(/([A-Z])/g, ' $1').toLowerCase();
         error = `${fieldName.charAt(0).toUpperCase() + fieldName.slice(1)} is required.`;
     } else if (name === 'email' && !/\S+@\S+\.\S+/.test(value)) {
@@ -52,7 +51,6 @@ const SubscriptionPage: React.FC<SubscriptionPageProps> = ({ onSuccess, onLogout
     validateField(name, value);
   };
   
-  // FIX: Add a `typeof` check to ensure `val` is a string before calling .trim().
   const isFormValid = Object.values(formData).every(val => typeof val === 'string' && val.trim() !== '') && Object.values(errors).every(err => err === '');
 
   const handlePayment = (e: React.FormEvent) => {

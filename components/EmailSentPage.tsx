@@ -1,19 +1,15 @@
-
 import React from 'react';
 
 interface EmailSentPageProps {
   email: string;
   flowType: 'signup' | 'login' | 'payg_signup';
-  onVerify: () => void;
   onShowPrivacyPolicy: () => void;
   onShowTerms: () => void;
 }
 
-const EmailSentPage: React.FC<EmailSentPageProps> = ({ email, flowType, onVerify, onShowPrivacyPolicy, onShowTerms }) => {
-  const isSignUpFlow = flowType === 'signup' || flowType === 'payg_signup';
-  const title = isSignUpFlow ? 'Almost there! Check Your Inbox.' : 'Check Your Inbox';
-  const primaryText = `We've sent a ${isSignUpFlow ? 'sign-up' : 'sign-in'} link to`;
-  const buttonText = `Simulate Clicking the ${isSignUpFlow ? 'Sign-Up' : 'Sign-In'} Link`;
+const EmailSentPage: React.FC<EmailSentPageProps> = ({ email, flowType, onShowPrivacyPolicy, onShowTerms }) => {
+  const title = "Account Created! Please Verify Your Email";
+  const primaryText = "We've sent a verification link to";
   
   return (
     <div className="min-h-screen bg-light text-secondary flex flex-col">
@@ -31,19 +27,15 @@ const EmailSentPage: React.FC<EmailSentPageProps> = ({ email, flowType, onVerify
           <div className="bg-white p-8 rounded-lg shadow-md border border-gray-200 text-center">
             <h1 className="text-2xl font-bold text-secondary mb-2">{title}</h1>
             <p className="text-gray-600 mb-6">
-              {primaryText} <strong className="text-secondary">{email}</strong>. Please click the link in the email to continue.
+              {primaryText} <strong className="text-secondary">{email}</strong>. Please click the link in the email to activate your account. You will be able to log in afterwards.
             </p>
             <div className="my-6">
-                <p className="text-sm text-gray-500">(For this demo, just click the button below.)</p>
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16 text-primary mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+              </svg>
             </div>
-            <button
-              onClick={onVerify}
-              className="w-full bg-primary text-white font-bold py-3 px-4 rounded-md hover:bg-opacity-90 transition-colors"
-            >
-              {buttonText}
-            </button>
-             <p className="text-xs text-gray-400 mt-4">
-                Didn't receive an email? Check your spam folder or try signing up/in again.
+            <p className="text-xs text-gray-400 mt-4">
+                Didn't receive an email? Check your spam folder or try signing up again.
             </p>
           </div>
         </div>
