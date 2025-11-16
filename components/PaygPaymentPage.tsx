@@ -67,7 +67,7 @@ const PaygPaymentPage: React.FC<PaygPaymentPageProps> = ({ user, onTopUpSuccess,
     });
 
     yoco.showPopup({
-      amountInCents: finalAmount,
+      amountInCents: Math.round(finalAmount),
       currency: 'ZAR',
       name: `Credit Top-Up R${(finalAmount / 100).toFixed(2)}`,
       description: 'Credit for Ingcweti',

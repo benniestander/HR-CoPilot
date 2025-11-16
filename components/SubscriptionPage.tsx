@@ -100,7 +100,7 @@ const SubscriptionPage: React.FC<SubscriptionPageProps> = ({ user, onSuccess, on
     });
 
     yoco.showPopup({
-      amountInCents: finalAmount,
+      amountInCents: Math.round(finalAmount),
       currency: 'ZAR',
       name: 'Ingcweti Pro (12 Months)',
       description: '12 months full access to the Ingcweti platform.',
