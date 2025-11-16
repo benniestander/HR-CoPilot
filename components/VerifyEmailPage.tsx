@@ -42,7 +42,7 @@ const VerifyEmailPage: React.FC<VerifyEmailPageProps> = ({ user, onLogout }) => 
         <div className="container mx-auto flex justify-between items-center px-6">
           <img
             src="https://i.postimg.cc/h48FMCNY/edited-image-11-removebg-preview.png"
-            alt="HR CoPilot Logo"
+            alt="Ingcweti Logo"
             className="h-12"
           />
            <button onClick={onLogout} className="text-sm font-semibold text-red-600 hover:underline">
@@ -82,8 +82,8 @@ const VerifyEmailPage: React.FC<VerifyEmailPageProps> = ({ user, onLogout }) => 
       </main>
        <footer className="bg-secondary text-white py-8">
             <div className="container mx-auto px-6 text-center">
-                <img src="https://i.postimg.cc/h48FMCNY/edited-image-11-removebg-preview.png" alt="HR CoPilot Logo" className="h-10 mx-auto mb-4" />
-                <p className="text-sm text-gray-300">© {new Date().getFullYear()} HR CoPilot. All rights reserved.</p>
+                <img src="https://i.postimg.cc/h48FMCNY/edited-image-11-removebg-preview.png" alt="Ingcweti Logo" className="h-10 mx-auto mb-4" />
+                <p className="text-sm text-gray-300">© {new Date().getFullYear()} Ingcweti. All rights reserved.</p>
             </div>
         </footer>
     </div>

@@ -34,7 +34,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onSelectItem, onStartUpdate
                 <InfoIcon className="w-6 h-6 mr-3 text-yellow-600 flex-shrink-0" />
                 <div>
                     <h3 className="font-bold">Your profile is incomplete!</h3>
-                    <p className="text-sm">Complete your company profile to get the most out of HR CoPilot and enable tailored document generation.</p>
+                    <p className="text-sm">Complete your company profile to get the most out of Ingcweti and enable tailored document generation.</p>
                 </div>
             </div>
             <button 
@@ -110,7 +110,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onSelectItem, onStartUpdate
         {showOnboardingWalkthrough && onCloseWalkthrough && <OnboardingWalkthrough onClose={onCloseWalkthrough} />}
         <div className="text-center">
             <h2 className="text-4xl font-bold text-secondary mb-3 leading-tight">
-                HR Co-Pilot Dashboard
+                Ingcweti Dashboard
             </h2>
             <p className="text-lg text-gray-600 mb-8 max-w-3xl mx-auto">
                 Welcome back, {user?.name || 'User'}! Manage your HR documents or generate a new one below.

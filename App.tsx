@@ -240,44 +240,28 @@ const App: React.FC = () => {
   };
 
   const handleLogin = async (email: string, password: string) => {
-    // Admin backdoor login
-    if (email === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
-        setIsLoading(true);
-        try {
-            // Use a stable UID for the admin user
-            const adminUid = 'admin_user_firestore_uid'; 
-            let appUser = await getUserProfile(adminUid);
-            
-            if (!appUser) {
-                // Create a 'pro' profile for the admin if it doesn't exist
-                appUser = await createUserProfile(adminUid, ADMIN_EMAIL, 'pro', 'Admin');
-            }
-
-            // Manually set all the state that onAuthStateChanged would handle
-            setUser(appUser);
-            setIsAdmin(true);
-            setIsSubscribed(true); // Admin is always considered subscribed
-            setUnverifiedUser(null);
-            setAuthPage('landing');
-            await fetchAdminData();
-
-        } catch (e) {
-            setToastMessage('Admin login setup failed.');
-        } finally {
-            setIsLoading(false);
-        }
-        return; // Stop execution here
-    }
-
-    // Regular user login
     try {
       await signInWithEmailAndPassword(auth, email, password);
-      // onAuthStateChanged will handle routing to the app or verification screen.
+      // onAuthStateChanged will handle routing and state updates.
     } catch (error: any) {
-      setToastMessage(`Login failed: ${error.message}`);
-      throw error;
+      // If it's the admin and the user is not found, create them.
+      // 'auth/invalid-credential' is the modern error code for not found / wrong password.
+      if (email === ADMIN_EMAIL && password === ADMIN_PASSWORD && (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential')) {
+        try {
+          // This will create the admin user in Firebase Auth for the first time.
+          await createUserWithEmailAndPassword(auth, email, password);
+          // onAuthStateChanged will automatically pick up the new user and log them in.
+        } catch (createError: any) {
+          setToastMessage(`Admin account creation failed: ${createError.message}`);
+          throw createError; // Re-throw to signal login failure.
+        }
+      } else {
+        setToastMessage(`Login failed: ${error.message}`);
+        throw error; // Re-throw for the Login component to handle loading state.
+      }
     }
   };
+
 
   const handleForgotPassword = async (email: string) => {
     try {
@@ -499,8 +483,8 @@ const App: React.FC = () => {
     const updatedUser = { ...user, plan: 'pro' as const };
     setUser(updatedUser);
     await updateUser(user.uid, { plan: 'pro' });
-    await addTransactionToUser(user.uid, { description: 'HR CoPilot Pro Subscription (12 months)', amount: 74700 }, couponCode);
-    setToastMessage("Success! Welcome to HR CoPilot Pro. Your dashboard is ready.");
+    await addTransactionToUser(user.uid, { description: 'Ingcweti Pro Subscription (12 months)', amount: 74700 }, couponCode);
+    setToastMessage("Success! Welcome to Ingcweti Pro. Your dashboard is ready.");
     setCurrentView('dashboard');
     setShowOnboardingWalkthrough(true); // Trigger walkthrough for new pro users
   };
@@ -519,17 +503,6 @@ const App: React.FC = () => {
   };
 
   const handleLogout = () => {
-    // Special logout for mock admin
-    if (isAdmin && user?.uid === 'admin_user_firestore_uid') {
-        setUser(null);
-        setUnverifiedUser(null);
-        setIsAdmin(false);
-        setIsSubscribed(false);
-        setCurrentView('dashboard');
-        setAuthPage('landing');
-        setOnboardingSkipped(false);
-        return;
-    }
     signOut(auth).catch((error) => {
         console.error("Logout Error:", error);
         setToastMessage("Failed to log out.");
@@ -642,7 +615,7 @@ const App: React.FC = () => {
             <div className="container mx-auto flex justify-between items-center px-6">
                 <img 
                     src="https://i.postimg.cc/h48FMCNY/edited-image-11-removebg-preview.png" 
-                    alt="HR CoPilot Logo" 
+                    alt="Ingcweti Logo" 
                     className="h-12 cursor-pointer"
                     onClick={handleStartOver}
                 />
@@ -698,7 +671,7 @@ const App: React.FC = () => {
           <div className="container mx-auto px-6 text-center">
               <img 
               src="https://i.postimg.cc/h48FMCNY/edited-image-11-removebg-preview.png" 
-              alt="HR CoPilot Logo" 
+              alt="Ingcweti Logo" 
               className="h-10 mx-auto mb-4"
               />
                <div className="flex justify-center space-x-6 mb-4">
@@ -710,7 +683,7 @@ const App: React.FC = () => {
                   </button>
               </div>
               <p className="text-sm text-gray-300">
-                  © {new Date().getFullYear()} HR CoPilot. All rights reserved.
+                  © {new Date().getFullYear()} Ingcweti. All rights reserved.
               </p>
           </div>
       </footer>

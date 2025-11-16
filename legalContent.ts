@@ -1,11 +1,9 @@
-
-
 export const PRIVACY_POLICY_CONTENT = `
-### **Privacy Policy for HR CoPilot**
+### **Privacy Policy for Ingcweti**
 
 **Last Updated: 24 July 2024**
 
-Welcome to HR CoPilot ("HR CoPilot", "we", "us", or "our"). We are committed to protecting your privacy and handling your personal information with care and respect. This Privacy Policy outlines how we collect, use, disclose, and safeguard your information when you use our web application (the "Service").
+Welcome to Ingcweti ("Ingcweti", "we", "us", or "our"). We are committed to protecting your privacy and handling your personal information with care and respect. This Privacy Policy outlines how we collect, use, disclose, and safeguard your information when you use our web application (the "Service").
 
 This policy is designed to be compliant with the Protection of Personal Information Act (POPIA) of South Africa.
 
@@ -13,7 +11,7 @@ This policy is designed to be compliant with the Protection of Personal Informat
 
 ### 1. Company Details
 
-- **Company Name:** HR CoPilot
+- **Company Name:** Ingcweti
 - **Physical Address:** Kierland Skye Estates, Kirchner Street, Brenwood AH, 1509, South Africa
 - **Contact Email:** admin@hrcopilot.co.za
 
@@ -85,11 +83,11 @@ If you have any questions or concerns about this Privacy Policy, please contact 
 `;
 
 export const TERMS_OF_USE_CONTENT = `
-### **Terms of Use for HR CoPilot**
+### **Terms of Use for Ingcweti**
 
 **Last Updated: 24 July 2024**
 
-Please read these Terms of Use ("Terms") carefully before using the HR CoPilot web application (the "Service") operated by HR CoPilot ("HR CoPilot", "we", "us", or "our").
+Please read these Terms of Use ("Terms") carefully before using the Ingcweti web application (the "Service") operated by Ingcweti ("Ingcweti", "we", "us", or "our").
 
 Your access to and use of the Service is conditioned upon your acceptance of and compliance with these Terms. These Terms apply to all visitors, users, and others who wish to access or use the Service.
 
@@ -97,13 +95,13 @@ Your access to and use of the Service is conditioned upon your acceptance of and
 
 ### 1. Description of Service
 
-HR CoPilot provides AI-powered tools to help South African small businesses generate legally-informed Human Resources (HR) policy and form templates. The Service uses your input to create customized documents based on established HR best practices and South African labour law principles.
+Ingcweti provides AI-powered tools to help South African small businesses generate legally-informed Human Resources (HR) policy and form templates. The Service uses your input to create customized documents based on established HR best practices and South African labour law principles.
 
 ---
 
 ### 2. **Crucial Disclaimer: Not Legal Advice**
 
-**HR CoPilot is not a law firm and does not provide legal advice.** The information and documents provided through the Service are for informational purposes only and are not a substitute for professional legal advice from a qualified attorney.
+**Ingcweti is not a law firm and does not provide legal advice.** The information and documents provided through the Service are for informational purposes only and are not a substitute for professional legal advice from a qualified attorney.
 
 While our templates are designed to be compliant and comprehensive, the law is complex and subject to change. Your business has unique needs and circumstances. **We strongly recommend that you have all documents generated through our Service reviewed by a qualified legal professional before implementation.** Your use of the Service does not create an attorney-client relationship.
 
@@ -119,7 +117,7 @@ While our templates are designed to be compliant and comprehensive, the law is c
 
 ### 4. Intellectual Property Rights
 
-- **Our Intellectual Property:** The Service, including its original content, features, functionality, and the underlying templates, are and will remain the exclusive property of HR CoPilot.
+- **Our Intellectual Property:** The Service, including its original content, features, functionality, and the underlying templates, are and will remain the exclusive property of Ingcweti.
 - **Your Documents:** You retain full ownership of the final, customized documents you generate using the Service. We grant you a perpetual, worldwide, non-exclusive license to use, reproduce, and modify the documents you create for your own internal business purposes.
 
 ---
@@ -134,7 +132,7 @@ While our templates are designed to be compliant and comprehensive, the law is c
 
 ### 6. Limitation of Liability
 
-To the fullest extent permitted by applicable law, in no event shall HR CoPilot, its directors, employees, or partners be liable for any indirect, incidental, special, consequential, or punitive damages, including without limitation, loss of profits, data, or other intangible losses, resulting from:
+To the fullest extent permitted by applicable law, in no event shall Ingcweti, its directors, employees, or partners be liable for any indirect, incidental, special, consequential, or punitive damages, including without limitation, loss of profits, data, or other intangible losses, resulting from:
 (i) your access to or use of or inability to access or use the Service;
 (ii) any errors or omissions in the documents generated by the Service;
 (iii) your reliance on any information or documents obtained from the Service.

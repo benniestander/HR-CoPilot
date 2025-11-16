@@ -70,7 +70,7 @@ const PaygPaymentPage: React.FC<PaygPaymentPageProps> = ({ user, onTopUpSuccess,
       amountInCents: finalAmount,
       currency: 'ZAR',
       name: `Credit Top-Up R${(finalAmount / 100).toFixed(2)}`,
-      description: 'Credit for Ingcweti HR Co-Pilot',
+      description: 'Credit for Ingcweti',
       customer: {
         name: user.name?.split(' ')[0] || '',
         surname: user.name?.split(' ').slice(1).join(' ') || '',
@@ -161,7 +161,7 @@ const PaygPaymentPage: React.FC<PaygPaymentPageProps> = ({ user, onTopUpSuccess,
 
             <div className="mt-8 p-6 border-2 border-dashed border-accent rounded-lg bg-accent/10 text-center">
                  <h3 className="text-2xl font-bold text-accent-800">Go Unlimited!</h3>
-                 <p className="text-accent-700 my-3 max-w-md mx-auto">Tired of topping up? Upgrade to HR CoPilot Pro for R747 and get unlimited document generation for a full year, plus access to all premium features.</p>
+                 <p className="text-accent-700 my-3 max-w-md mx-auto">Tired of topping up? Upgrade to Ingcweti Pro for R747 and get unlimited document generation for a full year, plus access to all premium features.</p>
                  <button onClick={onUpgrade} className="bg-primary text-white font-bold py-3 px-6 rounded-md hover:bg-opacity-90 transition-colors inline-flex items-center">
                     <ShieldCheckIcon className="w-5 h-5 mr-2" />
                     Upgrade to Pro Now

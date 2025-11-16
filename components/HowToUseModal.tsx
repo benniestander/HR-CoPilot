@@ -21,7 +21,7 @@ const HowToUseModal: React.FC<HowToUseModalProps> = ({ isOpen, onClose }) => {
         aria-labelledby="how-to-use-title"
       >
         <div className="p-6 border-b border-gray-200 flex justify-between items-center">
-          <h2 id="how-to-use-title" className="text-xl font-bold text-secondary">How to Use HR CoPilot</h2>
+          <h2 id="how-to-use-title" className="text-xl font-bold text-secondary">How to Use Ingcweti</h2>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600" aria-label="Close">
             <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
