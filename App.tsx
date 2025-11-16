@@ -1,5 +1,7 @@
 
 
+
+
 import React, { useState, useEffect, useRef } from 'react';
 import {
   onAuthStateChanged,
@@ -8,10 +10,9 @@ import {
   signInWithEmailAndPassword,
   signOut,
   sendPasswordResetEmail,
-  signInWithPopup,
   type User as FirebaseUser,
 } from 'firebase/auth';
-import { auth, googleProvider } from './services/firebase';
+import { auth } from './services/firebase';
 
 import { POLICIES, FORMS } from './constants';
 import { PRIVACY_POLICY_CONTENT, TERMS_OF_USE_CONTENT } from './legalContent';
@@ -227,27 +228,6 @@ const App: React.FC = () => {
         setAuthPage('email-sent');
     } catch (error: any) {
         setToastMessage(`Sign up error: ${error.message}`);
-    } finally {
-        setIsLoading(false);
-    }
-  };
-
-  const handleStartGoogleAuthFlow = (flow: 'signup' | 'payg_signup') => {
-    window.localStorage.setItem('authFlow', flow);
-    signInWithPopup(auth, googleProvider).catch((error: any) => {
-      setToastMessage(`Google sign-in failed: ${error.message}`);
-    });
-  };
-
-  const handleSignInWithGoogle = async () => {
-    // Explicitly set authFlow for a sign-in attempt to avoid using stale signup flows
-    window.localStorage.setItem('authFlow', 'login');
-    setIsLoading(true);
-    try {
-        await signInWithPopup(auth, googleProvider);
-        // onAuthStateChanged will handle the rest
-    } catch (error: any) {
-        setToastMessage(`Google sign-in failed: ${error.message}`);
     } finally {
         setIsLoading(false);
     }
@@ -785,10 +765,10 @@ const App: React.FC = () => {
       }
       
       if (authPage === 'login') {
-        return <Login onLogin={handleLogin} onForgotPassword={handleForgotPassword} onShowLanding={() => setAuthPage('landing')} onShowPrivacyPolicy={handleShowPrivacyPolicy} onShowTerms={handleShowTerms} onSignInWithGoogle={handleSignInWithGoogle} />;
+        return <Login onLogin={handleLogin} onForgotPassword={handleForgotPassword} onShowLanding={() => setAuthPage('landing')} onShowPrivacyPolicy={handleShowPrivacyPolicy} onShowTerms={handleShowTerms} />;
       }
 
-      return <PlanSelectionPage onStartAuthFlow={handleStartAuthFlow} onStartGoogleAuthFlow={handleStartGoogleAuthFlow} onShowLogin={() => setAuthPage('login')} onShowPrivacyPolicy={handleShowPrivacyPolicy} onShowTerms={handleShowTerms} />;
+      return <PlanSelectionPage onStartAuthFlow={handleStartAuthFlow} onShowLogin={() => setAuthPage('login')} onShowPrivacyPolicy={handleShowPrivacyPolicy} onShowTerms={handleShowTerms} />;
     }
     
     // A 'pro' user who has not paid is always in the subscription flow.

@@ -1,5 +1,6 @@
 
 
+
 import type { User, CompanyProfile, GeneratedDocument, Transaction, AdminActionLog, AdminNotification, UserFile, Coupon } from '../types';
 // --- REAL FIREBASE FILE FUNCTIONS ---
 // These functions use the actual Firebase SDK for file storage and metadata.

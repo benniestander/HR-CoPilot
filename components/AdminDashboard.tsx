@@ -1,5 +1,6 @@
 
 
+
 import React, { useState, useMemo } from 'react';
 import type { User, GeneratedDocument, Transaction, AdminActionLog, Coupon } from '../types';
 import { UserIcon, MasterPolicyIcon, FormsIcon, SearchIcon, CreditCardIcon, HistoryIcon, DownloadIcon, CouponIcon } from './Icons';

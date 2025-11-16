@@ -1,10 +1,8 @@
 import React, { useState } from 'react';
-import { GoogleIcon } from './Icons';
 
 interface LoginProps {
   onLogin: (email: string, password: string) => Promise<void>;
   onForgotPassword: (email: string) => Promise<void>;
-  onSignInWithGoogle: () => Promise<void>;
   onShowLanding: () => void;
   onShowPrivacyPolicy: () => void;
   onShowTerms: () => void;
@@ -16,7 +14,6 @@ const Login: React.FC<LoginProps> = ({
     onShowLanding, 
     onShowPrivacyPolicy, 
     onShowTerms,
-    onSignInWithGoogle,
 }) => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
@@ -44,15 +41,6 @@ const Login: React.FC<LoginProps> = ({
         }
     };
     
-    const handleGoogleSignIn = async () => {
-        setLoading(true);
-        try {
-            await onSignInWithGoogle();
-        } catch (error) {
-            setLoading(false);
-        }
-    };
-
     const handleLoginSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!validateEmail(email) || !password) return;
@@ -84,21 +72,6 @@ const Login: React.FC<LoginProps> = ({
         <>
             <h1 className="text-2xl font-bold text-secondary mb-2">Sign In</h1>
             <p className="text-gray-600 mb-6">Welcome back! Sign in to your account.</p>
-            
-            <button
-                type="button"
-                onClick={handleGoogleSignIn}
-                disabled={loading}
-                className="w-full flex justify-center items-center py-3 px-4 border border-gray-300 rounded-md shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:bg-gray-200"
-            >
-                <GoogleIcon className="w-5 h-5 mr-2" />
-                Sign In with Google
-            </button>
-            <div className="my-4 flex items-center">
-                <div className="flex-grow border-t border-gray-300"></div>
-                <span className="flex-shrink mx-4 text-gray-400 text-sm">OR</span>
-                <div className="flex-grow border-t border-gray-300"></div>
-            </div>
             
             <form onSubmit={handleLoginSubmit} className="space-y-4">
                <div>
