@@ -9,9 +9,6 @@ import {
   signOut,
   sendPasswordResetEmail,
   signInWithPopup,
-  sendSignInLinkToEmail,
-  isSignInWithEmailLink,
-  signInWithEmailLink,
   type User as FirebaseUser,
 } from 'firebase/auth';
 import { auth, googleProvider } from './services/firebase';
@@ -124,27 +121,6 @@ const App: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    if (isSignInWithEmailLink(auth, window.location.href)) {
-        let email = window.localStorage.getItem('emailForSignIn');
-        if (!email) {
-            email = window.prompt('Please provide your email for confirmation');
-        }
-        if (email) {
-            setIsLoading(true);
-            signInWithEmailLink(auth, email, window.location.href)
-                .then(() => {
-                    window.localStorage.removeItem('emailForSignIn');
-                    // onAuthStateChanged will handle the rest.
-                })
-                .catch((error) => {
-                    setToastMessage(`Error signing in with email link: ${error.message}`);
-                    setIsLoading(false);
-                });
-        } else {
-             setToastMessage('Email is required to sign in with a link.');
-        }
-    }
-
     // Listen for auth state changes
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser: FirebaseUser | null) => {
       setIsLoading(true);
@@ -284,20 +260,6 @@ const App: React.FC = () => {
     } catch (error: any) {
       setToastMessage(`Login failed: ${error.message}`);
       throw error;
-    }
-  };
-  
-  const handleSignInWithEmailLink = async (email: string) => {
-    const actionCodeSettings = {
-        url: window.location.href, // Redirect back to the same page
-        handleCodeInApp: true,
-    };
-    try {
-        await sendSignInLinkToEmail(auth, email, actionCodeSettings);
-        window.localStorage.setItem('emailForSignIn', email);
-    } catch (error: any) {
-        setToastMessage(`Error sending sign-in link: ${error.message}`);
-        throw error;
     }
   };
 
@@ -823,7 +785,7 @@ const App: React.FC = () => {
       }
       
       if (authPage === 'login') {
-        return <Login onLogin={handleLogin} onForgotPassword={handleForgotPassword} onShowLanding={() => setAuthPage('landing')} onShowPrivacyPolicy={handleShowPrivacyPolicy} onShowTerms={handleShowTerms} onSignInWithGoogle={handleSignInWithGoogle} onSignInWithEmailLink={handleSignInWithEmailLink} />;
+        return <Login onLogin={handleLogin} onForgotPassword={handleForgotPassword} onShowLanding={() => setAuthPage('landing')} onShowPrivacyPolicy={handleShowPrivacyPolicy} onShowTerms={handleShowTerms} onSignInWithGoogle={handleSignInWithGoogle} />;
       }
 
       return <PlanSelectionPage onStartAuthFlow={handleStartAuthFlow} onStartGoogleAuthFlow={handleStartGoogleAuthFlow} onShowLogin={() => setAuthPage('login')} onShowPrivacyPolicy={handleShowPrivacyPolicy} onShowTerms={handleShowTerms} />;

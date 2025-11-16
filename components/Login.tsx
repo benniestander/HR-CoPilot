@@ -5,7 +5,6 @@ interface LoginProps {
   onLogin: (email: string, password: string) => Promise<void>;
   onForgotPassword: (email: string) => Promise<void>;
   onSignInWithGoogle: () => Promise<void>;
-  onSignInWithEmailLink: (email: string) => Promise<void>;
   onShowLanding: () => void;
   onShowPrivacyPolicy: () => void;
   onShowTerms: () => void;
@@ -18,13 +17,12 @@ const Login: React.FC<LoginProps> = ({
     onShowPrivacyPolicy, 
     onShowTerms,
     onSignInWithGoogle,
-    onSignInWithEmailLink
 }) => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [emailError, setEmailError] = useState('');
     const [loading, setLoading] = useState(false);
-    const [view, setView] = useState<'login' | 'reset' | 'reset-sent' | 'link-signin' | 'link-sent'>('login');
+    const [view, setView] = useState<'login' | 'reset' | 'reset-sent'>('login');
 
     const validateEmail = (value: string) => {
         if (!value) {
@@ -81,21 +79,6 @@ const Login: React.FC<LoginProps> = ({
             setLoading(false);
         }
     };
-    
-    const handleLinkSignInSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!validateEmail(email)) return;
-
-        setLoading(true);
-        try {
-            await onSignInWithEmailLink(email);
-            setView('link-sent');
-        } catch (error) {
-             // Error toast shown by App.tsx
-        } finally {
-            setLoading(false);
-        }
-    };
 
     const renderLoginView = () => (
         <>
@@ -132,8 +115,7 @@ const Login: React.FC<LoginProps> = ({
                     placeholder="Password" required
                     className="w-full p-3 border rounded-md shadow-sm focus:ring-primary focus:border-primary border-gray-300"
                     aria-label="Password" />
-                <div className="flex justify-between items-center text-right mt-2 text-sm">
-                    <button type="button" onClick={() => setView('link-signin')} className="font-semibold text-primary hover:underline focus:outline-none">Sign in with a link</button>
+                <div className="text-right mt-2 text-sm">
                     <button type="button" onClick={() => setView('reset')} className="font-semibold text-primary hover:underline focus:outline-none">Forgot Password?</button>
                 </div>
                </div>
@@ -145,29 +127,6 @@ const Login: React.FC<LoginProps> = ({
              <p className="text-sm text-gray-600 mt-6">
                 Don't have an account?{' '}
                 <button onClick={onShowLanding} className="font-semibold text-primary hover:underline">Choose a Plan</button>
-            </p>
-        </>
-    );
-
-    const renderLinkSignInView = () => (
-        <>
-            <h1 className="text-2xl font-bold text-secondary mb-2">Sign In with Email</h1>
-            <p className="text-gray-600 mb-6">Enter your email address to receive a secure, password-free sign-in link.</p>
-            <form onSubmit={handleLinkSignInSubmit} className="space-y-4">
-               <div>
-                 <input type="email" value={email} onChange={handleEmailChange} onBlur={(e) => validateEmail(e.target.value)} placeholder="your-email@example.com" required
-                    className={`w-full p-3 border rounded-md shadow-sm focus:ring-primary focus:border-primary ${emailError ? 'border-red-500' : 'border-gray-300'}`}
-                    aria-label="Email Address" aria-invalid={!!emailError} aria-describedby="email-error" />
-                {emailError && <p id="email-error" className="text-red-600 text-sm text-left mt-1">{emailError}</p>}
-               </div>
-                <button type="submit" disabled={loading || !email || !!emailError}
-                    className="w-full bg-primary text-white font-bold py-3 px-4 rounded-md hover:bg-opacity-90 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors flex items-center justify-center">
-                   {loading ? ( <><svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Sending...</> ) : ( 'Send Sign-in Link' )}
-                </button>
-            </form>
-             <p className="text-sm text-gray-600 mt-6">
-                Prefer to use a password?{' '}
-                <button onClick={() => { setView('login'); setEmailError(''); }} className="font-semibold text-primary hover:underline">Back to Sign In</button>
             </p>
         </>
     );
@@ -219,10 +178,8 @@ const Login: React.FC<LoginProps> = ({
                 <div className="w-full max-w-md">
                     <div className="bg-white p-8 rounded-lg shadow-md border border-gray-200 text-center">
                         {view === 'login' && renderLoginView()}
-                        {view === 'link-signin' && renderLinkSignInView()}
                         {view === 'reset' && renderResetView()}
                         {view === 'reset-sent' && <ConfirmationScreen title="Check Your Email" message={`If an account with the email <strong class="text-secondary">${email}</strong> exists, a password reset link has been sent. Please check your inbox (and spam folder).`} onBack={() => { setView('login'); setEmail(''); setPassword(''); }} />}
-                        {view === 'link-sent' && <ConfirmationScreen title="Check Your Email" message={`A sign-in link has been sent to <strong class="text-secondary">${email}</strong>. Please check your inbox (and spam folder) to sign in.`} onBack={() => { setView('login'); setEmail(''); setPassword(''); }} />}
                     </div>
                 </div>
             </main>
