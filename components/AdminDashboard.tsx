@@ -153,6 +153,7 @@ const UserList: React.FC<{ users: User[], onViewUser: (user: User) => void }> = 
         );
     }, [users, searchTerm]);
 
+    // FIX: Cast creditBalance to Number to prevent type errors.
     const handleExport = () => exportToCsv('users.csv', filteredUsers.map(u => ({
         name: u.name, email: u.email, plan: u.plan, credit_balance: (Number(u.creditBalance) / 100).toFixed(2), signup_date: u.createdAt
     })));

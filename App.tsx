@@ -251,10 +251,14 @@ const App: React.FC = () => {
 
   const handleStartGoogleAuthFlow = (flow: 'signup' | 'payg_signup') => {
     window.localStorage.setItem('authFlow', flow);
-    handleSignInWithGoogle();
+    signInWithPopup(auth, googleProvider).catch((error: any) => {
+      setToastMessage(`Google sign-in failed: ${error.message}`);
+    });
   };
 
   const handleSignInWithGoogle = async () => {
+    // Explicitly set authFlow for a sign-in attempt to avoid using stale signup flows
+    window.localStorage.setItem('authFlow', 'login');
     setIsLoading(true);
     try {
         await signInWithPopup(auth, googleProvider);
