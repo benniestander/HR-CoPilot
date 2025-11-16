@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { generateComplianceChecklist } from '../services/geminiService';
 import type { ComplianceChecklistResult, Policy, Form, CompanyProfile, GeneratedDocument } from '../types';
-import { LoadingIcon, DownloadIcon, ComplianceIcon, MasterPolicyIcon, FormsIcon } from './Icons';
+import { LoadingIcon, DownloadIcon, ComplianceIcon, MasterPolicyIcon, FormsIcon, CheckIcon } from './Icons';
 import { POLICIES, FORMS } from '../constants';
 
 interface ComplianceChecklistProps {
@@ -88,30 +88,35 @@ const ComplianceChecklist: React.FC<ComplianceChecklistProps> = ({
       const isGenerated = !!generatedDoc;
 
       return (
-        <div key={`${type}-${item.name}`} className="flex items-start space-x-4 p-4 border rounded-md bg-white shadow-sm">
-            <input 
-                type="checkbox" 
-                checked={isGenerated} 
-                readOnly 
-                className="mt-1 h-5 w-5 rounded border-gray-300 text-primary focus:ring-primary"
-                aria-label={isGenerated ? `Completed: ${item.name}` : `Incomplete: ${item.name}`}
-            />
+        <div key={`${type}-${item.name}`} className="flex items-start justify-between space-x-4 p-4 border rounded-md bg-white shadow-sm">
             <div className="flex-1">
                 <p className="font-semibold text-secondary">{item.name}</p>
                 <p className="text-sm text-gray-600 mt-1">{item.reason}</p>
             </div>
-            {matchingItem && (
-                 <button 
-                    onClick={() => isGenerated ? onViewDocument(generatedDoc) : onSelectItem(matchingItem)}
-                    className={`flex-shrink-0 px-3 py-1 text-sm font-semibold rounded-md transition-colors ${
-                        isGenerated 
-                        ? 'bg-green-100 text-green-800 hover:bg-green-200' 
-                        : 'bg-primary text-white hover:bg-opacity-90'
-                    }`}
-                 >
-                    {isGenerated ? 'View' : 'Generate'}
-                 </button>
-            )}
+            
+            <div className="flex-shrink-0 ml-4">
+                {isGenerated && generatedDoc ? (
+                    <div className="flex flex-col sm:flex-row items-end sm:items-center space-y-2 sm:space-y-0 sm:space-x-3">
+                        <span className="flex items-center text-sm font-semibold text-green-700 bg-green-100 px-3 py-1 rounded-full">
+                            <CheckIcon className="w-4 h-4 mr-1.5" />
+                            Completed
+                        </span>
+                        <button 
+                            onClick={() => onViewDocument(generatedDoc)}
+                            className="text-sm font-semibold text-primary hover:underline"
+                        >
+                            View Document
+                        </button>
+                    </div>
+                ) : matchingItem ? (
+                    <button 
+                        onClick={() => onSelectItem(matchingItem)}
+                        className="px-4 py-2 text-sm font-semibold rounded-md transition-colors bg-primary text-white hover:bg-opacity-90"
+                    >
+                        Generate
+                    </button>
+                ) : null}
+            </div>
         </div>
       );
     };

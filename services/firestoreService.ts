@@ -1,4 +1,5 @@
-import type { User, CompanyProfile, GeneratedDocument, Transaction, AdminActionLog, AdminNotification, UserFile } from '../types';
+
+import type { User, CompanyProfile, GeneratedDocument, Transaction, AdminActionLog, AdminNotification, UserFile, Coupon } from '../types';
 // --- REAL FIREBASE FILE FUNCTIONS ---
 // These functions use the actual Firebase SDK for file storage and metadata.
 import { collection, addDoc, getDocs, query, orderBy, serverTimestamp, Timestamp } from 'firebase/firestore';
@@ -23,6 +24,10 @@ interface MockDB {
   adminNotifications: {
     [notificationId: string]: AdminNotification;
   };
+  // FIX: Added coupons to the mock database interface.
+  coupons: {
+    [couponId: string]: Coupon;
+  };
 }
 
 // In-memory store for the application session. Resets on page reload.
@@ -30,6 +35,8 @@ let inMemoryDB: MockDB = {
   users: {},
   adminActionLogs: {},
   adminNotifications: {},
+  // FIX: Initialized coupons in the in-memory database.
+  coupons: {},
 };
 
 
@@ -133,20 +140,54 @@ export const updateUser = async (uid: string, userData: Partial<User>): Promise<
     }
 }
 
-export const addTransactionToUser = async (uid: string, transaction: Omit<Transaction, 'id' | 'date' | 'userId' | 'userEmail'>): Promise<void> => {
+// FIX: Updated function to accept an optional couponCode and handle discount logic.
+export const addTransactionToUser = async (uid: string, transaction: Omit<Transaction, 'id' | 'date' | 'userId' | 'userEmail'>, couponCode?: string): Promise<void> => {
     const db = getDB();
     if (db.users[uid]) {
         const user = db.users[uid].profile;
+        let discountDetails: Transaction['discount'] | undefined = undefined;
+        let creditAdjustment = transaction.amount;
+
+        if (couponCode) {
+            const coupon = Object.values(db.coupons || {}).find(c => c.code.toUpperCase() === couponCode.toUpperCase());
+            if (coupon) { // Assume it's valid
+                let discountAmount = 0;
+                if (coupon.type === 'percentage') {
+                    // For top-ups (positive amount), discount is on top. For purchases (negative), it's on the absolute value.
+                    discountAmount = (Math.abs(transaction.amount) * coupon.value) / 100;
+                } else { // fixed
+                    discountAmount = coupon.value;
+                }
+                
+                // A discount always benefits the user, so we add it. If tx.amount is negative, this reduces the deduction. If positive, it increases the addition.
+                creditAdjustment += discountAmount;
+                
+                discountDetails = {
+                    couponCode: coupon.code,
+                    amount: discountAmount,
+                };
+                
+                coupon.uses += 1;
+                if (coupon.maxUses != null && coupon.uses >= coupon.maxUses) {
+                    coupon.isActive = false;
+                }
+            }
+        }
+        
         const newTransaction: Transaction = {
             ...transaction,
             id: `txn_${Date.now()}`,
             date: new Date().toISOString(),
             userId: uid,
             userEmail: user.email,
+            discount: discountDetails,
         };
-        // Add to beginning of array for chronological display
-        user.transactions = [newTransaction, ...(user.transactions || [])]; 
-        user.creditBalance += transaction.amount;
+        
+        user.transactions = [newTransaction, ...(user.transactions || [])];
+        // Only adjust credit if it's not a subscription log. Subscription doesn't use credit.
+        if (transaction.description !== 'Ingcweti Pro Subscription (12 months)') {
+            user.creditBalance += creditAdjustment;
+        }
         db.users[uid].profile = user;
         saveDB(db);
     }
@@ -401,4 +442,76 @@ export const getDownloadUrlForFile = async (storagePath: string): Promise<string
     if (!storagePath) throw new Error("Storage path is required.");
     const storageRef = ref(storage, storagePath);
     return await getDownloadURL(storageRef);
+};
+
+// FIX: Implement and export missing coupon management functions.
+export const createCoupon = async (adminEmail: string, couponData: Omit<Coupon, 'id' | 'createdAt' | 'uses' | 'isActive'>): Promise<void> => {
+    const db = getDB();
+    const newCoupon: Coupon = {
+        ...couponData,
+        id: `coupon_${Date.now()}`,
+        createdAt: new Date().toISOString(),
+        uses: 0,
+        isActive: true,
+    };
+    if (!db.coupons) {
+        db.coupons = {};
+    }
+    db.coupons[newCoupon.id] = newCoupon;
+    logAdminAction({
+        adminEmail,
+        action: 'Created Coupon',
+        targetUserId: 'N/A',
+        targetUserEmail: 'N/A',
+        details: { code: newCoupon.code, value: newCoupon.value }
+    });
+    saveDB(db);
+};
+
+export const getCoupons = async (): Promise<Coupon[]> => {
+    const db = getDB();
+    return Object.values(db.coupons || {}).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+};
+
+export const deactivateCoupon = async (adminEmail: string, couponId: string): Promise<void> => {
+    const db = getDB();
+    if (db.coupons && db.coupons[couponId]) {
+        const code = db.coupons[couponId].code;
+        db.coupons[couponId].isActive = false;
+        logAdminAction({
+            adminEmail,
+            action: 'Deactivated Coupon',
+            targetUserId: 'N/A',
+            targetUserEmail: 'N/A',
+            details: { couponId, code }
+        });
+        saveDB(db);
+    }
+};
+
+export const validateCoupon = async (uid: string, code: string): Promise<{ valid: boolean; message: string; coupon?: Coupon }> => {
+    const db = getDB();
+    const coupon = Object.values(db.coupons || {}).find(c => c.code.toUpperCase() === code.toUpperCase());
+
+    if (!coupon) {
+        return { valid: false, message: 'Coupon not found.' };
+    }
+    if (!coupon.isActive) {
+        return { valid: false, message: 'This coupon is no longer active.' };
+    }
+    if (coupon.expiresAt && new Date(coupon.expiresAt) < new Date()) {
+        coupon.isActive = false; // Deactivate expired coupon
+        saveDB(db);
+        return { valid: false, message: 'This coupon has expired.' };
+    }
+    if (coupon.maxUses != null && coupon.uses >= coupon.maxUses) {
+        coupon.isActive = false; // Deactivate used up coupon
+        saveDB(db);
+        return { valid: false, message: 'This coupon has reached its usage limit.' };
+    }
+    if (Array.isArray(coupon.applicableTo) && !coupon.applicableTo.includes(uid)) {
+        return { valid: false, message: 'This coupon is not valid for your account.' };
+    }
+    
+    return { valid: true, message: 'Coupon applied successfully!', coupon };
 };

@@ -1,18 +1,23 @@
+
+
 import React, { useState, useMemo } from 'react';
-import type { User, GeneratedDocument, Transaction, AdminActionLog } from '../types';
-import { UserIcon, MasterPolicyIcon, FormsIcon, SearchIcon, CreditCardIcon, HistoryIcon, DownloadIcon } from './Icons';
+import type { User, GeneratedDocument, Transaction, AdminActionLog, Coupon } from '../types';
+import { UserIcon, MasterPolicyIcon, FormsIcon, SearchIcon, CreditCardIcon, HistoryIcon, DownloadIcon, CouponIcon } from './Icons';
 import AdminUserDetailModal from './AdminUserDetailModal';
 
 interface AdminDashboardProps {
   allUsers: User[];
   allDocuments: GeneratedDocument[];
   allTransactions: Transaction[];
+  allCoupons: Coupon[];
   adminActionLogs: AdminActionLog[];
   adminActions: {
     updateUser: (targetUid: string, updates: Partial<User>) => Promise<void>;
     adjustCredit: (targetUid: string, amountInCents: number, reason: string) => Promise<void>;
     changePlan: (targetUid: string, newPlan: 'pro' | 'payg') => Promise<void>;
     simulateFailedPayment: (targetUid: string, targetUserEmail: string) => Promise<void>;
+    createCoupon: (couponData: Omit<Coupon, 'id' | 'createdAt' | 'uses' | 'isActive'>) => Promise<void>;
+    deactivateCoupon: (couponId: string) => Promise<void>;
   };
 }
 
@@ -50,16 +55,16 @@ const exportToCsv = (filename: string, rows: object[]) => {
 };
 
 
-const AdminDashboard: React.FC<AdminDashboardProps> = ({ allUsers, allDocuments, allTransactions, adminActionLogs, adminActions }) => {
-  type AdminTab = 'users' | 'analytics' | 'transactions' | 'logs';
+const AdminDashboard: React.FC<AdminDashboardProps> = ({ allUsers, allDocuments, allTransactions, allCoupons, adminActionLogs, adminActions }) => {
+  type AdminTab = 'users' | 'analytics' | 'transactions' | 'logs' | 'coupons';
   const [activeTab, setActiveTab] = useState<AdminTab>('users');
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
 
   const stats = useMemo(() => {
     const proUsers = allUsers.filter(u => u.plan === 'pro' && u.email !== 'admin@hrcopilot.co.za').length;
     const paygUsers = allUsers.filter(u => u.plan === 'payg').length;
-    // FIX: Ensure tx.amount is treated as a number in the addition to prevent string concatenation.
-    const totalRevenue = allTransactions.reduce((acc, tx) => (Number(tx.amount) > 0 ? acc + Number(tx.amount) : acc), 0);
+    // FIX: Removed redundant Number() casting on tx.amount, which is already a number type.
+    const totalRevenue = allTransactions.reduce((acc, tx) => (tx.amount > 0 ? acc + tx.amount : acc), 0);
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
     const newUsersLast30Days = allUsers.filter(u => new Date(u.createdAt) > thirtyDaysAgo).length;
@@ -78,6 +83,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ allUsers, allDocuments,
 
   const tabs: { id: AdminTab, name: string, icon: React.FC<{className?:string}> }[] = [
     { id: 'users', name: 'User Management', icon: UserIcon },
+    { id: 'coupons', name: 'Coupons', icon: CouponIcon },
     { id: 'analytics', name: 'Document Analytics', icon: FormsIcon },
     { id: 'transactions', name: 'Transaction Log', icon: CreditCardIcon },
     { id: 'logs', name: 'Admin Activity', icon: HistoryIcon },
@@ -114,6 +120,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ allUsers, allDocuments,
 
             <div className="p-4">
                 {activeTab === 'users' && <UserList users={allUsers} onViewUser={handleViewUser} />}
+                {activeTab === 'coupons' && <CouponManager coupons={allCoupons} onCreateCoupon={adminActions.createCoupon} onDeactivateCoupon={adminActions.deactivateCoupon} />}
                 {activeTab === 'analytics' && <DocumentAnalytics documents={allDocuments} />}
                 {activeTab === 'transactions' && <TransactionLog transactions={allTransactions} />}
                 {activeTab === 'logs' && <ActivityLog logs={adminActionLogs} />}
@@ -184,6 +191,70 @@ const UserList: React.FC<{ users: User[], onViewUser: (user: User) => void }> = 
     );
 };
 
+const CouponManager: React.FC<{ coupons: Coupon[], onCreateCoupon: (data: any) => void, onDeactivateCoupon: (id: string) => void }> = ({ coupons, onCreateCoupon, onDeactivateCoupon }) => {
+    const [formData, setFormData] = useState({ code: '', type: 'percentage' as 'percentage' | 'fixed', value: '', expiresAt: '', maxUses: '', applicableTo: 'all', userIds: '' });
+    
+    const handleCreate = () => {
+        const applicableTo = formData.applicableTo === 'all' ? 'all' : formData.userIds.split(',').map(id => id.trim()).filter(id => id);
+        onCreateCoupon({
+            code: formData.code.toUpperCase(),
+            type: formData.type,
+            value: formData.type === 'fixed' ? Number(formData.value) * 100 : Number(formData.value),
+            expiresAt: formData.expiresAt || undefined,
+            maxUses: formData.maxUses ? Number(formData.maxUses) : undefined,
+            applicableTo,
+        });
+        setFormData({ code: '', type: 'percentage', value: '', expiresAt: '', maxUses: '', applicableTo: 'all', userIds: '' });
+    };
+
+    return (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className="lg:col-span-1 bg-gray-50 p-4 rounded-lg border">
+                <h3 className="text-lg font-bold text-secondary mb-4">Create New Coupon</h3>
+                <div className="space-y-3">
+                    <input type="text" placeholder="Coupon Code (e.g., WELCOME10)" value={formData.code} onChange={e => setFormData(p => ({...p, code: e.target.value}))} className="w-full p-2 border rounded"/>
+                    <select value={formData.type} onChange={e => setFormData(p => ({...p, type: e.target.value as any}))} className="w-full p-2 border rounded bg-white">
+                        <option value="percentage">Percentage (%)</option>
+                        <option value="fixed">Fixed Amount (R)</option>
+                    </select>
+                    <input type="number" placeholder="Value" value={formData.value} onChange={e => setFormData(p => ({...p, value: e.target.value}))} className="w-full p-2 border rounded"/>
+                    <input type="date" placeholder="Expiry Date (Optional)" value={formData.expiresAt} onChange={e => setFormData(p => ({...p, expiresAt: e.target.value}))} className="w-full p-2 border rounded"/>
+                    <input type="number" placeholder="Max Uses (Optional)" value={formData.maxUses} onChange={e => setFormData(p => ({...p, maxUses: e.target.value}))} className="w-full p-2 border rounded"/>
+                    <select value={formData.applicableTo} onChange={e => setFormData(p => ({...p, applicableTo: e.target.value as any}))} className="w-full p-2 border rounded bg-white">
+                        <option value="all">All Users</option>
+                        <option value="specific">Specific Users</option>
+                    </select>
+                    {formData.applicableTo === 'specific' && <textarea placeholder="Comma-separated user UIDs" value={formData.userIds} onChange={e => setFormData(p => ({...p, userIds: e.target.value}))} className="w-full p-2 border rounded"/>}
+                    <button onClick={handleCreate} className="w-full bg-primary text-white font-bold py-2 px-4 rounded-md">Create Coupon</button>
+                </div>
+            </div>
+            <div className="lg:col-span-2 overflow-x-auto border rounded-lg">
+                 <table className="min-w-full divide-y divide-gray-200"><thead className="bg-gray-50">{/* ... */}
+                    <tr>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Code</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Value</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Usage</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Expires</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Action</th>
+                    </tr>
+                </thead><tbody className="bg-white divide-y divide-gray-200">{/* ... */}
+                {coupons.map(c => (
+                    <tr key={c.id}>
+                        <td className="px-4 py-3 whitespace-nowrap font-mono text-sm font-semibold">{c.code}</td>
+                        <td className="px-4 py-3 whitespace-nowrap text-sm">{c.type === 'percentage' ? `${c.value}%` : `R${(c.value / 100).toFixed(2)}`}</td>
+                        <td className="px-4 py-3 whitespace-nowrap text-sm">{c.uses} / {c.maxUses || '∞'}</td>
+                        <td className="px-4 py-3 whitespace-nowrap text-sm">{c.expiresAt ? new Date(c.expiresAt).toLocaleDateString() : 'Never'}</td>
+                        <td className="px-4 py-3 whitespace-nowrap text-sm"><span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${c.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>{c.isActive ? 'Active' : 'Inactive'}</span></td>
+                        <td className="px-4 py-3 whitespace-nowrap text-right text-sm"><button onClick={() => onDeactivateCoupon(c.id)} disabled={!c.isActive} className="text-red-600 hover:text-red-900 disabled:text-gray-400">Deactivate</button></td>
+                    </tr>
+                ))}
+                </tbody></table>
+            </div>
+        </div>
+    );
+};
+
 const DocumentAnalytics: React.FC<{ documents: GeneratedDocument[] }> = ({ documents }) => {
     const analytics = useMemo(() => {
         const counts = documents.reduce((acc, doc) => {
@@ -223,10 +294,10 @@ const DocumentAnalytics: React.FC<{ documents: GeneratedDocument[] }> = ({ docum
 };
 
 const TransactionLog: React.FC<{ transactions: Transaction[] }> = ({ transactions }) => {
-    // FIX: Add Number() cast to ensure t.amount is treated as a number before division.
     const handleExport = () => exportToCsv('transactions.csv', transactions.map(t => ({
         date: t.date, user_email: t.userEmail, description: t.description, 
-        amount: (Number(t.amount) / 100).toFixed(2)
+        // FIX: Removed redundant Number() casting on t.amount, which is already a number type.
+        amount: (t.amount / 100).toFixed(2)
     })));
 
     return (
@@ -248,8 +319,8 @@ const TransactionLog: React.FC<{ transactions: Transaction[] }> = ({ transaction
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{new Date(tx.date).toLocaleString()}</td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{tx.userEmail}</td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{tx.description}</td>
-                        {/* FIX: Add Number() cast to ensure tx.amount is treated as a number for comparison and calculation. */}
-                        <td className={`px-6 py-4 whitespace-nowrap text-sm font-semibold ${Number(tx.amount) > 0 ? 'text-green-600' : 'text-red-600'}`}>R{(Number(tx.amount) / 100).toFixed(2)}</td>
+                        {/* FIX: Removed redundant Number() casting on tx.amount, which is already a number type. */}
+                        <td className={`px-6 py-4 whitespace-nowrap text-sm font-semibold ${tx.amount > 0 ? 'text-green-600' : 'text-red-600'}`}>R{(tx.amount / 100).toFixed(2)}</td>
                     </tr>
                 ))}
                 </tbody></table>

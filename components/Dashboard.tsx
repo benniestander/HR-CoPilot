@@ -11,14 +11,14 @@ interface DashboardProps {
   onSelectItem: (item: Policy | Form) => void;
   onStartUpdate: () => void;
   onStartChecklist: () => void;
-  onGoToProfile: () => void;
+  onGoToTopUp: () => void;
   generatedDocuments: GeneratedDocument[];
   onViewDocument: (doc: GeneratedDocument) => void;
   showOnboardingWalkthrough?: boolean;
   onCloseWalkthrough?: () => void;
 }
 
-const Dashboard: React.FC<DashboardProps> = ({ user, onSelectItem, onStartUpdate, onStartChecklist, onGoToProfile, generatedDocuments, onViewDocument, showOnboardingWalkthrough, onCloseWalkthrough }) => {
+const Dashboard: React.FC<DashboardProps> = ({ user, onSelectItem, onStartUpdate, onStartChecklist, onGoToTopUp, generatedDocuments, onViewDocument, showOnboardingWalkthrough, onCloseWalkthrough }) => {
   const [activeTab, setActiveTab] = useState<'policies' | 'forms'>('policies');
   const [isHowToUseModalOpen, setIsHowToUseModalOpen] = useState(false);
 
@@ -35,7 +35,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onSelectItem, onStartUpdate
             </div>
         </div>
         <button 
-            onClick={onGoToProfile} 
+            onClick={onGoToTopUp} 
             className="bg-primary text-white font-semibold py-2 px-4 rounded-md hover:bg-opacity-90 transition-colors flex-shrink-0 self-start sm:self-center"
         >
           Top Up Credit

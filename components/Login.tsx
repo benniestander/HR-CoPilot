@@ -3,12 +3,13 @@ import React, { useState } from 'react';
 
 interface LoginProps {
   onLogin: (email: string, password: string) => void;
+  onForgotPassword: (email: string) => void;
   onShowLanding: () => void;
   onShowPrivacyPolicy: () => void;
   onShowTerms: () => void;
 }
 
-const Login: React.FC<LoginProps> = ({ onLogin, onShowLanding, onShowPrivacyPolicy, onShowTerms }) => {
+const Login: React.FC<LoginProps> = ({ onLogin, onForgotPassword, onShowLanding, onShowPrivacyPolicy, onShowTerms }) => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [emailError, setEmailError] = useState('');
@@ -39,6 +40,13 @@ const Login: React.FC<LoginProps> = ({ onLogin, onShowLanding, onShowPrivacyPoli
         setLoading(true);
         onLogin(email, password);
     };
+    
+    const handleForgotPasswordClick = () => {
+        if (validateEmail(email)) {
+            onForgotPassword(email);
+        }
+    };
+
 
     return (
         <div className="min-h-screen bg-light text-secondary flex flex-col">
@@ -54,7 +62,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onShowLanding, onShowPrivacyPoli
             <main className="flex-grow container mx-auto flex items-center justify-center px-6 py-8">
                 <div className="w-full max-w-md">
                     <div className="bg-white p-8 rounded-lg shadow-md border border-gray-200 text-center">
-                        <h1 className="text-2xl font-bold text-secondary mb-2">Sign in to Ingcweti</h1>
+                        <h1 className="text-2xl font-bold text-secondary mb-2">Sign In to your HR CoPilot Account</h1>
                         <p className="text-gray-600 mb-6">Enter your email and password to sign in.</p>
                         
                         <form onSubmit={handleLoginSubmit} className="space-y-4">
@@ -82,6 +90,15 @@ const Login: React.FC<LoginProps> = ({ onLogin, onShowLanding, onShowPrivacyPoli
                                 className="w-full p-3 border rounded-md shadow-sm focus:ring-primary focus:border-primary border-gray-300"
                                 aria-label="Password"
                             />
+                            <div className="text-right mt-2">
+                                <button
+                                    type="button"
+                                    onClick={handleForgotPasswordClick}
+                                    className="text-sm font-semibold text-primary hover:underline focus:outline-none"
+                                >
+                                    Forgot Password?
+                                </button>
+                            </div>
                            </div>
                             <button
                                 type="submit"

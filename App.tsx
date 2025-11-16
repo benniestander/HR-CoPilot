@@ -5,6 +5,7 @@ import {
   sendEmailVerification,
   signInWithEmailAndPassword,
   signOut,
+  sendPasswordResetEmail,
   type User as FirebaseUser,
 } from 'firebase/auth';
 import { auth } from './services/firebase';
@@ -19,6 +20,8 @@ import ComplianceChecklist from './components/ComplianceChecklist';
 import Login from './components/Login';
 import ProfilePage from './components/ProfilePage';
 import PlanSelectionPage from './components/PlanSelectionPage';
+import SubscriptionPage from './components/SubscriptionPage';
+import PaygPaymentPage from './components/PaygPaymentPage';
 import EmailSentPage from './components/EmailSentPage';
 import VerifyEmailPage from './components/VerifyEmailPage';
 import Toast from './components/Toast';
@@ -29,7 +32,7 @@ import AdminDashboard from './components/AdminDashboard';
 import AdminNotificationPanel from './components/AdminNotificationPanel';
 
 
-import type { Policy, Form, GeneratedDocument, PolicyType, FormType, CompanyProfile, User, Transaction, AdminActionLog, AdminNotification, UserFile } from './types';
+import type { Policy, Form, GeneratedDocument, PolicyType, FormType, CompanyProfile, User, Transaction, AdminActionLog, AdminNotification, UserFile, Coupon } from './types';
 import { UserIcon, BellIcon } from './components/Icons';
 
 import {
@@ -55,6 +58,10 @@ import {
   getDownloadUrlForFile,
   uploadProfilePhoto,
   deleteProfilePhoto,
+  createCoupon,
+  getCoupons,
+  deactivateCoupon,
+  validateCoupon,
 } from './services/firestoreService';
 
 type AuthPage = 'landing' | 'login' | 'email-sent' | 'verify-email';
@@ -77,7 +84,7 @@ const App: React.FC = () => {
 
 
   // State for managing the current view (e.g., dashboard, generator, updater)
-  const [currentView, setCurrentView] = useState<'dashboard' | 'generator' | 'updater' | 'checklist' | 'profile' | 'upgrade'>('dashboard');
+  const [currentView, setCurrentView] = useState<'dashboard' | 'generator' | 'updater' | 'checklist' | 'profile' | 'upgrade' | 'topup'>('dashboard');
   const [selectedItem, setSelectedItem] = useState<Policy | Form | null>(null);
   const [generatedDocuments, setGeneratedDocuments] = useState<GeneratedDocument[]>([]);
   const [userFiles, setUserFiles] = useState<UserFile[]>([]);
@@ -90,6 +97,7 @@ const App: React.FC = () => {
   const [allTransactions, setAllTransactions] = useState<Transaction[]>([]);
   const [adminActionLogs, setAdminActionLogs] = useState<AdminActionLog[]>([]);
   const [adminNotifications, setAdminNotifications] = useState<AdminNotification[]>([]);
+  const [allCoupons, setAllCoupons] = useState<Coupon[]>([]);
   const [isNotificationPanelOpen, setNotificationPanelOpen] = useState(false);
   const notificationPanelRef = useRef<HTMLDivElement>(null);
 
@@ -224,19 +232,33 @@ const App: React.FC = () => {
     }
   };
   
+  const handleForgotPassword = async (email: string) => {
+    setIsLoading(true);
+    try {
+      await sendPasswordResetEmail(auth, email);
+      setToastMessage(`Password reset email sent to ${email}. Please check your inbox.`);
+    } catch (error: any) {
+      setToastMessage(`Error: ${error.message}`);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const fetchAdminData = async () => {
-      const [users, docs, transactions, logs, notifications] = await Promise.all([
+      const [users, docs, transactions, logs, notifications, coupons] = await Promise.all([
         getAllUsers(), 
         getAllDocumentsForAllUsers(),
         getAllTransactions(),
         getAdminActionLogs(),
         getAdminNotifications(),
+        getCoupons(),
       ]);
       setAllUsers(users);
       setAllDocuments(docs);
       setAllTransactions(transactions);
       setAdminActionLogs(logs);
       setAdminNotifications(notifications);
+      setAllCoupons(coupons);
   }
 
   const handleUpdateProfile = async (updatedProfile: CompanyProfile) => {
@@ -354,23 +376,42 @@ const App: React.FC = () => {
     await fetchAdminData();
     setNotificationPanelOpen(false);
   };
+  
+  const handleCreateCoupon = async (couponData: Omit<Coupon, 'id' | 'createdAt' | 'uses' | 'isActive'>) => {
+    if (!user || user.email !== ADMIN_EMAIL) return;
+    await createCoupon(user.email, couponData);
+    await fetchAdminData();
+    setToastMessage(`Coupon "${couponData.code}" created successfully!`);
+  };
+
+  const handleDeactivateCoupon = async (couponId: string) => {
+    if (!user || user.email !== ADMIN_EMAIL) return;
+    await deactivateCoupon(user.email, couponId);
+    await fetchAdminData();
+    setToastMessage(`Coupon deactivated.`);
+  };
+
+  const handleValidateCoupon = async (code: string) => {
+    if (!user) return { valid: false, message: 'You must be logged in.' };
+    return await validateCoupon(user.uid, code);
+  };
 
 
-  const handleSubscriptionSuccess = async () => {
+  const handleSubscriptionSuccess = async (couponCode?: string) => {
     if (!user) return;
     setIsSubscribed(true);
     const updatedUser = { ...user, plan: 'pro' as const };
     setUser(updatedUser);
     await updateUser(user.uid, { plan: 'pro' });
-    await addTransactionToUser(user.uid, { description: 'Ingcweti Pro Subscription (12 months)', amount: 74700 });
+    await addTransactionToUser(user.uid, { description: 'Ingcweti Pro Subscription (12 months)', amount: 74700 }, couponCode);
     setToastMessage("Success! Welcome to Ingcweti Pro. Your dashboard is ready.");
     setCurrentView('dashboard');
     setShowOnboardingWalkthrough(true); // Trigger walkthrough for new pro users
   };
   
-  const handleTopUpSuccess = async (amountInCents: number) => {
+  const handleTopUpSuccess = async (amountInCents: number, couponCode?: string) => {
     if (!user) return;
-    await addTransactionToUser(user.uid, { description: 'Credit Top-Up', amount: amountInCents });
+    await addTransactionToUser(user.uid, { description: 'Credit Top-Up', amount: amountInCents }, couponCode);
     const updatedUser = await getUserProfile(user.uid);
     if(updatedUser) setUser(updatedUser);
     setToastMessage(`Success! R${(amountInCents / 100).toFixed(2)} has been added to your account.`);
@@ -397,7 +438,7 @@ const App: React.FC = () => {
   const handleSelectItem = (item: Policy | Form) => {
     if (user?.plan === 'payg' && user.creditBalance < item.price) {
         setToastMessage("Insufficient credit. Please top up your account.");
-        setCurrentView('upgrade');
+        setCurrentView('topup');
         return;
     }
     setSelectedItem(item);
@@ -415,6 +456,10 @@ const App: React.FC = () => {
   
   const handleGoToUpgrade = () => {
     setCurrentView('upgrade');
+  };
+
+  const handleGoToTopUp = () => {
+    setCurrentView('topup');
   };
 
   const handleStartChecklist = () => {
@@ -571,7 +616,7 @@ const App: React.FC = () => {
                         onSelectItem={handleSelectItem} 
                         onStartUpdate={handleStartUpdate} 
                         onStartChecklist={handleStartChecklist}
-                        onGoToProfile={handleGoToUpgrade}
+                        onGoToTopUp={handleGoToTopUp}
                         generatedDocuments={generatedDocuments}
                         onViewDocument={handleViewDocument}
                         showOnboardingWalkthrough={showOnboardingWalkthrough}
@@ -605,14 +650,10 @@ const App: React.FC = () => {
                         onViewDocument={handleViewDocument}
                     />;
         case 'profile':
-        case 'upgrade':
             if (!user) { handleBackToDashboard(); return null; }
             return <ProfilePage 
                         user={user}
-                        isOnboarding={currentView === 'upgrade'}
                         onUpdateProfile={handleUpdateProfile}
-                        onSubscriptionSuccess={handleSubscriptionSuccess}
-                        onTopUpSuccess={handleTopUpSuccess}
                         onLogout={handleLogout} 
                         onBack={handleBackToDashboard}
                         generatedDocuments={generatedDocuments}
@@ -622,6 +663,25 @@ const App: React.FC = () => {
                         onViewDocument={handleViewDocument}
                         onProfilePhotoUpload={handleProfilePhotoUpload}
                         onProfilePhotoDelete={handleProfilePhotoDelete}
+                        onUpgrade={handleGoToUpgrade}
+                        onGoToTopUp={handleGoToTopUp}
+                    />;
+        case 'upgrade':
+             if (!user) { handleBackToDashboard(); return null; }
+             return <SubscriptionPage
+                        user={user}
+                        onSuccess={handleSubscriptionSuccess}
+                        onCancel={handleBackToDashboard}
+                        onValidateCoupon={handleValidateCoupon}
+                    />;
+        case 'topup':
+            if (!user || user.plan !== 'payg') { handleBackToDashboard(); return null; }
+            return <PaygPaymentPage
+                        user={user}
+                        onTopUpSuccess={handleTopUpSuccess}
+                        onCancel={handleBackToDashboard}
+                        onUpgrade={handleGoToUpgrade}
+                        onValidateCoupon={handleValidateCoupon}
                     />;
         default:
              return <Dashboard 
@@ -629,7 +689,7 @@ const App: React.FC = () => {
                         onSelectItem={handleSelectItem} 
                         onStartUpdate={handleStartUpdate} 
                         onStartChecklist={handleStartChecklist} 
-                        onGoToProfile={handleGoToUpgrade}
+                        onGoToTopUp={handleGoToTopUp}
                         generatedDocuments={generatedDocuments}
                         onViewDocument={handleViewDocument}
                         showOnboardingWalkthrough={showOnboardingWalkthrough}
@@ -655,11 +715,14 @@ const App: React.FC = () => {
                         allDocuments={allDocuments}
                         allTransactions={allTransactions}
                         adminActionLogs={adminActionLogs}
+                        allCoupons={allCoupons}
                         adminActions={{
                             updateUser: handleAdminUpdateUser,
                             adjustCredit: handleAdminAdjustCredit,
                             changePlan: handleAdminChangePlan,
                             simulateFailedPayment: handleSimulateFailedPayment,
+                            createCoupon: handleCreateCoupon,
+                            deactivateCoupon: handleDeactivateCoupon,
                         }}
                     />
                 </main>
@@ -679,7 +742,7 @@ const App: React.FC = () => {
       }
       
       if (authPage === 'login') {
-        return <Login onLogin={handleLogin} onShowLanding={() => setAuthPage('landing')} onShowPrivacyPolicy={handleShowPrivacyPolicy} onShowTerms={handleShowTerms} />;
+        return <Login onLogin={handleLogin} onForgotPassword={handleForgotPassword} onShowLanding={() => setAuthPage('landing')} onShowPrivacyPolicy={handleShowPrivacyPolicy} onShowTerms={handleShowTerms} />;
       }
 
       return <PlanSelectionPage onStartAuthFlow={handleStartAuthFlow} onShowLogin={() => setAuthPage('login')} onShowPrivacyPolicy={handleShowPrivacyPolicy} onShowTerms={handleShowTerms} />;
@@ -688,28 +751,12 @@ const App: React.FC = () => {
     // A 'pro' user who is not subscribed is always in the onboarding/payment flow.
     if (user.plan === 'pro' && !isSubscribed) {
       return (
-        <div className="min-h-screen bg-light text-secondary flex flex-col">
-          <AuthHeader />
-          <main className="container mx-auto px-6 py-8 flex-grow">
-            <ProfilePage
-              user={user}
-              isOnboarding={true}
-              onUpdateProfile={handleUpdateProfile}
-              onSubscriptionSuccess={handleSubscriptionSuccess}
-              onTopUpSuccess={handleTopUpSuccess}
-              onLogout={handleLogout}
-              onBack={handleBackToDashboard}
-              generatedDocuments={[]}
-              userFiles={[]}
-              onFileUpload={handleFileUpload}
-              onFileDownload={handleFileDownload}
-              onViewDocument={() => {}}
-              onProfilePhotoUpload={handleProfilePhotoUpload}
-              onProfilePhotoDelete={handleProfilePhotoDelete}
-            />
-          </main>
-          <AppFooter />
-        </div>
+        <SubscriptionPage
+          user={user}
+          onSuccess={handleSubscriptionSuccess}
+          onCancel={handleLogout}
+          onValidateCoupon={handleValidateCoupon}
+        />
       );
     }
 

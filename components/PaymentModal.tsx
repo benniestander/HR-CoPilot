@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { LoadingIcon, CreditCardIcon } from './Icons';
 
@@ -12,12 +11,13 @@ declare global {
 interface PaymentModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSuccess: () => void;
+  onSuccess: (couponCode?: string) => void;
   amountInCents: number;
   itemName: string;
+  couponCode?: string;
 }
 
-const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onSuccess, amountInCents, itemName }) => {
+const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onSuccess, amountInCents, itemName, couponCode }) => {
   const [formData, setFormData] = useState({ name: '', surname: '', email: '' });
   const [errors, setErrors] = useState({ name: '', surname: '', email: '' });
   const [isLoading, setIsLoading] = useState(false);
@@ -96,7 +96,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onSuccess,
         } else {
           console.log("Received Yoco token:", result.id);
           console.log("Simulating successful backend payment processing...");
-          onSuccess();
+          onSuccess(couponCode);
         }
       },
     });
