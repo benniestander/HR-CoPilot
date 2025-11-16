@@ -92,7 +92,18 @@ const Questionnaire: React.FC<QuestionnaireProps> = ({
 
 
   const handleInputChange = (id: string, value: string) => {
-    onAnswersChange({ ...answers, [id]: value });
+    const newAnswers = { ...answers, [id]: value };
+    if (id === 'effectiveDate' && value) {
+        const parts = value.split('-');
+        if (parts.length === 3) {
+            const year = parseInt(parts[0], 10);
+            if (!isNaN(year)) {
+                newAnswers['reviewDate'] = `${year + 1}-${parts[1]}-${parts[2]}`;
+            }
+        }
+    }
+
+    onAnswersChange(newAnswers);
     validateField(id, value);
   };
 
@@ -199,6 +210,8 @@ const Questionnaire: React.FC<QuestionnaireProps> = ({
             if (q.conditional && !q.conditional(answers)) {
                 return null;
             }
+            
+            const isReviewDate = q.id === 'reviewDate';
 
             if (q.type === 'checkbox') {
               return (
@@ -284,11 +297,12 @@ const Questionnaire: React.FC<QuestionnaireProps> = ({
                   id={q.id}
                   name={q.id}
                   type={q.type}
+                  readOnly={isReviewDate}
                   value={answers[q.id] || ''}
                   onChange={(e) => handleInputChange(q.id, e.target.value)}
                   onBlur={(e) => validateField(q.id, e.target.value)}
                   placeholder={q.placeholder}
-                  className={`w-full p-3 border rounded-md shadow-sm focus:ring-primary focus:border-primary ${errors[q.id] ? 'border-red-500' : 'border-gray-300'}`}
+                  className={`w-full p-3 border rounded-md shadow-sm focus:ring-primary focus:border-primary ${errors[q.id] ? 'border-red-500' : 'border-gray-300'} ${isReviewDate ? 'bg-gray-100 cursor-not-allowed' : ''}`}
                 />
               )}
                {errors[q.id] && <p className="text-red-600 text-xs mt-1">{errors[q.id]}</p>}

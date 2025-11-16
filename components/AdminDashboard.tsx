@@ -1,5 +1,6 @@
 
 
+
 import React, { useState, useMemo } from 'react';
 import type { User, GeneratedDocument, Transaction, AdminActionLog, Coupon } from '../types';
 import { UserIcon, MasterPolicyIcon, FormsIcon, SearchIcon, CreditCardIcon, HistoryIcon, DownloadIcon, CouponIcon } from './Icons';
@@ -65,6 +66,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ allUsers, allDocuments,
     const paygUsers = allUsers.filter(u => u.plan === 'payg').length;
     
     // Revenue should only count actual user payments (subscriptions, top-ups), not admin-granted credits.
+    // FIX: Added Number() casts to ensure arithmetic operations are safe even if values are strings.
     const totalRevenue = allTransactions
       .filter(tx => !tx.description.startsWith('Admin adjustment:'))
       .reduce((acc, tx) => (Number(tx.amount) > 0 ? Number(acc) + Number(tx.amount) : Number(acc)), 0);

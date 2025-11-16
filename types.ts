@@ -140,7 +140,8 @@ export type FormType =
   | 'resignation-acceptance-letter'
   | 'payroll-processing-checklist';
 
-export type InputType = 'text' | 'number' | 'textarea' | 'select' | 'checkbox';
+// FIX: Added 'date' to the InputType to allow for date inputs in forms.
+export type InputType = 'text' | 'number' | 'textarea' | 'select' | 'checkbox' | 'date';
 
 export interface Question {
   id: string;

@@ -6,6 +6,7 @@ import PolicyPreview from './PolicyPreview';
 import { generatePolicyStream, generateFormStream } from '../services/geminiService';
 import type { Policy, Form, CompanyProfile, FormAnswers, GeneratedDocument, AppStatus, Source } from '../types';
 import { marked } from 'https://esm.sh/marked@12';
+import { CheckIcon } from './Icons';
 
 
 interface GeneratorPageProps {
@@ -35,6 +36,7 @@ const GeneratorPage: React.FC<GeneratorPageProps> = ({ selectedItem, initialData
     const [sources, setSources] = useState<Source[]>(initialData?.sources || []);
     const [status, setStatus] = useState<AppStatus>(initialData ? 'success' : 'idle');
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
+    const [finalizedDoc, setFinalizedDoc] = useState<GeneratedDocument | null>(initialData);
     
     const isLivePreviewVisible = currentStep === 2 && companyProfile;
 
@@ -102,15 +104,20 @@ const GeneratorPage: React.FC<GeneratorPageProps> = ({ selectedItem, initialData
                 sources: finalSources,
                 version: initialData?.version || 0 // Version is handled by parent
             };
-            onDocumentGenerated(newDoc, initialData?.id);
-
+            setFinalizedDoc(newDoc);
 
         } catch (error: any) {
             console.error('Failed to generate document:', error);
             setStatus('error');
             setErrorMessage(error.message || 'An unexpected error occurred. Please try again.');
         }
-    }, [selectedItem, companyProfile, questionAnswers, initialData, onDocumentGenerated]);
+    }, [selectedItem, companyProfile, questionAnswers, initialData]);
+
+    const handleSaveDocument = () => {
+        if (finalizedDoc) {
+            onDocumentGenerated(finalizedDoc, initialData?.id);
+        }
+    };
 
     const LivePreview: React.FC = () => {
       const [liveHtml, setLiveHtml] = useState('');
@@ -170,15 +177,31 @@ const GeneratorPage: React.FC<GeneratorPageProps> = ({ selectedItem, initialData
                     return null;
                 }
                 return (
-                     <PolicyPreview
-                        policyText={generatedDocument}
-                        status={status}
-                        onRetry={handleGenerate}
-                        isForm={selectedItem.kind === 'form'}
-                        outputFormat={selectedItem.kind === 'form' ? selectedItem.outputFormat : 'word'}
-                        sources={sources}
-                        errorMessage={errorMessage}
-                    />
+                    <div>
+                        <PolicyPreview
+                            policyText={generatedDocument}
+                            status={status}
+                            onRetry={handleGenerate}
+                            isForm={selectedItem.kind === 'form'}
+                            outputFormat={selectedItem.kind === 'form' ? selectedItem.outputFormat : 'word'}
+                            sources={sources}
+                            errorMessage={errorMessage}
+                        />
+                        {status === 'success' && (
+                             <div className="mt-8 flex justify-between items-center bg-white p-6 rounded-lg shadow-md border border-gray-200">
+                                <button onClick={onBack} className="text-sm font-semibold text-gray-600 hover:text-primary transition-colors">
+                                    Cancel & Start Over
+                                </button>
+                                <button
+                                    onClick={handleSaveDocument}
+                                    className="bg-green-600 text-white font-bold py-3 px-6 rounded-md hover:bg-green-700 transition-colors flex items-center"
+                                >
+                                    <CheckIcon className="w-5 h-5 mr-2" />
+                                    Save Document
+                                </button>
+                            </div>
+                        )}
+                    </div>
                 );
             default:
                 return null;

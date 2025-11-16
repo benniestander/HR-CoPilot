@@ -1,4 +1,5 @@
 
+
 import React from 'react';
 import {
   LeaveIcon,
@@ -171,8 +172,8 @@ const commonQuestions = [
 ];
 
 const commonPolicyMetadataQuestions = [
-  { id: 'effectiveDate', label: 'Effective Date', type: 'text' as const, placeholder: 'e.g., 01 November 2024', tip: 'The date from which this policy is active.' },
-  { id: 'reviewDate', label: 'Next Review Date', type: 'text' as const, placeholder: 'e.g., 01 November 2025', tip: 'The date when this policy should be reviewed, typically one year from the effective date.' },
+  { id: 'effectiveDate', label: 'Effective Date', type: 'date' as const, tip: 'The date from which this policy is active.' },
+  { id: 'reviewDate', label: 'Next Review Date', type: 'date' as const, tip: 'This is automatically set to one year from the Effective Date.' },
 ];
 
 const employeeAndManagerQuestions = [
@@ -1766,8 +1767,245 @@ export const FORMS: Record<FormType, Form> = {
   },
 };
 
-export const FORM_BASE_TEMPLATES: Partial<Record<FormType, string>> = {};
-export const FORM_ENRICHMENT_PROMPTS: Partial<Record<FormType, string>> = {};
+export const FORM_BASE_TEMPLATES: Partial<Record<FormType, string>> = {
+  'job-application': `
+# Job Application Form
+**Company:** [companyName]
+**Position Applied For:** [position]
+
+### Personal Details
+- **Full Name:** _________________________
+- **ID/Passport Number:** _________________________
+- **Contact Number:** _________________________
+- **Email Address:** _________________________
+- **Residential Address:** _________________________
+
+### Employment History (Most Recent First)
+1. **Company:** ____________________ **Position:** ____________________ **Dates:** ____________
+2. **Company:** ____________________ **Position:** ____________________ **Dates:** ____________
+
+### Education & Qualifications
+- **Highest Qualification:** _________________________
+- **Institution:** _________________________
+- **Year Completed:** _________________________
+
+### References
+Please provide two professional references.
+1. **Name:** ____________________ **Company:** ____________________ **Contact:** ____________
+2. **Name:** ____________________ **Company:** ____________________ **Contact:** ____________
+
+### Declaration
+I, the undersigned, declare that the information provided in this application is true and correct to the best of my knowledge.
+**Signature:** _________________________
+**Date:** _________________________
+`,
+  'employee-details': `
+# Employee Details Form
+**Company:** [companyName]
+
+### Personal Information
+- **Full Name:** _________________________
+- **ID Number:** _________________________
+- **Date of Birth:** _________________________
+- **Gender:** _________________________
+- **Nationality:** _________________________
+- **Tax Number:** _________________________
+
+### Contact Information
+- **Residential Address:** _________________________
+- **Mobile Number:** _________________________
+- **Work Number:** _________________________
+- **Personal Email:** _________________________
+
+### Emergency Contact
+- **Contact Name:** _________________________
+- **Relationship:** _________________________
+- **Contact Number:** _________________________
+
+### Declaration
+I confirm that the above information is accurate and I will inform HR of any changes.
+**Signature:** _________________________
+**Date:** _________________________
+`,
+  'leave-application': `
+# Leave Application Form
+**Company:** [companyName]
+
+### Employee Details
+- **Employee Name:** _________________________
+- **Department:** _________________________
+- **Position:** _________________________
+
+### Leave Details
+- **Type of Leave:** 
+  - [ ] Annual 
+  - [ ] Sick 
+  - [ ] Family Responsibility 
+  - [ ] Maternity/Paternity 
+  - [ ] Unpaid
+- **Start Date:** _________________________
+- **End Date:** _________________________
+- **Total Days:** _________________________
+
+### Reason for Leave (If applicable)
+__________________________________________________
+
+**Employee Signature:** _________________________ **Date:** _________________
+
+---
+### For Office Use Only
+- **Approved / Rejected**
+- **Manager:** [approvingManager]
+- **Signature:** _________________________ **Date:** _________________
+`,
+  'final-written-warning': `
+# Final Written Warning
+**Company:** [companyName]
+
+- **Employee Name:** [employeeName]
+- **Date:** _________________________
+- **Issued by:** [managerName]
+
+This serves as a **final written warning** concerning your (misconduct / poor performance).
+
+### Details of Transgression
+On (date), you (describe the incident/issue in detail). This is a breach of the company's disciplinary code, specifically section (X).
+
+### Previous Warnings
+- Verbal Warning on (date)
+- First Written Warning on (date)
+
+### Required Improvement
+You are required to (state the expected change in behavior or performance).
+
+### Consequences of Non-Compliance
+Failure to meet these requirements or any further breach of the company's code of conduct will result in further disciplinary action, which may include your dismissal.
+
+### Employee's Comments
+__________________________________________________
+
+**Employee Signature:** _________________________ **Date:** _________________
+(Your signature confirms receipt of this warning, not necessarily agreement with its content)
+
+**Manager Signature:** _________________________ **Date:** _________________
+`,
+  'exit-interview': `
+# Exit Interview Questionnaire
+**Company:** [companyName]
+
+- **Employee Name:** _________________________
+- **Date of Interview:** _________________________
+- **Interviewer:** _________________________
+
+1. **What was your primary reason for leaving the company?**
+   __________________________________________________
+
+2. **What did you like most about your job and working here?**
+   __________________________________________________
+
+3. **What did you like least about your job and working here?**
+   __________________________________________________
+
+4. **Do you feel you were provided with the resources and support to succeed in your role?**
+   __________________________________________________
+
+5. **Do you have any suggestions for improving the company, culture, or this role?**
+   __________________________________________________
+`,
+  'grievance-form': `
+# Grievance Lodging Form
+**Company:** [companyName]
+**Recipient:** [grievanceRecipient]
+
+### Employee Details
+- **Name:** _________________________
+- **Department:** _________________________
+
+### Grievance Details
+- **Date of Incident:** _________________________
+- **Nature of Grievance:** (Please describe the issue clearly and factually)
+  __________________________________________________
+  __________________________________________________
+
+- **Desired Outcome/Resolution:**
+  __________________________________________________
+
+**Employee Signature:** _________________________ **Date:** _________________
+`,
+  'job-description': `
+# Job Description
+**Company:** [companyName]
+
+- **Job Title:** [jobTitle]
+- **Department:** [department]
+- **Reports to:** _________________________
+- **Location:** _________________________
+
+### Job Summary
+A brief, one-paragraph summary of the role's purpose.
+
+### Key Responsibilities
+- 
+- 
+- 
+
+### Qualifications & Experience
+- 
+- 
+
+### Skills & Competencies
+- 
+- 
+`,
+  'employment-contract': `
+# Contract of Employment
+**Between:** [companyName]
+**And:** [employeeName]
+
+This document constitutes a contract of permanent employment between the parties mentioned above.
+
+1. **Position:** _________________________
+2. **Commencement Date:** _________________________
+3. **Place of Work:** _________________________
+4. **Remuneration:** R_________ per month.
+5. **Working Hours:** _________________________
+6. **Leave:** In accordance with the Basic Conditions of Employment Act (BCEA).
+7. **Termination:** Notice period of ______ weeks.
+
+**Signed at** _______________ **on this** ______ **day of** __________________ **20__**.
+
+**For the Employer:** _________________________
+[managerName]
+
+**Employee:** _________________________
+[employeeName]
+`,
+  'onboarding-checklist': `
+| Task                               | Department | Completed (Y/N) | Date | Notes |
+|------------------------------------|------------|-------------------|------|-------|
+| **Pre-Arrival**                    |            |                   |      |       |
+| Prepare workstation & equipment    | IT/Admin   |                   |      |       |
+| Set up email and system access     | IT         |                   |      |       |
+| Send welcome email to new hire     | HR/Manager |                   |      |       |
+| **Day 1**                          |            |                   |      |       |
+| Welcome and team introductions     | Manager    |                   |      |       |
+| Office tour                        | HR/Manager |                   |      |       |
+| Complete HR paperwork              | HR         |                   |      |       |
+| Review job description & goals     | Manager    |                   |      |       |
+| **Week 1**                         |            |                   |      |       |
+| Initial training on key systems    | Manager/Team|                   |      |       |
+| Review company policies/handbook   | HR         |                   |      |       |
+| First weekly check-in              | Manager    |                   |      |       |
+`,
+  // Add other templates here... many will be simple headers.
+};
+
+export const FORM_ENRICHMENT_PROMPTS: Partial<Record<FormType, string>> = {
+  'leave-application': 'Add a note explaining that for sick leave longer than two days, a medical certificate may be required as per the BCEA.',
+  'employment-contract': 'Include standard clauses for a permanent employment contract in South Africa, such as probation period, duties, remuneration, and termination. Ensure it refers to the BCEA.',
+  'final-written-warning': 'Emphasize that this is a final warning and that further transgression may lead to dismissal. Include a section for the employee to acknowledge receipt and to state whether they agree or disagree with the warning.',
+  'grievance-form': 'Add a field for the employee to state the desired outcome or resolution they are seeking.',
+};
 
 export const INDUSTRIES = [
   'Technology',
