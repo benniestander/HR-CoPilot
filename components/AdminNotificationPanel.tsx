@@ -1,6 +1,6 @@
 import React from 'react';
 import type { AdminNotification } from '../types';
-import { UserIcon, CreditCardIcon, DotIcon } from './Icons';
+import { UserIcon, CreditCardIcon, DotIcon, SecurityIcon } from './Icons';
 
 interface AdminNotificationPanelProps {
   notifications: AdminNotification[];
@@ -14,6 +14,8 @@ const NotificationIcon: React.FC<{ type: AdminNotification['type'] }> = ({ type 
             return <UserIcon className="w-5 h-5 text-green-500" />;
         case 'payment_failed':
             return <CreditCardIcon className="w-5 h-5 text-red-500" />;
+        case 'password_reset_request':
+            return <SecurityIcon className="w-5 h-5 text-blue-500" />;
         default:
             return <UserIcon className="w-5 h-5 text-gray-500" />;
     }

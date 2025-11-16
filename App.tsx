@@ -62,6 +62,7 @@ import {
   getCoupons,
   deactivateCoupon,
   validateCoupon,
+  createAdminNotification,
 } from './services/firestoreService';
 
 type AuthPage = 'landing' | 'login' | 'email-sent' | 'verify-email';
@@ -233,7 +234,10 @@ const App: React.FC = () => {
   const handleForgotPassword = async (email: string) => {
     try {
       await sendPasswordResetEmail(auth, email);
-      setToastMessage(`Password reset email sent to ${email}. Please check your inbox.`);
+      await createAdminNotification({
+        type: 'password_reset_request',
+        message: `User with email ${email} requested a password reset.`,
+      });
     } catch (error: any) {
       setToastMessage(`Error: ${error.message}`);
       throw error;

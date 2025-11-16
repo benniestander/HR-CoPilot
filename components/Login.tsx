@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 
 interface LoginProps {
@@ -14,7 +13,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onForgotPassword, onShowLanding,
     const [password, setPassword] = useState('');
     const [emailError, setEmailError] = useState('');
     const [loading, setLoading] = useState(false);
-    const [view, setView] = useState<'login' | 'reset'>('login');
+    const [view, setView] = useState<'login' | 'reset' | 'reset-sent'>('login');
 
     const validateEmail = (value: string) => {
         if (!value) {
@@ -57,9 +56,9 @@ const Login: React.FC<LoginProps> = ({ onLogin, onForgotPassword, onShowLanding,
         setLoading(true);
         try {
             await onForgotPassword(email);
-            // On success, a toast is shown. We can leave the user on this screen.
+            setView('reset-sent');
         } catch (error) {
-            // On error, a toast is shown.
+            // On error, a toast is shown by App.tsx
         } finally {
             setLoading(false);
         }
@@ -175,6 +174,26 @@ const Login: React.FC<LoginProps> = ({ onLogin, onForgotPassword, onShowLanding,
         </>
     );
 
+    const renderResetSentView = () => (
+        <>
+            <h1 className="text-2xl font-bold text-secondary mb-2">Check Your Email</h1>
+            <div className="my-6">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16 text-primary mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                </svg>
+            </div>
+            <p className="text-gray-600 mb-6">
+                We've sent a password reset link to <strong className="text-secondary">{email}</strong>. Please click the link to reset your password.
+            </p>
+            <button
+                onClick={() => { setView('login'); setEmail(''); setPassword(''); }}
+                className="w-full bg-primary text-white font-bold py-3 px-4 rounded-md hover:bg-opacity-90"
+            >
+                Back to Sign In
+            </button>
+        </>
+    );
+
     return (
         <div className="min-h-screen bg-light text-secondary flex flex-col">
             <header className="bg-white shadow-sm py-6">
@@ -189,7 +208,9 @@ const Login: React.FC<LoginProps> = ({ onLogin, onForgotPassword, onShowLanding,
             <main className="flex-grow container mx-auto flex items-center justify-center px-6 py-8">
                 <div className="w-full max-w-md">
                     <div className="bg-white p-8 rounded-lg shadow-md border border-gray-200 text-center">
-                        {view === 'login' ? renderLoginView() : renderResetView()}
+                        {view === 'login' && renderLoginView()}
+                        {view === 'reset' && renderResetView()}
+                        {view === 'reset-sent' && renderResetSentView()}
                     </div>
                 </div>
             </main>

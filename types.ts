@@ -277,7 +277,7 @@ export type AdminActionLog = {
 export type AdminNotification = {
   id: string;
   timestamp: string; // ISO String
-  type: 'new_user' | 'payment_failed' | 'important_update';
+  type: 'new_user' | 'payment_failed' | 'important_update' | 'password_reset_request';
   message: string;
   isRead: boolean;
   relatedUserId?: string;
