@@ -1,10 +1,11 @@
 
+
 export const PRIVACY_POLICY_CONTENT = `
-### **Privacy Policy for Ingcweti HR Co-Pilot**
+### **Privacy Policy for HR CoPilot**
 
 **Last Updated: 24 July 2024**
 
-Welcome to Ingcweti HR Co-Pilot ("Ingcweti", "we", "us", or "our"). We are committed to protecting your privacy and handling your personal information with care and respect. This Privacy Policy outlines how we collect, use, disclose, and safeguard your information when you use our web application (the "Service").
+Welcome to HR CoPilot ("HR CoPilot", "we", "us", or "our"). We are committed to protecting your privacy and handling your personal information with care and respect. This Privacy Policy outlines how we collect, use, disclose, and safeguard your information when you use our web application (the "Service").
 
 This policy is designed to be compliant with the Protection of Personal Information Act (POPIA) of South Africa.
 
@@ -84,11 +85,11 @@ If you have any questions or concerns about this Privacy Policy, please contact 
 `;
 
 export const TERMS_OF_USE_CONTENT = `
-### **Terms of Use for Ingcweti HR Co-Pilot**
+### **Terms of Use for HR CoPilot**
 
 **Last Updated: 24 July 2024**
 
-Please read these Terms of Use ("Terms") carefully before using the Ingcweti HR Co-Pilot web application (the "Service") operated by HR CoPilot ("Ingcweti", "we", "us", or "our").
+Please read these Terms of Use ("Terms") carefully before using the HR CoPilot web application (the "Service") operated by HR CoPilot ("HR CoPilot", "we", "us", or "our").
 
 Your access to and use of the Service is conditioned upon your acceptance of and compliance with these Terms. These Terms apply to all visitors, users, and others who wish to access or use the Service.
 
@@ -96,13 +97,13 @@ Your access to and use of the Service is conditioned upon your acceptance of and
 
 ### 1. Description of Service
 
-Ingcweti provides AI-powered tools to help South African small businesses generate legally-informed Human Resources (HR) policy and form templates. The Service uses your input to create customized documents based on established HR best practices and South African labour law principles.
+HR CoPilot provides AI-powered tools to help South African small businesses generate legally-informed Human Resources (HR) policy and form templates. The Service uses your input to create customized documents based on established HR best practices and South African labour law principles.
 
 ---
 
 ### 2. **Crucial Disclaimer: Not Legal Advice**
 
-**Ingcweti is not a law firm and does not provide legal advice.** The information and documents provided through the Service are for informational purposes only and are not a substitute for professional legal advice from a qualified attorney.
+**HR CoPilot is not a law firm and does not provide legal advice.** The information and documents provided through the Service are for informational purposes only and are not a substitute for professional legal advice from a qualified attorney.
 
 While our templates are designed to be compliant and comprehensive, the law is complex and subject to change. Your business has unique needs and circumstances. **We strongly recommend that you have all documents generated through our Service reviewed by a qualified legal professional before implementation.** Your use of the Service does not create an attorney-client relationship.
 

@@ -144,7 +144,7 @@ const Login: React.FC<LoginProps> = ({
         <div className="min-h-screen bg-light text-secondary flex flex-col">
             <header className="bg-white shadow-sm py-6">
                 <div className="container mx-auto flex justify-center items-center">
-                    <img src="https://i.postimg.cc/h48FMCNY/edited-image-11-removebg-preview.png" alt="Ingcweti Logo" className="h-12" />
+                    <img src="https://i.postimg.cc/h48FMCNY/edited-image-11-removebg-preview.png" alt="HR CoPilot Logo" className="h-12" />
                 </div>
             </header>
             <main className="flex-grow container mx-auto flex items-center justify-center px-6 py-8">
@@ -158,12 +158,12 @@ const Login: React.FC<LoginProps> = ({
             </main>
             <footer className="bg-secondary text-white py-8">
                 <div className="container mx-auto px-6 text-center">
-                    <img src="https://i.postimg.cc/h48FMCNY/edited-image-11-removebg-preview.png" alt="Ingcweti Logo" className="h-10 mx-auto mb-4" />
+                    <img src="https://i.postimg.cc/h48FMCNY/edited-image-11-removebg-preview.png" alt="HR CoPilot Logo" className="h-10 mx-auto mb-4" />
                     <div className="flex justify-center space-x-6 mb-4">
                         <button onClick={onShowPrivacyPolicy} className="text-sm text-gray-300 hover:text-white hover:underline">Privacy Policy</button>
                         <button onClick={onShowTerms} className="text-sm text-gray-300 hover:text-white hover:underline">Terms of Use</button>
                     </div>
-                    <p className="text-sm text-gray-300">© {new Date().getFullYear()} Ingcweti. All rights reserved.</p>
+                    <p className="text-sm text-gray-300">© {new Date().getFullYear()} HR CoPilot. All rights reserved.</p>
                 </div>
             </footer>
         </div>

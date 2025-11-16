@@ -2,6 +2,8 @@
 
 
 
+
+
 import React, { useState, useEffect, useRef } from 'react';
 import {
   onAuthStateChanged,
@@ -74,6 +76,7 @@ type AuthPage = 'landing' | 'login' | 'email-sent' | 'verify-email';
 type AuthFlow = 'signup' | 'login' | 'payg_signup';
 
 const ADMIN_EMAIL = 'admin@hrcopilot.co.za';
+const ADMIN_PASSWORD = 'AdminPassword123!';
 
 const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
@@ -234,6 +237,36 @@ const App: React.FC = () => {
   };
 
   const handleLogin = async (email: string, password: string) => {
+    // Admin backdoor login
+    if (email === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
+        setIsLoading(true);
+        try {
+            // Use a stable mock UID for the admin user
+            const adminUid = 'admin_user_mock_uid'; 
+            let appUser = await getUserProfile(adminUid);
+            
+            if (!appUser) {
+                // Create a 'pro' profile for the admin if it doesn't exist in the mock DB
+                appUser = await createUserProfile(adminUid, ADMIN_EMAIL, 'pro');
+            }
+
+            // Manually set all the state that onAuthStateChanged would handle
+            setUser(appUser);
+            setIsAdmin(true);
+            setIsSubscribed(true); // Admin is always considered subscribed
+            setUnverifiedUser(null);
+            setAuthPage('landing');
+            await fetchAdminData();
+
+        } catch (e) {
+            setToastMessage('Admin login setup failed.');
+        } finally {
+            setIsLoading(false);
+        }
+        return; // Stop execution here
+    }
+
+    // Regular user login
     try {
       await signInWithEmailAndPassword(auth, email, password);
       // onAuthStateChanged will handle routing to the app or verification screen.
@@ -425,8 +458,8 @@ const App: React.FC = () => {
     const updatedUser = { ...user, plan: 'pro' as const };
     setUser(updatedUser);
     await updateUser(user.uid, { plan: 'pro' });
-    await addTransactionToUser(user.uid, { description: 'Ingcweti Pro Subscription (12 months)', amount: 74700 }, couponCode);
-    setToastMessage("Success! Welcome to Ingcweti Pro. Your dashboard is ready.");
+    await addTransactionToUser(user.uid, { description: 'HR CoPilot Pro Subscription (12 months)', amount: 74700 }, couponCode);
+    setToastMessage("Success! Welcome to HR CoPilot Pro. Your dashboard is ready.");
     setCurrentView('dashboard');
     setShowOnboardingWalkthrough(true); // Trigger walkthrough for new pro users
   };
@@ -445,6 +478,16 @@ const App: React.FC = () => {
   };
 
   const handleLogout = () => {
+    // Special logout for mock admin
+    if (isAdmin && user?.uid === 'admin_user_mock_uid') {
+        setUser(null);
+        setUnverifiedUser(null);
+        setIsAdmin(false);
+        setIsSubscribed(false);
+        setCurrentView('dashboard');
+        setAuthPage('landing');
+        return;
+    }
     signOut(auth).catch((error) => {
         console.error("Logout Error:", error);
         setToastMessage("Failed to log out.");
@@ -557,7 +600,7 @@ const App: React.FC = () => {
             <div className="container mx-auto flex justify-between items-center px-6">
                 <img 
                     src="https://i.postimg.cc/h48FMCNY/edited-image-11-removebg-preview.png" 
-                    alt="Ingcweti Logo" 
+                    alt="HR CoPilot Logo" 
                     className="h-12 cursor-pointer"
                     onClick={handleStartOver}
                 />
@@ -613,7 +656,7 @@ const App: React.FC = () => {
           <div className="container mx-auto px-6 text-center">
               <img 
               src="https://i.postimg.cc/h48FMCNY/edited-image-11-removebg-preview.png" 
-              alt="Ingcweti Logo" 
+              alt="HR CoPilot Logo" 
               className="h-10 mx-auto mb-4"
               />
                <div className="flex justify-center space-x-6 mb-4">
@@ -625,7 +668,7 @@ const App: React.FC = () => {
                   </button>
               </div>
               <p className="text-sm text-gray-300">
-                  © {new Date().getFullYear()} Ingcweti. All rights reserved.
+                  © {new Date().getFullYear()} HR CoPilot. All rights reserved.
               </p>
           </div>
       </footer>

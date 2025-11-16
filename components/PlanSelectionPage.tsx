@@ -120,7 +120,7 @@ const PlanSelectionPage: React.FC<PlanSelectionPageProps> = ({ onStartAuthFlow, 
         <div className="min-h-screen bg-white text-secondary flex flex-col">
             <header className="py-6">
                 <div className="container mx-auto flex justify-between items-center px-6">
-                    <img src="https://i.postimg.cc/h48FMCNY/edited-image-11-removebg-preview.png" alt="Ingcweti Logo" className="h-12" />
+                    <img src="https://i.postimg.cc/h48FMCNY/edited-image-11-removebg-preview.png" alt="HR CoPilot Logo" className="h-12" />
                     <div className="text-sm">
                         <span>Already have an account? </span>
                         <button onClick={onShowLogin} className="font-semibold text-primary hover:underline">Sign In</button>
@@ -130,7 +130,7 @@ const PlanSelectionPage: React.FC<PlanSelectionPageProps> = ({ onStartAuthFlow, 
             <main className="flex-grow container mx-auto flex flex-col items-center px-6 py-12">
                 <div className="w-full max-w-2xl">
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-10">
-                        <PlanSelectorCard plan="pro" title="Ingcweti Pro" price="R747 / year" badge="Recommended" />
+                        <PlanSelectorCard plan="pro" title="HR CoPilot Pro" price="R747 / year" badge="Recommended" />
                         <PlanSelectorCard plan="payg" title="Pay-As-You-Go" price="Pay per document" />
                     </div>
 
@@ -142,7 +142,7 @@ const PlanSelectionPage: React.FC<PlanSelectionPageProps> = ({ onStartAuthFlow, 
                             ))}
                         </div>
                         <div className="mt-6 pt-6 border-t border-gray-200">
-                             <h3 className="text-lg font-bold text-primary mb-3">Ingcweti Pro adds:</h3>
+                             <h3 className="text-lg font-bold text-primary mb-3">HR CoPilot Pro adds:</h3>
                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-3 max-w-lg mx-auto text-left">
                                 <div className="flex items-center"><CheckIcon className="w-5 h-5 text-green-500 mr-3" /><span>Unlimited document generation</span></div>
                                 <div className="flex items-center"><CheckIcon className="w-5 h-5 text-green-500 mr-3" /><span>AI Compliance Checklist</span></div>
@@ -221,7 +221,7 @@ const PlanSelectionPage: React.FC<PlanSelectionPageProps> = ({ onStartAuthFlow, 
                             Terms of Use
                         </button>
                     </div>
-                    <p className="text-sm text-gray-300">© {new Date().getFullYear()} Ingcweti. All rights reserved.</p>
+                    <p className="text-sm text-gray-300">© {new Date().getFullYear()} HR CoPilot. All rights reserved.</p>
                 </div>
             </footer>
         </div>

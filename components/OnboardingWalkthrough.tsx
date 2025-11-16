@@ -8,7 +8,7 @@ interface OnboardingWalkthroughProps {
 const tourSteps = [
   {
     icon: MasterPolicyIcon,
-    title: 'Welcome to Ingcweti!',
+    title: 'Welcome to HR CoPilot!',
     content: "Let's take a quick tour to show you how to get the most out of your HR Co-Pilot.",
   },
   {
