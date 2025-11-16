@@ -88,6 +88,7 @@ export const createUserProfile = async (
     return existingUser;
   }
 
+  const clientTimestamp = new Date().toISOString();
   const newUser: User = {
     uid,
     email,
@@ -100,12 +101,12 @@ export const createUserProfile = async (
       companyName: '',
       industry: '',
     },
-    createdAt: new Date().toISOString(), // This will be replaced by serverTimestamp on write
+    createdAt: clientTimestamp, // Use client time for the immediate return
   };
 
   await setDoc(doc(firestore, 'users', uid), {
     ...newUser,
-    createdAt: serverTimestamp(),
+    createdAt: serverTimestamp(), // Write server time to Firestore
   });
 
   if (email !== 'admin@hrcopilot.co.za') {
@@ -116,9 +117,8 @@ export const createUserProfile = async (
     });
   }
 
-  // Refetch the user to get the server-generated timestamp correctly
-  const createdUser = await getUserProfile(uid);
-  return createdUser!;
+  // Return the user object created on the client to avoid a race condition with refetching.
+  return newUser;
 };
 
 export const updateUser = async (uid: string, userData: Partial<User>): Promise<void> => {
@@ -467,17 +467,3 @@ export const validateCoupon = async (uid: string, code: string): Promise<{ valid
     
     return { valid: true, message: 'Coupon applied successfully!', coupon };
 };
-
-
-// --- Admin Backdoor Setup ---
-// This ensures the admin user exists in Firestore for the backdoor login to work.
-const setupAdminUserIfNeeded = async () => {
-  const adminUid = 'admin_user_firestore_uid';
-  const adminDoc = await getDoc(doc(firestore, 'users', adminUid));
-  if (!adminDoc.exists()) {
-    console.log("Admin user not found in Firestore, creating...");
-    await createUserProfile(adminUid, 'admin@hrcopilot.co.za', 'pro', 'Admin');
-  }
-};
-
-setupAdminUserIfNeeded();

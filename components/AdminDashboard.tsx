@@ -1,4 +1,5 @@
 
+
 import React, { useState, useMemo } from 'react';
 import type { User, GeneratedDocument, Transaction, AdminActionLog, Coupon } from '../types';
 import { UserIcon, MasterPolicyIcon, FormsIcon, SearchIcon, CreditCardIcon, HistoryIcon, DownloadIcon, CouponIcon } from './Icons';
@@ -248,7 +249,7 @@ const CouponManager: React.FC<{ coupons: Coupon[], onCreateCoupon: (data: any) =
                 {coupons.map(c => (
                     <tr key={c.id}>
                         <td className="px-4 py-3 whitespace-nowrap font-mono text-sm font-semibold">{c.code}</td>
-                        {/* FIX: Cast c.value to Number to ensure arithmetic operation is valid. */}
+                        {/* FIX: Cast `c.value` to a number to allow for arithmetic operations, resolving a TypeScript error. */}
                         <td className="px-4 py-3 whitespace-nowrap text-sm">{c.type === 'percentage' ? `${c.value}%` : `R${(Number(c.value) / 100).toFixed(2)}`}</td>
                         <td className="px-4 py-3 whitespace-nowrap text-sm">{c.uses} / {c.maxUses || '∞'}</td>
                         <td className="px-4 py-3 whitespace-nowrap text-sm">{c.expiresAt ? new Date(c.expiresAt).toLocaleDateString() : 'Never'}</td>

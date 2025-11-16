@@ -250,7 +250,7 @@ const App: React.FC = () => {
             
             if (!appUser) {
                 // Create a 'pro' profile for the admin if it doesn't exist
-                appUser = await createUserProfile(adminUid, ADMIN_EMAIL, 'pro');
+                appUser = await createUserProfile(adminUid, ADMIN_EMAIL, 'pro', 'Admin');
             }
 
             // Manually set all the state that onAuthStateChanged would handle
