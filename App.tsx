@@ -36,6 +36,7 @@ import PaymentModal from './components/PaymentModal';
 import LegalModal from './components/LegalModal';
 import AdminDashboard from './components/AdminDashboard';
 import AdminNotificationPanel from './components/AdminNotificationPanel';
+import InitialProfileSetup from './components/InitialProfileSetup';
 
 
 import type { Policy, Form, GeneratedDocument, PolicyType, FormType, CompanyProfile, User, Transaction, AdminActionLog, AdminNotification, UserFile, Coupon } from './types';
@@ -87,6 +88,7 @@ const App: React.FC = () => {
   const [authPage, setAuthPage] = useState<AuthPage>('landing');
   const [authEmail, setAuthEmail] = useState<string | null>(null);
   const [authFlow, setAuthFlow] = useState<AuthFlow | null>(null);
+  const [needsOnboarding, setNeedsOnboarding] = useState(false);
   const [showOnboardingWalkthrough, setShowOnboardingWalkthrough] = useState(false);
 
 
@@ -173,12 +175,16 @@ const App: React.FC = () => {
 
           appUser = await createUserProfile(firebaseUser.uid, firebaseUser.email!, plan, details?.name || firebaseUser.displayName || undefined, details?.contactNumber);
 
-          if (plan === 'payg') {
-            setCurrentView('upgrade');
-          }
           // Clean up local storage after profile creation
           window.localStorage.removeItem('authFlow');
           window.localStorage.removeItem('authDetails');
+        }
+
+        // Onboarding Check: If essential profile info is missing, trigger the setup flow.
+        if (appUser && (!appUser.profile.companyName || !appUser.profile.industry)) {
+            setNeedsOnboarding(true);
+        } else {
+            setNeedsOnboarding(false);
         }
 
         setUser(appUser);
@@ -208,6 +214,7 @@ const App: React.FC = () => {
         setUserFiles([]);
         setDocumentToView(null);
         setShowOnboardingWalkthrough(false);
+        setNeedsOnboarding(false);
         setAllUsers([]);
         setAllDocuments([]);
         setAuthPage('landing');
@@ -330,6 +337,16 @@ const App: React.FC = () => {
     setUser(updatedUser);
     await updateUser(user.uid, { profile: updatedProfile });
     setToastMessage("Profile updated successfully!");
+  };
+
+  const handleInitialProfileSubmit = async (profileData: CompanyProfile) => {
+    if (!user) return;
+    
+    const updatedProfile = { ...user.profile, ...profileData };
+    await handleUpdateProfile(updatedProfile); // Re-use the existing function
+    
+    setNeedsOnboarding(false);
+    setShowOnboardingWalkthrough(true); // Trigger guided tour
   };
 
   const handleProfilePhotoUpload = async (file: File) => {
@@ -812,7 +829,7 @@ const App: React.FC = () => {
       return <PlanSelectionPage onStartAuthFlow={handleStartAuthFlow} onStartGoogleAuthFlow={handleStartGoogleAuthFlow} onShowLogin={() => setAuthPage('login')} onShowPrivacyPolicy={handleShowPrivacyPolicy} onShowTerms={handleShowTerms} />;
     }
     
-    // A 'pro' user who is not subscribed is always in the onboarding/payment flow.
+    // A 'pro' user who has not paid is always in the subscription flow.
     if (user.plan === 'pro' && !isSubscribed) {
       return (
         <SubscriptionPage
@@ -824,7 +841,12 @@ const App: React.FC = () => {
       );
     }
 
-    // Main App View for subscribed pro users OR payg users
+    // A new user (Pro or PAYG) with an incomplete profile must complete onboarding.
+    if (user && needsOnboarding) {
+        return <InitialProfileSetup onProfileSubmit={handleInitialProfileSubmit} userEmail={user.email} />;
+    }
+
+    // Main App View for paid pro users OR payg users who have completed onboarding
     if (user) {
       return (
         <div className="min-h-screen bg-light text-secondary flex flex-col">

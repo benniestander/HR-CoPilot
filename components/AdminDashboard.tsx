@@ -63,7 +63,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ allUsers, allDocuments,
   const stats = useMemo(() => {
     const proUsers = allUsers.filter(u => u.plan === 'pro' && u.email !== 'admin@hrcopilot.co.za').length;
     const paygUsers = allUsers.filter(u => u.plan === 'payg').length;
-    // FIX: Explicitly cast the accumulator `acc` to Number to ensure correct arithmetic, as it might be a string if data types are inconsistent.
+    // FIX: Explicitly cast the accumulator `acc` and transaction `amount` to Number to ensure correct arithmetic, as it might be a string if data types are inconsistent.
     const totalRevenue = allTransactions.reduce((acc, tx) => (Number(tx.amount) > 0 ? Number(acc) + Number(tx.amount) : Number(acc)), 0);
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
@@ -153,8 +153,8 @@ const UserList: React.FC<{ users: User[], onViewUser: (user: User) => void }> = 
         );
     }, [users, searchTerm]);
 
-    // FIX: Cast creditBalance to Number to prevent type errors.
     const handleExport = () => exportToCsv('users.csv', filteredUsers.map(u => ({
+        // FIX: Cast creditBalance to Number to prevent type errors.
         name: u.name, email: u.email, plan: u.plan, credit_balance: (Number(u.creditBalance) / 100).toFixed(2), signup_date: u.createdAt
     })));
 
@@ -243,7 +243,8 @@ const CouponManager: React.FC<{ coupons: Coupon[], onCreateCoupon: (data: any) =
                 {coupons.map(c => (
                     <tr key={c.id}>
                         <td className="px-4 py-3 whitespace-nowrap font-mono text-sm font-semibold">{c.code}</td>
-                        <td className="px-4 py-3 whitespace-nowrap text-sm">{c.type === 'percentage' ? `${c.value}%` : `R${(c.value / 100).toFixed(2)}`}</td>
+                        {/* FIX: Ensure c.value is treated as a number for arithmetic operations. */}
+                        <td className="px-4 py-3 whitespace-nowrap text-sm">{c.type === 'percentage' ? `${c.value}%` : `R${(Number(c.value) / 100).toFixed(2)}`}</td>
                         <td className="px-4 py-3 whitespace-nowrap text-sm">{c.uses} / {c.maxUses || '∞'}</td>
                         <td className="px-4 py-3 whitespace-nowrap text-sm">{c.expiresAt ? new Date(c.expiresAt).toLocaleDateString() : 'Never'}</td>
                         <td className="px-4 py-3 whitespace-nowrap text-sm"><span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${c.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>{c.isActive ? 'Active' : 'Inactive'}</span></td>
@@ -297,6 +298,7 @@ const DocumentAnalytics: React.FC<{ documents: GeneratedDocument[] }> = ({ docum
 const TransactionLog: React.FC<{ transactions: Transaction[] }> = ({ transactions }) => {
     const handleExport = () => exportToCsv('transactions.csv', transactions.map(t => ({
         date: t.date, user_email: t.userEmail, description: t.description, 
+        // FIX: Ensure t.amount is treated as a number for arithmetic operations.
         amount: (Number(t.amount) / 100).toFixed(2)
     })));
 
@@ -319,6 +321,7 @@ const TransactionLog: React.FC<{ transactions: Transaction[] }> = ({ transaction
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{new Date(tx.date).toLocaleString()}</td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{tx.userEmail}</td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{tx.description}</td>
+                        {/* FIX: Ensure tx.amount is treated as a number for arithmetic and comparison. */}
                         <td className={`px-6 py-4 whitespace-nowrap text-sm font-semibold ${Number(tx.amount) > 0 ? 'text-green-600' : 'text-red-600'}`}>R{(Number(tx.amount) / 100).toFixed(2)}</td>
                     </tr>
                 ))}
