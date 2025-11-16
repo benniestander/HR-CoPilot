@@ -1,5 +1,7 @@
 
 
+
+
 import React, { useState } from 'react';
 import { INDUSTRIES } from '../constants';
 import type { CompanyProfile } from '../types';
@@ -7,9 +9,10 @@ import type { CompanyProfile } from '../types';
 interface InitialProfileSetupProps {
   onProfileSubmit: (profileData: CompanyProfile) => void;
   userEmail: string;
+  onSkip: () => void;
 }
 
-const InitialProfileSetup: React.FC<InitialProfileSetupProps> = ({ onProfileSubmit, userEmail }) => {
+const InitialProfileSetup: React.FC<InitialProfileSetupProps> = ({ onProfileSubmit, userEmail, onSkip }) => {
     const [formData, setFormData] = useState<CompanyProfile>({
         companyName: '',
         industry: '',
@@ -123,6 +126,15 @@ const InitialProfileSetup: React.FC<InitialProfileSetupProps> = ({ onProfileSubm
                             <button type="submit" disabled={isFormInvalid} className="w-full bg-primary text-white font-bold py-3 px-4 rounded-md hover:bg-opacity-90 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors flex items-center justify-center">
                                 Save & Continue
                             </button>
+                             <div className="text-center mt-4">
+                                <button
+                                    type="button"
+                                    onClick={onSkip}
+                                    className="text-sm font-semibold text-gray-600 hover:text-primary hover:underline"
+                                >
+                                    Complete profile later
+                                </button>
+                            </div>
                         </form>
                     </div>
                 </div>

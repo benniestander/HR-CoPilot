@@ -16,11 +16,36 @@ interface DashboardProps {
   onViewDocument: (doc: GeneratedDocument) => void;
   showOnboardingWalkthrough?: boolean;
   onCloseWalkthrough?: () => void;
+  onGoToProfileSetup: () => void;
 }
 
-const Dashboard: React.FC<DashboardProps> = ({ user, onSelectItem, onStartUpdate, onStartChecklist, onGoToTopUp, generatedDocuments, onViewDocument, showOnboardingWalkthrough, onCloseWalkthrough }) => {
+const Dashboard: React.FC<DashboardProps> = ({ user, onSelectItem, onStartUpdate, onStartChecklist, onGoToTopUp, generatedDocuments, onViewDocument, showOnboardingWalkthrough, onCloseWalkthrough, onGoToProfileSetup }) => {
   const [activeTab, setActiveTab] = useState<'policies' | 'forms'>('policies');
   const [isHowToUseModalOpen, setIsHowToUseModalOpen] = useState(false);
+
+  const OnboardingReminderBanner: React.FC = () => {
+    if (!user || (user.profile.companyName && user.profile.industry)) {
+        return null;
+    }
+
+    return (
+        <div className="mb-8 p-4 bg-yellow-100 border-l-4 border-yellow-500 text-yellow-800 rounded-r-lg flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="flex items-center">
+                <InfoIcon className="w-6 h-6 mr-3 text-yellow-600 flex-shrink-0" />
+                <div>
+                    <h3 className="font-bold">Your profile is incomplete!</h3>
+                    <p className="text-sm">Complete your company profile to get the most out of HR CoPilot and enable tailored document generation.</p>
+                </div>
+            </div>
+            <button 
+                onClick={onGoToProfileSetup} 
+                className="bg-yellow-500 text-white font-semibold py-2 px-4 rounded-md hover:bg-yellow-600 transition-colors flex-shrink-0 self-start sm:self-center"
+            >
+                Complete Profile Now
+            </button>
+        </div>
+    );
+  };
 
   const PaygBanner: React.FC = () => {
     if (user?.plan !== 'payg') return null;
@@ -99,6 +124,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onSelectItem, onStartUpdate
               </button>
         </div>
         
+        <OnboardingReminderBanner />
         <PaygBanner />
         <DocumentHistory />
 

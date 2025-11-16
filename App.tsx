@@ -4,6 +4,8 @@
 
 
 
+
+
 import React, { useState, useEffect, useRef } from 'react';
 import {
   onAuthStateChanged,
@@ -90,6 +92,7 @@ const App: React.FC = () => {
   const [authEmail, setAuthEmail] = useState<string | null>(null);
   const [authFlow, setAuthFlow] = useState<AuthFlow | null>(null);
   const [needsOnboarding, setNeedsOnboarding] = useState(false);
+  const [onboardingSkipped, setOnboardingSkipped] = useState(false);
   const [showOnboardingWalkthrough, setShowOnboardingWalkthrough] = useState(false);
 
 
@@ -195,6 +198,7 @@ const App: React.FC = () => {
         setDocumentToView(null);
         setShowOnboardingWalkthrough(false);
         setNeedsOnboarding(false);
+        setOnboardingSkipped(false);
         setAllUsers([]);
         setAllDocuments([]);
         setAuthPage('landing');
@@ -321,7 +325,16 @@ const App: React.FC = () => {
     await handleUpdateProfile(updatedProfile); // Re-use the existing function
     
     setNeedsOnboarding(false);
+    setOnboardingSkipped(false);
     setShowOnboardingWalkthrough(true); // Trigger guided tour
+  };
+
+  const handleSkipOnboarding = () => {
+    setOnboardingSkipped(true);
+  };
+
+  const handleGoToProfileSetup = () => {
+      setOnboardingSkipped(false);
   };
 
   const handleProfilePhotoUpload = async (file: File) => {
@@ -486,6 +499,7 @@ const App: React.FC = () => {
         setIsSubscribed(false);
         setCurrentView('dashboard');
         setAuthPage('landing');
+        setOnboardingSkipped(false);
         return;
     }
     signOut(auth).catch((error) => {
@@ -687,6 +701,7 @@ const App: React.FC = () => {
                         onViewDocument={handleViewDocument}
                         showOnboardingWalkthrough={showOnboardingWalkthrough}
                         onCloseWalkthrough={handleCloseWalkthrough}
+                        onGoToProfileSetup={handleGoToProfileSetup}
                     />;
         case 'generator':
             if (!selectedItem || !user) {
@@ -760,6 +775,7 @@ const App: React.FC = () => {
                         onViewDocument={handleViewDocument}
                         showOnboardingWalkthrough={showOnboardingWalkthrough}
                         onCloseWalkthrough={handleCloseWalkthrough}
+                        onGoToProfileSetup={handleGoToProfileSetup}
                     />;
     }
   }
@@ -826,9 +842,13 @@ const App: React.FC = () => {
       );
     }
 
-    // A new user (Pro or PAYG) with an incomplete profile must complete onboarding.
-    if (user && needsOnboarding) {
-        return <InitialProfileSetup onProfileSubmit={handleInitialProfileSubmit} userEmail={user.email} />;
+    // A new user with an incomplete profile must complete onboarding, unless they skip.
+    if (user && needsOnboarding && !onboardingSkipped) {
+        return <InitialProfileSetup 
+                    onProfileSubmit={handleInitialProfileSubmit} 
+                    userEmail={user.email} 
+                    onSkip={handleSkipOnboarding} 
+                />;
     }
 
     // Main App View for paid pro users OR payg users who have completed onboarding

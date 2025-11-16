@@ -1,4 +1,5 @@
 
+
 import React, { useState, useMemo } from 'react';
 import type { User, GeneratedDocument, Transaction, AdminActionLog, Coupon } from '../types';
 import { UserIcon, MasterPolicyIcon, FormsIcon, SearchIcon, CreditCardIcon, HistoryIcon, DownloadIcon, CouponIcon } from './Icons';
@@ -153,8 +154,9 @@ const UserList: React.FC<{ users: User[], onViewUser: (user: User) => void }> = 
     }, [users, searchTerm]);
 
     const handleExport = () => exportToCsv('users.csv', filteredUsers.map(u => ({
+        name: u.name, email: u.email, plan: u.plan, 
         // FIX: Cast creditBalance to Number to prevent type errors.
-        name: u.name, email: u.email, plan: u.plan, credit_balance: (Number(u.creditBalance) / 100).toFixed(2), signup_date: u.createdAt
+        credit_balance: (Number(u.creditBalance) / 100).toFixed(2), signup_date: u.createdAt
     })));
 
     return (
