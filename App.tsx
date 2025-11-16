@@ -244,12 +244,12 @@ const App: React.FC = () => {
     if (email === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
         setIsLoading(true);
         try {
-            // Use a stable mock UID for the admin user
-            const adminUid = 'admin_user_mock_uid'; 
+            // Use a stable UID for the admin user
+            const adminUid = 'admin_user_firestore_uid'; 
             let appUser = await getUserProfile(adminUid);
             
             if (!appUser) {
-                // Create a 'pro' profile for the admin if it doesn't exist in the mock DB
+                // Create a 'pro' profile for the admin if it doesn't exist
                 appUser = await createUserProfile(adminUid, ADMIN_EMAIL, 'pro');
             }
 
@@ -520,7 +520,7 @@ const App: React.FC = () => {
 
   const handleLogout = () => {
     // Special logout for mock admin
-    if (isAdmin && user?.uid === 'admin_user_mock_uid') {
+    if (isAdmin && user?.uid === 'admin_user_firestore_uid') {
         setUser(null);
         setUnverifiedUser(null);
         setIsAdmin(false);

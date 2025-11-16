@@ -1,92 +1,79 @@
-import type { User, CompanyProfile, GeneratedDocument, Transaction, AdminActionLog, AdminNotification, UserFile, Coupon } from '../types';
-// --- REAL FIREBASE FILE FUNCTIONS ---
-// These functions use the actual Firebase SDK for file storage and metadata.
-import { collection, addDoc, getDocs, query, orderBy, serverTimestamp, Timestamp, doc, deleteDoc } from 'firebase/firestore';
+import type { User, GeneratedDocument, Transaction, AdminActionLog, AdminNotification, UserFile, Coupon } from '../types';
+import {
+  collection,
+  doc,
+  getDoc,
+  setDoc,
+  updateDoc,
+  addDoc,
+  getDocs,
+  query,
+  orderBy,
+  serverTimestamp,
+  Timestamp,
+  deleteDoc,
+  writeBatch,
+  arrayUnion,
+  increment,
+  where,
+  collectionGroup
+} from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { firestore, storage } from './firebase';
-
-// This service simulates a Firestore database using an in-memory object for the duration of the session.
-// Persistence to localStorage is disabled as per user request.
-
-interface MockDB {
-  users: {
-    [uid: string]: {
-      profile: User;
-      generatedDocuments: {
-        [docId: string]: GeneratedDocument;
-      };
-    };
-  };
-  adminActionLogs: {
-    [logId: string]: AdminActionLog;
-  };
-  adminNotifications: {
-    [notificationId: string]: AdminNotification;
-  };
-  coupons: {
-    [couponId: string]: Coupon;
-  };
-}
-
-// In-memory store for the application session. Resets on page reload.
-let inMemoryDB: MockDB = {
-  users: {},
-  adminActionLogs: {},
-  adminNotifications: {},
-  coupons: {},
-};
-
-
-const getDB = (): MockDB => {
-  // Returns a direct reference to the in-memory database object.
-  return inMemoryDB;
-};
-
-const saveDB = (db: MockDB) => {
-  // Since getDB returns a direct reference, mutations happen on the object directly.
-  // This function is now a no-op but is kept for structural consistency
-  // in case persistence is re-enabled later.
-};
 
 
 // --- Notification Functions ---
 
 export const createAdminNotification = async (notification: Omit<AdminNotification, 'id' | 'timestamp' | 'isRead'>): Promise<void> => {
-    const db = getDB();
-    const newNotification: AdminNotification = {
+    await addDoc(collection(firestore, 'adminNotifications'), {
         ...notification,
-        id: `notif_${Date.now()}`,
-        timestamp: new Date().toISOString(),
+        timestamp: serverTimestamp(),
         isRead: false,
-    };
-    db.adminNotifications[newNotification.id] = newNotification;
-    saveDB(db);
+    });
 };
 
 export const getAdminNotifications = async (): Promise<AdminNotification[]> => {
-    const db = getDB();
-    return Object.values(db.adminNotifications).sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+    const q = query(collection(firestore, 'adminNotifications'), orderBy('timestamp', 'desc'));
+    const querySnapshot = await getDocs(q);
+    return querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        timestamp: (doc.data().timestamp as Timestamp)?.toDate().toISOString() || new Date().toISOString(),
+    } as AdminNotification));
 };
 
 export const markNotificationAsRead = async (notificationId: string): Promise<void> => {
-    const db = getDB();
-    if (db.adminNotifications[notificationId]) {
-        db.adminNotifications[notificationId].isRead = true;
-        saveDB(db);
-    }
+    await updateDoc(doc(firestore, 'adminNotifications', notificationId), { isRead: true });
 };
 
 export const markAllNotificationsAsRead = async (): Promise<void> => {
-    const db = getDB();
-    Object.values(db.adminNotifications).forEach(n => n.isRead = true);
-    saveDB(db);
+    const q = query(collection(firestore, 'adminNotifications'), where('isRead', '==', false));
+    const querySnapshot = await getDocs(q);
+    const batch = writeBatch(firestore);
+    querySnapshot.docs.forEach(document => {
+        batch.update(document.ref, { isRead: true });
+    });
+    await batch.commit();
 };
 
 // --- User Profile Functions ---
 
 export const getUserProfile = async (uid: string): Promise<User | null> => {
-  const db = getDB();
-  return db.users[uid]?.profile || null;
+  const userDocRef = doc(firestore, 'users', uid);
+  const userDoc = await getDoc(userDocRef);
+  if (userDoc.exists()) {
+    const data = userDoc.data();
+    // Convert Timestamps to ISO strings
+    return {
+      ...data,
+      createdAt: (data.createdAt as Timestamp)?.toDate().toISOString() || new Date().toISOString(),
+      transactions: (data.transactions || []).map((tx: any) => ({
+          ...tx,
+          date: (tx.date as Timestamp)?.toDate().toISOString() || new Date().toISOString(),
+      })),
+    } as User;
+  }
+  return null;
 };
 
 export const createUserProfile = async (
@@ -96,29 +83,32 @@ export const createUserProfile = async (
   name?: string,
   contactNumber?: string
 ): Promise<User> => {
-  const db = getDB();
-  let isNewUser = false;
-  if (!db.users[uid]) {
-    isNewUser = true;
-    const newUser: User = {
-      uid,
-      email,
-      name: name || '',
-      contactNumber: contactNumber || '',
-      plan,
-      creditBalance: 0,
-      transactions: [],
-      profile: {
-        companyName: '',
-        industry: '',
-      },
-      createdAt: new Date().toISOString(),
-    };
-    db.users[uid] = { profile: newUser, generatedDocuments: {} };
-    saveDB(db);
+  const existingUser = await getUserProfile(uid);
+  if (existingUser) {
+    return existingUser;
   }
 
-  if (isNewUser && email !== 'admin@hrcopilot.co.za') {
+  const newUser: User = {
+    uid,
+    email,
+    name: name || '',
+    contactNumber: contactNumber || '',
+    plan,
+    creditBalance: 0,
+    transactions: [],
+    profile: {
+      companyName: '',
+      industry: '',
+    },
+    createdAt: new Date().toISOString(), // This will be replaced by serverTimestamp on write
+  };
+
+  await setDoc(doc(firestore, 'users', uid), {
+    ...newUser,
+    createdAt: serverTimestamp(),
+  });
+
+  if (email !== 'admin@hrcopilot.co.za') {
     await createAdminNotification({
         type: 'new_user',
         message: `New ${plan.toUpperCase()} user signed up: ${email}`,
@@ -126,188 +116,170 @@ export const createUserProfile = async (
     });
   }
 
-  return db.users[uid].profile;
+  // Refetch the user to get the server-generated timestamp correctly
+  const createdUser = await getUserProfile(uid);
+  return createdUser!;
 };
 
 export const updateUser = async (uid: string, userData: Partial<User>): Promise<void> => {
-    const db = getDB();
-    if (db.users[uid]) {
-        db.users[uid].profile = { ...db.users[uid].profile, ...userData };
-        saveDB(db);
-    }
+    await updateDoc(doc(firestore, 'users', uid), userData);
 }
 
-// FIX: Updated function to accept an optional couponCode and handle discount logic.
 export const addTransactionToUser = async (uid: string, transaction: Omit<Transaction, 'id' | 'date' | 'userId' | 'userEmail'>, couponCode?: string): Promise<void> => {
-    const db = getDB();
-    if (db.users[uid]) {
-        const user = db.users[uid].profile;
-        let discountDetails: Transaction['discount'] | undefined = undefined;
-        // FIX: Cast amount to Number to prevent potential string concatenation issues.
-        let creditAdjustment = Number(transaction.amount);
+    const userDocRef = doc(firestore, 'users', uid);
+    const user = await getUserProfile(uid);
+    if (!user) return;
+    
+    let discountDetails: Transaction['discount'] | undefined = undefined;
+    let creditAdjustment = Number(transaction.amount);
 
-        if (couponCode) {
-            const coupon = Object.values(db.coupons || {}).find(c => c.code.toUpperCase() === couponCode.toUpperCase());
-            if (coupon) { // Assume it's valid
-                let discountAmount = 0;
-                if (coupon.type === 'percentage') {
-                    // For top-ups (positive amount), discount is on top. For purchases (negative), it's on the absolute value.
-                    discountAmount = (Math.abs(creditAdjustment) * coupon.value) / 100;
-                } else { // fixed
-                    discountAmount = coupon.value;
-                }
-                
-                // A discount always benefits the user, so we add it. If tx.amount is negative, this reduces the deduction. If positive, it increases the addition.
-                creditAdjustment += discountAmount;
-                
-                discountDetails = {
-                    couponCode: coupon.code,
-                    amount: discountAmount,
-                };
-                
-                coupon.uses += 1;
-                if (coupon.maxUses != null && coupon.uses >= coupon.maxUses) {
-                    coupon.isActive = false;
-                }
+    if (couponCode) {
+        const couponRes = await validateCoupon(uid, couponCode);
+        if (couponRes.valid && couponRes.coupon) {
+            const coupon = couponRes.coupon;
+            let discountAmount = 0;
+            if (coupon.type === 'percentage') {
+                discountAmount = (Math.abs(creditAdjustment) * coupon.value) / 100;
+            } else { // fixed
+                discountAmount = coupon.value;
             }
+            
+            creditAdjustment += discountAmount;
+            discountDetails = { couponCode: coupon.code, amount: discountAmount };
+            
+            await updateDoc(doc(firestore, 'coupons', coupon.id), {
+                uses: increment(1)
+            });
         }
-        
-        const newTransaction: Transaction = {
-            ...transaction,
-            id: `txn_${Date.now()}`,
-            date: new Date().toISOString(),
-            userId: uid,
-            userEmail: user.email,
-            discount: discountDetails,
-        };
-        
-        user.transactions = [newTransaction, ...(user.transactions || [])];
-        // Only adjust credit if it's not a subscription log. Subscription doesn't use credit.
-        if (transaction.description !== 'Ingcweti Pro Subscription (12 months)') {
-            // FIX: Cast existing balance to Number before adding to prevent string concatenation.
-            user.creditBalance = Number(user.creditBalance) + creditAdjustment;
-        }
-        db.users[uid].profile = user;
-        saveDB(db);
     }
+    
+    const newTransaction: Omit<Transaction, 'id'> = {
+        ...transaction,
+        date: new Date().toISOString(),
+        userId: uid,
+        userEmail: user.email,
+        discount: discountDetails,
+    };
+
+    const updates: any = {
+      transactions: arrayUnion({ ...newTransaction, date: serverTimestamp() }),
+    };
+
+    if (transaction.description !== 'HR CoPilot Pro Subscription (12 months)') {
+        updates.creditBalance = increment(creditAdjustment);
+    }
+
+    await updateDoc(userDocRef, updates);
 };
 
 
 // --- Generated Document Functions ---
 
 export const getGeneratedDocuments = async (uid: string): Promise<GeneratedDocument[]> => {
-    const db = getDB();
-    const docs = db.users[uid]?.generatedDocuments || {};
-    return Object.values(docs).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    const docsCollectionRef = collection(firestore, 'users', uid, 'generatedDocuments');
+    const q = query(docsCollectionRef, orderBy('createdAt', 'desc'));
+    const querySnapshot = await getDocs(q);
+    return querySnapshot.docs.map(doc => ({
+        ...doc.data(),
+        id: doc.id,
+        createdAt: (doc.data().createdAt as Timestamp)?.toDate().toISOString() || new Date().toISOString(),
+    } as GeneratedDocument));
 };
 
-export const saveGeneratedDocument = async (uid: string, doc: GeneratedDocument): Promise<void> => {
-    const db = getDB();
-    if (!db.users[uid]) {
-        console.error("Cannot save document for non-existent user:", uid);
-        return;
-    }
-    db.users[uid].generatedDocuments[doc.id] = doc;
-    saveDB(db);
+export const saveGeneratedDocument = async (uid: string, docData: GeneratedDocument): Promise<void> => {
+    const { id, ...dataToSave } = docData;
+    const docRef = doc(firestore, 'users', uid, 'generatedDocuments', id);
+    // When saving, we use setDoc with merge to create or update.
+    await setDoc(docRef, {
+      ...dataToSave,
+      // Overwrite createdAt with serverTimestamp only if it's new or being updated
+      createdAt: serverTimestamp(),
+    }, { merge: true });
 };
 
 
 // --- Admin Functions ---
 
-const logAdminAction = (action: Omit<AdminActionLog, 'id' | 'timestamp'>) => {
-    const db = getDB();
-    const logId = `log_${Date.now()}`;
-    const newLog: AdminActionLog = {
+const logAdminAction = async (action: Omit<AdminActionLog, 'id' | 'timestamp'>) => {
+    await addDoc(collection(firestore, 'adminActionLogs'), {
         ...action,
-        id: logId,
-        timestamp: new Date().toISOString(),
-    };
-    db.adminActionLogs[logId] = newLog;
-    saveDB(db); // saveDB is called within the function that calls this
+        timestamp: serverTimestamp(),
+    });
 };
 
 export const updateUserByAdmin = async (adminEmail: string, targetUid: string, updates: Partial<User>): Promise<User | null> => {
-    const db = getDB();
-    const userContainer = db.users[targetUid];
-    if (userContainer) {
-        const originalUser = { ...userContainer.profile };
-        const updatedUser = { ...originalUser, ...updates };
-        userContainer.profile = updatedUser;
+    const userDocRef = doc(firestore, 'users', targetUid);
+    const user = await getUserProfile(targetUid);
+    if (!user) return null;
 
-        logAdminAction({
-            adminEmail,
-            action: 'Updated User Profile',
-            targetUserId: targetUid,
-            targetUserEmail: originalUser.email,
-            details: { updates }
-        });
-        
-        saveDB(db);
-        return updatedUser;
-    }
-    return null;
+    await updateDoc(userDocRef, updates);
+
+    await logAdminAction({
+        adminEmail,
+        action: 'Updated User Profile',
+        targetUserId: targetUid,
+        targetUserEmail: user.email,
+        details: { updates }
+    });
+    
+    return { ...user, ...updates };
 }
 
 export const adjustUserCreditByAdmin = async (adminEmail: string, targetUid: string, amountInCents: number, reason: string): Promise<User | null> => {
-    const db = getDB();
-    const userContainer = db.users[targetUid];
-    if (userContainer) {
-        const user = userContainer.profile;
-        const newTransaction: Transaction = {
-            id: `txn_${Date.now()}`,
-            date: new Date().toISOString(),
-            description: `Admin adjustment: ${reason}`,
-            amount: amountInCents,
-            userId: targetUid,
-            userEmail: user.email,
-        };
-        user.transactions = [newTransaction, ...(user.transactions || [])];
-        // FIX: Cast existing balance to Number before adding to prevent string concatenation.
-        user.creditBalance = Number(user.creditBalance) + amountInCents;
+    const userDocRef = doc(firestore, 'users', targetUid);
+    const user = await getUserProfile(targetUid);
+    if (!user) return null;
 
-        logAdminAction({
-            adminEmail,
-            action: 'Adjusted User Credit',
-            targetUserId: targetUid,
-            targetUserEmail: user.email,
-            details: { amountInCents, reason }
-        });
-        
-        saveDB(db);
-        return user;
-    }
-    return null;
+    const newTransaction: Omit<Transaction, 'id'> = {
+        date: new Date().toISOString(),
+        description: `Admin adjustment: ${reason}`,
+        amount: amountInCents,
+        userId: targetUid,
+        userEmail: user.email,
+    };
+
+    await updateDoc(userDocRef, {
+        transactions: arrayUnion({ ...newTransaction, date: serverTimestamp() }),
+        creditBalance: increment(amountInCents)
+    });
+
+    await logAdminAction({
+        adminEmail,
+        action: 'Adjusted User Credit',
+        targetUserId: targetUid,
+        targetUserEmail: user.email,
+        details: { amountInCents, reason }
+    });
+    
+    return await getUserProfile(targetUid);
 };
 
 export const changeUserPlanByAdmin = async (adminEmail: string, targetUid: string, newPlan: 'pro' | 'payg'): Promise<User | null> => {
-     const db = getDB();
-    const userContainer = db.users[targetUid];
-    if (userContainer) {
-        const user = userContainer.profile;
-        const oldPlan = user.plan;
-        user.plan = newPlan;
+    const userDocRef = doc(firestore, 'users', targetUid);
+    const user = await getUserProfile(targetUid);
+    if (!user) return null;
+    
+    const oldPlan = user.plan;
+    await updateDoc(userDocRef, { plan: newPlan });
 
-        logAdminAction({
-            adminEmail,
-            action: 'Changed User Plan',
-            targetUserId: targetUid,
-            targetUserEmail: user.email,
-            details: { from: oldPlan, to: newPlan }
-        });
+    await logAdminAction({
+        adminEmail,
+        action: 'Changed User Plan',
+        targetUserId: targetUid,
+        targetUserEmail: user.email,
+        details: { from: oldPlan, to: newPlan }
+    });
 
-        saveDB(db);
-        return user;
-    }
-    return null;
+    return { ...user, plan: newPlan };
 };
 
 export const simulateFailedPaymentForUser = async (adminEmail: string, targetUid: string, targetUserEmail: string): Promise<void> => {
     await createAdminNotification({
         type: 'payment_failed',
-        message: `A payment of R100.00 failed for user ${targetUserEmail}.`,
+        message: `A payment simulation failed for user ${targetUserEmail}.`,
         relatedUserId: targetUid,
     });
-    logAdminAction({
+    await logAdminAction({
         adminEmail,
         action: 'Simulated Failed Payment',
         targetUserId: targetUid,
@@ -317,123 +289,103 @@ export const simulateFailedPaymentForUser = async (adminEmail: string, targetUid
 };
 
 export const getAllUsers = async (): Promise<User[]> => {
-    const db = getDB();
-    return Object.values(db.users).map(userContainer => userContainer.profile).sort((a,b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    const q = query(collection(firestore, 'users'), orderBy('createdAt', 'desc'));
+    const querySnapshot = await getDocs(q);
+    return querySnapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          ...data,
+          createdAt: (data.createdAt as Timestamp)?.toDate().toISOString() || new Date().toISOString(),
+        } as User;
+    });
 };
 
 export const getAllDocumentsForAllUsers = async (): Promise<GeneratedDocument[]> => {
-    const db = getDB();
-    let allDocs: GeneratedDocument[] = [];
-    for (const uid in db.users) {
-        const userDocs = Object.values(db.users[uid].generatedDocuments);
-        allDocs = [...allDocs, ...userDocs];
-    }
-    return allDocs.sort((a,b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    const q = query(collectionGroup(firestore, 'generatedDocuments'), orderBy('createdAt', 'desc'));
+    const querySnapshot = await getDocs(q);
+    return querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        createdAt: (doc.data().createdAt as Timestamp)?.toDate().toISOString() || new Date().toISOString(),
+    } as GeneratedDocument));
 };
 
 export const getAdminActionLogs = async (): Promise<AdminActionLog[]> => {
-    const db = getDB();
-    return Object.values(db.adminActionLogs).sort((a,b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+    const q = query(collection(firestore, 'adminActionLogs'), orderBy('timestamp', 'desc'));
+    const querySnapshot = await getDocs(q);
+    return querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        timestamp: (doc.data().timestamp as Timestamp)?.toDate().toISOString() || new Date().toISOString(),
+    } as AdminActionLog));
 };
 
 export const getAllTransactions = async (): Promise<Transaction[]> => {
-    const db = getDB();
+    const users = await getAllUsers();
     const allTransactions: Transaction[] = [];
-    Object.values(db.users).forEach(userContainer => {
-        if(userContainer.profile.transactions) {
-            allTransactions.push(...userContainer.profile.transactions);
+    users.forEach(user => {
+        if(user.transactions) {
+            const userTransactions = user.transactions.map(tx => ({
+                ...tx,
+                userEmail: user.email, // Add user email for context
+            }));
+            allTransactions.push(...userTransactions);
         }
     });
     return allTransactions.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 };
 
 
+// --- User File Storage Functions (Already using Firebase, no major changes needed) ---
+
 export const uploadUserFile = async (uid: string, file: File, notes: string): Promise<void> => {
     if (!uid || !file) throw new Error("User ID and file are required.");
-
     const storagePath = `users/${uid}/files/${Date.now()}_${file.name}`;
     const storageRef = ref(storage, storagePath);
-
     await uploadBytes(storageRef, file);
-
-    const fileMetadata = {
+    await addDoc(collection(firestore, 'users', uid, 'files'), {
         name: file.name,
         notes: notes,
         size: file.size,
         storagePath: storagePath,
         createdAt: serverTimestamp(),
-    };
-
-    const filesCollectionRef = collection(firestore, 'users', uid, 'files');
-    await addDoc(filesCollectionRef, fileMetadata);
+    });
 };
 
 export const uploadProfilePhoto = async (uid: string, file: File): Promise<string> => {
     if (!uid || !file) throw new Error("User ID and file are required.");
-
     const storagePath = `users/${uid}/profile/photo`;
     const storageRef = ref(storage, storagePath);
-
     await uploadBytes(storageRef, file);
     const photoURL = await getDownloadURL(storageRef);
-    
-    // Update the user's profile in the mock DB
-    const db = getDB();
-    if (db.users[uid]) {
-        db.users[uid].profile.photoURL = photoURL;
-        saveDB(db);
-    }
-
+    await updateDoc(doc(firestore, 'users', uid), { photoURL });
     return photoURL;
 };
 
 export const deleteProfilePhoto = async (uid: string): Promise<void> => {
     if (!uid) throw new Error("User ID is required.");
-
     const storagePath = `users/${uid}/profile/photo`;
     const storageRef = ref(storage, storagePath);
-
     try {
         await deleteObject(storageRef);
     } catch (error: any) {
-        if (error.code !== 'storage/object-not-found') {
-            console.error("Error deleting profile photo from Storage:", error);
-            throw error;
-        }
+        if (error.code !== 'storage/object-not-found') throw error;
     }
-
-    // Update the user's profile in mock DB
-    const db = getDB();
-    if (db.users[uid]) {
-        delete db.users[uid].profile.photoURL;
-        saveDB(db);
-    }
+    await updateDoc(doc(firestore, 'users', uid), { photoURL: null });
 };
 
 export const getUserFiles = async (uid: string): Promise<UserFile[]> => {
     if (!uid) return [];
-    
     try {
-        const filesCollectionRef = collection(firestore, 'users', uid, 'files');
-        const q = query(filesCollectionRef, orderBy('createdAt', 'desc'));
-        
+        const q = query(collection(firestore, 'users', uid, 'files'), orderBy('createdAt', 'desc'));
         const querySnapshot = await getDocs(q);
-        
-        return querySnapshot.docs.map(doc => {
-            const data = doc.data();
-            return {
-                id: doc.id,
-                name: data.name,
-                notes: data.notes,
-                size: data.size,
-                storagePath: data.storagePath,
-                createdAt: (data.createdAt as Timestamp)?.toDate().toISOString() || new Date().toISOString(),
-            } as UserFile;
-        });
+        return querySnapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data(),
+            createdAt: (doc.data().createdAt as Timestamp)?.toDate().toISOString() || new Date().toISOString(),
+        } as UserFile));
     } catch (error) {
         console.error("Error fetching user files:", error);
-        // This might happen if Firestore rules deny access or the collection doesn't exist.
-        // Return an empty array to prevent the app from crashing.
         return [];
     }
 };
@@ -446,92 +398,86 @@ export const getDownloadUrlForFile = async (storagePath: string): Promise<string
 
 export const deleteUserFile = async (uid: string, fileId: string, storagePath: string): Promise<void> => {
     if (!uid || !fileId || !storagePath) throw new Error("User ID, File ID, and Storage Path are required.");
-
-    // Delete from Storage
     const storageRef = ref(storage, storagePath);
     try {
         await deleteObject(storageRef);
     } catch (error: any) {
-        // If the object doesn't exist, we can ignore the error and proceed to delete the firestore doc.
-        if (error.code !== 'storage/object-not-found') {
-            console.error("Error deleting file from Storage:", error);
-            throw error;
-        }
+        if (error.code !== 'storage/object-not-found') throw error;
     }
-
-    // Delete from Firestore
-    const fileDocRef = doc(firestore, 'users', uid, 'files', fileId);
-    await deleteDoc(fileDocRef);
+    await deleteDoc(doc(firestore, 'users', uid, 'files', fileId));
 };
 
-// FIX: Implement and export missing coupon management functions.
+
+// --- Coupon Functions ---
+
 export const createCoupon = async (adminEmail: string, couponData: Omit<Coupon, 'id' | 'createdAt' | 'uses' | 'isActive'>): Promise<void> => {
-    const db = getDB();
-    const newCoupon: Coupon = {
+    const docRef = await addDoc(collection(firestore, 'coupons'), {
         ...couponData,
-        id: `coupon_${Date.now()}`,
-        createdAt: new Date().toISOString(),
+        createdAt: serverTimestamp(),
         uses: 0,
         isActive: true,
-    };
-    if (!db.coupons) {
-        db.coupons = {};
-    }
-    db.coupons[newCoupon.id] = newCoupon;
-    logAdminAction({
-        adminEmail,
-        action: 'Created Coupon',
-        targetUserId: 'N/A',
-        targetUserEmail: 'N/A',
-        details: { code: newCoupon.code, value: newCoupon.value }
     });
-    saveDB(db);
+    await logAdminAction({
+        adminEmail, action: 'Created Coupon', targetUserId: 'N/A', targetUserEmail: 'N/A',
+        details: { couponId: docRef.id, code: couponData.code }
+    });
 };
 
 export const getCoupons = async (): Promise<Coupon[]> => {
-    const db = getDB();
-    return Object.values(db.coupons || {}).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    const q = query(collection(firestore, 'coupons'), orderBy('createdAt', 'desc'));
+    const querySnapshot = await getDocs(q);
+    return querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        createdAt: (doc.data().createdAt as Timestamp)?.toDate().toISOString() || new Date().toISOString(),
+    } as Coupon));
 };
 
 export const deactivateCoupon = async (adminEmail: string, couponId: string): Promise<void> => {
-    const db = getDB();
-    if (db.coupons && db.coupons[couponId]) {
-        const code = db.coupons[couponId].code;
-        db.coupons[couponId].isActive = false;
-        logAdminAction({
-            adminEmail,
-            action: 'Deactivated Coupon',
-            targetUserId: 'N/A',
-            targetUserEmail: 'N/A',
-            details: { couponId, code }
-        });
-        saveDB(db);
-    }
+    const couponDocRef = doc(firestore, 'coupons', couponId);
+    await updateDoc(couponDocRef, { isActive: false });
+    const couponDoc = await getDoc(couponDocRef);
+    await logAdminAction({
+        adminEmail, action: 'Deactivated Coupon', targetUserId: 'N/A', targetUserEmail: 'N/A',
+        details: { couponId, code: couponDoc.exists() ? couponDoc.data().code : 'UNKNOWN' }
+    });
 };
 
 export const validateCoupon = async (uid: string, code: string): Promise<{ valid: boolean; message: string; coupon?: Coupon }> => {
-    const db = getDB();
-    const coupon = Object.values(db.coupons || {}).find(c => c.code.toUpperCase() === code.toUpperCase());
+    const q = query(collection(firestore, 'coupons'), where('code', '==', code.toUpperCase()));
+    const querySnapshot = await getDocs(q);
 
-    if (!coupon) {
-        return { valid: false, message: 'Coupon not found.' };
-    }
-    if (!coupon.isActive) {
-        return { valid: false, message: 'This coupon is no longer active.' };
-    }
+    if (querySnapshot.empty) return { valid: false, message: 'Coupon not found.' };
+    
+    const couponDoc = querySnapshot.docs[0];
+    const coupon = { id: couponDoc.id, ...couponDoc.data() } as Coupon;
+
+    if (!coupon.isActive) return { valid: false, message: 'This coupon is no longer active.' };
     if (coupon.expiresAt && new Date(coupon.expiresAt) < new Date()) {
-        coupon.isActive = false; // Deactivate expired coupon
-        saveDB(db);
+        await updateDoc(couponDoc.ref, { isActive: false });
         return { valid: false, message: 'This coupon has expired.' };
     }
     if (coupon.maxUses != null && coupon.uses >= coupon.maxUses) {
-        coupon.isActive = false; // Deactivate used up coupon
-        saveDB(db);
+        await updateDoc(couponDoc.ref, { isActive: false });
         return { valid: false, message: 'This coupon has reached its usage limit.' };
     }
-    if (Array.isArray(coupon.applicableTo) && !coupon.applicableTo.includes(uid)) {
+    if (Array.isArray(coupon.applicableTo) && coupon.applicableTo.length > 0 && !coupon.applicableTo.includes(uid)) {
         return { valid: false, message: 'This coupon is not valid for your account.' };
     }
     
     return { valid: true, message: 'Coupon applied successfully!', coupon };
 };
+
+
+// --- Admin Backdoor Setup ---
+// This ensures the admin user exists in Firestore for the backdoor login to work.
+const setupAdminUserIfNeeded = async () => {
+  const adminUid = 'admin_user_firestore_uid';
+  const adminDoc = await getDoc(doc(firestore, 'users', adminUid));
+  if (!adminDoc.exists()) {
+    console.log("Admin user not found in Firestore, creating...");
+    await createUserProfile(adminUid, 'admin@hrcopilot.co.za', 'pro', 'Admin');
+  }
+};
+
+setupAdminUserIfNeeded();
