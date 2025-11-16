@@ -1,11 +1,3 @@
-
-
-
-
-
-
-
-
 import React, { useState, useEffect, useRef } from 'react';
 import {
   onAuthStateChanged,
@@ -39,6 +31,7 @@ import LegalModal from './components/LegalModal';
 import AdminDashboard from './components/AdminDashboard';
 import AdminNotificationPanel from './components/AdminNotificationPanel';
 import InitialProfileSetup from './components/InitialProfileSetup';
+import ConfirmationModal from './components/ConfirmationModal';
 
 
 import type { Policy, Form, GeneratedDocument, PolicyType, FormType, CompanyProfile, User, Transaction, AdminActionLog, AdminNotification, UserFile, Coupon } from './types';
@@ -65,6 +58,7 @@ import {
   getUserFiles,
   uploadUserFile,
   getDownloadUrlForFile,
+  deleteUserFile,
   uploadProfilePhoto,
   deleteProfilePhoto,
   createCoupon,
@@ -116,6 +110,11 @@ const App: React.FC = () => {
 
   // State for legal modals
   const [legalModalContent, setLegalModalContent] = useState<{ title: string; content: string } | null>(null);
+  const [confirmation, setConfirmation] = useState<{
+      title: string;
+      message: React.ReactNode;
+      onConfirm: () => void;
+    } | null>(null);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -403,6 +402,35 @@ const App: React.FC = () => {
           console.error("File download error:", error);
       }
   };
+
+    const handleDeleteUserFile = (fileId: string, storagePath: string) => {
+      if (!user) return;
+      
+      const file = userFiles.find(f => f.id === fileId);
+      if (!file) return;
+
+      setConfirmation({
+        title: "Delete File",
+        message: (
+          <p>
+            Are you sure you want to permanently delete the file <strong className="text-secondary">{file.name}</strong>? This action cannot be undone.
+          </p>
+        ),
+        onConfirm: async () => {
+          setIsLoading(true);
+          setConfirmation(null);
+          try {
+            await deleteUserFile(user.uid, fileId, storagePath);
+            setUserFiles(prev => prev.filter(f => f.id !== fileId));
+            setToastMessage("File deleted successfully.");
+          } catch (error: any) {
+            setToastMessage(`Error deleting file: ${error.message}`);
+          } finally {
+            setIsLoading(false);
+          }
+        }
+      });
+    };
 
   // Admin action handlers
   const handleAdminUpdateUser = async (targetUid: string, updates: Partial<User>) => {
@@ -741,6 +769,7 @@ const App: React.FC = () => {
                         userFiles={userFiles}
                         onFileUpload={handleFileUpload}
                         onFileDownload={handleFileDownload}
+                        onFileDelete={handleDeleteUserFile}
                         onViewDocument={handleViewDocument}
                         onProfilePhotoUpload={handleProfilePhotoUpload}
                         onProfilePhotoDelete={handleProfilePhotoDelete}
@@ -878,6 +907,15 @@ const App: React.FC = () => {
           onClose={() => setLegalModalContent(null)}
           title={legalModalContent.title}
           content={legalModalContent.content}
+        />
+      )}
+      {confirmation && (
+        <ConfirmationModal
+            isOpen={!!confirmation}
+            title={confirmation.title}
+            message={confirmation.message}
+            onConfirm={confirmation.onConfirm}
+            onCancel={() => setConfirmation(null)}
         />
       )}
     </>

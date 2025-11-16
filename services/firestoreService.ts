@@ -1,10 +1,7 @@
-
-
-
 import type { User, CompanyProfile, GeneratedDocument, Transaction, AdminActionLog, AdminNotification, UserFile, Coupon } from '../types';
 // --- REAL FIREBASE FILE FUNCTIONS ---
 // These functions use the actual Firebase SDK for file storage and metadata.
-import { collection, addDoc, getDocs, query, orderBy, serverTimestamp, Timestamp } from 'firebase/firestore';
+import { collection, addDoc, getDocs, query, orderBy, serverTimestamp, Timestamp, doc, deleteDoc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { firestore, storage } from './firebase';
 
@@ -445,6 +442,26 @@ export const getDownloadUrlForFile = async (storagePath: string): Promise<string
     if (!storagePath) throw new Error("Storage path is required.");
     const storageRef = ref(storage, storagePath);
     return await getDownloadURL(storageRef);
+};
+
+export const deleteUserFile = async (uid: string, fileId: string, storagePath: string): Promise<void> => {
+    if (!uid || !fileId || !storagePath) throw new Error("User ID, File ID, and Storage Path are required.");
+
+    // Delete from Storage
+    const storageRef = ref(storage, storagePath);
+    try {
+        await deleteObject(storageRef);
+    } catch (error: any) {
+        // If the object doesn't exist, we can ignore the error and proceed to delete the firestore doc.
+        if (error.code !== 'storage/object-not-found') {
+            console.error("Error deleting file from Storage:", error);
+            throw error;
+        }
+    }
+
+    // Delete from Firestore
+    const fileDocRef = doc(firestore, 'users', uid, 'files', fileId);
+    await deleteDoc(fileDocRef);
 };
 
 // FIX: Implement and export missing coupon management functions.

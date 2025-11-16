@@ -12,6 +12,7 @@ interface ProfilePageProps {
   userFiles: UserFile[];
   onFileUpload: (file: File, notes: string) => Promise<void>;
   onFileDownload: (storagePath: string) => void;
+  onFileDelete: (fileId: string, storagePath: string) => void;
   onViewDocument: (doc: GeneratedDocument) => void;
   onProfilePhotoUpload: (file: File) => Promise<void>;
   onProfilePhotoDelete: () => Promise<void>;
@@ -28,6 +29,7 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
     userFiles,
     onFileUpload,
     onFileDownload,
+    onFileDelete,
     onViewDocument,
     onProfilePhotoUpload,
     onProfilePhotoDelete,
@@ -401,7 +403,12 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
                                             <p className="text-xs text-gray-500">{new Date(file.createdAt).toLocaleString()} &bull; {(file.size / 1024).toFixed(2)} KB</p>
                                         </div>
                                     </div>
-                                    <button onClick={() => onFileDownload(file.storagePath)} className="ml-4 flex-shrink-0 px-3 py-1.5 text-xs font-semibold text-primary bg-white border border-primary rounded-md hover:bg-primary hover:text-white transition-colors">Download</button>
+                                     <div className="flex items-center space-x-2 ml-4 flex-shrink-0">
+                                        <button onClick={() => onFileDownload(file.storagePath)} className="px-3 py-1.5 text-xs font-semibold text-primary bg-white border border-primary rounded-md hover:bg-primary hover:text-white transition-colors">Download</button>
+                                        <button onClick={() => onFileDelete(file.id, file.storagePath)} className="p-2 text-red-600 bg-red-100 rounded-md hover:bg-red-200" title="Delete File">
+                                            <TrashIcon className="w-4 h-4" />
+                                        </button>
+                                    </div>
                                 </li>
                             ))}
                         </ul>
