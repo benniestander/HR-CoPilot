@@ -221,26 +221,22 @@ const App: React.FC = () => {
   };
 
   const handleLogin = async (email: string, password: string) => {
-    setIsLoading(true);
     try {
       await signInWithEmailAndPassword(auth, email, password);
       // onAuthStateChanged will handle routing to the app or verification screen.
     } catch (error: any) {
       setToastMessage(`Login failed: ${error.message}`);
-    } finally {
-      setIsLoading(false);
+      throw error;
     }
   };
   
   const handleForgotPassword = async (email: string) => {
-    setIsLoading(true);
     try {
       await sendPasswordResetEmail(auth, email);
       setToastMessage(`Password reset email sent to ${email}. Please check your inbox.`);
     } catch (error: any) {
       setToastMessage(`Error: ${error.message}`);
-    } finally {
-      setIsLoading(false);
+      throw error;
     }
   };
 
