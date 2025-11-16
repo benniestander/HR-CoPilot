@@ -63,8 +63,12 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ allUsers, allDocuments,
   const stats = useMemo(() => {
     const proUsers = allUsers.filter(u => u.plan === 'pro' && u.email !== 'admin@hrcopilot.co.za').length;
     const paygUsers = allUsers.filter(u => u.plan === 'payg').length;
-    // FIX: Explicitly cast the accumulator `acc` and transaction `amount` to Number to ensure correct arithmetic, as it might be a string if data types are inconsistent.
-    const totalRevenue = allTransactions.reduce((acc, tx) => (Number(tx.amount) > 0 ? Number(acc) + Number(tx.amount) : Number(acc)), 0);
+    
+    // Revenue should only count actual user payments (subscriptions, top-ups), not admin-granted credits.
+    const totalRevenue = allTransactions
+      .filter(tx => !tx.description.startsWith('Admin adjustment:'))
+      .reduce((acc, tx) => (Number(tx.amount) > 0 ? Number(acc) + Number(tx.amount) : Number(acc)), 0);
+
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
     const newUsersLast30Days = allUsers.filter(u => new Date(u.createdAt) > thirtyDaysAgo).length;
@@ -244,7 +248,7 @@ const CouponManager: React.FC<{ coupons: Coupon[], onCreateCoupon: (data: any) =
                 {coupons.map(c => (
                     <tr key={c.id}>
                         <td className="px-4 py-3 whitespace-nowrap font-mono text-sm font-semibold">{c.code}</td>
-                        {/* FIX: Ensure c.value is treated as a number for arithmetic operations. */}
+                        {/* FIX: Cast c.value to Number to ensure arithmetic operation is valid. */}
                         <td className="px-4 py-3 whitespace-nowrap text-sm">{c.type === 'percentage' ? `${c.value}%` : `R${(Number(c.value) / 100).toFixed(2)}`}</td>
                         <td className="px-4 py-3 whitespace-nowrap text-sm">{c.uses} / {c.maxUses || '∞'}</td>
                         <td className="px-4 py-3 whitespace-nowrap text-sm">{c.expiresAt ? new Date(c.expiresAt).toLocaleDateString() : 'Never'}</td>
