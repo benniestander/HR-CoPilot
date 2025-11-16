@@ -1,14 +1,15 @@
 import React, { useState } from 'react';
-import { CheckIcon } from './Icons';
+import { CheckIcon, GoogleIcon } from './Icons';
 
 interface PlanSelectionPageProps {
   onStartAuthFlow: (flow: 'signup' | 'payg_signup', email: string, details: { password: string, name?: string, contactNumber?: string }) => void;
+  onStartGoogleAuthFlow: (flow: 'signup' | 'payg_signup') => void;
   onShowLogin: () => void;
   onShowPrivacyPolicy: () => void;
   onShowTerms: () => void;
 }
 
-const PlanSelectionPage: React.FC<PlanSelectionPageProps> = ({ onStartAuthFlow, onShowLogin, onShowPrivacyPolicy, onShowTerms }) => {
+const PlanSelectionPage: React.FC<PlanSelectionPageProps> = ({ onStartAuthFlow, onStartGoogleAuthFlow, onShowLogin, onShowPrivacyPolicy, onShowTerms }) => {
     const [selectedPlan, setSelectedPlan] = useState<'pro' | 'payg'>('pro');
     
     const [proData, setProData] = useState({ name: '', email: '', password: '', confirmPassword: '' });
@@ -17,7 +18,7 @@ const PlanSelectionPage: React.FC<PlanSelectionPageProps> = ({ onStartAuthFlow, 
     const [proErrors, setProErrors] = useState({ name: '', email: '', password: '', confirmPassword: '' });
     const [paygErrors, setPaygErrors] = useState({ name: '', email: '', contactNumber: '', password: '', confirmPassword: '' });
 
-    const [loading, setLoading] = useState<'none' | 'pro' | 'payg'>('none');
+    const [loading, setLoading] = useState<'none' | 'pro' | 'payg' | 'google_pro' | 'google_payg'>('none');
     
     const proFeatures = [
         'Unlimited HR Policy Generation',
@@ -155,54 +156,66 @@ const PlanSelectionPage: React.FC<PlanSelectionPageProps> = ({ onStartAuthFlow, 
                     <div className="w-full max-w-md mx-auto">
                         <h2 className="text-2xl font-bold text-secondary text-center mb-6">Create your account</h2>
                         {selectedPlan === 'pro' && (
-                            <form onSubmit={handleProSubmit} className="space-y-4">
-                                <div>
-                                    <input type="text" value={proData.name} onChange={e => { setProData({...proData, name: e.target.value}); validateField('pro', 'name', e.target.value); }} placeholder="Your Name" className={`w-full p-3 border rounded-md shadow-sm ${proErrors.name ? 'border-red-500' : 'border-gray-300'}`} />
-                                    {proErrors.name && <p className="text-red-600 text-xs mt-1">{proErrors.name}</p>}
-                                </div>
-                                <div>
-                                    <input type="email" value={proData.email} onChange={e => { setProData({...proData, email: e.target.value}); validateField('pro', 'email', e.target.value); }} placeholder="your-email@example.com" className={`w-full p-3 border rounded-md shadow-sm ${proErrors.email ? 'border-red-500' : 'border-gray-300'}`} />
-                                    {proErrors.email && <p className="text-red-600 text-xs mt-1">{proErrors.email}</p>}
-                                </div>
-                                <div>
-                                    <input type="password" value={proData.password} onChange={e => { setProData({...proData, password: e.target.value}); validateField('pro', 'password', e.target.value); }} placeholder="Password" className={`w-full p-3 border rounded-md shadow-sm ${proErrors.password ? 'border-red-500' : 'border-gray-300'}`} />
-                                    {proErrors.password && <p className="text-red-600 text-xs mt-1">{proErrors.password}</p>}
-                                </div>
-                                <div>
-                                    <input type="password" value={proData.confirmPassword} onChange={e => { setProData({...proData, confirmPassword: e.target.value}); validateField('pro', 'confirmPassword', e.target.value); }} placeholder="Confirm Password" className={`w-full p-3 border rounded-md shadow-sm ${proErrors.confirmPassword ? 'border-red-500' : 'border-gray-300'}`} />
-                                    {proErrors.confirmPassword && <p className="text-red-600 text-xs mt-1">{proErrors.confirmPassword}</p>}
-                                </div>
-                                <button type="submit" disabled={loading === 'pro'} className="w-full bg-primary text-white font-bold py-3 px-4 rounded-md hover:bg-opacity-90 disabled:bg-gray-400">
-                                    {loading === 'pro' ? 'Creating Account...' : 'Sign Up for Pro'}
+                            <div className="space-y-4">
+                                <button onClick={() => { setLoading('google_pro'); onStartGoogleAuthFlow('signup'); }} disabled={loading !== 'none'} className="w-full flex justify-center items-center py-3 px-4 border border-gray-300 rounded-md shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:bg-gray-200">
+                                    <GoogleIcon className="w-5 h-5 mr-2" /> {loading === 'google_pro' ? 'Redirecting...' : 'Sign Up with Google'}
                                 </button>
-                            </form>
+                                <div className="my-4 flex items-center"><div className="flex-grow border-t border-gray-300"></div><span className="flex-shrink mx-4 text-gray-400 text-sm">OR</span><div className="flex-grow border-t border-gray-300"></div></div>
+                                <form onSubmit={handleProSubmit} className="space-y-4">
+                                    <div>
+                                        <input type="text" value={proData.name} onChange={e => { setProData({...proData, name: e.target.value}); validateField('pro', 'name', e.target.value); }} placeholder="Your Name" className={`w-full p-3 border rounded-md shadow-sm ${proErrors.name ? 'border-red-500' : 'border-gray-300'}`} />
+                                        {proErrors.name && <p className="text-red-600 text-xs mt-1">{proErrors.name}</p>}
+                                    </div>
+                                    <div>
+                                        <input type="email" value={proData.email} onChange={e => { setProData({...proData, email: e.target.value}); validateField('pro', 'email', e.target.value); }} placeholder="your-email@example.com" className={`w-full p-3 border rounded-md shadow-sm ${proErrors.email ? 'border-red-500' : 'border-gray-300'}`} />
+                                        {proErrors.email && <p className="text-red-600 text-xs mt-1">{proErrors.email}</p>}
+                                    </div>
+                                    <div>
+                                        <input type="password" value={proData.password} onChange={e => { setProData({...proData, password: e.target.value}); validateField('pro', 'password', e.target.value); }} placeholder="Password" className={`w-full p-3 border rounded-md shadow-sm ${proErrors.password ? 'border-red-500' : 'border-gray-300'}`} />
+                                        {proErrors.password && <p className="text-red-600 text-xs mt-1">{proErrors.password}</p>}
+                                    </div>
+                                    <div>
+                                        <input type="password" value={proData.confirmPassword} onChange={e => { setProData({...proData, confirmPassword: e.target.value}); validateField('pro', 'confirmPassword', e.target.value); }} placeholder="Confirm Password" className={`w-full p-3 border rounded-md shadow-sm ${proErrors.confirmPassword ? 'border-red-500' : 'border-gray-300'}`} />
+                                        {proErrors.confirmPassword && <p className="text-red-600 text-xs mt-1">{proErrors.confirmPassword}</p>}
+                                    </div>
+                                    <button type="submit" disabled={loading !== 'none'} className="w-full bg-primary text-white font-bold py-3 px-4 rounded-md hover:bg-opacity-90 disabled:bg-gray-400">
+                                        {loading === 'pro' ? 'Creating Account...' : 'Sign Up for Pro'}
+                                    </button>
+                                </form>
+                            </div>
                         )}
                         {selectedPlan === 'payg' && (
-                             <form onSubmit={handlePaygSubmit} className="space-y-4">
-                                <div>
-                                    <input type="text" value={paygData.name} onChange={e => { setPaygData({...paygData, name: e.target.value}); validateField('payg', 'name', e.target.value);}} placeholder="Your Name" className={`w-full p-3 border rounded-md shadow-sm ${paygErrors.name ? 'border-red-500' : 'border-gray-300'}`} />
-                                    {paygErrors.name && <p className="text-red-600 text-xs mt-1">{paygErrors.name}</p>}
-                                </div>
-                                <div>
-                                    <input type="email" value={paygData.email} onChange={e => { setPaygData({...paygData, email: e.target.value}); validateField('payg', 'email', e.target.value);}} placeholder="Your Email Address" className={`w-full p-3 border rounded-md shadow-sm ${paygErrors.email ? 'border-red-500' : 'border-gray-300'}`} />
-                                    {paygErrors.email && <p className="text-red-600 text-xs mt-1">{paygErrors.email}</p>}
-                                </div>
-                                <div>
-                                    <input type="tel" value={paygData.contactNumber} onChange={e => { setPaygData({...paygData, contactNumber: e.target.value}); validateField('payg', 'contactNumber', e.target.value);}} placeholder="Contact Number (e.g. 0821234567)" className={`w-full p-3 border rounded-md shadow-sm ${paygErrors.contactNumber ? 'border-red-500' : 'border-gray-300'}`} />
-                                    {paygErrors.contactNumber && <p className="text-red-600 text-xs mt-1">{paygErrors.contactNumber}</p>}
-                                </div>
-                                <div>
-                                    <input type="password" value={paygData.password} onChange={e => { setPaygData({...paygData, password: e.target.value}); validateField('payg', 'password', e.target.value);}} placeholder="Password" className={`w-full p-3 border rounded-md shadow-sm ${paygErrors.password ? 'border-red-500' : 'border-gray-300'}`} />
-                                    {paygErrors.password && <p className="text-red-600 text-xs mt-1">{paygErrors.password}</p>}
-                                </div>
-                                <div>
-                                    <input type="password" value={paygData.confirmPassword} onChange={e => { setPaygData({...paygData, confirmPassword: e.target.value}); validateField('payg', 'confirmPassword', e.target.value);}} placeholder="Confirm Password" className={`w-full p-3 border rounded-md shadow-sm ${paygErrors.confirmPassword ? 'border-red-500' : 'border-gray-300'}`} />
-                                    {paygErrors.confirmPassword && <p className="text-red-600 text-xs mt-1">{paygErrors.confirmPassword}</p>}
-                                </div>
-                                <button type="submit" disabled={loading === 'payg'} className="w-full bg-gray-700 text-white font-bold py-3 px-4 rounded-md hover:bg-gray-800 disabled:bg-gray-400">
-                                    {loading === 'payg' ? 'Creating Account...' : 'Sign Up for PAYG'}
+                             <div className="space-y-4">
+                                <button onClick={() => { setLoading('google_payg'); onStartGoogleAuthFlow('payg_signup'); }} disabled={loading !== 'none'} className="w-full flex justify-center items-center py-3 px-4 border border-gray-300 rounded-md shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:bg-gray-200">
+                                    <GoogleIcon className="w-5 h-5 mr-2" /> {loading === 'google_payg' ? 'Redirecting...' : 'Sign Up with Google'}
                                 </button>
-                            </form>
+                                <div className="my-4 flex items-center"><div className="flex-grow border-t border-gray-300"></div><span className="flex-shrink mx-4 text-gray-400 text-sm">OR</span><div className="flex-grow border-t border-gray-300"></div></div>
+                                 <form onSubmit={handlePaygSubmit} className="space-y-4">
+                                    <div>
+                                        <input type="text" value={paygData.name} onChange={e => { setPaygData({...paygData, name: e.target.value}); validateField('payg', 'name', e.target.value);}} placeholder="Your Name" className={`w-full p-3 border rounded-md shadow-sm ${paygErrors.name ? 'border-red-500' : 'border-gray-300'}`} />
+                                        {paygErrors.name && <p className="text-red-600 text-xs mt-1">{paygErrors.name}</p>}
+                                    </div>
+                                    <div>
+                                        <input type="email" value={paygData.email} onChange={e => { setPaygData({...paygData, email: e.target.value}); validateField('payg', 'email', e.target.value);}} placeholder="Your Email Address" className={`w-full p-3 border rounded-md shadow-sm ${paygErrors.email ? 'border-red-500' : 'border-gray-300'}`} />
+                                        {paygErrors.email && <p className="text-red-600 text-xs mt-1">{paygErrors.email}</p>}
+                                    </div>
+                                    <div>
+                                        <input type="tel" value={paygData.contactNumber} onChange={e => { setPaygData({...paygData, contactNumber: e.target.value}); validateField('payg', 'contactNumber', e.target.value);}} placeholder="Contact Number (e.g. 0821234567)" className={`w-full p-3 border rounded-md shadow-sm ${paygErrors.contactNumber ? 'border-red-500' : 'border-gray-300'}`} />
+                                        {paygErrors.contactNumber && <p className="text-red-600 text-xs mt-1">{paygErrors.contactNumber}</p>}
+                                    </div>
+                                    <div>
+                                        <input type="password" value={paygData.password} onChange={e => { setPaygData({...paygData, password: e.target.value}); validateField('payg', 'password', e.target.value);}} placeholder="Password" className={`w-full p-3 border rounded-md shadow-sm ${paygErrors.password ? 'border-red-500' : 'border-gray-300'}`} />
+                                        {paygErrors.password && <p className="text-red-600 text-xs mt-1">{paygErrors.password}</p>}
+                                    </div>
+                                    <div>
+                                        <input type="password" value={paygData.confirmPassword} onChange={e => { setPaygData({...paygData, confirmPassword: e.target.value}); validateField('payg', 'confirmPassword', e.target.value);}} placeholder="Confirm Password" className={`w-full p-3 border rounded-md shadow-sm ${paygErrors.confirmPassword ? 'border-red-500' : 'border-gray-300'}`} />
+                                        {paygErrors.confirmPassword && <p className="text-red-600 text-xs mt-1">{paygErrors.confirmPassword}</p>}
+                                    </div>
+                                    <button type="submit" disabled={loading !== 'none'} className="w-full bg-gray-700 text-white font-bold py-3 px-4 rounded-md hover:bg-gray-800 disabled:bg-gray-400">
+                                        {loading === 'payg' ? 'Creating Account...' : 'Sign Up for PAYG'}
+                                    </button>
+                                </form>
+                            </div>
                         )}
                     </div>
                 </div>

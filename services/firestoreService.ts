@@ -1,4 +1,5 @@
 
+
 import type { User, CompanyProfile, GeneratedDocument, Transaction, AdminActionLog, AdminNotification, UserFile, Coupon } from '../types';
 // --- REAL FIREBASE FILE FUNCTIONS ---
 // These functions use the actual Firebase SDK for file storage and metadata.
@@ -24,7 +25,6 @@ interface MockDB {
   adminNotifications: {
     [notificationId: string]: AdminNotification;
   };
-  // FIX: Added coupons to the mock database interface.
   coupons: {
     [couponId: string]: Coupon;
   };
@@ -35,7 +35,6 @@ let inMemoryDB: MockDB = {
   users: {},
   adminActionLogs: {},
   adminNotifications: {},
-  // FIX: Initialized coupons in the in-memory database.
   coupons: {},
 };
 
@@ -146,7 +145,8 @@ export const addTransactionToUser = async (uid: string, transaction: Omit<Transa
     if (db.users[uid]) {
         const user = db.users[uid].profile;
         let discountDetails: Transaction['discount'] | undefined = undefined;
-        let creditAdjustment = transaction.amount;
+        // FIX: Cast amount to Number to prevent potential string concatenation issues.
+        let creditAdjustment = Number(transaction.amount);
 
         if (couponCode) {
             const coupon = Object.values(db.coupons || {}).find(c => c.code.toUpperCase() === couponCode.toUpperCase());
@@ -154,7 +154,7 @@ export const addTransactionToUser = async (uid: string, transaction: Omit<Transa
                 let discountAmount = 0;
                 if (coupon.type === 'percentage') {
                     // For top-ups (positive amount), discount is on top. For purchases (negative), it's on the absolute value.
-                    discountAmount = (Math.abs(transaction.amount) * coupon.value) / 100;
+                    discountAmount = (Math.abs(creditAdjustment) * coupon.value) / 100;
                 } else { // fixed
                     discountAmount = coupon.value;
                 }
@@ -186,7 +186,8 @@ export const addTransactionToUser = async (uid: string, transaction: Omit<Transa
         user.transactions = [newTransaction, ...(user.transactions || [])];
         // Only adjust credit if it's not a subscription log. Subscription doesn't use credit.
         if (transaction.description !== 'Ingcweti Pro Subscription (12 months)') {
-            user.creditBalance += creditAdjustment;
+            // FIX: Cast existing balance to Number before adding to prevent string concatenation.
+            user.creditBalance = Number(user.creditBalance) + creditAdjustment;
         }
         db.users[uid].profile = user;
         saveDB(db);
@@ -263,7 +264,8 @@ export const adjustUserCreditByAdmin = async (adminEmail: string, targetUid: str
             userEmail: user.email,
         };
         user.transactions = [newTransaction, ...(user.transactions || [])];
-        user.creditBalance += amountInCents;
+        // FIX: Cast existing balance to Number before adding to prevent string concatenation.
+        user.creditBalance = Number(user.creditBalance) + amountInCents;
 
         logAdminAction({
             adminEmail,

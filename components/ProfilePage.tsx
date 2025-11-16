@@ -332,7 +332,8 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
                     <h3 className="text-xl font-semibold text-secondary mb-4">Manage Your Credit</h3>
                     <div className="p-4 bg-green-50 border border-green-200 rounded-lg text-center mb-4">
                         <p className="text-sm text-green-800">Your current balance is</p>
-                        <p className="text-4xl font-bold text-green-900">R{(user.creditBalance / 100).toFixed(2)}</p>
+                        {/* FIX: Cast creditBalance to Number to prevent type errors. */}
+                        <p className="text-4xl font-bold text-green-900">R{(Number(user.creditBalance) / 100).toFixed(2)}</p>
                     </div>
                     
                     <button onClick={onGoToTopUp} className="w-full bg-primary text-white font-bold py-3 px-4 rounded-md hover:bg-opacity-90">

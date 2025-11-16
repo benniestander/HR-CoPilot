@@ -1,3 +1,5 @@
+
+
 import React, { useState, useEffect, useRef } from 'react';
 import {
   onAuthStateChanged,
@@ -6,9 +8,13 @@ import {
   signInWithEmailAndPassword,
   signOut,
   sendPasswordResetEmail,
+  signInWithPopup,
+  sendSignInLinkToEmail,
+  isSignInWithEmailLink,
+  signInWithEmailLink,
   type User as FirebaseUser,
 } from 'firebase/auth';
-import { auth } from './services/firebase';
+import { auth, googleProvider } from './services/firebase';
 
 import { POLICIES, FORMS } from './constants';
 import { PRIVACY_POLICY_CONTENT, TERMS_OF_USE_CONTENT } from './legalContent';
@@ -116,13 +122,35 @@ const App: React.FC = () => {
   }, []);
 
   useEffect(() => {
+    if (isSignInWithEmailLink(auth, window.location.href)) {
+        let email = window.localStorage.getItem('emailForSignIn');
+        if (!email) {
+            email = window.prompt('Please provide your email for confirmation');
+        }
+        if (email) {
+            setIsLoading(true);
+            signInWithEmailLink(auth, email, window.location.href)
+                .then(() => {
+                    window.localStorage.removeItem('emailForSignIn');
+                    // onAuthStateChanged will handle the rest.
+                })
+                .catch((error) => {
+                    setToastMessage(`Error signing in with email link: ${error.message}`);
+                    setIsLoading(false);
+                });
+        } else {
+             setToastMessage('Email is required to sign in with a link.');
+        }
+    }
+
     // Listen for auth state changes
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser: FirebaseUser | null) => {
       setIsLoading(true);
       if (firebaseUser) {
         // User is signed in. Check if their email is verified.
-        if (!firebaseUser.emailVerified) {
+        if (!firebaseUser.emailVerified && firebaseUser.providerData.some(p => p.providerId === 'password')) {
           // Logged in but not verified. Show verification screen.
+          // Only for email/password, not for Google which is auto-verified.
           setUnverifiedUser(firebaseUser);
           setUser(null);
           setAuthPage('verify-email');
@@ -143,7 +171,7 @@ const App: React.FC = () => {
           let plan: 'pro' | 'payg' = 'payg';
           if (flow === 'signup') plan = 'pro';
 
-          appUser = await createUserProfile(firebaseUser.uid, firebaseUser.email, plan, details?.name, details?.contactNumber);
+          appUser = await createUserProfile(firebaseUser.uid, firebaseUser.email!, plan, details?.name || firebaseUser.displayName || undefined, details?.contactNumber);
 
           if (plan === 'payg') {
             setCurrentView('upgrade');
@@ -221,6 +249,23 @@ const App: React.FC = () => {
     }
   };
 
+  const handleStartGoogleAuthFlow = (flow: 'signup' | 'payg_signup') => {
+    window.localStorage.setItem('authFlow', flow);
+    handleSignInWithGoogle();
+  };
+
+  const handleSignInWithGoogle = async () => {
+    setIsLoading(true);
+    try {
+        await signInWithPopup(auth, googleProvider);
+        // onAuthStateChanged will handle the rest
+    } catch (error: any) {
+        setToastMessage(`Google sign-in failed: ${error.message}`);
+    } finally {
+        setIsLoading(false);
+    }
+  };
+
   const handleLogin = async (email: string, password: string) => {
     try {
       await signInWithEmailAndPassword(auth, email, password);
@@ -231,6 +276,20 @@ const App: React.FC = () => {
     }
   };
   
+  const handleSignInWithEmailLink = async (email: string) => {
+    const actionCodeSettings = {
+        url: window.location.href, // Redirect back to the same page
+        handleCodeInApp: true,
+    };
+    try {
+        await sendSignInLinkToEmail(auth, email, actionCodeSettings);
+        window.localStorage.setItem('emailForSignIn', email);
+    } catch (error: any) {
+        setToastMessage(`Error sending sign-in link: ${error.message}`);
+        throw error;
+    }
+  };
+
   const handleForgotPassword = async (email: string) => {
     try {
       await sendPasswordResetEmail(auth, email);
@@ -564,7 +623,8 @@ const App: React.FC = () => {
                         <span className="text-sm text-gray-600 hidden sm:block">{user?.email}</span>
                         {user?.plan === 'payg' && (
                             <div className="text-sm font-semibold bg-green-100 text-green-800 px-3 py-1 rounded-full">
-                                Credit: R{(user.creditBalance / 100).toFixed(2)}
+                                {/* FIX: Cast creditBalance to Number to prevent type errors. */}
+                                Credit: R{(Number(user.creditBalance) / 100).toFixed(2)}
                             </div>
                         )}
                         <button onClick={handleShowProfile} className="flex items-center text-sm font-semibold text-primary hover:underline">
@@ -742,10 +802,10 @@ const App: React.FC = () => {
       }
       
       if (authPage === 'login') {
-        return <Login onLogin={handleLogin} onForgotPassword={handleForgotPassword} onShowLanding={() => setAuthPage('landing')} onShowPrivacyPolicy={handleShowPrivacyPolicy} onShowTerms={handleShowTerms} />;
+        return <Login onLogin={handleLogin} onForgotPassword={handleForgotPassword} onShowLanding={() => setAuthPage('landing')} onShowPrivacyPolicy={handleShowPrivacyPolicy} onShowTerms={handleShowTerms} onSignInWithGoogle={handleSignInWithGoogle} onSignInWithEmailLink={handleSignInWithEmailLink} />;
       }
 
-      return <PlanSelectionPage onStartAuthFlow={handleStartAuthFlow} onShowLogin={() => setAuthPage('login')} onShowPrivacyPolicy={handleShowPrivacyPolicy} onShowTerms={handleShowTerms} />;
+      return <PlanSelectionPage onStartAuthFlow={handleStartAuthFlow} onStartGoogleAuthFlow={handleStartGoogleAuthFlow} onShowLogin={() => setAuthPage('login')} onShowPrivacyPolicy={handleShowPrivacyPolicy} onShowTerms={handleShowTerms} />;
     }
     
     // A 'pro' user who is not subscribed is always in the onboarding/payment flow.
