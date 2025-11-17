@@ -204,9 +204,10 @@ const CouponManager: React.FC<{ coupons: Coupon[], onCreateCoupon: (data: Omit<C
         onCreateCoupon({
             code: formData.code.toUpperCase(),
             type: formData.type,
-            // FIX: The value from formData is a string. It must be converted to a number
-            // before performing arithmetic operations or assigning to a number property.
-            value: formData.type === 'fixed' ? parseFloat(formData.value || '0') * 100 : parseFloat(formData.value || '0'),
+            // FIX: Ensure the string value from the form is correctly converted to a number.
+            // For fixed amounts, convert Rands to cents. For percentages, use the direct number.
+            // Also, handle invalid number inputs by defaulting to 0 to prevent NaN values.
+            value: formData.type === 'fixed' ? (parseFloat(formData.value) || 0) * 100 : (parseFloat(formData.value) || 0),
             expiresAt: formData.expiresAt || undefined,
             maxUses: formData.maxUses ? parseInt(formData.maxUses, 10) : undefined,
             applicableTo,

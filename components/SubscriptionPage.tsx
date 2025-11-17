@@ -102,8 +102,8 @@ const SubscriptionPage: React.FC<SubscriptionPageProps> = ({ user, onSuccess, on
     yoco.showPopup({
       amountInCents: Math.round(finalAmount),
       currency: 'ZAR',
-      name: 'Ingcweti Pro (12 Months)',
-      description: '12 months full access to the Ingcweti platform.',
+      name: 'HR Co-Pilot Pro (12 Months)',
+      description: '12 months full access to the HR Co-Pilot platform.',
       customer: {
         name: formData.firstName,
         surname: formData.lastName,
@@ -147,7 +147,7 @@ const SubscriptionPage: React.FC<SubscriptionPageProps> = ({ user, onSuccess, on
                     <div className="w-2.5 h-2.5 bg-primary rounded-full"></div>
                 </div>
                 <div>
-                    <h3 className="text-lg font-bold text-secondary">Ingcweti Pro Membership</h3>
+                    <h3 className="text-lg font-bold text-secondary">HR Co-Pilot Pro Membership</h3>
                     <p className="text-xl font-bold text-secondary mt-1">R747 <span className="text-base font-normal text-gray-600">/ 12 months</span></p>
                 </div>
                 <div className="absolute top-4 right-4 bg-blue-600 text-white text-xs font-bold px-3 py-1 rounded-full">SAVE 20%</div>
@@ -176,7 +176,7 @@ const SubscriptionPage: React.FC<SubscriptionPageProps> = ({ user, onSuccess, on
             </div>
 
              <div className="pt-4">
-                <p className="text-xs text-gray-500 mb-4">By providing your details, you allow Ingcweti to charge your card via our secure payment partner, Yoco.</p>
+                <p className="text-xs text-gray-500 mb-4">By providing your details, you allow HR Co-Pilot to charge your card via our secure payment partner, Yoco.</p>
                  <button type="submit" disabled={isLoading || !isFormValid} className="w-full bg-primary text-white font-bold py-4 px-4 rounded-lg text-lg hover:bg-opacity-90 disabled:bg-gray-400 transition-colors flex items-center justify-center">
                     {isLoading ? (
                         <><LoadingIcon className="animate-spin -ml-1 mr-3 h-5 w-5" /> Opening payment gateway...</>

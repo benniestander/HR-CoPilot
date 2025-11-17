@@ -7,7 +7,7 @@ const FullPageLoader: React.FC = () => {
     <div className="fixed inset-0 bg-light flex flex-col items-center justify-center z-50">
       <img 
         src="https://i.postimg.cc/h48FMCNY/edited-image-11-removebg-preview.png" 
-        alt="HR CoPilot Logo" 
+        alt="HR Co-Pilot Logo" 
         className="h-16 mb-6"
       />
       <svg className="animate-spin h-10 w-10 text-primary" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
