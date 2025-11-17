@@ -40,7 +40,7 @@ const Questionnaire: React.FC<QuestionnaireProps> = ({
     }
     // Clear errors when item changes
     setErrors({});
-  }, [item.type]);
+  }, [item.type, item.kind, answers, onAnswersChange, isPolicy]);
 
   const validateField = (id: string, value: any): boolean => {
     const question = item.questions.find(q => q.id === id);

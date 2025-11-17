@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { updatePolicy } from '../services/geminiService';
 import type { GeneratedDocument, PolicyUpdateResult } from '../types';
 import { LoadingIcon, UpdateIcon, CheckIcon, HistoryIcon } from './Icons';
+import ConfirmationModal from './ConfirmationModal';
 
 // Simple Diffing function (line-based)
 const createDiff = (original: string, updated: string) => {
@@ -79,6 +80,11 @@ const PolicyUpdater: React.FC<PolicyUpdaterProps> = ({ onBack, generatedDocument
   const [error, setError] = useState<string | null>(null);
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
   const [selectedHistoryItem, setSelectedHistoryItem] = useState<HistoryItem | null>(null);
+  const [confirmation, setConfirmation] = useState<{
+      title: string;
+      message: React.ReactNode;
+      onConfirm: () => void;
+    } | null>(null);
 
   const selectedDocument = useMemo(() => {
     return generatedDocuments.find(d => d.id === selectedDocId);
@@ -124,17 +130,20 @@ const PolicyUpdater: React.FC<PolicyUpdaterProps> = ({ onBack, generatedDocument
 
   const handleRevertToVersion = (historyItem: HistoryItem) => {
     if (!selectedDocument) return;
-
-    if (window.confirm(`Are you sure you want to revert to Version ${historyItem.version}? Your current version (${selectedDocument.version}) will be archived, and this content will become the new latest version.`)) {
-        const revertedDoc: GeneratedDocument = {
-            ...selectedDocument,
-            content: historyItem.content,
-        };
-        
-        onDocumentGenerated(revertedDoc, selectedDocument.id);
-        
-        setIsHistoryModalOpen(false);
-    }
+    
+    setConfirmation({
+        title: "Revert to Previous Version",
+        message: `Are you sure you want to revert to Version ${historyItem.version}? Your current version (${selectedDocument.version}) will be archived, and this content will become the new latest version.`,
+        onConfirm: () => {
+            const revertedDoc: GeneratedDocument = {
+                ...selectedDocument,
+                content: historyItem.content,
+            };
+            onDocumentGenerated(revertedDoc, selectedDocument.id);
+            setIsHistoryModalOpen(false);
+            setConfirmation(null);
+        }
+    });
   };
 
 
@@ -368,6 +377,15 @@ const PolicyUpdater: React.FC<PolicyUpdaterProps> = ({ onBack, generatedDocument
 
       {renderStep()}
       {renderHistoryModal()}
+      {confirmation && (
+        <ConfirmationModal
+            isOpen={!!confirmation}
+            title={confirmation.title}
+            message={confirmation.message}
+            onConfirm={confirmation.onConfirm}
+            onCancel={() => setConfirmation(null)}
+        />
+      )}
     </div>
   );
 };

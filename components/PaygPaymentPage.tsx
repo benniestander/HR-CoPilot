@@ -75,7 +75,6 @@ const PaygPaymentPage: React.FC<PaygPaymentPageProps> = ({ user, onTopUpSuccess,
     validateField(name, value);
   };
 
-  // FIX: Add type guard to ensure 'val' is a string before calling trim().
   const isUserDetailsValid = Object.values(formData).every(val => typeof val === 'string' && val.trim() !== '') && Object.values(errors).every(err => err === '');
   const isAmountValid = finalAmount !== null && finalAmount >= 5000;
   
@@ -134,7 +133,7 @@ const PaygPaymentPage: React.FC<PaygPaymentPageProps> = ({ user, onTopUpSuccess,
                 
                 <div className="p-4 bg-green-50 border border-green-200 rounded-lg text-center mb-6">
                     <p className="text-sm text-green-800">Your current balance is</p>
-                    <p className="text-4xl font-bold text-green-900">R{(user.creditBalance / 100).toFixed(2)}</p>
+                    <p className="text-4xl font-bold text-green-900">R{(Number(user.creditBalance) / 100).toFixed(2)}</p>
                 </div>
 
                 <form onSubmit={handlePayment} className="space-y-6">

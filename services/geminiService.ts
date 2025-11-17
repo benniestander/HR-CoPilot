@@ -118,8 +118,10 @@ export async function* generatePolicyStream(
   for (const key in specificAnswers) {
     if (Object.prototype.hasOwnProperty.call(specificAnswers, key)) {
       const question = policyQuestions.find(q => q.id === key);
-      if (question && answers[key]) {
-          userContext += `- Regarding "${question.label}", the user specified: ${answers[key]}\n`;
+      const answer = answers[key];
+      // FIX: Check for null/undefined/empty string instead of just truthiness to include '0' and 'false'
+      if (question && (answer !== null && answer !== undefined && answer !== '')) {
+          userContext += `- Regarding "${question.label}", the user specified: ${answer}\n`;
       }
     }
   }
@@ -146,6 +148,8 @@ ${handbookInstructions}
 The policy must be fully compliant with current South African legislation. Focus your search on the latest versions and any recent amendments to key acts like the Basic Conditions of Employment Act (BCEA), the Labour Relations Act (LRA), the Employment Equity Act (EEA), and the Protection of Personal Information Act (POPIA), as applicable to the policy.
 
 When performing your search, use specific queries like "latest amendments to BCEA South Africa" or "standard employee handbook clauses South Africa". This will help ground the policy in the most current and authoritative information available.
+
+If an 'Effective Date' is provided in the footer but the 'Review Date' is 'Not Provided', you MUST set the 'Review Date' in the final document to be one year after the 'Effective Date'.
 
 ${industryInstructions ? `**For a company in the "${industry}" industry, it is essential that you specifically address the following points:**\n- ${industryInstructions}\n` : ''}
 
@@ -199,9 +203,13 @@ export async function* generateFormStream(
 
   let constructedPrompt = baseTemplate;
   for (const key in answers) {
+    // FIX: Use a more robust check to ensure values like `0` are not replaced with "(Not specified)".
+    const value = (answers[key] !== null && answers[key] !== undefined && answers[key] !== '')
+      ? answers[key]
+      : '(Not specified)';
     constructedPrompt = constructedPrompt.replace(
       new RegExp(`\\[${key}\\]`, 'g'),
-      answers[key] || `(Not specified)`
+      value
     );
   }
   

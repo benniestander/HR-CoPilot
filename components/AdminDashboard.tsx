@@ -65,10 +65,10 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ allUsers, allDocuments,
     const paygUsers = allUsers.filter(u => u.plan === 'payg').length;
     
     // Revenue should only count actual user payments (subscriptions, top-ups), not admin-granted credits.
-    // FIX: Added Number() casts to ensure arithmetic operations are safe even if values are strings.
+    // FIX: Removed redundant Number() conversions.
     const totalRevenue = allTransactions
       .filter(tx => !tx.description.startsWith('Admin adjustment:'))
-      .reduce((acc, tx) => (Number(tx.amount) > 0 ? Number(acc) + Number(tx.amount) : Number(acc)), 0);
+      .reduce((acc, tx) => (tx.amount > 0 ? acc + tx.amount : acc), 0);
 
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
@@ -160,7 +160,6 @@ const UserList: React.FC<{ users: User[], onViewUser: (user: User) => void }> = 
 
     const handleExport = () => exportToCsv('users.csv', filteredUsers.map(u => ({
         name: u.name, email: u.email, plan: u.plan, 
-        // FIX: Cast creditBalance to Number to prevent type errors.
         credit_balance: (Number(u.creditBalance) / 100).toFixed(2), signup_date: u.createdAt
     })));
 
@@ -198,7 +197,8 @@ const UserList: React.FC<{ users: User[], onViewUser: (user: User) => void }> = 
     );
 };
 
-const CouponManager: React.FC<{ coupons: Coupon[], onCreateCoupon: (data: any) => void, onDeactivateCoupon: (id: string) => void }> = ({ coupons, onCreateCoupon, onDeactivateCoupon }) => {
+// FIX: Correctly type the onCreateCoupon prop
+const CouponManager: React.FC<{ coupons: Coupon[], onCreateCoupon: (data: Omit<Coupon, 'id' | 'createdAt' | 'uses' | 'isActive'>) => void, onDeactivateCoupon: (id: string) => void }> = ({ coupons, onCreateCoupon, onDeactivateCoupon }) => {
     const [formData, setFormData] = useState({ code: '', type: 'percentage' as 'percentage' | 'fixed', value: '', expiresAt: '', maxUses: '', applicableTo: 'all', userIds: '' });
     
     const handleCreate = () => {
@@ -206,9 +206,10 @@ const CouponManager: React.FC<{ coupons: Coupon[], onCreateCoupon: (data: any) =
         onCreateCoupon({
             code: formData.code.toUpperCase(),
             type: formData.type,
-            value: formData.type === 'fixed' ? Number(formData.value) * 100 : Number(formData.value),
+            // FIX: Use parseFloat and parseInt for safer string-to-number conversion
+            value: formData.type === 'fixed' ? parseFloat(formData.value || '0') * 100 : parseFloat(formData.value || '0'),
             expiresAt: formData.expiresAt || undefined,
-            maxUses: formData.maxUses ? Number(formData.maxUses) : undefined,
+            maxUses: formData.maxUses ? parseInt(formData.maxUses, 10) : undefined,
             applicableTo,
         });
         setFormData({ code: '', type: 'percentage', value: '', expiresAt: '', maxUses: '', applicableTo: 'all', userIds: '' });
@@ -249,7 +250,6 @@ const CouponManager: React.FC<{ coupons: Coupon[], onCreateCoupon: (data: any) =
                 {coupons.map(c => (
                     <tr key={c.id}>
                         <td className="px-4 py-3 whitespace-nowrap font-mono text-sm font-semibold">{c.code}</td>
-                        {/* FIX: Cast `c.value` to a number to allow for arithmetic operations, resolving a TypeScript error. */}
                         <td className="px-4 py-3 whitespace-nowrap text-sm">{c.type === 'percentage' ? `${c.value}%` : `R${(Number(c.value) / 100).toFixed(2)}`}</td>
                         <td className="px-4 py-3 whitespace-nowrap text-sm">{c.uses} / {c.maxUses || '∞'}</td>
                         <td className="px-4 py-3 whitespace-nowrap text-sm">{c.expiresAt ? new Date(c.expiresAt).toLocaleDateString() : 'Never'}</td>
@@ -304,7 +304,6 @@ const DocumentAnalytics: React.FC<{ documents: GeneratedDocument[] }> = ({ docum
 const TransactionLog: React.FC<{ transactions: Transaction[] }> = ({ transactions }) => {
     const handleExport = () => exportToCsv('transactions.csv', transactions.map(t => ({
         date: t.date, user_email: t.userEmail, description: t.description, 
-        // FIX: Ensure t.amount is treated as a number for arithmetic operations.
         amount: (Number(t.amount) / 100).toFixed(2)
     })));
 
@@ -327,7 +326,6 @@ const TransactionLog: React.FC<{ transactions: Transaction[] }> = ({ transaction
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{new Date(tx.date).toLocaleString()}</td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{tx.userEmail}</td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{tx.description}</td>
-                        {/* FIX: Ensure tx.amount is treated as a number for arithmetic and comparison. */}
                         <td className={`px-6 py-4 whitespace-nowrap text-sm font-semibold ${Number(tx.amount) > 0 ? 'text-green-600' : 'text-red-600'}`}>R{(Number(tx.amount) / 100).toFixed(2)}</td>
                     </tr>
                 ))}

@@ -18,6 +18,7 @@ interface ProfilePageProps {
   onProfilePhotoDelete: () => Promise<void>;
   onUpgrade: () => void;
   onGoToTopUp: () => void;
+  setToastMessage: (message: string) => void;
 }
 
 const ProfilePage: React.FC<ProfilePageProps> = ({ 
@@ -34,7 +35,8 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
     onProfilePhotoUpload,
     onProfilePhotoDelete,
     onUpgrade,
-    onGoToTopUp
+    onGoToTopUp,
+    setToastMessage
 }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState<CompanyProfile>(user.profile);
@@ -110,7 +112,7 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
 
   const handleUploadClick = async () => {
     if (!selectedFile) {
-      alert("Please select a file to upload.");
+      setToastMessage("Please select a file to upload.");
       return;
     }
     setIsUploading(true);
@@ -124,11 +126,11 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
       if (file.size > 2 * 1024 * 1024) { // 2MB limit
-          alert("File is too large. Please select an image under 2MB.");
+          setToastMessage("File is too large. Please select an image under 2MB.");
           return;
       }
       if (!file.type.startsWith('image/')) {
-          alert("Please select an image file (JPEG, PNG, etc.).");
+          setToastMessage("Please select an image file (JPEG, PNG, etc.).");
           return;
       }
       setPhotoFile(file);
@@ -334,7 +336,6 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
                     <h3 className="text-xl font-semibold text-secondary mb-4">Manage Your Credit</h3>
                     <div className="p-4 bg-green-50 border border-green-200 rounded-lg text-center mb-4">
                         <p className="text-sm text-green-800">Your current balance is</p>
-                        {/* FIX: Cast creditBalance to Number to prevent type errors. */}
                         <p className="text-4xl font-bold text-green-900">R{(Number(user.creditBalance) / 100).toFixed(2)}</p>
                     </div>
                     
@@ -361,8 +362,8 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
                                         <p className="font-medium text-gray-800">{tx.description}</p>
                                         <p className="text-xs text-gray-500">{new Date(tx.date).toLocaleString()}</p>
                                     </div>
-                                    <span className={`font-semibold ${tx.amount > 0 ? 'text-green-600' : 'text-red-600'}`}>
-                                        {tx.amount > 0 ? '+' : ''}R{(tx.amount / 100).toFixed(2)}
+                                    <span className={`font-semibold ${Number(tx.amount) > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                        {Number(tx.amount) > 0 ? '+' : ''}R{(Number(tx.amount) / 100).toFixed(2)}
                                     </span>
                                 </li>
                             ))}

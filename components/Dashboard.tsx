@@ -56,7 +56,6 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onSelectItem, onStartUpdate
             <InfoIcon className="w-6 h-6 mr-3 text-accent-700 flex-shrink-0" />
             <div>
               <h3 className="font-bold">You are on the Pay-As-You-Go plan.</h3>
-              {/* FIX: Cast creditBalance to Number to prevent type errors. */}
               <p className="text-sm">Your current balance is <strong>R{(Number(user.creditBalance) / 100).toFixed(2)}</strong>.</p>
             </div>
         </div>

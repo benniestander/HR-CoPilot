@@ -131,20 +131,30 @@ export const addTransactionToUser = async (uid: string, transaction: Omit<Transa
     if (!user) return;
     
     let discountDetails: Transaction['discount'] | undefined = undefined;
-    let creditAdjustment = Number(transaction.amount);
+    let finalAmount = Number(transaction.amount);
 
     if (couponCode) {
         const couponRes = await validateCoupon(uid, couponCode);
         if (couponRes.valid && couponRes.coupon) {
             const coupon = couponRes.coupon;
             let discountAmount = 0;
+            
+            // For debits (negative amount), discount is positive. For credits (positive amount), it's a bonus (positive).
             if (coupon.type === 'percentage') {
-                discountAmount = (Math.abs(creditAdjustment) * coupon.value) / 100;
+                discountAmount = (Math.abs(finalAmount) * coupon.value) / 100;
             } else { // fixed
                 discountAmount = coupon.value;
             }
             
-            creditAdjustment += discountAmount;
+            // If finalAmount is -74700 (charge) and discount is 10000, it becomes -64700. Correct.
+            // If finalAmount is 10000 (top-up) and bonus is 1000, it becomes 11000. Correct.
+            // A discount/bonus always moves the value towards/past zero.
+            if (finalAmount < 0) {
+                finalAmount += discountAmount;
+            } else {
+                finalAmount += discountAmount;
+            }
+            
             discountDetails = { couponCode: coupon.code, amount: discountAmount };
             
             await updateDoc(doc(firestore, 'coupons', coupon.id), {
@@ -155,6 +165,7 @@ export const addTransactionToUser = async (uid: string, transaction: Omit<Transa
     
     const newTransaction: Omit<Transaction, 'id'> = {
         ...transaction,
+        amount: finalAmount, // Log the final amount after discount
         date: new Date().toISOString(),
         userId: uid,
         userEmail: user.email,
@@ -165,8 +176,10 @@ export const addTransactionToUser = async (uid: string, transaction: Omit<Transa
       transactions: arrayUnion({ ...newTransaction, date: serverTimestamp() }),
     };
 
-    if (transaction.description !== 'HR CoPilot Pro Subscription (12 months)') {
-        updates.creditBalance = increment(creditAdjustment);
+    // Only update credit balance for PAYG transactions (top-ups or document purchases)
+    // The subscription is a charge, not a credit transaction.
+    if (transaction.description !== 'Ingcweti Pro Subscription (12 months)') {
+        updates.creditBalance = increment(finalAmount); // Use the final calculated amount
     }
 
     await updateDoc(userDocRef, updates);

@@ -344,7 +344,11 @@ const App: React.FC = () => {
         setToastMessage("You must be logged in to delete your photo.");
         return;
     }
-    if (window.confirm("Are you sure you want to delete your profile photo?")) {
+    setConfirmation({
+      title: "Delete Photo",
+      message: "Are you sure you want to permanently delete your profile photo?",
+      onConfirm: async () => {
+        setConfirmation(null);
         setIsLoading(true);
         try {
             await deleteProfilePhoto(user.uid);
@@ -358,7 +362,8 @@ const App: React.FC = () => {
         } finally {
             setIsLoading(false);
         }
-    }
+      }
+    });
   };
 
   const handleFileUpload = async (file: File, notes: string) => {
@@ -483,7 +488,8 @@ const App: React.FC = () => {
     const updatedUser = { ...user, plan: 'pro' as const };
     setUser(updatedUser);
     await updateUser(user.uid, { plan: 'pro' });
-    await addTransactionToUser(user.uid, { description: 'Ingcweti Pro Subscription (12 months)', amount: 74700 }, couponCode);
+    // Pass a negative amount to signify a charge, ensuring correct discount calculation and logging.
+    await addTransactionToUser(user.uid, { description: 'Ingcweti Pro Subscription (12 months)', amount: -74700 }, couponCode);
     setToastMessage("Success! Welcome to Ingcweti Pro. Your dashboard is ready.");
     setCurrentView('dashboard');
     setShowOnboardingWalkthrough(true); // Trigger walkthrough for new pro users
@@ -644,7 +650,6 @@ const App: React.FC = () => {
                         <span className="text-sm text-gray-600 hidden sm:block">{user?.email}</span>
                         {user?.plan === 'payg' && (
                             <div className="text-sm font-semibold bg-green-100 text-green-800 px-3 py-1 rounded-full">
-                                {/* FIX: Cast creditBalance to Number to prevent type errors. */}
                                 Credit: R{(Number(user.creditBalance) / 100).toFixed(2)}
                             </div>
                         )}
@@ -748,6 +753,7 @@ const App: React.FC = () => {
                         onProfilePhotoDelete={handleProfilePhotoDelete}
                         onUpgrade={handleGoToUpgrade}
                         onGoToTopUp={handleGoToTopUp}
+                        setToastMessage={setToastMessage}
                     />;
         case 'upgrade':
              if (!user) { handleBackToDashboard(); return null; }
