@@ -20,6 +20,12 @@ const PaygPaymentPage: React.FC<PaygPaymentPageProps> = ({ user, onTopUpSuccess,
   const [selectedAmount, setSelectedAmount] = useState<number | null>(10000); // Default to R100
   const [customAmount, setCustomAmount] = useState('');
   const [isCustom, setIsCustom] = useState(false);
+
+  const [formData, setFormData] = useState({ 
+    firstName: user.name?.split(' ')[0] || '', 
+    lastName: user.name?.split(' ').slice(1).join(' ') || '', 
+  });
+  const [errors, setErrors] = useState({ firstName: '', lastName: '' });
   
   const [isLoading, setIsLoading] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
@@ -53,11 +59,33 @@ const PaygPaymentPage: React.FC<PaygPaymentPageProps> = ({ user, onTopUpSuccess,
     }
   };
   
-  const isFormValid = finalAmount !== null && finalAmount >= 5000;
+  const validateField = (name: keyof typeof formData, value: string) => {
+    let error = '';
+    if (!value.trim()) {
+        const fieldName = String(name).replace(/([A-Z])/g, ' $1').toLowerCase();
+        error = `${fieldName.charAt(0).toUpperCase() + fieldName.slice(1)} is required.`;
+    }
+    setErrors(prev => ({ ...prev, [name]: error }));
+    return !error;
+  };
+  
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target as { name: keyof typeof formData; value: string };
+    setFormData(prev => ({ ...prev, [name]: value }));
+    validateField(name, value);
+  };
 
+  // FIX: Add type guard to ensure 'val' is a string before calling trim().
+  const isUserDetailsValid = Object.values(formData).every(val => typeof val === 'string' && val.trim() !== '') && Object.values(errors).every(err => err === '');
+  const isAmountValid = finalAmount !== null && finalAmount >= 5000;
+  
   const handlePayment = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!isFormValid || !finalAmount) return;
+
+    const isFirstNameValid = validateField('firstName', formData.firstName);
+    const isLastNameValid = validateField('lastName', formData.lastName);
+
+    if (!isAmountValid || !isFirstNameValid || !isLastNameValid || !finalAmount) return;
 
     setIsLoading(true);
     setApiError(null);
@@ -72,8 +100,8 @@ const PaygPaymentPage: React.FC<PaygPaymentPageProps> = ({ user, onTopUpSuccess,
       name: `Credit Top-Up R${(finalAmount / 100).toFixed(2)}`,
       description: 'Credit for Ingcweti',
       customer: {
-        name: user.name?.split(' ')[0] || '',
-        surname: user.name?.split(' ').slice(1).join(' ') || '',
+        name: formData.firstName,
+        surname: formData.lastName,
         email: user.email,
       },
       callback: (result: any) => {
@@ -132,6 +160,23 @@ const PaygPaymentPage: React.FC<PaygPaymentPageProps> = ({ user, onTopUpSuccess,
                     </div>
 
                     <div>
+                      <h3 className="text-lg font-semibold text-secondary mb-3">Your Payment Details</h3>
+                      <div className="space-y-4">
+                        <div>
+                          <label htmlFor="firstName" className="block text-sm font-medium text-gray-700">First Name</label>
+                          <input type="text" id="firstName" name="firstName" value={formData.firstName} onChange={handleChange} required className={`mt-1 block w-full p-3 border rounded-md shadow-sm focus:ring-primary focus:border-primary sm:text-sm ${errors.firstName ? 'border-red-500' : 'border-gray-300'}`} />
+                          {errors.firstName && <p className="text-red-600 text-xs mt-1">{errors.firstName}</p>}
+                        </div>
+                        <div>
+                          <label htmlFor="lastName" className="block text-sm font-medium text-gray-700">Last Name</label>
+                          <input type="text" id="lastName" name="lastName" value={formData.lastName} onChange={handleChange} required className={`mt-1 block w-full p-3 border rounded-md shadow-sm focus:ring-primary focus:border-primary sm:text-sm ${errors.lastName ? 'border-red-500' : 'border-gray-300'}`} />
+                          {errors.lastName && <p className="text-red-600 text-xs mt-1">{errors.lastName}</p>}
+                        </div>
+                      </div>
+                    </div>
+
+
+                    <div>
                         <h3 className="text-lg font-semibold text-secondary mb-3">Have a coupon?</h3>
                          <div className="flex">
                             <input type="text" value={couponCode} onChange={e => setCouponCode(e.target.value)} placeholder="Enter coupon for bonus" className="flex-grow p-2 border rounded-l-md text-sm" />
@@ -141,7 +186,7 @@ const PaygPaymentPage: React.FC<PaygPaymentPageProps> = ({ user, onTopUpSuccess,
                     </div>
 
                     <div className="pt-6 border-t border-gray-200">
-                        <button type="submit" disabled={isLoading || !isFormValid} className="w-full bg-primary text-white font-bold py-4 px-4 rounded-lg text-lg hover:bg-opacity-90 disabled:bg-gray-400 transition-colors flex items-center justify-center">
+                        <button type="submit" disabled={isLoading || !isAmountValid || !isUserDetailsValid} className="w-full bg-primary text-white font-bold py-4 px-4 rounded-lg text-lg hover:bg-opacity-90 disabled:bg-gray-400 transition-colors flex items-center justify-center">
                             {isLoading ? (
                                 <><LoadingIcon className="animate-spin -ml-1 mr-3 h-5 w-5" /> Opening payment...</>
                             ) : (
