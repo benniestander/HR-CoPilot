@@ -45,7 +45,7 @@ const SignUp: React.FC<SignUpProps> = ({ onSignUp, onShowLogin }) => {
                 <div className="container mx-auto flex justify-center items-center">
                     <img
                         src="https://i.postimg.cc/h48FMCNY/edited-image-11-removebg-preview.png"
-                        alt="HR Co-Pilot Logo"
+                        alt="HR CoPilot Logo"
                         className="h-12"
                     />
                 </div>
@@ -53,7 +53,7 @@ const SignUp: React.FC<SignUpProps> = ({ onSignUp, onShowLogin }) => {
             <main className="flex-grow container mx-auto flex items-center justify-center px-6 py-8">
                 <div className="w-full max-w-md">
                     <div className="bg-white p-8 rounded-lg shadow-md border border-gray-200 text-center">
-                        <h1 className="text-2xl font-bold text-secondary mb-2">Create your HR Co-Pilot Account</h1>
+                        <h1 className="text-2xl font-bold text-secondary mb-2">Create your HR CoPilot Account</h1>
                         <p className="text-gray-600 mb-6">Enter your email to get started.</p>
                         
                         <form onSubmit={handleSignUpSubmit} className="space-y-4">
@@ -99,10 +99,10 @@ const SignUp: React.FC<SignUpProps> = ({ onSignUp, onShowLogin }) => {
                 <div className="container mx-auto px-6 text-center">
                     <img
                       src="https://i.postimg.cc/h48FMCNY/edited-image-11-removebg-preview.png"
-                      alt="HR Co-Pilot Logo"
+                      alt="HR CoPilot Logo"
                       className="h-10 mx-auto mb-4"
                     />
-                    <p className="text-sm text-gray-300">© {new Date().getFullYear()} HR Co-Pilot. All rights reserved.</p>
+                    <p className="text-sm text-gray-300">© {new Date().getFullYear()} HR CoPilot. All rights reserved.</p>
                 </div>
             </footer>
         </div>

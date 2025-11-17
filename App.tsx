@@ -489,8 +489,8 @@ const App: React.FC = () => {
     setUser(updatedUser);
     await updateUser(user.uid, { plan: 'pro' });
     // Pass a negative amount to signify a charge, ensuring correct discount calculation and logging.
-    await addTransactionToUser(user.uid, { description: 'HR Co-Pilot Pro Subscription (12 months)', amount: -74700 }, couponCode);
-    setToastMessage("Success! Welcome to HR Co-Pilot Pro. Your dashboard is ready.");
+    await addTransactionToUser(user.uid, { description: 'HR CoPilot Pro Subscription (12 months)', amount: -74700 }, couponCode);
+    setToastMessage("Success! Welcome to HR CoPilot Pro. Your dashboard is ready.");
     setCurrentView('dashboard');
     setShowOnboardingWalkthrough(true); // Trigger walkthrough for new pro users
   };
@@ -621,7 +621,7 @@ const App: React.FC = () => {
             <div className="container mx-auto flex justify-between items-center px-6">
                 <img 
                     src="https://i.postimg.cc/h48FMCNY/edited-image-11-removebg-preview.png" 
-                    alt="HR Co-Pilot Logo" 
+                    alt="HR CoPilot Logo" 
                     className="h-12 cursor-pointer"
                     onClick={handleStartOver}
                 />
@@ -676,7 +676,7 @@ const App: React.FC = () => {
           <div className="container mx-auto px-6 text-center">
               <img 
               src="https://i.postimg.cc/h48FMCNY/edited-image-11-removebg-preview.png" 
-              alt="HR Co-Pilot Logo" 
+              alt="HR CoPilot Logo" 
               className="h-10 mx-auto mb-4"
               />
                <div className="flex justify-center space-x-6 mb-4">
@@ -688,7 +688,7 @@ const App: React.FC = () => {
                   </button>
               </div>
               <p className="text-sm text-gray-300">
-                  © {new Date().getFullYear()} HR Co-Pilot. All rights reserved.
+                  © {new Date().getFullYear()} HR CoPilot. All rights reserved.
               </p>
           </div>
       </footer>

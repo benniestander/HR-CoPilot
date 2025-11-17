@@ -78,7 +78,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onSuccess,
       amountInCents: amountInCents,
       currency: 'ZAR',
       name: itemName,
-      description: 'Service from HR Co-Pilot',
+      description: 'Service from HR CoPilot',
       customer: {
         name: formData.name,
         surname: formData.surname,

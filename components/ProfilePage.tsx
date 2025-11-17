@@ -318,7 +318,7 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
                             <h3 className="text-xl font-semibold text-secondary mb-2">Subscription</h3>
                             <div className="flex items-center text-green-600 font-bold">
                                 <ShieldCheckIcon className="w-6 h-6 mr-2" />
-                                <span>HR Co-Pilot Pro</span>
+                                <span>HR CoPilot Pro</span>
                             </div>
                         </div>
                         <button disabled className="px-4 py-2 text-sm font-semibold text-gray-500 bg-gray-200 rounded-md cursor-not-allowed" title="Feature coming soon">
@@ -345,7 +345,7 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
 
                     <div className="mt-6 pt-6 border-t border-gray-200 bg-accent/20 p-4 rounded-lg text-center">
                          <h4 className="font-bold text-accent-800">Go Unlimited!</h4>
-                         <p className="text-sm text-accent-700 my-2">Upgrade to HR Co-Pilot Pro for R747 and get unlimited document generation for a full year.</p>
+                         <p className="text-sm text-accent-700 my-2">Upgrade to HR CoPilot Pro for R747 and get unlimited document generation for a full year.</p>
                          <button onClick={onUpgrade} className="bg-accent text-white font-bold py-2 px-4 rounded-md hover:bg-accent-dark">Upgrade to Pro</button>
                     </div>
                 </div>

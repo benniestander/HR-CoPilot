@@ -62,7 +62,7 @@ const InitialProfileSetup: React.FC<InitialProfileSetupProps> = ({ onProfileSubm
                 <div className="container mx-auto flex justify-center items-center">
                     <img
                         src="https://i.postimg.cc/h48FMCNY/edited-image-11-removebg-preview.png"
-                        alt="HR Co-Pilot Logo"
+                        alt="HR CoPilot Logo"
                         className="h-12"
                     />
                 </div>
@@ -71,7 +71,7 @@ const InitialProfileSetup: React.FC<InitialProfileSetupProps> = ({ onProfileSubm
                 <div className="w-full max-w-2xl">
                     <div className="bg-white p-8 rounded-lg shadow-md border border-gray-200">
                         <div className="text-center">
-                            <h1 className="text-2xl font-bold text-secondary mb-2">Welcome to HR Co-Pilot!</h1>
+                            <h1 className="text-2xl font-bold text-secondary mb-2">Welcome to HR CoPilot!</h1>
                             <p className="text-gray-600 mb-6">Let's complete your company profile to get started. This helps us tailor documents for you.</p>
                         </div>
                         
@@ -137,7 +137,7 @@ const InitialProfileSetup: React.FC<InitialProfileSetupProps> = ({ onProfileSubm
             </main>
             <footer className="bg-secondary text-white py-8">
                 <div className="container mx-auto px-6 text-center">
-                    <p className="text-sm text-gray-300">© {new Date().getFullYear()} HR Co-Pilot. All rights reserved.</p>
+                    <p className="text-sm text-gray-300">© {new Date().getFullYear()} HR CoPilot. All rights reserved.</p>
                 </div>
             </footer>
         </div>
