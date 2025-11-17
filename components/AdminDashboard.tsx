@@ -65,7 +65,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ allUsers, allDocuments,
     const paygUsers = allUsers.filter(u => u.plan === 'payg').length;
     
     // Revenue should only count actual user payments (subscriptions, top-ups), not admin-granted credits.
-    // FIX: Removed redundant Number() conversions.
     const totalRevenue = allTransactions
       .filter(tx => !tx.description.startsWith('Admin adjustment:'))
       .reduce((acc, tx) => (tx.amount > 0 ? acc + tx.amount : acc), 0);
@@ -197,7 +196,6 @@ const UserList: React.FC<{ users: User[], onViewUser: (user: User) => void }> = 
     );
 };
 
-// FIX: Correctly type the onCreateCoupon prop
 const CouponManager: React.FC<{ coupons: Coupon[], onCreateCoupon: (data: Omit<Coupon, 'id' | 'createdAt' | 'uses' | 'isActive'>) => void, onDeactivateCoupon: (id: string) => void }> = ({ coupons, onCreateCoupon, onDeactivateCoupon }) => {
     const [formData, setFormData] = useState({ code: '', type: 'percentage' as 'percentage' | 'fixed', value: '', expiresAt: '', maxUses: '', applicableTo: 'all', userIds: '' });
     
@@ -206,7 +204,8 @@ const CouponManager: React.FC<{ coupons: Coupon[], onCreateCoupon: (data: Omit<C
         onCreateCoupon({
             code: formData.code.toUpperCase(),
             type: formData.type,
-            // FIX: Use parseFloat and parseInt for safer string-to-number conversion
+            // FIX: The value from formData is a string. It must be converted to a number
+            // before performing arithmetic operations or assigning to a number property.
             value: formData.type === 'fixed' ? parseFloat(formData.value || '0') * 100 : parseFloat(formData.value || '0'),
             expiresAt: formData.expiresAt || undefined,
             maxUses: formData.maxUses ? parseInt(formData.maxUses, 10) : undefined,
