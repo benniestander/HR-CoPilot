@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { MasterPolicyIcon, FormsIcon } from './Icons';
+import { useFocusTrap } from '../hooks/useFocusTrap';
 
 interface HowToUseModalProps {
   isOpen: boolean;
@@ -8,12 +9,14 @@ interface HowToUseModalProps {
 
 const HowToUseModal: React.FC<HowToUseModalProps> = ({ isOpen, onClose }) => {
   const [activeTab, setActiveTab] = useState<'policies' | 'forms'>('policies');
+  const modalRef = useFocusTrap<HTMLDivElement>(isOpen, onClose);
 
   if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center p-4">
       <div 
+        ref={modalRef}
         className="bg-white rounded-lg shadow-xl w-full max-w-3xl flex flex-col"
         style={{ maxHeight: '90vh' }}
         role="dialog"
@@ -29,25 +32,33 @@ const HowToUseModal: React.FC<HowToUseModalProps> = ({ isOpen, onClose }) => {
           </button>
         </div>
         
-        <div className="flex border-b border-gray-200">
+        <div className="flex border-b border-gray-200" role="tablist" aria-label="How to use">
           <button
+            id="tab-policies"
             onClick={() => setActiveTab('policies')}
             className={`flex-1 flex items-center justify-center px-4 py-3 text-md font-semibold border-b-2 transition-colors ${
               activeTab === 'policies'
                 ? 'border-primary text-primary'
                 : 'border-transparent text-gray-500 hover:text-gray-700'
             }`}
+            role="tab"
+            aria-selected={activeTab === 'policies'}
+            aria-controls="tabpanel-policies"
           >
             <MasterPolicyIcon className="w-5 h-5 mr-2" />
             Policy Generator
           </button>
           <button
+            id="tab-forms"
             onClick={() => setActiveTab('forms')}
             className={`flex-1 flex items-center justify-center px-4 py-3 text-md font-semibold border-b-2 transition-colors ${
               activeTab === 'forms'
                 ? 'border-primary text-primary'
                 : 'border-transparent text-gray-500 hover:text-gray-700'
             }`}
+            role="tab"
+            aria-selected={activeTab === 'forms'}
+            aria-controls="tabpanel-forms"
           >
             <FormsIcon className="w-5 h-5 mr-2" />
             Form Generator
@@ -56,7 +67,7 @@ const HowToUseModal: React.FC<HowToUseModalProps> = ({ isOpen, onClose }) => {
 
         <div className="p-8 overflow-y-auto text-gray-700">
             {activeTab === 'policies' ? (
-              <div>
+              <div id="tabpanel-policies" role="tabpanel" aria-labelledby="tab-policies">
                 <h3 className="text-xl font-semibold text-secondary mb-4">How to Generate a Custom HR Policy</h3>
                 <ol className="list-decimal list-inside space-y-4">
                   <li>
@@ -80,7 +91,7 @@ const HowToUseModal: React.FC<HowToUseModalProps> = ({ isOpen, onClose }) => {
                 </ol>
               </div>
             ) : (
-              <div>
+              <div id="tabpanel-forms" role="tabpanel" aria-labelledby="tab-forms">
                 <h3 className="text-xl font-semibold text-secondary mb-4">How to Generate a Ready-to-Use HR Form</h3>
                 <ol className="list-decimal list-inside space-y-4">
                     <li>

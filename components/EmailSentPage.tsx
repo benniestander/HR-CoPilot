@@ -1,13 +1,15 @@
 import React from 'react';
+import { useModalContext } from '../contexts/ModalContext';
+import { PRIVACY_POLICY_CONTENT, TERMS_OF_USE_CONTENT } from '../legalContent';
 
 interface EmailSentPageProps {
   email: string;
   flowType: 'signup' | 'login' | 'payg_signup';
-  onShowPrivacyPolicy: () => void;
-  onShowTerms: () => void;
 }
 
-const EmailSentPage: React.FC<EmailSentPageProps> = ({ email, flowType, onShowPrivacyPolicy, onShowTerms }) => {
+const EmailSentPage: React.FC<EmailSentPageProps> = ({ email, flowType }) => {
+  const { showLegalModal } = useModalContext();
+
   const title = "Account Created! Please Verify Your Email";
   const primaryText = "We've sent a verification link to";
   
@@ -44,10 +46,10 @@ const EmailSentPage: React.FC<EmailSentPageProps> = ({ email, flowType, onShowPr
             <div className="container mx-auto px-6 text-center">
                 <img src="https://i.postimg.cc/h48FMCNY/edited-image-11-removebg-preview.png" alt="HR CoPilot Logo" className="h-10 mx-auto mb-4" />
                 <div className="flex justify-center space-x-6 mb-4">
-                    <button onClick={onShowPrivacyPolicy} className="text-sm text-gray-300 hover:text-white hover:underline">
+                    <button onClick={() => showLegalModal('Privacy Policy', PRIVACY_POLICY_CONTENT)} className="text-sm text-gray-300 hover:text-white hover:underline">
                         Privacy Policy
                     </button>
-                    <button onClick={onShowTerms} className="text-sm text-gray-300 hover:text-white hover:underline">
+                    <button onClick={() => showLegalModal('Terms of Use', TERMS_OF_USE_CONTENT)} className="text-sm text-gray-300 hover:text-white hover:underline">
                         Terms of Use
                     </button>
                 </div>

@@ -1,4 +1,5 @@
 import React from 'react';
+import { useFocusTrap } from '../hooks/useFocusTrap';
 
 interface GlossaryModalProps {
   isOpen: boolean;
@@ -8,11 +9,14 @@ interface GlossaryModalProps {
 }
 
 const GlossaryModal: React.FC<GlossaryModalProps> = ({ isOpen, onClose, term, definition }) => {
+  const modalRef = useFocusTrap<HTMLDivElement>(isOpen, onClose);
+
   if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center p-4" onClick={onClose}>
       <div 
+        ref={modalRef}
         className="bg-white rounded-lg shadow-xl w-full max-w-lg flex flex-col"
         onClick={(e) => e.stopPropagation()}
         style={{ maxHeight: '90vh' }}

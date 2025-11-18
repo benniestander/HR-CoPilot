@@ -1,14 +1,16 @@
 import React, { useState } from 'react';
 import { CheckIcon } from './Icons';
+import { useAuthContext } from '../contexts/AuthContext';
+import { useModalContext } from '../contexts/ModalContext';
+import { useUIContext } from '../contexts/UIContext';
+import { PRIVACY_POLICY_CONTENT, TERMS_OF_USE_CONTENT } from '../legalContent';
 
-interface PlanSelectionPageProps {
-  onStartAuthFlow: (flow: 'signup' | 'payg_signup', email: string, details: { password: string, name?: string, contactNumber?: string }) => void;
-  onShowLogin: () => void;
-  onShowPrivacyPolicy: () => void;
-  onShowTerms: () => void;
-}
 
-const PlanSelectionPage: React.FC<PlanSelectionPageProps> = ({ onStartAuthFlow, onShowLogin, onShowPrivacyPolicy, onShowTerms }) => {
+const PlanSelectionPage: React.FC = () => {
+    const { handleStartAuthFlow, handleStartGoogleAuthFlow, setAuthPage } = useAuthContext();
+    const { showLegalModal } = useModalContext();
+    const { setToastMessage } = useUIContext();
+
     const [selectedPlan, setSelectedPlan] = useState<'pro' | 'payg'>('pro');
     
     const [proData, setProData] = useState({ name: '', email: '', password: '', confirmPassword: '' });
@@ -59,7 +61,7 @@ const PlanSelectionPage: React.FC<PlanSelectionPageProps> = ({ onStartAuthFlow, 
         return !error;
     };
 
-    const performProSignup = () => {
+    const performProSignup = async () => {
         const isNameValid = validateField('pro', 'name', proData.name);
         const isEmailValid = validateField('pro', 'email', proData.email);
         const isPasswordValid = validateField('pro', 'password', proData.password);
@@ -67,7 +69,13 @@ const PlanSelectionPage: React.FC<PlanSelectionPageProps> = ({ onStartAuthFlow, 
         if (!isNameValid || !isEmailValid || !isPasswordValid || !isConfirmValid) return;
         
         setLoading('pro');
-        onStartAuthFlow('signup', proData.email, { password: proData.password, name: proData.name });
+        try {
+            await handleStartAuthFlow('signup', proData.email, { password: proData.password, name: proData.name });
+        } catch (error: any) {
+            setToastMessage(`Sign up error: ${error.message}`);
+        } finally {
+            setLoading('none');
+        }
     };
 
     const handleProClick = (e: React.MouseEvent<HTMLButtonElement>) => {
@@ -75,7 +83,7 @@ const PlanSelectionPage: React.FC<PlanSelectionPageProps> = ({ onStartAuthFlow, 
         performProSignup();
     };
     
-    const performPaygSignup = () => {
+    const performPaygSignup = async () => {
         const isNameValid = validateField('payg', 'name', paygData.name);
         const isEmailValid = validateField('payg', 'email', paygData.email);
         const isContactValid = validateField('payg', 'contactNumber', paygData.contactNumber);
@@ -85,7 +93,13 @@ const PlanSelectionPage: React.FC<PlanSelectionPageProps> = ({ onStartAuthFlow, 
         if (!isNameValid || !isEmailValid || !isContactValid || !isPasswordValid || !isConfirmValid) return;
         
         setLoading('payg');
-        onStartAuthFlow('payg_signup', paygData.email, { name: paygData.name, contactNumber: paygData.contactNumber, password: paygData.password });
+        try {
+            await handleStartAuthFlow('payg_signup', paygData.email, { name: paygData.name, contactNumber: paygData.contactNumber, password: paygData.password });
+        } catch (error: any) {
+            setToastMessage(`Sign up error: ${error.message}`);
+        } finally {
+            setLoading('none');
+        }
     };
 
     const handlePaygClick = (e: React.MouseEvent<HTMLButtonElement>) => {
@@ -131,7 +145,7 @@ const PlanSelectionPage: React.FC<PlanSelectionPageProps> = ({ onStartAuthFlow, 
                     <img src="https://i.postimg.cc/h48FMCNY/edited-image-11-removebg-preview.png" alt="HR CoPilot Logo" className="h-12" />
                     <div className="text-sm">
                         <span>Already have an account? </span>
-                        <button onClick={onShowLogin} className="font-semibold text-primary hover:underline">Sign In</button>
+                        <button onClick={() => setAuthPage('login')} className="font-semibold text-primary hover:underline">Sign In</button>
                     </div>
                 </div>
             </header>
@@ -222,10 +236,10 @@ const PlanSelectionPage: React.FC<PlanSelectionPageProps> = ({ onStartAuthFlow, 
             <footer className="bg-secondary text-white py-8 mt-12">
                 <div className="container mx-auto px-6 text-center">
                     <div className="flex justify-center space-x-6 mb-4">
-                        <button onClick={onShowPrivacyPolicy} className="text-sm text-gray-300 hover:text-white hover:underline">
+                        <button onClick={() => showLegalModal('Privacy Policy', PRIVACY_POLICY_CONTENT)} className="text-sm text-gray-300 hover:text-white hover:underline">
                             Privacy Policy
                         </button>
-                        <button onClick={onShowTerms} className="text-sm text-gray-300 hover:text-white hover:underline">
+                        <button onClick={() => showLegalModal('Terms of Use', TERMS_OF_USE_CONTENT)} className="text-sm text-gray-300 hover:text-white hover:underline">
                             Terms of Use
                         </button>
                     </div>

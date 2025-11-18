@@ -18,43 +18,52 @@ const InitialProfileSetup: React.FC<InitialProfileSetupProps> = ({ onProfileSubm
         summary: ''
     });
     const [errors, setErrors] = useState<Partial<Record<keyof CompanyProfile, string>>>({});
+    const [touched, setTouched] = useState<Partial<Record<keyof CompanyProfile, boolean>>>({});
 
-    const validate = () => {
-        const newErrors: Partial<Record<keyof CompanyProfile, string>> = {};
-        let isValid = true;
-        
-        if (!formData.companyName.trim()) { newErrors.companyName = 'Company name is required.'; isValid = false; }
-        if (!formData.industry) { newErrors.industry = 'Please select an industry.'; isValid = false; }
-        if (!formData.companySize) { newErrors.companySize = 'Please select your company size.'; isValid = false; }
-        if (!formData.address.trim()) { newErrors.address = 'Company address is required.'; isValid = false; }
-        if (!formData.companyUrl.trim()) { newErrors.companyUrl = 'Company website is required.'; isValid = false; }
-        else if (!/^(https?:\/\/)?([\da-z.-]+)\.([a-z.]{2,6})([/\w .-]*)*\/?$/.test(formData.companyUrl)) {
-            newErrors.companyUrl = 'Please enter a valid URL.';
-            isValid = false;
+    const validateField = (name: keyof CompanyProfile, value: string) => {
+        let error = '';
+        if (name === 'companyName' && !value.trim()) error = 'Company name is required.';
+        if (name === 'industry' && !value) error = 'Please select an industry.';
+        if (name === 'companyUrl' && value && !/^(https?:\/\/)?([\da-z.-]+)\.([a-z.]{2,6})([/\w .-]*)*\/?$/.test(value)) {
+            error = 'Please enter a valid URL.';
         }
-        if (!formData.summary.trim()) { newErrors.summary = 'A brief summary is required.'; isValid = false; }
-
-        setErrors(newErrors);
-        return isValid;
+        setErrors(prev => ({ ...prev, [name]: error }));
+        return !error;
     };
 
-    const handleSubmit = (e: React.FormEvent) => {
-        e.preventDefault();
-        if (validate()) {
-            onProfileSubmit(formData);
-        }
+    const handleBlur = (e: React.FocusEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+        const { name, value } = e.target;
+        const fieldName = name as keyof CompanyProfile;
+        setTouched(prev => ({ ...prev, [fieldName]: true }));
+        validateField(fieldName, value);
     };
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
         const { name, value } = e.target;
-        setFormData(prev => ({ ...prev, [name]: value }));
-        if (errors[name as keyof CompanyProfile]) {
-            setErrors(prev => ({ ...prev, [name]: '' }));
+        const fieldName = name as keyof CompanyProfile;
+        setFormData(prev => ({ ...prev, [fieldName]: value }));
+        if (touched[fieldName]) {
+            validateField(fieldName, value);
         }
     };
     
-    const isFormInvalid = !formData.companyName.trim() || !formData.industry || !formData.companySize || !formData.address.trim() || !formData.companyUrl.trim() || !formData.summary.trim() || Object.values(errors).some(e => e);
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        
+        const allTouched = Object.keys(formData).reduce((acc, key) => {
+            acc[key as keyof CompanyProfile] = true;
+            return acc;
+        }, {} as Partial<Record<keyof CompanyProfile, boolean>>);
+        setTouched(allTouched);
 
+        const isFormValid = (Object.keys(formData) as Array<keyof CompanyProfile>).every(key =>
+            validateField(key, formData[key] || '')
+        );
+        
+        if (isFormValid) {
+            onProfileSubmit(formData);
+        }
+    };
 
     return (
         <div className="min-h-screen bg-light text-secondary flex flex-col">
@@ -78,48 +87,45 @@ const InitialProfileSetup: React.FC<InitialProfileSetupProps> = ({ onProfileSubm
                         <form onSubmit={handleSubmit} className="space-y-6">
                            <div>
                              <label htmlFor="companyName" className="block text-sm font-medium text-gray-700">Company's Legal Name</label>
-                             <input type="text" id="companyName" name="companyName" value={formData.companyName} onChange={handleInputChange} placeholder="e.g., ABC (Pty) Ltd" required className={`mt-1 w-full p-3 border rounded-md shadow-sm focus:ring-primary focus:border-primary ${errors.companyName ? 'border-red-500' : 'border-gray-300'}`} />
-                             {errors.companyName && <p className="text-red-600 text-sm mt-1">{errors.companyName}</p>}
+                             <input type="text" id="companyName" name="companyName" value={formData.companyName} onChange={handleInputChange} onBlur={handleBlur} placeholder="e.g., ABC (Pty) Ltd" required className={`mt-1 w-full p-3 border rounded-md shadow-sm focus:ring-primary focus:border-primary ${errors.companyName && touched.companyName ? 'border-red-500' : 'border-gray-300'}`} />
+                             {errors.companyName && touched.companyName && <p className="text-red-600 text-sm mt-1">{errors.companyName}</p>}
                            </div>
                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div>
                                     <label htmlFor="industry" className="block text-sm font-medium text-gray-700">Industry</label>
-                                    <select id="industry" name="industry" value={formData.industry} onChange={handleInputChange} required className={`mt-1 w-full p-3 border rounded-md shadow-sm bg-white focus:ring-primary focus:border-primary ${errors.industry ? 'border-red-500' : 'border-gray-300'}`}>
+                                    <select id="industry" name="industry" value={formData.industry} onChange={handleInputChange} onBlur={handleBlur} required className={`mt-1 w-full p-3 border rounded-md shadow-sm bg-white focus:ring-primary focus:border-primary ${errors.industry && touched.industry ? 'border-red-500' : 'border-gray-300'}`}>
                                         <option value="" disabled>Choose an industry...</option>
                                         {INDUSTRIES.map((ind) => (<option key={ind} value={ind}>{ind}</option>))}
                                     </select>
-                                    {errors.industry && <p className="text-red-600 text-sm mt-1">{errors.industry}</p>}
+                                    {errors.industry && touched.industry && <p className="text-red-600 text-sm mt-1">{errors.industry}</p>}
                                </div>
                                <div>
                                     <label htmlFor="companySize" className="block text-sm font-medium text-gray-700">Company Size</label>
-                                    <select id="companySize" name="companySize" value={formData.companySize} onChange={handleInputChange} required className={`mt-1 w-full p-3 border rounded-md shadow-sm bg-white focus:ring-primary focus:border-primary ${errors.companySize ? 'border-red-500' : 'border-gray-300'}`}>
-                                        <option value="" disabled>Select a size...</option>
+                                    <select id="companySize" name="companySize" value={formData.companySize} onChange={handleInputChange} onBlur={handleBlur} className={`mt-1 w-full p-3 border rounded-md shadow-sm bg-white focus:ring-primary focus:border-primary border-gray-300`}>
+                                        <option value="">Select a size...</option>
                                         <option value="1-10">1-10 employees</option>
                                         <option value="11-50">11-50 employees</option>
                                         <option value="51-200">51-200 employees</option>
                                         <option value="201-500">201-500 employees</option>
                                         <option value="500+">500+ employees</option>
                                     </select>
-                                    {errors.companySize && <p className="text-red-600 text-sm mt-1">{errors.companySize}</p>}
                                </div>
                            </div>
                            <div>
                              <label htmlFor="address" className="block text-sm font-medium text-gray-700">Company Address</label>
-                             <input type="text" id="address" name="address" value={formData.address} onChange={handleInputChange} placeholder="e.g., 123 Tech Street, Cape Town, 8001" required className={`mt-1 w-full p-3 border rounded-md shadow-sm focus:ring-primary focus:border-primary ${errors.address ? 'border-red-500' : 'border-gray-300'}`} />
-                             {errors.address && <p className="text-red-600 text-sm mt-1">{errors.address}</p>}
+                             <input type="text" id="address" name="address" value={formData.address} onChange={handleInputChange} onBlur={handleBlur} placeholder="e.g., 123 Tech Street, Cape Town, 8001" className={`mt-1 w-full p-3 border rounded-md shadow-sm focus:ring-primary focus:border-primary border-gray-300`} />
                            </div>
                            <div>
                              <label htmlFor="companyUrl" className="block text-sm font-medium text-gray-700">Company Website</label>
-                             <input type="url" id="companyUrl" name="companyUrl" value={formData.companyUrl} onChange={handleInputChange} placeholder="e.g., https://www.yourcompany.co.za" required className={`mt-1 w-full p-3 border rounded-md shadow-sm focus:ring-primary focus:border-primary ${errors.companyUrl ? 'border-red-500' : 'border-gray-300'}`} />
-                             {errors.companyUrl && <p className="text-red-600 text-sm mt-1">{errors.companyUrl}</p>}
+                             <input type="url" id="companyUrl" name="companyUrl" value={formData.companyUrl} onChange={handleInputChange} onBlur={handleBlur} placeholder="e.g., https://www.yourcompany.co.za" className={`mt-1 w-full p-3 border rounded-md shadow-sm focus:ring-primary focus:border-primary ${errors.companyUrl && touched.companyUrl ? 'border-red-500' : 'border-gray-300'}`} />
+                             {errors.companyUrl && touched.companyUrl && <p className="text-red-600 text-sm mt-1">{errors.companyUrl}</p>}
                            </div>
                            <div>
                              <label htmlFor="summary" className="block text-sm font-medium text-gray-700">Brief Company Summary</label>
-                             <textarea id="summary" name="summary" rows={3} value={formData.summary} onChange={handleInputChange} placeholder="e.g., A leading provider of widgets in the manufacturing sector, committed to quality and innovation." required className={`mt-1 w-full p-3 border rounded-md shadow-sm focus:ring-primary focus:border-primary ${errors.summary ? 'border-red-500' : 'border-gray-300'}`}></textarea>
-                             {errors.summary && <p className="text-red-600 text-sm mt-1">{errors.summary}</p>}
+                             <textarea id="summary" name="summary" rows={3} value={formData.summary} onChange={handleInputChange} onBlur={handleBlur} placeholder="e.g., A leading provider of widgets in the manufacturing sector, committed to quality and innovation." className={`mt-1 w-full p-3 border rounded-md shadow-sm focus:ring-primary focus:border-primary border-gray-300`}></textarea>
                            </div>
 
-                            <button type="submit" disabled={isFormInvalid} className="w-full bg-primary text-white font-bold py-3 px-4 rounded-md hover:bg-opacity-90 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors flex items-center justify-center">
+                            <button type="submit" className="w-full bg-primary text-white font-bold py-3 px-4 rounded-md hover:bg-opacity-90 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors flex items-center justify-center">
                                 Save & Continue
                             </button>
                              <div className="text-center mt-4">

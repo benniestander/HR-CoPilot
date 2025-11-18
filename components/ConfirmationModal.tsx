@@ -1,4 +1,5 @@
 import React from 'react';
+import { useFocusTrap } from '../hooks/useFocusTrap';
 
 interface ConfirmationModalProps {
   isOpen: boolean;
@@ -9,13 +10,22 @@ interface ConfirmationModalProps {
 }
 
 const ConfirmationModal: React.FC<ConfirmationModalProps> = ({ isOpen, onConfirm, onCancel, title, message }) => {
+  const modalRef = useFocusTrap<HTMLDivElement>(isOpen, onCancel);
+
   if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
-      <div className="bg-white rounded-lg shadow-xl p-8 m-4 max-w-md w-full">
-        <h2 className="text-xl font-bold text-secondary mb-4">{title}</h2>
-        <div className="text-gray-600 mb-6">
+      <div
+        ref={modalRef}
+        className="bg-white rounded-lg shadow-xl p-8 m-4 max-w-md w-full"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="confirmation-modal-title"
+        aria-describedby="confirmation-modal-description"
+      >
+        <h2 id="confirmation-modal-title" className="text-xl font-bold text-secondary mb-4">{title}</h2>
+        <div id="confirmation-modal-description" className="text-gray-600 mb-6">
           {message}
         </div>
         <div className="flex justify-end space-x-4">

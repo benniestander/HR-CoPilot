@@ -1,27 +1,44 @@
 import React, { useState } from 'react';
 import PolicySelector from './PolicySelector';
 import FormSelector from './FormSelector';
-import type { Policy, Form, GeneratedDocument, User } from '../types';
+import type { Policy, Form } from '../types';
 import { MasterPolicyIcon, FormsIcon, HelpIcon, UpdateIcon, ComplianceIcon, WordIcon, ExcelIcon, InfoIcon } from './Icons';
 import HowToUseModal from './HowToUseModal';
 import OnboardingWalkthrough from './OnboardingWalkthrough';
+import { useAuthContext } from '../contexts/AuthContext';
+import { useDataContext } from '../contexts/DataContext';
+import { useUIContext } from '../contexts/UIContext';
+import { POLICIES, FORMS } from '../constants';
+import { PolicyType, FormType } from '../types';
 
 interface DashboardProps {
-  user: User | null;
-  onSelectItem: (item: Policy | Form) => void;
   onStartUpdate: () => void;
   onStartChecklist: () => void;
-  onGoToTopUp: () => void;
-  generatedDocuments: GeneratedDocument[];
-  onViewDocument: (doc: GeneratedDocument) => void;
   showOnboardingWalkthrough?: boolean;
   onCloseWalkthrough?: () => void;
   onGoToProfileSetup: () => void;
 }
 
-const Dashboard: React.FC<DashboardProps> = ({ user, onSelectItem, onStartUpdate, onStartChecklist, onGoToTopUp, generatedDocuments, onViewDocument, showOnboardingWalkthrough, onCloseWalkthrough, onGoToProfileSetup }) => {
+const Dashboard: React.FC<DashboardProps> = ({ onStartUpdate, onStartChecklist, showOnboardingWalkthrough, onCloseWalkthrough, onGoToProfileSetup }) => {
+  const { user } = useAuthContext();
+  const { generatedDocuments } = useDataContext();
+  const { navigateTo, setSelectedItem, setDocumentToView } = useUIContext();
+
   const [activeTab, setActiveTab] = useState<'policies' | 'forms'>('policies');
   const [isHowToUseModalOpen, setIsHowToUseModalOpen] = useState(false);
+
+  const onSelectItem = (item: Policy | Form) => {
+    setSelectedItem(item);
+    setDocumentToView(null);
+    navigateTo('generator');
+  };
+
+  const onViewDocument = (doc: any) => {
+    setDocumentToView(doc);
+    const item = doc.kind === 'policy' ? POLICIES[doc.type as PolicyType] : FORMS[doc.type as FormType];
+    setSelectedItem(item);
+    navigateTo('generator');
+  };
 
   const OnboardingReminderBanner: React.FC = () => {
     if (!user || (user.profile.companyName && user.profile.industry)) {
@@ -60,7 +77,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onSelectItem, onStartUpdate
             </div>
         </div>
         <button 
-            onClick={onGoToTopUp} 
+            onClick={() => navigateTo('topup')} 
             className="bg-primary text-white font-semibold py-2 px-4 rounded-md hover:bg-opacity-90 transition-colors flex-shrink-0 self-start sm:self-center"
         >
           Top Up Credit
@@ -68,7 +85,6 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onSelectItem, onStartUpdate
       </div>
     );
   };
-
 
   const DocumentHistory: React.FC = () => {
     if (generatedDocuments.length === 0) {
@@ -102,7 +118,6 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onSelectItem, onStartUpdate
       </div>
     );
   };
-
 
   return (
     <div>
@@ -184,7 +199,6 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onSelectItem, onStartUpdate
                     <p className="text-gray-600 mt-2 mb-6">
                         Scan your policies for compliance with the latest South African labour laws.
                     </p>
-                    {/* Button to navigate to the Policy Updater view */}
                     <button
                     onClick={onStartUpdate}
                     className="inline-flex items-center px-8 py-3 border border-transparent text-base font-medium rounded-full shadow-sm text-white bg-primary hover:bg-opacity-90"
@@ -194,7 +208,6 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onSelectItem, onStartUpdate
                 </div>
             </div>
         </div>
-
 
         <HowToUseModal
             isOpen={isHowToUseModalOpen}

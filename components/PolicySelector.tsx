@@ -10,7 +10,11 @@ interface PolicySelectorProps {
 const PolicyCard: React.FC<{ policy: Policy; onSelect: () => void; }> = ({ policy, onSelect }) => (
   <div
     onClick={onSelect}
-    className="bg-white p-6 rounded-lg shadow-md hover:shadow-xl hover:-translate-y-1 transition-all duration-300 cursor-pointer border border-gray-200 flex flex-col"
+    onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && onSelect()}
+    role="button"
+    tabIndex={0}
+    className="bg-white p-6 rounded-lg shadow-md hover:shadow-xl hover:-translate-y-1 transition-all duration-300 cursor-pointer border border-gray-200 flex flex-col focus:outline-none focus:ring-2 focus:ring-primary"
+    aria-label={`Select policy: ${policy.title}`}
   >
     <div className="flex-shrink-0">
       <policy.icon className="w-10 h-10 text-primary mb-4" />

@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { CreditCardIcon, LoadingIcon, ShieldCheckIcon } from './Icons';
-import type { User, Coupon } from '../types';
+import type { Coupon } from '../types';
+import { useAuthContext } from '../contexts/AuthContext';
 
 declare global {
   interface Window {
@@ -9,21 +10,21 @@ declare global {
 }
 
 interface PaygPaymentPageProps {
-  user: User;
   onTopUpSuccess: (amountInCents: number, couponCode?: string) => void;
   onCancel: () => void;
   onUpgrade: () => void;
   onValidateCoupon: (code: string) => Promise<{ valid: boolean; message: string; coupon?: Coupon }>;
 }
 
-const PaygPaymentPage: React.FC<PaygPaymentPageProps> = ({ user, onTopUpSuccess, onCancel, onUpgrade, onValidateCoupon }) => {
+const PaygPaymentPage: React.FC<PaygPaymentPageProps> = ({ onTopUpSuccess, onCancel, onUpgrade, onValidateCoupon }) => {
+  const { user } = useAuthContext();
   const [selectedAmount, setSelectedAmount] = useState<number | null>(10000); // Default to R100
   const [customAmount, setCustomAmount] = useState('');
   const [isCustom, setIsCustom] = useState(false);
 
   const [formData, setFormData] = useState({ 
-    firstName: user.name?.split(' ')[0] || '', 
-    lastName: user.name?.split(' ').slice(1).join(' ') || '', 
+    firstName: user?.name?.split(' ')[0] || '', 
+    lastName: user?.name?.split(' ').slice(1).join(' ') || '', 
   });
   const [errors, setErrors] = useState({ firstName: '', lastName: '' });
   
@@ -84,7 +85,7 @@ const PaygPaymentPage: React.FC<PaygPaymentPageProps> = ({ user, onTopUpSuccess,
     const isFirstNameValid = validateField('firstName', formData.firstName);
     const isLastNameValid = validateField('lastName', formData.lastName);
 
-    if (!isAmountValid || !isFirstNameValid || !isLastNameValid || !finalAmount) return;
+    if (!isAmountValid || !isFirstNameValid || !isLastNameValid || !finalAmount || !user) return;
 
     setIsLoading(true);
     setApiError(null);
@@ -133,7 +134,7 @@ const PaygPaymentPage: React.FC<PaygPaymentPageProps> = ({ user, onTopUpSuccess,
                 
                 <div className="p-4 bg-green-50 border border-green-200 rounded-lg text-center mb-6">
                     <p className="text-sm text-green-800">Your current balance is</p>
-                    <p className="text-4xl font-bold text-green-900">R{(Number(user.creditBalance) / 100).toFixed(2)}</p>
+                    <p className="text-4xl font-bold text-green-900">R{(Number(user?.creditBalance) / 100).toFixed(2)}</p>
                 </div>
 
                 <form onSubmit={handlePayment} className="space-y-6">
@@ -173,7 +174,6 @@ const PaygPaymentPage: React.FC<PaygPaymentPageProps> = ({ user, onTopUpSuccess,
                         </div>
                       </div>
                     </div>
-
 
                     <div>
                         <h3 className="text-lg font-semibold text-secondary mb-3">Have a coupon?</h3>

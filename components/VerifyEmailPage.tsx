@@ -1,23 +1,24 @@
 import React, { useState, useEffect } from 'react';
 import { sendEmailVerification, type User as FirebaseUser } from 'firebase/auth';
+import { useAuthContext } from '../contexts/AuthContext';
 
 interface VerifyEmailPageProps {
   user: FirebaseUser;
-  onLogout: () => void;
 }
 
-const VerifyEmailPage: React.FC<VerifyEmailPageProps> = ({ user, onLogout }) => {
+const VerifyEmailPage: React.FC<VerifyEmailPageProps> = ({ user }) => {
+  const { handleLogout } = useAuthContext();
   const [isSending, setIsSending] = useState(false);
   const [message, setMessage] = useState('');
 
   // Periodically check verification status
   useEffect(() => {
     const interval = setInterval(async () => {
+      // The user object is the unverified FirebaseUser instance
       await user.reload();
-      if (user.emailVerified) {
-        clearInterval(interval);
-        window.location.reload(); // Reload the app to trigger the auth state check
-      }
+      // The onIdTokenChanged listener in useAuth will automatically detect
+      // the change in emailVerified status and update the application state,
+      // transitioning the user to the main app without a page reload.
     }, 5000); // Check every 5 seconds
 
     return () => clearInterval(interval);
@@ -45,7 +46,7 @@ const VerifyEmailPage: React.FC<VerifyEmailPageProps> = ({ user, onLogout }) => 
             alt="HR CoPilot Logo"
             className="h-12"
           />
-           <button onClick={onLogout} className="text-sm font-semibold text-red-600 hover:underline">
+           <button onClick={handleLogout} className="text-sm font-semibold text-red-600 hover:underline">
             Logout
           </button>
         </div>
@@ -75,7 +76,7 @@ const VerifyEmailPage: React.FC<VerifyEmailPageProps> = ({ user, onLogout }) => 
               {isSending ? 'Sending...' : 'Resend Verification Email'}
             </button>
             <p className="text-xs text-gray-400 mt-4">
-                This page will automatically refresh once you've verified your email.
+                This page will automatically update once you've verified your email.
             </p>
           </div>
         </div>

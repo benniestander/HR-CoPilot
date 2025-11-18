@@ -207,6 +207,7 @@ export type User = {
   creditBalance: number; // in cents
   transactions: Transaction[];
   createdAt: string; // ISO string
+  isAdmin?: boolean;
 };
 
 export type FormAnswers = Record<string, any>;

@@ -1,16 +1,27 @@
-
-
 import React, { useState, useMemo } from 'react';
-import type { User, GeneratedDocument, Transaction, AdminActionLog, Coupon } from '../types';
+// FIX: Import 'AdminNotification' type to resolve error on line 23.
+import type { User, GeneratedDocument, Transaction, AdminActionLog, Coupon, AdminNotification } from '../types';
 import { UserIcon, MasterPolicyIcon, FormsIcon, SearchIcon, CreditCardIcon, HistoryIcon, DownloadIcon, CouponIcon } from './Icons';
 import AdminUserDetailModal from './AdminUserDetailModal';
+import { PageInfo } from '../contexts/DataContext';
 
 interface AdminDashboardProps {
-  allUsers: User[];
-  allDocuments: GeneratedDocument[];
-  allTransactions: Transaction[];
+  paginatedUsers: { data: User[]; pageInfo: PageInfo };
+  onNextUsers: () => void;
+  onPrevUsers: () => void;
+
+  paginatedDocuments: { data: GeneratedDocument[]; pageInfo: PageInfo };
+  onNextDocs: () => void;
+  onPrevDocs: () => void;
+  
+  transactionsForUserPage: Transaction[];
+
+  paginatedLogs: { data: AdminActionLog[]; pageInfo: PageInfo };
+  onNextLogs: () => void;
+  onPrevLogs: () => void;
+  
   allCoupons: Coupon[];
-  adminActionLogs: AdminActionLog[];
+  adminNotifications: AdminNotification[];
   adminActions: {
     updateUser: (targetUid: string, updates: Partial<User>) => Promise<void>;
     adjustCredit: (targetUid: string, amountInCents: number, reason: string) => Promise<void>;
@@ -21,7 +32,7 @@ interface AdminDashboardProps {
   };
 }
 
-const StatCard: React.FC<{ title: string; value: string | number; icon: React.FC<{className?: string}> }> = ({ title, value, icon: Icon }) => (
+const StatCard: React.FC<{ title: string; value: string | number; icon: React.FC<{className?: string}> }> = React.memo(({ title, value, icon: Icon }) => (
   <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200 flex items-center">
     <div className="bg-primary/10 p-3 rounded-full mr-4">
       <Icon className="w-8 h-8 text-primary" />
@@ -31,7 +42,7 @@ const StatCard: React.FC<{ title: string; value: string | number; icon: React.FC
       <p className="text-3xl font-bold text-secondary">{value}</p>
     </div>
   </div>
-);
+));
 
 // Helper for CSV Export
 const exportToCsv = (filename: string, rows: object[]) => {
@@ -55,31 +66,29 @@ const exportToCsv = (filename: string, rows: object[]) => {
 };
 
 
-const AdminDashboard: React.FC<AdminDashboardProps> = ({ allUsers, allDocuments, allTransactions, allCoupons, adminActionLogs, adminActions }) => {
+const AdminDashboard: React.FC<AdminDashboardProps> = ({ 
+  paginatedUsers, onNextUsers, onPrevUsers,
+  paginatedDocuments, onNextDocs, onPrevDocs,
+  transactionsForUserPage,
+  paginatedLogs, onNextLogs, onPrevLogs,
+  allCoupons, 
+  adminActions 
+}) => {
   type AdminTab = 'users' | 'analytics' | 'transactions' | 'logs' | 'coupons';
   const [activeTab, setActiveTab] = useState<AdminTab>('users');
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
 
+  // Note: These stats are now based on the first page of users/transactions for performance.
+  // A more advanced implementation would use separate Firestore aggregation queries.
   const stats = useMemo(() => {
-    const proUsers = allUsers.filter(u => u.plan === 'pro' && u.email !== 'admin@hrcopilot.co.za').length;
-    const paygUsers = allUsers.filter(u => u.plan === 'payg').length;
+    const proUsers = paginatedUsers.data.filter(u => u.plan === 'pro' && !u.isAdmin).length;
+    const paygUsers = paginatedUsers.data.filter(u => u.plan === 'payg').length;
     
-    // Revenue should only count actual user payments (subscriptions, top-ups), not admin-granted credits.
-    const totalRevenue = allTransactions
-      .filter(tx => !tx.description.startsWith('Admin adjustment:'))
-      .reduce((acc, tx) => (tx.amount > 0 ? acc + tx.amount : acc), 0);
-
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    const newUsersLast30Days = allUsers.filter(u => new Date(u.createdAt) > thirtyDaysAgo).length;
-
     return {
-      totalUsers: proUsers + paygUsers,
-      totalDocuments: allDocuments.length,
-      totalRevenue: `R${(totalRevenue / 100).toFixed(2)}`,
-      newUsers: newUsersLast30Days
+      totalUsers: paginatedUsers.pageInfo.total ?? (proUsers + paygUsers), // Use total if available
+      totalDocuments: paginatedDocuments.pageInfo.total ?? paginatedDocuments.data.length,
     };
-  }, [allUsers, allDocuments, allTransactions]);
+  }, [paginatedUsers, paginatedDocuments]);
   
   const handleViewUser = (user: User) => {
     setSelectedUser(user);
@@ -93,22 +102,35 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ allUsers, allDocuments,
     { id: 'logs', name: 'Admin Activity', icon: HistoryIcon },
   ];
 
+  const renderTabContent = () => {
+    switch(activeTab) {
+      case 'users': return <UserList users={paginatedUsers.data} pageInfo={paginatedUsers.pageInfo} onNext={onNextUsers} onPrev={onPrevUsers} onViewUser={handleViewUser} />;
+      case 'coupons': return <CouponManager coupons={allCoupons} onCreateCoupon={adminActions.createCoupon} onDeactivateCoupon={adminActions.deactivateCoupon} />;
+      case 'analytics': return <DocumentAnalytics documents={paginatedDocuments.data} pageInfo={paginatedDocuments.pageInfo} onNext={onNextDocs} onPrev={onPrevDocs} />;
+      case 'transactions': return <TransactionLog transactions={transactionsForUserPage} usersPageInfo={paginatedUsers.pageInfo} onNext={onNextUsers} onPrev={onPrevUsers} />;
+      case 'logs': return <ActivityLog logs={paginatedLogs.data} pageInfo={paginatedLogs.pageInfo} onNext={onNextLogs} onPrev={onPrevLogs} />;
+      default: return null;
+    }
+  }
+
   return (
     <div>
         <h1 className="text-4xl font-bold text-secondary mb-8">Admin Dashboard</h1>
         
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6 mb-8">
             <StatCard title="Total Users" value={stats.totalUsers} icon={UserIcon} />
-            <StatCard title="Total Revenue" value={stats.totalRevenue} icon={CreditCardIcon} />
             <StatCard title="Documents Generated" value={stats.totalDocuments} icon={MasterPolicyIcon} />
-            <StatCard title="New Users (30d)" value={stats.newUsers} icon={UserIcon} />
         </div>
 
         <div className="bg-white p-2 rounded-lg shadow-md border border-gray-200">
-            <nav className="flex space-x-2">
+            <nav className="flex space-x-2" role="tablist" aria-label="Admin Sections">
                 {tabs.map(tab => (
                     <button
                         key={tab.id}
+                        id={`tab-${tab.id}`}
+                        role="tab"
+                        aria-selected={activeTab === tab.id}
+                        aria-controls={`tabpanel-${tab.id}`}
                         onClick={() => setActiveTab(tab.id)}
                         className={`flex items-center px-4 py-2 rounded-md text-sm font-medium transition-colors ${
                             activeTab === tab.id
@@ -122,12 +144,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ allUsers, allDocuments,
                 ))}
             </nav>
 
-            <div className="p-4">
-                {activeTab === 'users' && <UserList users={allUsers} onViewUser={handleViewUser} />}
-                {activeTab === 'coupons' && <CouponManager coupons={allCoupons} onCreateCoupon={adminActions.createCoupon} onDeactivateCoupon={adminActions.deactivateCoupon} />}
-                {activeTab === 'analytics' && <DocumentAnalytics documents={allDocuments} />}
-                {activeTab === 'transactions' && <TransactionLog transactions={allTransactions} />}
-                {activeTab === 'logs' && <ActivityLog logs={adminActionLogs} />}
+            <div className="p-4" id={`tabpanel-${activeTab}`} role="tabpanel" aria-labelledby={`tab-${activeTab}`}>
+                {renderTabContent()}
             </div>
         </div>
 
@@ -136,7 +154,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ allUsers, allDocuments,
                 isOpen={!!selectedUser}
                 onClose={() => setSelectedUser(null)}
                 user={selectedUser}
-                userDocuments={allDocuments.filter(doc => allUsers.find(u => u.uid === selectedUser.uid)?.profile.companyName === doc.companyProfile.companyName)}
+                userDocuments={paginatedDocuments.data.filter(doc => doc.companyProfile.companyName === selectedUser.profile.companyName)}
                 adminActions={adminActions}
             />
         )}
@@ -147,11 +165,29 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ allUsers, allDocuments,
 
 // --- Tab Components ---
 
-const UserList: React.FC<{ users: User[], onViewUser: (user: User) => void }> = ({ users, onViewUser }) => {
+const PaginationControls: React.FC<{ pageInfo: PageInfo; onNext: () => void; onPrev: () => void; }> = ({ pageInfo, onNext, onPrev }) => {
+    const { pageIndex, pageSize, hasNextPage, dataLength } = pageInfo;
+    const startItem = pageIndex * pageSize + 1;
+    const endItem = startItem + dataLength - 1;
+
+    return (
+        <div className="flex items-center justify-between mt-4 text-sm">
+            <p className="text-gray-600">
+                Showing {startItem} to {endItem}
+            </p>
+            <div className="space-x-2">
+                <button onClick={onPrev} disabled={pageIndex === 0} className="px-3 py-1 border rounded-md disabled:opacity-50">Previous</button>
+                <button onClick={onNext} disabled={!hasNextPage} className="px-3 py-1 border rounded-md disabled:opacity-50">Next</button>
+            </div>
+        </div>
+    );
+};
+
+const UserList: React.FC<{ users: User[], pageInfo: PageInfo, onNext: () => void, onPrev: () => void, onViewUser: (user: User) => void }> = ({ users, pageInfo, onNext, onPrev, onViewUser }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const filteredUsers = useMemo(() => {
         return users.filter(user => 
-        user.email !== 'admin@hrcopilot.co.za' &&
+        !user.isAdmin &&
         (user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
         (user.name && user.name.toLowerCase().includes(searchTerm.toLowerCase())))
         );
@@ -192,6 +228,7 @@ const UserList: React.FC<{ users: User[], onViewUser: (user: User) => void }> = 
                 ))}
                 </tbody></table>
             </div>
+            <PaginationControls pageInfo={pageInfo} onNext={onNext} onPrev={onPrev} />
         </div>
     );
 };
@@ -201,13 +238,17 @@ const CouponManager: React.FC<{ coupons: Coupon[], onCreateCoupon: (data: Omit<C
     
     const handleCreate = () => {
         const applicableTo = formData.applicableTo === 'all' ? 'all' : formData.userIds.split(',').map(id => id.trim()).filter(id => id);
+        
+        // FIX: Explicitly convert string inputs to numbers, with fallbacks for invalid values. This resolves potential type errors during arithmetic operations.
+        const numericValue = Number(formData.value) || 0;
+        const maxUsesValue = parseInt(formData.maxUses, 10);
+
         onCreateCoupon({
             code: formData.code.toUpperCase(),
             type: formData.type,
-            // FIX: Use parseFloat to handle numeric conversion from string input, ensuring type safety for the arithmetic operation.
-            value: formData.type === 'fixed' ? (parseFloat(formData.value) || 0) * 100 : (parseFloat(formData.value) || 0),
+            value: formData.type === 'fixed' ? numericValue * 100 : numericValue,
             expiresAt: formData.expiresAt || undefined,
-            maxUses: formData.maxUses ? parseInt(formData.maxUses, 10) : undefined,
+            maxUses: isNaN(maxUsesValue) ? undefined : maxUsesValue,
             applicableTo,
         });
         setFormData({ code: '', type: 'percentage', value: '', expiresAt: '', maxUses: '', applicableTo: 'all', userIds: '' });
@@ -261,7 +302,7 @@ const CouponManager: React.FC<{ coupons: Coupon[], onCreateCoupon: (data: Omit<C
     );
 };
 
-const DocumentAnalytics: React.FC<{ documents: GeneratedDocument[] }> = ({ documents }) => {
+const DocumentAnalytics: React.FC<{ documents: GeneratedDocument[], pageInfo: PageInfo, onNext: () => void, onPrev: () => void }> = ({ documents, pageInfo, onNext, onPrev }) => {
     const analytics = useMemo(() => {
         const counts = documents.reduce((acc, doc) => {
             acc[doc.title] = (acc[doc.title] || 0) + 1;
@@ -284,7 +325,7 @@ const DocumentAnalytics: React.FC<{ documents: GeneratedDocument[] }> = ({ docum
                 <table className="min-w-full divide-y divide-gray-200"><thead className="bg-gray-50">{/* ... */}
                 <tr>
                     <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Document Name</th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Times Generated</th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Times Generated (this page)</th>
                 </tr>
                 </thead><tbody className="bg-white divide-y divide-gray-200">{/* ... */}
                 {analytics.map(item => (
@@ -295,11 +336,12 @@ const DocumentAnalytics: React.FC<{ documents: GeneratedDocument[] }> = ({ docum
                 ))}
                 </tbody></table>
             </div>
+            <PaginationControls pageInfo={pageInfo} onNext={onNext} onPrev={onPrev} />
         </div>
     );
 };
 
-const TransactionLog: React.FC<{ transactions: Transaction[] }> = ({ transactions }) => {
+const TransactionLog: React.FC<{ transactions: Transaction[], usersPageInfo: PageInfo, onNext: () => void, onPrev: () => void }> = ({ transactions, usersPageInfo, onNext, onPrev }) => {
     const handleExport = () => exportToCsv('transactions.csv', transactions.map(t => ({
         date: t.date, user_email: t.userEmail, description: t.description, 
         amount: (Number(t.amount) / 100).toFixed(2)
@@ -307,6 +349,7 @@ const TransactionLog: React.FC<{ transactions: Transaction[] }> = ({ transaction
 
     return (
         <div>
+            <p className="text-xs text-gray-500 mb-4">Displaying transactions from the current page of users.</p>
             <div className="flex justify-end items-center mb-4">
                  <button onClick={handleExport} className="flex items-center px-4 py-2 text-sm font-medium text-primary bg-primary/10 rounded-md hover:bg-primary/20"><DownloadIcon className="w-5 h-5 mr-2" />Export CSV</button>
             </div>
@@ -329,11 +372,12 @@ const TransactionLog: React.FC<{ transactions: Transaction[] }> = ({ transaction
                 ))}
                 </tbody></table>
             </div>
+            <PaginationControls pageInfo={usersPageInfo} onNext={onNext} onPrev={onPrev} />
         </div>
     );
 };
 
-const ActivityLog: React.FC<{ logs: AdminActionLog[] }> = ({ logs }) => {
+const ActivityLog: React.FC<{ logs: AdminActionLog[], pageInfo: PageInfo, onNext: () => void, onPrev: () => void }> = ({ logs, pageInfo, onNext, onPrev }) => {
      const handleExport = () => exportToCsv('admin_logs.csv', logs.map(l => ({
         timestamp: l.timestamp, admin: l.adminEmail, action: l.action, target_user: l.targetUserEmail, details: JSON.stringify(l.details)
     })));
@@ -364,6 +408,7 @@ const ActivityLog: React.FC<{ logs: AdminActionLog[] }> = ({ logs }) => {
                 ))}
                 </tbody></table>
             </div>
+             <PaginationControls pageInfo={pageInfo} onNext={onNext} onPrev={onPrev} />
         </div>
     );
 };

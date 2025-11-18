@@ -1,4 +1,5 @@
 
+
 import React, { useState } from 'react';
 import { FORM_CATEGORIES } from '../constants';
 import type { Form } from '../types';
@@ -14,7 +15,11 @@ const FormCard: React.FC<{ form: Form; onSelect: () => void; }> = ({ form, onSel
   return (
     <div
       onClick={onSelect}
-      className="relative bg-white p-6 rounded-lg shadow-md hover:shadow-xl hover:-translate-y-1 transition-all duration-300 cursor-pointer border border-gray-200 flex flex-col"
+      onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && onSelect()}
+      role="button"
+      tabIndex={0}
+      className="relative bg-white p-6 rounded-lg shadow-md hover:shadow-xl hover:-translate-y-1 transition-all duration-300 cursor-pointer border border-gray-200 flex flex-col focus:outline-none focus:ring-2 focus:ring-primary"
+      aria-label={`Select form: ${form.title}`}
     >
       {form.outputFormat && (
         <div

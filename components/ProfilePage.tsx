@@ -1,45 +1,44 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { UserIcon, ShieldCheckIcon, EditIcon, MasterPolicyIcon, FormsIcon, WordIcon, ExcelIcon, CheckIcon, CreditCardIcon, LoadingIcon, HistoryIcon, FileUploadIcon, FileIcon, TrashIcon } from './Icons';
-import { CompanyProfile, GeneratedDocument, User, UserFile, Coupon } from '../types';
-import { INDUSTRIES } from '../constants';
+import type { CompanyProfile, GeneratedDocument, UserFile, Policy, Form, PolicyType, FormType } from '../types';
+import { INDUSTRIES, POLICIES, FORMS } from '../constants';
+import { useAuthContext } from '../contexts/AuthContext';
+import { useDataContext } from '../contexts/DataContext';
+import { useUIContext } from '../contexts/UIContext';
 
 interface ProfilePageProps {
-  user: User;
-  onUpdateProfile: (profile: CompanyProfile) => void;
-  onLogout: () => void;
   onBack: () => void;
-  generatedDocuments: GeneratedDocument[];
-  userFiles: UserFile[];
-  onFileUpload: (file: File, notes: string) => Promise<void>;
-  onFileDownload: (storagePath: string) => void;
-  onFileDelete: (fileId: string, storagePath: string) => void;
-  onViewDocument: (doc: GeneratedDocument) => void;
-  onProfilePhotoUpload: (file: File) => Promise<void>;
-  onProfilePhotoDelete: () => Promise<void>;
   onUpgrade: () => void;
   onGoToTopUp: () => void;
-  setToastMessage: (message: string) => void;
 }
 
 const ProfilePage: React.FC<ProfilePageProps> = ({ 
-    user, 
-    onUpdateProfile, 
-    onLogout, 
     onBack, 
-    generatedDocuments,
-    userFiles,
-    onFileUpload,
-    onFileDownload,
-    onFileDelete,
-    onViewDocument,
-    onProfilePhotoUpload,
-    onProfilePhotoDelete,
     onUpgrade,
     onGoToTopUp,
-    setToastMessage
 }) => {
+  const { user, handleLogout: onLogout } = useAuthContext();
+  const { 
+    generatedDocuments, 
+    userFiles, 
+    handleUpdateProfile: onUpdateProfile,
+    handleFileUpload: onFileUpload,
+    handleFileDownload: onFileDownload,
+    handleDeleteUserFile: onFileDelete,
+    handleProfilePhotoUpload: onProfilePhotoUpload,
+    handleProfilePhotoDelete: onProfilePhotoDelete,
+  } = useDataContext();
+  const { setToastMessage, setDocumentToView, setSelectedItem, navigateTo } = useUIContext();
+
+  const onViewDocument = (doc: GeneratedDocument) => {
+    setDocumentToView(doc);
+    const item = doc.kind === 'policy' ? POLICIES[doc.type as PolicyType] : FORMS[doc.type as FormType];
+    setSelectedItem(item);
+    navigateTo('generator');
+  };
+  
   const [isEditing, setIsEditing] = useState(false);
-  const [formData, setFormData] = useState<CompanyProfile>(user.profile);
+  const [formData, setFormData] = useState<CompanyProfile>(user?.profile || { companyName: '', industry: '' });
   const [errors, setErrors] = useState<Partial<Record<keyof CompanyProfile, string>>>({});
   
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -55,9 +54,11 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
 
 
   useEffect(() => {
-    setFormData(user.profile);
+    if (user) {
+      setFormData(user.profile);
+    }
     setErrors({});
-  }, [user.profile, isEditing]);
+  }, [user?.profile, isEditing]);
   
   const validateField = (name: keyof CompanyProfile, value: string) => {
     let error = '';
@@ -100,7 +101,9 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
   };
 
   const handleCancel = () => {
-    setFormData(user.profile);
+    if (user) {
+      setFormData(user.profile);
+    }
     setIsEditing(false);
   };
   
@@ -188,6 +191,10 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
       )}
     </div>
   );
+
+  if (!user) {
+    return null;
+  }
 
   return (
     <div className="max-w-4xl mx-auto">

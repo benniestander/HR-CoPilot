@@ -3,6 +3,7 @@ import { updatePolicy } from '../services/geminiService';
 import type { GeneratedDocument, PolicyUpdateResult } from '../types';
 import { LoadingIcon, UpdateIcon, CheckIcon, HistoryIcon } from './Icons';
 import ConfirmationModal from './ConfirmationModal';
+import { useDataContext } from '../contexts/DataContext';
 
 // Simple Diffing function (line-based)
 const createDiff = (original: string, updated: string) => {
@@ -64,13 +65,12 @@ const DiffViewer: React.FC<{ originalText: string; updatedText: string }> = ({ o
 
 interface PolicyUpdaterProps {
   onBack: () => void;
-  generatedDocuments: GeneratedDocument[];
-  onDocumentGenerated: (doc: GeneratedDocument, originalId: string) => void;
 }
 
 type HistoryItem = { version: number; createdAt: string; content: string };
 
-const PolicyUpdater: React.FC<PolicyUpdaterProps> = ({ onBack, generatedDocuments, onDocumentGenerated }) => {
+const PolicyUpdater: React.FC<PolicyUpdaterProps> = ({ onBack }) => {
+  const { generatedDocuments, handleDocumentGenerated } = useDataContext();
   const [step, setStep] = useState<'select' | 'chooseMethod' | 'review'>('select');
   const [selectedDocId, setSelectedDocId] = useState('');
   const [updateMethod, setUpdateMethod] = useState<'ai' | 'manual' | null>(null);
@@ -120,7 +120,7 @@ const PolicyUpdater: React.FC<PolicyUpdaterProps> = ({ onBack, generatedDocument
       content: updateResult.updatedPolicyText,
     };
 
-    onDocumentGenerated(newDoc, selectedDocument.id);
+    handleDocumentGenerated(newDoc, selectedDocument.id);
   };
 
   const handleViewHistoryItem = (item: HistoryItem) => {
@@ -139,7 +139,7 @@ const PolicyUpdater: React.FC<PolicyUpdaterProps> = ({ onBack, generatedDocument
                 ...selectedDocument,
                 content: historyItem.content,
             };
-            onDocumentGenerated(revertedDoc, selectedDocument.id);
+            handleDocumentGenerated(revertedDoc, selectedDocument.id);
             setIsHistoryModalOpen(false);
             setConfirmation(null);
         }

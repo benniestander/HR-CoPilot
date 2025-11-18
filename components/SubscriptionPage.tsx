@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { CheckIcon, CreditCardIcon, LoadingIcon } from './Icons';
 import type { User, Coupon } from '../types';
+import { useAuthContext } from '../contexts/AuthContext';
 
 declare global {
   interface Window {
@@ -9,17 +10,17 @@ declare global {
 }
 
 interface SubscriptionPageProps {
-  user: User;
   onSuccess: (couponCode?: string) => void;
   onCancel: () => void;
   onValidateCoupon: (code: string) => Promise<{ valid: boolean; message: string; coupon?: Coupon }>;
 }
 
-const SubscriptionPage: React.FC<SubscriptionPageProps> = ({ user, onSuccess, onCancel, onValidateCoupon }) => {
+const SubscriptionPage: React.FC<SubscriptionPageProps> = ({ onSuccess, onCancel, onValidateCoupon }) => {
+  const { user } = useAuthContext();
   const [formData, setFormData] = useState({ 
-    firstName: user.name?.split(' ')[0] || '', 
-    lastName: user.name?.split(' ').slice(1).join(' ') || '', 
-    email: user.email 
+    firstName: user?.name?.split(' ')[0] || '', 
+    lastName: user?.name?.split(' ').slice(1).join(' ') || '', 
+    email: user?.email || '' 
   });
   const [errors, setErrors] = useState({ firstName: '', lastName: '', email: '' });
   const [isLoading, setIsLoading] = useState(false);

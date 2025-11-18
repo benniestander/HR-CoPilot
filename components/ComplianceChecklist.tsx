@@ -1,24 +1,22 @@
 import React, { useState, useMemo } from 'react';
 import { generateComplianceChecklist } from '../services/geminiService';
-import type { ComplianceChecklistResult, Policy, Form, CompanyProfile, GeneratedDocument } from '../types';
+// FIX: Import CompanyProfile type.
+import type { ComplianceChecklistResult, Policy, Form, GeneratedDocument, CompanyProfile } from '../types';
 import { LoadingIcon, DownloadIcon, ComplianceIcon, MasterPolicyIcon, FormsIcon, CheckIcon } from './Icons';
 import { POLICIES, FORMS } from '../constants';
+import { useAuthContext } from '../contexts/AuthContext';
+import { useDataContext } from '../contexts/DataContext';
+import { useUIContext } from '../contexts/UIContext';
+import { PolicyType, FormType } from '../types';
 
 interface ComplianceChecklistProps {
   userProfile: CompanyProfile;
-  generatedDocuments: GeneratedDocument[];
   onBack: () => void;
-  onSelectItem: (item: Policy | Form) => void;
-  onViewDocument: (doc: GeneratedDocument) => void;
 }
 
-const ComplianceChecklist: React.FC<ComplianceChecklistProps> = ({ 
-  userProfile,
-  generatedDocuments,
-  onBack, 
-  onSelectItem,
-  onViewDocument,
-}) => {
+const ComplianceChecklist: React.FC<ComplianceChecklistProps> = ({ userProfile, onBack }) => {
+  const { generatedDocuments } = useDataContext();
+  const { setSelectedItem, setDocumentToView, navigateTo } = useUIContext();
   const [result, setResult] = useState<ComplianceChecklistResult | null>(null);
   const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [error, setError] = useState<string | null>(null);
@@ -29,6 +27,18 @@ const ComplianceChecklist: React.FC<ComplianceChecklistProps> = ({
     Object.values(FORMS).forEach(f => map.set(f.title.toLowerCase(), f));
     return map;
   }, []);
+
+  const onSelectItem = (item: Policy | Form) => {
+    setSelectedItem(item);
+    navigateTo('generator');
+  };
+
+  const onViewDocument = (doc: GeneratedDocument) => {
+    setDocumentToView(doc);
+    const item = doc.kind === 'policy' ? POLICIES[doc.type as PolicyType] : FORMS[doc.type as FormType];
+    setSelectedItem(item);
+    navigateTo('generator');
+  };
 
   const handleGenerate = async () => {
     setStatus('loading');
@@ -152,7 +162,6 @@ const ComplianceChecklist: React.FC<ComplianceChecklistProps> = ({
     );
   }
 
-  // FIX: Refactored to handle idle, loading, and error states in one block to resolve TypeScript control-flow error.
   return (
     <div className="max-w-4xl mx-auto">
       <button onClick={onBack} className="mb-6 text-primary font-semibold hover:underline flex items-center">
@@ -181,7 +190,7 @@ const ComplianceChecklist: React.FC<ComplianceChecklistProps> = ({
             <button
             onClick={handleGenerate}
             disabled={status === 'loading'}
-            className="w-full max-w-xs bg-primary text-white font-bold py-3 px-4 rounded-md hover:bg-opacity-90 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
+            className="w-full max-w-xs bg-primary text-white font-bold py-3 px-4 rounded-md hover:bg-opacity-90 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center"
             >
             {status === 'loading' ? (<><LoadingIcon className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" />Generating...</>) : ('Generate My Checklist')}
             </button>

@@ -16,7 +16,11 @@ import {
   arrayUnion,
   increment,
   where,
-  collectionGroup
+  collectionGroup,
+  limit,
+  startAfter,
+  QueryDocumentSnapshot,
+  getCountFromServer,
 } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { firestore, storage } from './firebase';
@@ -117,7 +121,6 @@ export const createUserProfile = async (
     });
   }
 
-  // Return the user object created on the client to avoid a race condition with refetching.
   return newUser;
 };
 
@@ -139,16 +142,12 @@ export const addTransactionToUser = async (uid: string, transaction: Omit<Transa
             const coupon = couponRes.coupon;
             let discountAmount = 0;
             
-            // For debits (negative amount), discount is positive. For credits (positive amount), it's a bonus (positive).
             if (coupon.type === 'percentage') {
                 discountAmount = (Math.abs(finalAmount) * coupon.value) / 100;
-            } else { // fixed
+            } else { 
                 discountAmount = coupon.value;
             }
             
-            // If finalAmount is -74700 (charge) and discount is 10000, it becomes -64700. Correct.
-            // If finalAmount is 10000 (top-up) and bonus is 1000, it becomes 11000. Correct.
-            // A discount/bonus always moves the value towards/past zero.
             if (finalAmount < 0) {
                 finalAmount += discountAmount;
             } else {
@@ -165,7 +164,7 @@ export const addTransactionToUser = async (uid: string, transaction: Omit<Transa
     
     const newTransaction: Omit<Transaction, 'id'> = {
         ...transaction,
-        amount: finalAmount, // Log the final amount after discount
+        amount: finalAmount, 
         date: new Date().toISOString(),
         userId: uid,
         userEmail: user.email,
@@ -176,10 +175,8 @@ export const addTransactionToUser = async (uid: string, transaction: Omit<Transa
       transactions: arrayUnion({ ...newTransaction, date: serverTimestamp() }),
     };
 
-    // Only update credit balance for PAYG transactions (top-ups or document purchases)
-    // The subscription is a charge, not a credit transaction.
     if (transaction.description !== 'Ingcweti Pro Subscription (12 months)') {
-        updates.creditBalance = increment(finalAmount); // Use the final calculated amount
+        updates.creditBalance = increment(finalAmount);
     }
 
     await updateDoc(userDocRef, updates);
@@ -202,10 +199,8 @@ export const getGeneratedDocuments = async (uid: string): Promise<GeneratedDocum
 export const saveGeneratedDocument = async (uid: string, docData: GeneratedDocument): Promise<void> => {
     const { id, ...dataToSave } = docData;
     const docRef = doc(firestore, 'users', uid, 'generatedDocuments', id);
-    // When saving, we use setDoc with merge to create or update.
     await setDoc(docRef, {
       ...dataToSave,
-      // Overwrite createdAt with serverTimestamp only if it's new or being updated
       createdAt: serverTimestamp(),
     }, { merge: true });
 };
@@ -301,53 +296,52 @@ export const simulateFailedPaymentForUser = async (adminEmail: string, targetUid
     });
 };
 
-export const getAllUsers = async (): Promise<User[]> => {
-    const q = query(collection(firestore, 'users'), orderBy('createdAt', 'desc'));
+export const getAllUsers = async (pageSize: number, startAfterDoc?: QueryDocumentSnapshot): Promise<{ data: User[], lastVisible: QueryDocumentSnapshot | null }> => {
+    const constraints = [orderBy('createdAt', 'desc'), limit(pageSize)];
+    if (startAfterDoc) {
+        constraints.push(startAfter(startAfterDoc));
+    }
+    const q = query(collection(firestore, 'users'), ...constraints);
     const querySnapshot = await getDocs(q);
-    return querySnapshot.docs.map(doc => {
-        const data = doc.data();
+    const data = querySnapshot.docs.map(doc => {
+        const docData = doc.data();
         return {
-          ...data,
-          createdAt: (data.createdAt as Timestamp)?.toDate().toISOString() || new Date().toISOString(),
+          ...docData,
+          createdAt: (docData.createdAt as Timestamp)?.toDate().toISOString() || new Date().toISOString(),
         } as User;
     });
+    return { data, lastVisible: querySnapshot.docs[querySnapshot.docs.length - 1] || null };
 };
 
-export const getAllDocumentsForAllUsers = async (): Promise<GeneratedDocument[]> => {
-    const q = query(collectionGroup(firestore, 'generatedDocuments'), orderBy('createdAt', 'desc'));
+export const getAllDocumentsForAllUsers = async (pageSize: number, startAfterDoc?: QueryDocumentSnapshot): Promise<{ data: GeneratedDocument[], lastVisible: QueryDocumentSnapshot | null }> => {
+    const constraints = [orderBy('createdAt', 'desc'), limit(pageSize)];
+    if (startAfterDoc) {
+        constraints.push(startAfter(startAfterDoc));
+    }
+    const q = query(collectionGroup(firestore, 'generatedDocuments'), ...constraints);
     const querySnapshot = await getDocs(q);
-    return querySnapshot.docs.map(doc => ({
+    const data = querySnapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data(),
         createdAt: (doc.data().createdAt as Timestamp)?.toDate().toISOString() || new Date().toISOString(),
     } as GeneratedDocument));
+    return { data, lastVisible: querySnapshot.docs[querySnapshot.docs.length - 1] || null };
 };
 
-export const getAdminActionLogs = async (): Promise<AdminActionLog[]> => {
-    const q = query(collection(firestore, 'adminActionLogs'), orderBy('timestamp', 'desc'));
+export const getAdminActionLogs = async (pageSize: number, startAfterDoc?: QueryDocumentSnapshot): Promise<{ data: AdminActionLog[], lastVisible: QueryDocumentSnapshot | null }> => {
+    const constraints = [orderBy('timestamp', 'desc'), limit(pageSize)];
+    if (startAfterDoc) {
+        constraints.push(startAfter(startAfterDoc));
+    }
+    const q = query(collection(firestore, 'adminActionLogs'), ...constraints);
     const querySnapshot = await getDocs(q);
-    return querySnapshot.docs.map(doc => ({
+    const data = querySnapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data(),
         timestamp: (doc.data().timestamp as Timestamp)?.toDate().toISOString() || new Date().toISOString(),
     } as AdminActionLog));
+    return { data, lastVisible: querySnapshot.docs[querySnapshot.docs.length - 1] || null };
 };
-
-export const getAllTransactions = async (): Promise<Transaction[]> => {
-    const users = await getAllUsers();
-    const allTransactions: Transaction[] = [];
-    users.forEach(user => {
-        if(user.transactions) {
-            const userTransactions = user.transactions.map(tx => ({
-                ...tx,
-                userEmail: user.email, // Add user email for context
-            }));
-            allTransactions.push(...userTransactions);
-        }
-    });
-    return allTransactions.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-};
-
 
 // --- User File Storage Functions (Already using Firebase, no major changes needed) ---
 

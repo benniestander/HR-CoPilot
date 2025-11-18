@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { MasterPolicyIcon, ComplianceIcon, UpdateIcon } from './Icons';
+import { useFocusTrap } from '../hooks/useFocusTrap';
 
 interface OnboardingWalkthroughProps {
   onClose: () => void;
@@ -30,6 +31,7 @@ const tourSteps = [
 
 const OnboardingWalkthrough: React.FC<OnboardingWalkthroughProps> = ({ onClose }) => {
   const [step, setStep] = useState(0);
+  const modalRef = useFocusTrap<HTMLDivElement>(true, onClose);
   const currentStep = tourSteps[step];
 
   const handleNext = () => {
@@ -49,6 +51,7 @@ const OnboardingWalkthrough: React.FC<OnboardingWalkthroughProps> = ({ onClose }
   return (
     <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center p-4">
       <div 
+        ref={modalRef}
         className="bg-white rounded-lg shadow-xl w-full max-w-md flex flex-col"
         role="dialog"
         aria-modal="true"

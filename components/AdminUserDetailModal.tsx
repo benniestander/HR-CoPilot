@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import type { User, GeneratedDocument, Transaction, CompanyProfile } from '../types';
 import { UserIcon, ShieldCheckIcon, HistoryIcon, MasterPolicyIcon, EditIcon, CreditCardIcon } from './Icons';
 import { INDUSTRIES } from '../constants';
+import { useFocusTrap } from '../hooks/useFocusTrap';
 
 interface AdminUserDetailModalProps {
   isOpen: boolean;
@@ -16,12 +17,12 @@ interface AdminUserDetailModalProps {
   };
 }
 
-const DetailRow: React.FC<{ label: string; value: React.ReactNode }> = ({ label, value }) => (
+const DetailRow: React.FC<{ label: string; value: React.ReactNode }> = React.memo(({ label, value }) => (
     <div className="flex flex-col sm:flex-row py-2 border-b border-gray-100">
         <p className="w-full sm:w-1/3 font-semibold text-gray-600 flex-shrink-0">{label}:</p>
         <div className="w-full sm:w-2/3 text-gray-800 break-words">{value}</div>
     </div>
-);
+));
 
 const AdminUserDetailModal: React.FC<AdminUserDetailModalProps> = ({ isOpen, onClose, user, userDocuments, adminActions }) => {
   const [isEditing, setIsEditing] = useState(false);
@@ -29,6 +30,8 @@ const AdminUserDetailModal: React.FC<AdminUserDetailModalProps> = ({ isOpen, onC
   
   const [creditAmount, setCreditAmount] = useState('');
   const [creditReason, setCreditReason] = useState('');
+
+  const modalRef = useFocusTrap<HTMLDivElement>(isOpen, onClose);
 
   if (!isOpen) return null;
   
@@ -81,12 +84,20 @@ const AdminUserDetailModal: React.FC<AdminUserDetailModalProps> = ({ isOpen, onC
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl flex flex-col" style={{ maxHeight: '90vh' }} onClick={(e) => e.stopPropagation()}>
+      <div 
+        ref={modalRef}
+        className="bg-white rounded-lg shadow-xl w-full max-w-4xl flex flex-col" 
+        style={{ maxHeight: '90vh' }} 
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="user-detail-modal-title"
+      >
         <div className="p-6 border-b border-gray-200 flex justify-between items-start">
             <div className="flex items-center">
                 <UserIcon className="w-10 h-10 text-primary mr-4" />
                 <div>
-                <h2 className="text-2xl font-bold text-secondary">{user.name || 'User Profile'}</h2>
+                <h2 id="user-detail-modal-title" className="text-2xl font-bold text-secondary">{user.name || 'User Profile'}</h2>
                 <p className="text-gray-500">{user.email}</p>
                 </div>
             </div>

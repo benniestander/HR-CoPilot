@@ -1,7 +1,9 @@
 
+
 import React from 'react';
 import ReactMarkdown from 'https://esm.sh/react-markdown@9?deps=react@^19.2.0';
 import rehypeSanitize from 'https://esm.sh/rehype-sanitize@6?deps=react@^19.2.0';
+import { useFocusTrap } from '../hooks/useFocusTrap';
 
 interface LegalModalProps {
   isOpen: boolean;
@@ -11,11 +13,14 @@ interface LegalModalProps {
 }
 
 const LegalModal: React.FC<LegalModalProps> = ({ isOpen, onClose, title, content }) => {
+  const modalRef = useFocusTrap<HTMLDivElement>(isOpen, onClose);
+
   if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center p-4" onClick={onClose}>
-      <div 
+      <div
+        ref={modalRef}
         className="bg-white rounded-lg shadow-xl w-full max-w-3xl flex flex-col"
         onClick={(e) => e.stopPropagation()}
         style={{ maxHeight: '90vh' }}

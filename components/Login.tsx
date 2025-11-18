@@ -1,20 +1,14 @@
 import React, { useState } from 'react';
+import { useAuthContext } from '../contexts/AuthContext';
+import { useModalContext } from '../contexts/ModalContext';
+import { useUIContext } from '../contexts/UIContext';
+import { PRIVACY_POLICY_CONTENT, TERMS_OF_USE_CONTENT } from '../legalContent';
 
-interface LoginProps {
-  onLogin: (email: string, password: string) => Promise<void>;
-  onForgotPassword: (email: string) => Promise<void>;
-  onShowLanding: () => void;
-  onShowPrivacyPolicy: () => void;
-  onShowTerms: () => void;
-}
+const Login: React.FC = () => {
+    const { handleLogin, handleForgotPassword, setAuthPage } = useAuthContext();
+    const { showLegalModal } = useModalContext();
+    const { setToastMessage } = useUIContext();
 
-const Login: React.FC<LoginProps> = ({ 
-    onLogin, 
-    onForgotPassword, 
-    onShowLanding, 
-    onShowPrivacyPolicy, 
-    onShowTerms,
-}) => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [emailError, setEmailError] = useState('');
@@ -41,31 +35,32 @@ const Login: React.FC<LoginProps> = ({
         }
     };
     
-    const handleLogin = async () => {
+    const onLogin = async () => {
         if (!validateEmail(email) || !password) return;
 
         setLoading(true);
         try {
-            await onLogin(email, password);
-        } catch (error) {
+            await handleLogin(email, password);
+        } catch (error: any) {
+            setToastMessage(`Login failed: ${error.message}`);
             setLoading(false);
         }
     };
     
     const handleLoginClick = (e: React.MouseEvent<HTMLButtonElement>) => {
         e.preventDefault();
-        handleLogin();
+        onLogin();
     };
 
-    const handleReset = async () => {
+    const onReset = async () => {
         if (!validateEmail(email)) return;
 
         setLoading(true);
         try {
-            await onForgotPassword(email);
+            await handleForgotPassword(email);
             setView('reset-sent');
-        } catch (error) {
-            // Error toast shown by App.tsx
+        } catch (error: any) {
+            setToastMessage(`Error: ${error.message}`);
         } finally {
             setLoading(false);
         }
@@ -73,7 +68,7 @@ const Login: React.FC<LoginProps> = ({
 
     const handleResetClick = (e: React.MouseEvent<HTMLButtonElement>) => {
         e.preventDefault();
-        handleReset();
+        onReset();
     };
 
     const renderLoginView = () => (
@@ -107,7 +102,7 @@ const Login: React.FC<LoginProps> = ({
             </form>
              <p className="text-sm text-gray-600 mt-6">
                 Don't have an account?{' '}
-                <button onClick={onShowLanding} className="font-semibold text-primary hover:underline">Choose a Plan</button>
+                <button onClick={() => setAuthPage('landing')} className="font-semibold text-primary hover:underline">Choose a Plan</button>
             </p>
         </>
     );
@@ -168,8 +163,8 @@ const Login: React.FC<LoginProps> = ({
                 <div className="container mx-auto px-6 text-center">
                     <img src="https://i.postimg.cc/h48FMCNY/edited-image-11-removebg-preview.png" alt="HR CoPilot Logo" className="h-10 mx-auto mb-4" />
                     <div className="flex justify-center space-x-6 mb-4">
-                        <button onClick={onShowPrivacyPolicy} className="text-sm text-gray-300 hover:text-white hover:underline">Privacy Policy</button>
-                        <button onClick={onShowTerms} className="text-sm text-gray-300 hover:text-white hover:underline">Terms of Use</button>
+                        <button onClick={() => showLegalModal('Privacy Policy', PRIVACY_POLICY_CONTENT)} className="text-sm text-gray-300 hover:text-white hover:underline">Privacy Policy</button>
+                        <button onClick={() => showLegalModal('Terms of Use', TERMS_OF_USE_CONTENT)} className="text-sm text-gray-300 hover:text-white hover:underline">Terms of Use</button>
                     </div>
                     <p className="text-sm text-gray-300">© {new Date().getFullYear()} HR CoPilot. All rights reserved.</p>
                 </div>
