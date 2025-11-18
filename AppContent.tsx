@@ -51,16 +51,14 @@ const AppContent: React.FC = () => {
 
     const {
       paginatedUsers,
-      userPage,
+// FIX: Remove userPage, docPage, and logPage which are no longer part of the DataContextType
       handleNextUsers,
       handlePrevUsers,
       paginatedDocuments,
-      docPage,
       handleNextDocs,
       handlePrevDocs,
       transactionsForUserPage,
       paginatedLogs,
-      logPage,
       handleNextLogs,
       handlePrevLogs,
       adminNotifications,
@@ -292,16 +290,13 @@ const AppContent: React.FC = () => {
                         <Suspense fallback={<FullPageLoader />}>
                             <AdminDashboard
                                 paginatedUsers={paginatedUsers}
-                                userPage={userPage}
                                 onNextUsers={handleNextUsers}
                                 onPrevUsers={handlePrevUsers}
                                 paginatedDocuments={paginatedDocuments}
-                                docPage={docPage}
                                 onNextDocs={handleNextDocs}
                                 onPrevDocs={handlePrevDocs}
                                 transactionsForUserPage={transactionsForUserPage}
                                 paginatedLogs={paginatedLogs}
-                                logPage={logPage}
                                 onNextLogs={handleNextLogs}
                                 onPrevLogs={handlePrevLogs}
                                 allCoupons={allCoupons}

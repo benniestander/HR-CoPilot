@@ -36,6 +36,7 @@ interface AuthContextType {
     handleGoToProfileSetup: () => void;
     setShowOnboardingWalkthrough: React.Dispatch<React.SetStateAction<boolean>>;
     setUser: React.Dispatch<React.SetStateAction<User | null>>;
+    setNeedsOnboarding: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -141,6 +142,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         handleGoToProfileSetup,
         setShowOnboardingWalkthrough,
         setUser,
+        setNeedsOnboarding,
     };
 
     return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
