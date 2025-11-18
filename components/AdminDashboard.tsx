@@ -204,8 +204,8 @@ const CouponManager: React.FC<{ coupons: Coupon[], onCreateCoupon: (data: Omit<C
         onCreateCoupon({
             code: formData.code.toUpperCase(),
             type: formData.type,
-            // FIX: Replaced parseFloat with Number to resolve TypeScript type error on arithmetic operation.
-            value: formData.type === 'fixed' ? (Number(formData.value) || 0) * 100 : (Number(formData.value) || 0),
+            // FIX: Use parseFloat to handle numeric conversion from string input, ensuring type safety for the arithmetic operation.
+            value: formData.type === 'fixed' ? (parseFloat(formData.value) || 0) * 100 : (parseFloat(formData.value) || 0),
             expiresAt: formData.expiresAt || undefined,
             maxUses: formData.maxUses ? parseInt(formData.maxUses, 10) : undefined,
             applicableTo,

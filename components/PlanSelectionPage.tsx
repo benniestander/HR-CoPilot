@@ -1,6 +1,12 @@
 import React, { useState } from 'react';
 import { CheckIcon } from './Icons';
 
+declare global {
+    interface Window {
+      grecaptcha: any;
+    }
+}
+
 interface PlanSelectionPageProps {
   onStartAuthFlow: (flow: 'signup' | 'payg_signup', email: string, details: { password: string, name?: string, contactNumber?: string }) => void;
   onShowLogin: () => void;
@@ -59,8 +65,7 @@ const PlanSelectionPage: React.FC<PlanSelectionPageProps> = ({ onStartAuthFlow, 
         return !error;
     };
 
-    const handleProSubmit = (e: React.FormEvent) => {
-        e.preventDefault();
+    const performProSignup = () => {
         const isNameValid = validateField('pro', 'name', proData.name);
         const isEmailValid = validateField('pro', 'email', proData.email);
         const isPasswordValid = validateField('pro', 'password', proData.password);
@@ -71,8 +76,20 @@ const PlanSelectionPage: React.FC<PlanSelectionPageProps> = ({ onStartAuthFlow, 
         onStartAuthFlow('signup', proData.email, { password: proData.password, name: proData.name });
     };
 
-    const handlePaygSubmit = (e: React.FormEvent) => {
+    const handleProClick = (e: React.MouseEvent<HTMLButtonElement>) => {
         e.preventDefault();
+        if (window.grecaptcha) {
+            window.grecaptcha.enterprise.ready(async () => {
+                const token = await window.grecaptcha.enterprise.execute('6Lc5hA8sAAAAAO95IQDoVmSDieJ_cXJuQyFrK3cR', {action: 'SIGNUP_PRO'});
+                performProSignup();
+            });
+        } else {
+            console.error("reCAPTCHA not loaded");
+            performProSignup();
+        }
+    };
+    
+    const performPaygSignup = () => {
         const isNameValid = validateField('payg', 'name', paygData.name);
         const isEmailValid = validateField('payg', 'email', paygData.email);
         const isContactValid = validateField('payg', 'contactNumber', paygData.contactNumber);
@@ -83,6 +100,19 @@ const PlanSelectionPage: React.FC<PlanSelectionPageProps> = ({ onStartAuthFlow, 
         
         setLoading('payg');
         onStartAuthFlow('payg_signup', paygData.email, { name: paygData.name, contactNumber: paygData.contactNumber, password: paygData.password });
+    };
+
+    const handlePaygClick = (e: React.MouseEvent<HTMLButtonElement>) => {
+        e.preventDefault();
+        if (window.grecaptcha) {
+            window.grecaptcha.enterprise.ready(async () => {
+                const token = await window.grecaptcha.enterprise.execute('6Lc5hA8sAAAAAO95IQDoVmSDieJ_cXJuQyFrK3cR', {action: 'SIGNUP_PAYG'});
+                performPaygSignup();
+            });
+        } else {
+            console.error("reCAPTCHA not loaded");
+            performPaygSignup();
+        }
     };
     
     const PlanSelectorCard: React.FC<{ plan: 'pro' | 'payg', title: string, price: string, badge?: string }> = ({ plan, title, price, badge }) => {
@@ -156,7 +186,7 @@ const PlanSelectionPage: React.FC<PlanSelectionPageProps> = ({ onStartAuthFlow, 
                         <h2 className="text-2xl font-bold text-secondary text-center mb-6">Create your account</h2>
                         {selectedPlan === 'pro' && (
                             <div className="space-y-4">
-                                <form onSubmit={handleProSubmit} className="space-y-4">
+                                <form className="space-y-4">
                                     <div>
                                         <input type="text" value={proData.name} onChange={e => { setProData({...proData, name: e.target.value}); validateField('pro', 'name', e.target.value); }} placeholder="Your Name" className={`w-full p-3 border rounded-md shadow-sm ${proErrors.name ? 'border-red-500' : 'border-gray-300'}`} />
                                         {proErrors.name && <p className="text-red-600 text-xs mt-1">{proErrors.name}</p>}
@@ -173,7 +203,7 @@ const PlanSelectionPage: React.FC<PlanSelectionPageProps> = ({ onStartAuthFlow, 
                                         <input type="password" value={proData.confirmPassword} onChange={e => { setProData({...proData, confirmPassword: e.target.value}); validateField('pro', 'confirmPassword', e.target.value); }} placeholder="Confirm Password" className={`w-full p-3 border rounded-md shadow-sm ${proErrors.confirmPassword ? 'border-red-500' : 'border-gray-300'}`} />
                                         {proErrors.confirmPassword && <p className="text-red-600 text-xs mt-1">{proErrors.confirmPassword}</p>}
                                     </div>
-                                    <button type="submit" disabled={loading !== 'none'} className="w-full bg-primary text-white font-bold py-3 px-4 rounded-md hover:bg-opacity-90 disabled:bg-gray-400">
+                                    <button type="button" onClick={handleProClick} disabled={loading !== 'none'} className="w-full bg-primary text-white font-bold py-3 px-4 rounded-md hover:bg-opacity-90 disabled:bg-gray-400">
                                         {loading === 'pro' ? 'Creating Account...' : 'Sign Up for Pro'}
                                     </button>
                                 </form>
@@ -181,7 +211,7 @@ const PlanSelectionPage: React.FC<PlanSelectionPageProps> = ({ onStartAuthFlow, 
                         )}
                         {selectedPlan === 'payg' && (
                              <div className="space-y-4">
-                                 <form onSubmit={handlePaygSubmit} className="space-y-4">
+                                 <form className="space-y-4">
                                     <div>
                                         <input type="text" value={paygData.name} onChange={e => { setPaygData({...paygData, name: e.target.value}); validateField('payg', 'name', e.target.value);}} placeholder="Your Name" className={`w-full p-3 border rounded-md shadow-sm ${paygErrors.name ? 'border-red-500' : 'border-gray-300'}`} />
                                         {paygErrors.name && <p className="text-red-600 text-xs mt-1">{paygErrors.name}</p>}
@@ -202,7 +232,7 @@ const PlanSelectionPage: React.FC<PlanSelectionPageProps> = ({ onStartAuthFlow, 
                                         <input type="password" value={paygData.confirmPassword} onChange={e => { setPaygData({...paygData, confirmPassword: e.target.value}); validateField('payg', 'confirmPassword', e.target.value);}} placeholder="Confirm Password" className={`w-full p-3 border rounded-md shadow-sm ${paygErrors.confirmPassword ? 'border-red-500' : 'border-gray-300'}`} />
                                         {paygErrors.confirmPassword && <p className="text-red-600 text-xs mt-1">{paygErrors.confirmPassword}</p>}
                                     </div>
-                                    <button type="submit" disabled={loading !== 'none'} className="w-full bg-gray-700 text-white font-bold py-3 px-4 rounded-md hover:bg-gray-800 disabled:bg-gray-400">
+                                    <button type="button" onClick={handlePaygClick} disabled={loading !== 'none'} className="w-full bg-gray-700 text-white font-bold py-3 px-4 rounded-md hover:bg-gray-800 disabled:bg-gray-400">
                                         {loading === 'payg' ? 'Creating Account...' : 'Sign Up for PAYG'}
                                     </button>
                                 </form>

@@ -1,5 +1,11 @@
 import React, { useState } from 'react';
 
+declare global {
+    interface Window {
+      grecaptcha: any;
+    }
+}
+
 interface LoginProps {
   onLogin: (email: string, password: string) => Promise<void>;
   onForgotPassword: (email: string) => Promise<void>;
@@ -41,8 +47,7 @@ const Login: React.FC<LoginProps> = ({
         }
     };
     
-    const handleLoginSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
+    const handleLogin = async () => {
         if (!validateEmail(email) || !password) return;
 
         setLoading(true);
@@ -53,8 +58,20 @@ const Login: React.FC<LoginProps> = ({
         }
     };
     
-    const handleResetSubmit = async (e: React.FormEvent) => {
+    const handleLoginClick = (e: React.MouseEvent<HTMLButtonElement>) => {
         e.preventDefault();
+        if (!window.grecaptcha) {
+            console.error("reCAPTCHA not loaded");
+            handleLogin();
+            return;
+        }
+        window.grecaptcha.enterprise.ready(async () => {
+          const token = await window.grecaptcha.enterprise.execute('6Lc5hA8sAAAAAO95IQDoVmSDieJ_cXJuQyFrK3cR', {action: 'LOGIN'});
+          await handleLogin();
+        });
+    };
+
+    const handleReset = async () => {
         if (!validateEmail(email)) return;
 
         setLoading(true);
@@ -68,12 +85,25 @@ const Login: React.FC<LoginProps> = ({
         }
     };
 
+    const handleResetClick = (e: React.MouseEvent<HTMLButtonElement>) => {
+        e.preventDefault();
+        if (!window.grecaptcha) {
+            console.error("reCAPTCHA not loaded");
+            handleReset();
+            return;
+        }
+        window.grecaptcha.enterprise.ready(async () => {
+          const token = await window.grecaptcha.enterprise.execute('6Lc5hA8sAAAAAO95IQDoVmSDieJ_cXJuQyFrK3cR', {action: 'RESET_PASSWORD'});
+          await handleReset();
+        });
+    };
+
     const renderLoginView = () => (
         <>
             <h1 className="text-2xl font-bold text-secondary mb-2">Sign In</h1>
             <p className="text-gray-600 mb-6">Welcome back! Sign in to your account.</p>
             
-            <form onSubmit={handleLoginSubmit} className="space-y-4">
+            <form className="space-y-4">
                <div>
                  <input
                     type="email" value={email} onChange={handleEmailChange} onBlur={(e) => validateEmail(e.target.value)}
@@ -92,7 +122,7 @@ const Login: React.FC<LoginProps> = ({
                     <button type="button" onClick={() => setView('reset')} className="font-semibold text-primary hover:underline focus:outline-none">Forgot Password?</button>
                 </div>
                </div>
-                <button type="submit" disabled={loading || !email || !!emailError || !password}
+                <button type="button" onClick={handleLoginClick} disabled={loading || !email || !!emailError || !password}
                     className="w-full bg-primary text-white font-bold py-3 px-4 rounded-md hover:bg-opacity-90 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors flex items-center justify-center">
                     {loading ? ( <><svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Signing In...</> ) : ( 'Sign In' )}
                 </button>
@@ -108,14 +138,14 @@ const Login: React.FC<LoginProps> = ({
         <>
             <h1 className="text-2xl font-bold text-secondary mb-2">Reset Your Password</h1>
             <p className="text-gray-600 mb-6">Enter your email address to receive a password reset link.</p>
-            <form onSubmit={handleResetSubmit} className="space-y-4">
+            <form className="space-y-4">
                <div>
                  <input type="email" value={email} onChange={handleEmailChange} onBlur={(e) => validateEmail(e.target.value)} placeholder="your-email@example.com" required
                     className={`w-full p-3 border rounded-md shadow-sm focus:ring-primary focus:border-primary ${emailError ? 'border-red-500' : 'border-gray-300'}`}
                     aria-label="Email Address" aria-invalid={!!emailError} aria-describedby="email-error" />
                 {emailError && <p id="email-error" className="text-red-600 text-sm text-left mt-1">{emailError}</p>}
                </div>
-                <button type="submit" disabled={loading || !email || !!emailError}
+                <button type="button" onClick={handleResetClick} disabled={loading || !email || !!emailError}
                     className="w-full bg-primary text-white font-bold py-3 px-4 rounded-md hover:bg-opacity-90 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors flex items-center justify-center">
                    {loading ? ( <><svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Sending...</> ) : ( 'Send Reset Link' )}
                 </button>
