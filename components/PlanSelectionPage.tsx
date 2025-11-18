@@ -1,12 +1,6 @@
 import React, { useState } from 'react';
 import { CheckIcon } from './Icons';
 
-declare global {
-    interface Window {
-      grecaptcha: any;
-    }
-}
-
 interface PlanSelectionPageProps {
   onStartAuthFlow: (flow: 'signup' | 'payg_signup', email: string, details: { password: string, name?: string, contactNumber?: string }) => void;
   onShowLogin: () => void;
@@ -78,15 +72,7 @@ const PlanSelectionPage: React.FC<PlanSelectionPageProps> = ({ onStartAuthFlow, 
 
     const handleProClick = (e: React.MouseEvent<HTMLButtonElement>) => {
         e.preventDefault();
-        if (window.grecaptcha) {
-            window.grecaptcha.enterprise.ready(async () => {
-                const token = await window.grecaptcha.enterprise.execute('6Lc5hA8sAAAAAO95IQDoVmSDieJ_cXJuQyFrK3cR', {action: 'SIGNUP_PRO'});
-                performProSignup();
-            });
-        } else {
-            console.error("reCAPTCHA not loaded");
-            performProSignup();
-        }
+        performProSignup();
     };
     
     const performPaygSignup = () => {
@@ -104,15 +90,7 @@ const PlanSelectionPage: React.FC<PlanSelectionPageProps> = ({ onStartAuthFlow, 
 
     const handlePaygClick = (e: React.MouseEvent<HTMLButtonElement>) => {
         e.preventDefault();
-        if (window.grecaptcha) {
-            window.grecaptcha.enterprise.ready(async () => {
-                const token = await window.grecaptcha.enterprise.execute('6Lc5hA8sAAAAAO95IQDoVmSDieJ_cXJuQyFrK3cR', {action: 'SIGNUP_PAYG'});
-                performPaygSignup();
-            });
-        } else {
-            console.error("reCAPTCHA not loaded");
-            performPaygSignup();
-        }
+        performPaygSignup();
     };
     
     const PlanSelectorCard: React.FC<{ plan: 'pro' | 'payg', title: string, price: string, badge?: string }> = ({ plan, title, price, badge }) => {

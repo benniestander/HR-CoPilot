@@ -1,11 +1,5 @@
 import React, { useState } from 'react';
 
-declare global {
-    interface Window {
-      grecaptcha: any;
-    }
-}
-
 interface LoginProps {
   onLogin: (email: string, password: string) => Promise<void>;
   onForgotPassword: (email: string) => Promise<void>;
@@ -60,15 +54,7 @@ const Login: React.FC<LoginProps> = ({
     
     const handleLoginClick = (e: React.MouseEvent<HTMLButtonElement>) => {
         e.preventDefault();
-        if (!window.grecaptcha) {
-            console.error("reCAPTCHA not loaded");
-            handleLogin();
-            return;
-        }
-        window.grecaptcha.enterprise.ready(async () => {
-          const token = await window.grecaptcha.enterprise.execute('6Lc5hA8sAAAAAO95IQDoVmSDieJ_cXJuQyFrK3cR', {action: 'LOGIN'});
-          await handleLogin();
-        });
+        handleLogin();
     };
 
     const handleReset = async () => {
@@ -87,15 +73,7 @@ const Login: React.FC<LoginProps> = ({
 
     const handleResetClick = (e: React.MouseEvent<HTMLButtonElement>) => {
         e.preventDefault();
-        if (!window.grecaptcha) {
-            console.error("reCAPTCHA not loaded");
-            handleReset();
-            return;
-        }
-        window.grecaptcha.enterprise.ready(async () => {
-          const token = await window.grecaptcha.enterprise.execute('6Lc5hA8sAAAAAO95IQDoVmSDieJ_cXJuQyFrK3cR', {action: 'RESET_PASSWORD'});
-          await handleReset();
-        });
+        handleReset();
     };
 
     const renderLoginView = () => (
