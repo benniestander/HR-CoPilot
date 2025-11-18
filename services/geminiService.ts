@@ -4,11 +4,14 @@ import { GoogleGenAI, GenerateContentResponse, Type } from "@google/genai";
 import { POLICIES, FORM_BASE_TEMPLATES, FORMS, FORM_ENRICHMENT_PROMPTS } from '../constants';
 import type { PolicyType, FormType, FormAnswers, PolicyUpdateResult, ComplianceChecklistResult, CompanyProfile } from '../types';
 
-if (!process.env.API_KEY) {
-  throw new Error("API_KEY environment variable is not set");
-}
-
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+// Helper function to lazily initialize the AI client.
+// This prevents the API key check from running during the build process.
+const getAi = () => {
+  if (!process.env.API_KEY) {
+    throw new Error("API_KEY environment variable is not set. This app requires a Gemini API key to function.");
+  }
+  return new GoogleGenAI({ apiKey: process.env.API_KEY });
+};
 
 const INDUSTRY_SPECIFIC_PROMPTS: Record<string, Partial<Record<PolicyType, string>>> = {
   'Construction': {
@@ -60,6 +63,7 @@ export async function* generatePolicyStream(
   policyType: PolicyType,
   answers: FormAnswers
 ): AsyncGenerator<GenerateContentResponse, void, undefined> {
+  const ai = getAi();
   const policy = POLICIES[policyType];
 
   if (!policy) {
@@ -192,6 +196,7 @@ export async function* generateFormStream(
   formType: FormType,
   answers: FormAnswers
 ): AsyncGenerator<string, void, undefined> {
+  const ai = getAi();
   let baseTemplate = FORM_BASE_TEMPLATES[formType];
   const form = FORMS[formType];
 
@@ -257,7 +262,7 @@ Based on the provided form text for a "${form.title}", please perform the follow
 export async function* explainPolicyTypeStream(
   policyTitle: string
 ): AsyncGenerator<string, void, undefined> {
-  
+  const ai = getAi();
   const systemInstruction = "You are a helpful AI assistant specializing in South African labour law. You explain HR policy concepts in simple, easy-to-understand terms for small business owners. Your output must be in Markdown format.";
 
   const userPrompt = `
@@ -289,7 +294,7 @@ Use simple, clear language suitable for someone who is not an HR expert. Use bul
 export async function* explainFormTypeStream(
   formTitle: string
 ): AsyncGenerator<string, void, undefined> {
-  
+  const ai = getAi();
   const systemInstruction = "You are a helpful AI assistant specializing in South African HR administration. You explain the purpose of HR forms in simple, easy-to-understand terms for small business owners. Your output must be in Markdown format.";
 
   const userPrompt = `
@@ -322,6 +327,7 @@ export async function updatePolicy(
   currentPolicyText: string,
   instructions?: string
 ): Promise<PolicyUpdateResult> {
+  const ai = getAi();
   const systemInstruction = `You are an expert South African HR consultant and legal drafter specializing in reviewing and updating HR policies for small businesses to ensure compliance with the latest South African labour law. Your goal is to return a JSON object containing the updated policy and a detailed log of changes.
 - You MUST only update what is legally necessary, outdated, or specifically requested by the user.
 - You MUST preserve the original tone, structure, and wording as much as possible. Do not rewrite entire sections unless essential.
@@ -409,6 +415,7 @@ ${currentPolicyText}
 export async function generateComplianceChecklist(
   profile: CompanyProfile,
 ): Promise<ComplianceChecklistResult> {
+  const ai = getAi();
   const systemInstruction = `You are an expert South African HR consultant. Your task is to analyze a business profile and recommend a checklist of essential HR policies and forms for legal compliance in South Africa. You must provide clear, concise reasons for each recommendation, tailored to the business described. Your output must be a valid JSON object that adheres strictly to the provided schema.`;
 
   const prompt = `
