@@ -30,7 +30,11 @@ let analytics: any = null;
 if (typeof window !== 'undefined') {
   isSupported().then((supported) => {
     if (supported) {
-      analytics = getAnalytics(app);
+      try {
+        analytics = getAnalytics(app);
+      } catch (e) {
+        console.warn("Firebase Analytics initialization failed:", e);
+      }
     }
   }).catch(err => {
       console.warn("Firebase Analytics not supported in this environment:", err);

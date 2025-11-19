@@ -1,10 +1,8 @@
-
 import { GoogleGenAI, GenerateContentResponse, Type } from "@google/genai";
 import { POLICIES, FORM_BASE_TEMPLATES, FORMS, FORM_ENRICHMENT_PROMPTS } from '../constants';
 import type { PolicyType, FormType, FormAnswers, PolicyUpdateResult, ComplianceChecklistResult, CompanyProfile } from '../types';
 
 // Helper function to lazily initialize the AI client.
-// This prevents the API key check from running during the build process.
 const getAi = () => {
   const apiKey = (typeof process !== 'undefined' && process.env) ? process.env.API_KEY : undefined;
   
@@ -13,6 +11,27 @@ const getAi = () => {
   }
   return new GoogleGenAI({ apiKey });
 };
+
+// Helper function for exponential backoff retry logic
+async function retryOperation<T>(operation: () => Promise<T>, retries = 3, initialDelay = 2000): Promise<T> {
+  try {
+    return await operation();
+  } catch (error: any) {
+    const isRateLimit = 
+      error?.status === 429 || 
+      error?.message?.includes('429') || 
+      error?.message?.toLowerCase().includes('rate exceeded') ||
+      error?.message?.toLowerCase().includes('quota') ||
+      error?.message?.toLowerCase().includes('resource_exhausted');
+
+    if (isRateLimit && retries > 0) {
+      console.warn(`Gemini API Rate Limit hit. Retrying in ${initialDelay}ms... (Attempts left: ${retries})`);
+      await new Promise(resolve => setTimeout(resolve, initialDelay));
+      return retryOperation(operation, retries - 1, initialDelay * 2);
+    }
+    throw error;
+  }
+}
 
 const INDUSTRY_SPECIFIC_PROMPTS: Record<string, Partial<Record<PolicyType, string>>> = {
   'Construction': {
@@ -73,7 +92,7 @@ export async function* generatePolicyStream(
   
   const policyTitle = policy.title;
   const industry = answers.industry || 'general';
-  const companyVoice = answers.companyVoice || 'Formal & Corporate'; // Safety default
+  const companyVoice = answers.companyVoice || 'Formal & Corporate'; 
   
   const industryInstructions = INDUSTRY_SPECIFIC_PROMPTS[industry]?.[policyType] || '';
 
@@ -88,9 +107,7 @@ export async function* generatePolicyStream(
   let userContext = '';
   const policyQuestions = POLICIES[policyType].questions;
 
-  // Create a context string from user answers to specific questions for the policy
   const specificAnswers = { ...answers };
-  // Remove fields that are already handled separately to avoid duplication
   delete specificAnswers.companyName;
   delete specificAnswers.industry;
   delete specificAnswers.companyVoice;
@@ -108,7 +125,7 @@ export async function* generatePolicyStream(
         .filter(([, isSelected]) => isSelected)
         .map(([policyId]) => {
             const policyData = POLICIES[policyId as PolicyType];
-            return policyData ? policyData.title : policyId; // Fallback to id if not found
+            return policyData ? policyData.title : policyId; 
         });
 
     if (selectedPolicyTitles.length > 0) {
@@ -116,7 +133,6 @@ export async function* generatePolicyStream(
     } else {
         userContext += '- The user has not selected any specific policies to include. Please generate a standard employee handbook structure including a welcome message and general code of conduct.\n';
     }
-    // Remove it from specificAnswers so it's not processed again
     delete specificAnswers.includedPolicies;
   }
 
@@ -124,7 +140,6 @@ export async function* generatePolicyStream(
     if (Object.prototype.hasOwnProperty.call(specificAnswers, key)) {
       const question = policyQuestions.find(q => q.id === key);
       const answer = answers[key];
-      // FIX: Check for null/undefined/empty string instead of just truthiness to include '0' and 'false'
       if (question && (answer !== null && answer !== undefined && answer !== '')) {
           userContext += `- Regarding "${question.label}", the user specified: ${answer}\n`;
       }
@@ -175,21 +190,22 @@ Review Date: ${answers.reviewDate || 'Not Provided'}
 `;
   
   try {
-    const response = await ai.models.generateContentStream({
+    // Using retryOperation to handle potential 429 errors
+    const response = await retryOperation(() => ai.models.generateContentStream({
       model: "gemini-2.5-flash",
       contents: [{ role: "user", parts: [{ text: fullPrompt }] }],
       config: {
         systemInstruction: systemInstruction,
         tools: [{googleSearch: {}}],
       },
-    });
+    })) as unknown as AsyncIterable<GenerateContentResponse>;
 
     for await (const chunk of response) {
       yield chunk;
     }
   } catch (error) {
     console.error("Error calling Gemini API:", error);
-    throw new Error("Failed to generate policy from AI. Please try again.");
+    throw new Error("Failed to generate policy from AI. Service might be busy, please try again.");
   }
 }
 
@@ -209,7 +225,6 @@ export async function* generateFormStream(
 
   let constructedPrompt = baseTemplate;
   for (const key in answers) {
-    // FIX: Use a more robust check to ensure values like `0` are not replaced with "(Not specified)".
     const value = (answers[key] !== null && answers[key] !== undefined && answers[key] !== '')
       ? answers[key]
       : '(Not specified)';
@@ -242,20 +257,23 @@ Based on the provided form text for a "${form.title}", please perform the follow
   const fullPrompt = `${constructedPrompt}\n\n${enrichmentInstruction}`;
 
   try {
-    const response = await ai.models.generateContentStream({
+    // Using retryOperation to handle potential 429 errors
+    const response = await retryOperation(() => ai.models.generateContentStream({
       model: "gemini-2.5-flash",
       contents: [{ role: "user", parts: [{ text: fullPrompt }] }],
       config: {
         systemInstruction: systemInstruction,
       },
-    });
+    })) as unknown as AsyncIterable<GenerateContentResponse>;
 
     for await (const chunk of response) {
-      yield chunk.text;
+      if (chunk.text) {
+        yield chunk.text;
+      }
     }
   } catch (error) {
     console.error("Error calling Gemini API for form generation:", error);
-    throw new Error("Failed to generate form from AI. Please try again.");
+    throw new Error("Failed to generate form from AI. Service might be busy, please try again.");
   }
 }
 
@@ -275,16 +293,19 @@ Use simple, clear language suitable for someone who is not an HR expert. Use bul
 `;
 
   try {
-    const response = await ai.models.generateContentStream({
+    // Using retryOperation to handle potential 429 errors
+    const response = await retryOperation(() => ai.models.generateContentStream({
       model: "gemini-2.5-flash",
       contents: [{ role: "user", parts: [{ text: userPrompt }] }],
       config: {
         systemInstruction: systemInstruction,
       },
-    });
+    })) as unknown as AsyncIterable<GenerateContentResponse>;
 
     for await (const chunk of response) {
-      yield chunk.text;
+      if (chunk.text) {
+        yield chunk.text;
+      }
     }
   } catch (error) {
     console.error("Error calling Gemini API for explanation:", error);
@@ -307,16 +328,19 @@ Use simple, clear language suitable for someone who is not an HR expert. Use bul
 `;
 
   try {
-    const response = await ai.models.generateContentStream({
+    // Using retryOperation to handle potential 429 errors
+    const response = await retryOperation(() => ai.models.generateContentStream({
       model: "gemini-2.5-flash",
       contents: [{ role: "user", parts: [{ text: userPrompt }] }],
       config: {
         systemInstruction: systemInstruction,
       },
-    });
+    })) as unknown as AsyncIterable<GenerateContentResponse>;
 
     for await (const chunk of response) {
-      yield chunk.text;
+      if (chunk.text) {
+        yield chunk.text;
+      }
     }
   } catch (error) {
     console.error("Error calling Gemini API for form explanation:", error);
@@ -393,7 +417,8 @@ ${currentPolicyText}
   };
 
   try {
-    const response = await ai.models.generateContent({
+    // Using retryOperation to handle potential 429 errors
+    const response = await retryOperation<GenerateContentResponse>(() => ai.models.generateContent({
       model: "gemini-2.5-flash",
       contents: [{ role: "user", parts: [{ text: prompt }] }],
       config: {
@@ -401,15 +426,14 @@ ${currentPolicyText}
         responseMimeType: "application/json",
         responseSchema: responseSchema,
       },
-    });
+    }));
     
-    // The response.text is a JSON string.
-    const jsonText = response.text.trim();
+    const jsonText = (response.text || '{}').trim();
     return JSON.parse(jsonText) as PolicyUpdateResult;
 
   } catch (error) {
     console.error("Error calling Gemini API for policy update:", error);
-    throw new Error("Failed to update policy from AI. Please check the input and try again.");
+    throw new Error("Failed to update policy from AI. Service might be busy, please try again.");
   }
 }
 
@@ -479,7 +503,8 @@ For each recommended policy and form, provide a short, practical reason why it i
   };
   
   try {
-    const response = await ai.models.generateContent({
+    // Using retryOperation to handle potential 429 errors
+    const response = await retryOperation<GenerateContentResponse>(() => ai.models.generateContent({
       model: "gemini-2.5-flash",
       contents: [{ role: "user", parts: [{ text: prompt }] }],
       config: {
@@ -487,13 +512,13 @@ For each recommended policy and form, provide a short, practical reason why it i
         responseMimeType: "application/json",
         responseSchema: responseSchema,
       },
-    });
+    }));
 
-    const jsonText = response.text.trim();
+    const jsonText = (response.text || '{}').trim();
     return JSON.parse(jsonText) as ComplianceChecklistResult;
 
   } catch (error) {
     console.error("Error calling Gemini API for compliance checklist:", error);
-    throw new Error("Failed to generate compliance checklist from AI. Please try again.");
+    throw new Error("Failed to generate compliance checklist from AI. Service might be busy, please try again.");
   }
 }
