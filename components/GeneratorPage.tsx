@@ -1,13 +1,11 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback } from 'react';
 import Stepper from './Stepper';
 import CompanyProfileSetup from './CompanyProfileSetup';
-import Questionnaire from './Questionnaire';
+import GuidedQuestionnaire from './GuidedQuestionnaire';
 import PolicyPreview from './PolicyPreview';
 import { generatePolicyStream, generateFormStream } from '../services/geminiService';
 import type { Policy, Form, CompanyProfile, FormAnswers, GeneratedDocument, AppStatus, Source } from '../types';
-import { marked } from 'https://esm.sh/marked@12';
 import { CheckIcon } from './Icons';
-
 
 interface GeneratorPageProps {
     selectedItem: Policy | Form;
@@ -38,8 +36,6 @@ const GeneratorPage: React.FC<GeneratorPageProps> = ({ selectedItem, initialData
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
     const [finalizedDoc, setFinalizedDoc] = useState<GeneratedDocument | null>(initialData);
     
-    const isLivePreviewVisible = currentStep === 2 && companyProfile;
-
     const handleProfileSubmit = (profile: CompanyProfile) => {
         setCompanyProfile(profile);
         setCurrentStep(2);
@@ -119,31 +115,6 @@ const GeneratorPage: React.FC<GeneratorPageProps> = ({ selectedItem, initialData
         }
     };
 
-    const LivePreview: React.FC = () => {
-      const [liveHtml, setLiveHtml] = useState('');
-
-      useEffect(() => {
-        async function updatePreview() {
-            if (selectedItem.kind === 'form') {
-                let template = selectedItem.title; // simple preview for forms
-                const html = await marked.parse(template);
-                setLiveHtml(html);
-            }
-        }
-        updatePreview();
-      }, [questionAnswers, companyProfile]);
-      
-      return (
-        <div className="bg-gray-50 p-6 rounded-lg shadow-inner border border-gray-200 h-full">
-            <h3 className="text-xl font-bold text-secondary mb-4">Live Preview</h3>
-            <div className="prose prose-sm max-w-none p-4 border border-dashed border-gray-300 rounded-md bg-white min-h-[200px]">
-                <div dangerouslySetInnerHTML={{ __html: liveHtml }} />
-                 <p className="text-center text-gray-400 mt-4"><i>Full document will be generated in the final step.</i></p>
-            </div>
-        </div>
-      );
-    }
-
     const renderStepContent = () => {
         switch (currentStep) {
             case 1:
@@ -159,17 +130,13 @@ const GeneratorPage: React.FC<GeneratorPageProps> = ({ selectedItem, initialData
                     return null;
                 }
                 return (
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                        <Questionnaire
-                            item={selectedItem}
-                            companyProfile={companyProfile}
-                            answers={questionAnswers}
-                            onAnswersChange={setQuestionAnswers}
-                            onGenerate={handleGenerate}
-                            status={status}
-                        />
-                        <LivePreview />
-                    </div>
+                    <GuidedQuestionnaire
+                        item={selectedItem}
+                        companyProfile={companyProfile}
+                        initialAnswers={questionAnswers}
+                        onAnswersChange={setQuestionAnswers}
+                        onGenerate={handleGenerate}
+                    />
                 );
             case 3:
                  if (!companyProfile) { // Should not happen, but as a fallback

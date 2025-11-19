@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import type { Policy, Form, CompanyProfile, FormAnswers } from '../types';
-import Questionnaire from './Questionnaire';
+import BulkQuestionnaire from './BulkQuestionnaire';
 
 interface GuidedGeneratorWizardProps {
   items: (Policy | Form)[];
@@ -62,7 +62,7 @@ const GuidedGeneratorWizard: React.FC<GuidedGeneratorWizardProps> = ({ items, us
             </div>
         </div>
 
-        <Questionnaire
+        <BulkQuestionnaire
           item={currentItem}
           companyProfile={userProfile}
           answers={allAnswers[currentItem.type] || {}}
