@@ -1,5 +1,4 @@
 
-
 import { GoogleGenAI, GenerateContentResponse, Type } from "@google/genai";
 import { POLICIES, FORM_BASE_TEMPLATES, FORMS, FORM_ENRICHMENT_PROMPTS } from '../constants';
 import type { PolicyType, FormType, FormAnswers, PolicyUpdateResult, ComplianceChecklistResult, CompanyProfile } from '../types';
@@ -7,10 +6,12 @@ import type { PolicyType, FormType, FormAnswers, PolicyUpdateResult, ComplianceC
 // Helper function to lazily initialize the AI client.
 // This prevents the API key check from running during the build process.
 const getAi = () => {
-  if (!process.env.API_KEY) {
+  const apiKey = (typeof process !== 'undefined' && process.env) ? process.env.API_KEY : undefined;
+  
+  if (!apiKey) {
     throw new Error("API_KEY environment variable is not set. This app requires a Gemini API key to function.");
   }
-  return new GoogleGenAI({ apiKey: process.env.API_KEY });
+  return new GoogleGenAI({ apiKey });
 };
 
 const INDUSTRY_SPECIFIC_PROMPTS: Record<string, Partial<Record<PolicyType, string>>> = {
