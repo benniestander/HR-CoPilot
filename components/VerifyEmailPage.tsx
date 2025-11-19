@@ -9,7 +9,8 @@ interface VerifyEmailPageProps {
 const VerifyEmailPage: React.FC<VerifyEmailPageProps> = ({ user }) => {
   const { handleLogout } = useAuthContext();
   const [isSending, setIsSending] = useState(false);
-  const [message, setMessage] = useState('');
+  const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
+  const [cooldown, setCooldown] = useState(0);
 
   // Periodically check verification status
   useEffect(() => {
@@ -24,14 +25,30 @@ const VerifyEmailPage: React.FC<VerifyEmailPageProps> = ({ user }) => {
     return () => clearInterval(interval);
   }, [user]);
 
+  useEffect(() => {
+    if (cooldown > 0) {
+      const timer = setTimeout(() => setCooldown(cooldown - 1), 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [cooldown]);
+
   const handleResend = async () => {
+    if (cooldown > 0) return;
+    
     setIsSending(true);
-    setMessage('');
+    setMessage(null);
     try {
       await sendEmailVerification(user);
-      setMessage('A new verification email has been sent successfully.');
+      setMessage({ type: 'success', text: 'A new verification email has been sent. Please check your inbox and spam folder.' });
+      setCooldown(60); // Start 60s cooldown
     } catch (error: any) {
-      setMessage(`Error sending email: ${error.message}`);
+      // Firebase throws specific errors for rate limiting
+      if (error.code === 'auth/too-many-requests') {
+         setMessage({ type: 'error', text: 'Too many requests. Please wait a few minutes before trying again.' });
+         setCooldown(60);
+      } else {
+         setMessage({ type: 'error', text: `Error sending email: ${error.message}` });
+      }
     } finally {
       setIsSending(false);
     }
@@ -56,24 +73,25 @@ const VerifyEmailPage: React.FC<VerifyEmailPageProps> = ({ user }) => {
           <div className="bg-white p-8 rounded-lg shadow-md border border-gray-200 text-center">
             <h1 className="text-2xl font-bold text-secondary mb-2">Please Verify Your Email</h1>
             <p className="text-gray-600 mb-4">
-              A verification link was sent to <strong className="text-secondary">{user.email}</strong> when you signed up.
+              A verification link was sent to <strong className="text-secondary">{user.email}</strong>.
             </p>
             <p className="text-gray-600 mb-6">
-                Please click the link in the email to activate your account. If you can't find it, please check your spam folder.
+                Please click the link in the email to activate your account.
+                <br/><span className="font-bold text-primary">Check your Spam or Junk folder if you don't see it.</span>
             </p>
 
             {message && (
-                <p className={`text-sm p-3 rounded-md my-4 ${message.startsWith('Error') ? 'bg-red-50 text-red-700' : 'bg-green-50 text-green-700'}`}>
-                    {message}
+                <p className={`text-sm p-3 rounded-md my-4 ${message.type === 'error' ? 'bg-red-50 text-red-700' : 'bg-green-50 text-green-700'}`}>
+                    {message.text}
                 </p>
             )}
 
             <button
               onClick={handleResend}
-              disabled={isSending}
-              className="w-full bg-primary text-white font-bold py-3 px-4 rounded-md hover:bg-opacity-90 transition-colors disabled:bg-gray-400"
+              disabled={isSending || cooldown > 0}
+              className="w-full bg-primary text-white font-bold py-3 px-4 rounded-md hover:bg-opacity-90 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
             >
-              {isSending ? 'Sending...' : 'Resend Verification Email'}
+              {isSending ? 'Sending...' : cooldown > 0 ? `Resend available in ${cooldown}s` : 'Resend Verification Email'}
             </button>
             <p className="text-xs text-gray-400 mt-4">
                 This page will automatically update once you've verified your email.

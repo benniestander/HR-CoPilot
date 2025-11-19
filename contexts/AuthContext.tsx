@@ -65,7 +65,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const { password, name, contactNumber } = details;
         try {
             const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-            await sendEmailVerification(userCredential.user);
+            
+            // Attempt to send email verification, but don't block the flow if it fails (e.g. rate limiting)
+            // The VerifyEmailPage has a manual resend button.
+            try {
+                await sendEmailVerification(userCredential.user);
+            } catch (emailError) {
+                console.warn("Failed to send initial verification email:", emailError);
+            }
+
             await signOut(auth);
             window.localStorage.setItem('authFlow', flow);
             if (name || contactNumber) {
