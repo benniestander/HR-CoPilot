@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { onIdTokenChanged, type User as FirebaseUser } from 'firebase/auth';
 import { auth } from '../services/firebase';
@@ -29,6 +30,7 @@ export const useAuth = () => {
                         appUser = await getUserProfile(firebaseUser.uid);
                     } catch (e) {
                         console.error("Error fetching user profile:", e);
+                        // Fallback logic below will handle the null appUser
                     }
                     
                     if (!appUser) {
@@ -43,6 +45,20 @@ export const useAuth = () => {
                             appUser = await createUserProfile(firebaseUser.uid, firebaseUser.email!, plan, details?.name || firebaseUser.displayName || undefined, details?.contactNumber);
                         } catch (e) {
                             console.error("Error creating user profile:", e);
+                            // CRITICAL FALLBACK: If Firestore fails entirely, create a temporary in-memory user 
+                            // so the app doesn't hang on loading.
+                            appUser = {
+                                uid: firebaseUser.uid,
+                                email: firebaseUser.email || '',
+                                name: firebaseUser.displayName || details?.name || '',
+                                contactNumber: details?.contactNumber || '',
+                                plan: plan,
+                                creditBalance: 0,
+                                transactions: [],
+                                profile: { companyName: '', industry: '' },
+                                createdAt: new Date().toISOString(),
+                                isAdmin: false
+                            };
                         }
 
                         window.localStorage.removeItem('authFlow');
@@ -58,9 +74,6 @@ export const useAuth = () => {
                     if (appUser) {
                         setUser(appUser);
                         setIsAdmin(!!appUser.isAdmin);
-                    } else {
-                        // If profile creation failed, we still have a firebaseUser but no appUser.
-                        // The UI should probably handle this gracefully, but for now we just stop loading.
                     }
 
                 } else {

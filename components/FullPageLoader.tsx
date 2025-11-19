@@ -1,10 +1,19 @@
 
-
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 
 const FullPageLoader: React.FC = () => {
+  const [showRetry, setShowRetry] = useState(false);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setShowRetry(true);
+    }, 10000); // Show retry button after 10 seconds
+
+    return () => clearTimeout(timer);
+  }, []);
+
   return (
-    <div className="fixed inset-0 bg-light flex flex-col items-center justify-center z-50">
+    <div className="fixed inset-0 bg-light flex flex-col items-center justify-center z-50 p-4">
       <img 
         src="https://i.postimg.cc/h48FMCNY/edited-image-11-removebg-preview.png" 
         alt="HR CoPilot Logo" 
@@ -15,6 +24,18 @@ const FullPageLoader: React.FC = () => {
         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
       </svg>
       <p className="mt-4 text-secondary font-semibold">Loading...</p>
+
+      {showRetry && (
+        <div className="mt-8 text-center">
+          <p className="text-sm text-gray-500 mb-4">Taking longer than expected?</p>
+          <button 
+            onClick={() => window.location.reload()}
+            className="px-4 py-2 bg-primary text-white rounded-md hover:bg-opacity-90 transition-colors font-semibold"
+          >
+            Reload Application
+          </button>
+        </div>
+      )}
     </div>
   );
 };
