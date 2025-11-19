@@ -175,7 +175,7 @@ export const addTransactionToUser = async (uid: string, transaction: Omit<Transa
       transactions: arrayUnion({ ...newTransaction, date: serverTimestamp() }),
     };
 
-    if (transaction.description !== 'Ingcweti Pro Subscription (12 months)') {
+    if (transaction.description !== 'HR CoPilot Pro Subscription (12 months)') {
         updates.creditBalance = increment(finalAmount);
     }
 

@@ -15,59 +15,69 @@ export const useAuth = () => {
     useEffect(() => {
         const unsubscribe = onIdTokenChanged(auth, async (firebaseUser: FirebaseUser | null) => {
             setIsLoading(true);
-            if (firebaseUser) {
-                if (!firebaseUser.emailVerified && firebaseUser.providerData.some(p => p.providerId === 'password')) {
-                    setUnverifiedUser(firebaseUser);
-                    setUser(null);
-                    setAuthPage('verify-email');
-                    setIsLoading(false);
-                    return;
-                }
+            try {
+                if (firebaseUser) {
+                    if (!firebaseUser.emailVerified && firebaseUser.providerData.some(p => p.providerId === 'password')) {
+                        setUnverifiedUser(firebaseUser);
+                        setUser(null);
+                        return;
+                    }
 
-                setUnverifiedUser(null);
-                let appUser = await getUserProfile(firebaseUser.uid);
-                
-                if (!appUser) {
-                    const flow = window.localStorage.getItem('authFlow') as AuthFlow | null;
-                    const detailsJson = window.localStorage.getItem('authDetails');
-                    const details = detailsJson ? JSON.parse(detailsJson) : null;
+                    setUnverifiedUser(null);
+                    let appUser = null;
+                    try {
+                        appUser = await getUserProfile(firebaseUser.uid);
+                    } catch (e) {
+                        console.error("Error fetching user profile:", e);
+                    }
                     
-                    let plan: 'pro' | 'payg' = 'payg';
-                    if (flow === 'signup') plan = 'pro';
+                    if (!appUser) {
+                        const flow = window.localStorage.getItem('authFlow') as AuthFlow | null;
+                        const detailsJson = window.localStorage.getItem('authDetails');
+                        const details = detailsJson ? JSON.parse(detailsJson) : null;
+                        
+                        let plan: 'pro' | 'payg' = 'payg';
+                        if (flow === 'signup') plan = 'pro';
 
-                    appUser = await createUserProfile(firebaseUser.uid, firebaseUser.email!, plan, details?.name || firebaseUser.displayName || undefined, details?.contactNumber);
+                        try {
+                            appUser = await createUserProfile(firebaseUser.uid, firebaseUser.email!, plan, details?.name || firebaseUser.displayName || undefined, details?.contactNumber);
+                        } catch (e) {
+                            console.error("Error creating user profile:", e);
+                        }
 
-                    window.localStorage.removeItem('authFlow');
-                    window.localStorage.removeItem('authDetails');
-                }
+                        window.localStorage.removeItem('authFlow');
+                        window.localStorage.removeItem('authDetails');
+                    }
 
-                if (appUser && (!appUser.profile.companyName || !appUser.profile.industry)) {
-                    setNeedsOnboarding(true);
+                    if (appUser && (!appUser.profile.companyName || !appUser.profile.industry)) {
+                        setNeedsOnboarding(true);
+                    } else {
+                        setNeedsOnboarding(false);
+                    }
+
+                    if (appUser) {
+                        setUser(appUser);
+                        setIsAdmin(!!appUser.isAdmin);
+                    } else {
+                        // If profile creation failed, we still have a firebaseUser but no appUser.
+                        // The UI should probably handle this gracefully, but for now we just stop loading.
+                    }
+
                 } else {
+                    setUser(null);
+                    setUnverifiedUser(null);
+                    setIsAdmin(false);
                     setNeedsOnboarding(false);
                 }
-
-                setUser(appUser);
-                setIsAdmin(!!appUser.isAdmin);
-                setAuthPage('landing');
-
-            } else {
-                setUser(null);
-                setUnverifiedUser(null);
-                setIsAdmin(false);
-                setNeedsOnboarding(false);
-                setAuthPage('landing');
+            } catch (error) {
+                console.error("Auth state change error:", error);
+            } finally {
+                setIsLoading(false);
             }
-            setIsLoading(false);
         });
 
         return () => unsubscribe();
     }, []);
-
-    // A variable to set auth page, which is not part of the hook's returned values
-    // This is managed in the AuthContext now.
-    const [authPage, setAuthPage] = useState<'landing' | 'login' | 'email-sent' | 'verify-email'>('landing');
-
 
     return { user, setUser, unverifiedUser, isAdmin, isLoading, needsOnboarding, setNeedsOnboarding };
 };

@@ -24,7 +24,7 @@ const ExplainPolicyModal: React.FC<ExplainPolicyModalProps> = ({ isOpen, onClose
         return (
           <div className="text-center text-gray-500 py-10">
             <LoadingIcon className="w-10 h-10 animate-spin mx-auto mb-4 text-primary" />
-            <h3 className="text-lg font-semibold">Ingcweti is analyzing the document...</h3>
+            <h3 className="text-lg font-semibold">HR CoPilot is analyzing the document...</h3>
             <p>Crafting a simple explanation for you.</p>
           </div>
         );

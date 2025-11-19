@@ -1,16 +1,15 @@
 import React, { useState } from 'react';
-import { CheckIcon } from './Icons';
-import { useAuthContext } from '../contexts/AuthContext';
-import { useModalContext } from '../contexts/ModalContext';
-import { useUIContext } from '../contexts/UIContext';
-import { PRIVACY_POLICY_CONTENT, TERMS_OF_USE_CONTENT } from '../legalContent';
+import { CheckIcon, GoogleIcon } from './Icons';
 
+interface PlanSelectionPageProps {
+  onStartAuthFlow: (flow: 'signup' | 'payg_signup', email: string, details: { password: string, name?: string, contactNumber?: string }) => void;
+  onStartGoogleAuthFlow: (flow: 'signup' | 'payg_signup') => void;
+  onShowLogin: () => void;
+  onShowPrivacyPolicy: () => void;
+  onShowTerms: () => void;
+}
 
-const PlanSelectionPage: React.FC = () => {
-    const { handleStartAuthFlow, handleStartGoogleAuthFlow, setAuthPage } = useAuthContext();
-    const { showLegalModal } = useModalContext();
-    const { setToastMessage } = useUIContext();
-
+const PlanSelectionPage: React.FC<PlanSelectionPageProps> = ({ onStartAuthFlow, onStartGoogleAuthFlow, onShowLogin, onShowPrivacyPolicy, onShowTerms }) => {
     const [selectedPlan, setSelectedPlan] = useState<'pro' | 'payg'>('pro');
     
     const [proData, setProData] = useState({ name: '', email: '', password: '', confirmPassword: '' });
@@ -19,7 +18,7 @@ const PlanSelectionPage: React.FC = () => {
     const [proErrors, setProErrors] = useState({ name: '', email: '', password: '', confirmPassword: '' });
     const [paygErrors, setPaygErrors] = useState({ name: '', email: '', contactNumber: '', password: '', confirmPassword: '' });
 
-    const [loading, setLoading] = useState<'none' | 'pro' | 'payg'>('none');
+    const [loading, setLoading] = useState<'none' | 'pro' | 'payg' | 'google_pro' | 'google_payg'>('none');
     
     const proFeatures = [
         'Unlimited HR Policy Generation',
@@ -61,7 +60,8 @@ const PlanSelectionPage: React.FC = () => {
         return !error;
     };
 
-    const performProSignup = async () => {
+    const handleProSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
         const isNameValid = validateField('pro', 'name', proData.name);
         const isEmailValid = validateField('pro', 'email', proData.email);
         const isPasswordValid = validateField('pro', 'password', proData.password);
@@ -69,21 +69,11 @@ const PlanSelectionPage: React.FC = () => {
         if (!isNameValid || !isEmailValid || !isPasswordValid || !isConfirmValid) return;
         
         setLoading('pro');
-        try {
-            await handleStartAuthFlow('signup', proData.email, { password: proData.password, name: proData.name });
-        } catch (error: any) {
-            setToastMessage(`Sign up error: ${error.message}`);
-        } finally {
-            setLoading('none');
-        }
+        onStartAuthFlow('signup', proData.email, { password: proData.password, name: proData.name });
     };
 
-    const handleProClick = (e: React.MouseEvent<HTMLButtonElement>) => {
+    const handlePaygSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        performProSignup();
-    };
-    
-    const performPaygSignup = async () => {
         const isNameValid = validateField('payg', 'name', paygData.name);
         const isEmailValid = validateField('payg', 'email', paygData.email);
         const isContactValid = validateField('payg', 'contactNumber', paygData.contactNumber);
@@ -93,18 +83,7 @@ const PlanSelectionPage: React.FC = () => {
         if (!isNameValid || !isEmailValid || !isContactValid || !isPasswordValid || !isConfirmValid) return;
         
         setLoading('payg');
-        try {
-            await handleStartAuthFlow('payg_signup', paygData.email, { name: paygData.name, contactNumber: paygData.contactNumber, password: paygData.password });
-        } catch (error: any) {
-            setToastMessage(`Sign up error: ${error.message}`);
-        } finally {
-            setLoading('none');
-        }
-    };
-
-    const handlePaygClick = (e: React.MouseEvent<HTMLButtonElement>) => {
-        e.preventDefault();
-        performPaygSignup();
+        onStartAuthFlow('payg_signup', paygData.email, { name: paygData.name, contactNumber: paygData.contactNumber, password: paygData.password });
     };
     
     const PlanSelectorCard: React.FC<{ plan: 'pro' | 'payg', title: string, price: string, badge?: string }> = ({ plan, title, price, badge }) => {
@@ -145,7 +124,7 @@ const PlanSelectionPage: React.FC = () => {
                     <img src="https://i.postimg.cc/h48FMCNY/edited-image-11-removebg-preview.png" alt="HR CoPilot Logo" className="h-12" />
                     <div className="text-sm">
                         <span>Already have an account? </span>
-                        <button onClick={() => setAuthPage('login')} className="font-semibold text-primary hover:underline">Sign In</button>
+                        <button onClick={onShowLogin} className="font-semibold text-primary hover:underline">Sign In</button>
                     </div>
                 </div>
             </header>
@@ -178,7 +157,11 @@ const PlanSelectionPage: React.FC = () => {
                         <h2 className="text-2xl font-bold text-secondary text-center mb-6">Create your account</h2>
                         {selectedPlan === 'pro' && (
                             <div className="space-y-4">
-                                <form className="space-y-4">
+                                <button onClick={() => { setLoading('google_pro'); onStartGoogleAuthFlow('signup'); }} disabled={loading !== 'none'} className="w-full flex justify-center items-center py-3 px-4 border border-gray-300 rounded-md shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:bg-gray-200">
+                                    <GoogleIcon className="w-5 h-5 mr-2" /> {loading === 'google_pro' ? 'Redirecting...' : 'Sign Up with Google'}
+                                </button>
+                                <div className="my-4 flex items-center"><div className="flex-grow border-t border-gray-300"></div><span className="flex-shrink mx-4 text-gray-400 text-sm">OR</span><div className="flex-grow border-t border-gray-300"></div></div>
+                                <form onSubmit={handleProSubmit} className="space-y-4">
                                     <div>
                                         <input type="text" value={proData.name} onChange={e => { setProData({...proData, name: e.target.value}); validateField('pro', 'name', e.target.value); }} placeholder="Your Name" className={`w-full p-3 border rounded-md shadow-sm ${proErrors.name ? 'border-red-500' : 'border-gray-300'}`} />
                                         {proErrors.name && <p className="text-red-600 text-xs mt-1">{proErrors.name}</p>}
@@ -195,7 +178,7 @@ const PlanSelectionPage: React.FC = () => {
                                         <input type="password" value={proData.confirmPassword} onChange={e => { setProData({...proData, confirmPassword: e.target.value}); validateField('pro', 'confirmPassword', e.target.value); }} placeholder="Confirm Password" className={`w-full p-3 border rounded-md shadow-sm ${proErrors.confirmPassword ? 'border-red-500' : 'border-gray-300'}`} />
                                         {proErrors.confirmPassword && <p className="text-red-600 text-xs mt-1">{proErrors.confirmPassword}</p>}
                                     </div>
-                                    <button type="button" onClick={handleProClick} disabled={loading !== 'none'} className="w-full bg-primary text-white font-bold py-3 px-4 rounded-md hover:bg-opacity-90 disabled:bg-gray-400">
+                                    <button type="submit" disabled={loading !== 'none'} className="w-full bg-primary text-white font-bold py-3 px-4 rounded-md hover:bg-opacity-90 disabled:bg-gray-400">
                                         {loading === 'pro' ? 'Creating Account...' : 'Sign Up for Pro'}
                                     </button>
                                 </form>
@@ -203,7 +186,11 @@ const PlanSelectionPage: React.FC = () => {
                         )}
                         {selectedPlan === 'payg' && (
                              <div className="space-y-4">
-                                 <form className="space-y-4">
+                                <button onClick={() => { setLoading('google_payg'); onStartGoogleAuthFlow('payg_signup'); }} disabled={loading !== 'none'} className="w-full flex justify-center items-center py-3 px-4 border border-gray-300 rounded-md shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:bg-gray-200">
+                                    <GoogleIcon className="w-5 h-5 mr-2" /> {loading === 'google_payg' ? 'Redirecting...' : 'Sign Up with Google'}
+                                </button>
+                                <div className="my-4 flex items-center"><div className="flex-grow border-t border-gray-300"></div><span className="flex-shrink mx-4 text-gray-400 text-sm">OR</span><div className="flex-grow border-t border-gray-300"></div></div>
+                                 <form onSubmit={handlePaygSubmit} className="space-y-4">
                                     <div>
                                         <input type="text" value={paygData.name} onChange={e => { setPaygData({...paygData, name: e.target.value}); validateField('payg', 'name', e.target.value);}} placeholder="Your Name" className={`w-full p-3 border rounded-md shadow-sm ${paygErrors.name ? 'border-red-500' : 'border-gray-300'}`} />
                                         {paygErrors.name && <p className="text-red-600 text-xs mt-1">{paygErrors.name}</p>}
@@ -224,7 +211,7 @@ const PlanSelectionPage: React.FC = () => {
                                         <input type="password" value={paygData.confirmPassword} onChange={e => { setPaygData({...paygData, confirmPassword: e.target.value}); validateField('payg', 'confirmPassword', e.target.value);}} placeholder="Confirm Password" className={`w-full p-3 border rounded-md shadow-sm ${paygErrors.confirmPassword ? 'border-red-500' : 'border-gray-300'}`} />
                                         {paygErrors.confirmPassword && <p className="text-red-600 text-xs mt-1">{paygErrors.confirmPassword}</p>}
                                     </div>
-                                    <button type="button" onClick={handlePaygClick} disabled={loading !== 'none'} className="w-full bg-gray-700 text-white font-bold py-3 px-4 rounded-md hover:bg-gray-800 disabled:bg-gray-400">
+                                    <button type="submit" disabled={loading !== 'none'} className="w-full bg-gray-700 text-white font-bold py-3 px-4 rounded-md hover:bg-gray-800 disabled:bg-gray-400">
                                         {loading === 'payg' ? 'Creating Account...' : 'Sign Up for PAYG'}
                                     </button>
                                 </form>
@@ -236,10 +223,10 @@ const PlanSelectionPage: React.FC = () => {
             <footer className="bg-secondary text-white py-8 mt-12">
                 <div className="container mx-auto px-6 text-center">
                     <div className="flex justify-center space-x-6 mb-4">
-                        <button onClick={() => showLegalModal('Privacy Policy', PRIVACY_POLICY_CONTENT)} className="text-sm text-gray-300 hover:text-white hover:underline">
+                        <button onClick={onShowPrivacyPolicy} className="text-sm text-gray-300 hover:text-white hover:underline">
                             Privacy Policy
                         </button>
-                        <button onClick={() => showLegalModal('Terms of Use', TERMS_OF_USE_CONTENT)} className="text-sm text-gray-300 hover:text-white hover:underline">
+                        <button onClick={onShowTerms} className="text-sm text-gray-300 hover:text-white hover:underline">
                             Terms of Use
                         </button>
                     </div>
