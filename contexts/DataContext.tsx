@@ -65,7 +65,7 @@ interface DataContextType {
     adminNotifications: AdminNotification[];
     allCoupons: Coupon[];
     
-    handleUpdateProfile: (updatedProfile: CompanyProfile) => Promise<void>;
+    handleUpdateProfile: (data: { profile: CompanyProfile; name?: string; contactNumber?: string }) => Promise<void>;
     handleInitialProfileSubmit: (profileData: CompanyProfile, name: string) => Promise<void>;
     handleProfilePhotoUpload: (file: File) => Promise<void>;
     handleProfilePhotoDelete: () => Promise<void>;
@@ -191,11 +191,18 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
     }, [user, isAdmin]);
 
-    const handleUpdateProfile = async (updatedProfile: CompanyProfile) => {
+    const handleUpdateProfile = async (data: { profile: CompanyProfile; name?: string; contactNumber?: string }) => {
         if (!user) return;
-        const updatedUser = { ...user, profile: updatedProfile };
+        
+        const updates: Partial<User> = {
+            profile: data.profile,
+        };
+        if (data.name !== undefined) updates.name = data.name;
+        if (data.contactNumber !== undefined) updates.contactNumber = data.contactNumber;
+
+        const updatedUser = { ...user, ...updates };
         setUser(updatedUser);
-        await updateUser(user.uid, { profile: updatedProfile });
+        await updateUser(user.uid, updates);
         setToastMessage("Profile updated successfully!");
     };
     

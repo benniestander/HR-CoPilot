@@ -39,8 +39,12 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
   
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const [formData, setFormData] = useState<CompanyProfile>(user?.profile || { companyName: '', industry: '' });
-  const [errors, setErrors] = useState<Partial<Record<keyof CompanyProfile, string>>>({});
+  
+  // Separate state for Profile (Firestore map) and User (Top-level fields)
+  const [profileData, setProfileData] = useState<CompanyProfile>(user?.profile || { companyName: '', industry: '' });
+  const [userData, setUserData] = useState({ name: user?.name || '', contactNumber: user?.contactNumber || '' });
+  
+  const [errors, setErrors] = useState<Record<string, string>>({});
   
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [fileNotes, setFileNotes] = useState('');
@@ -56,12 +60,13 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
 
   useEffect(() => {
     if (user) {
-      setFormData(user.profile);
+      setProfileData(user.profile);
+      setUserData({ name: user.name || '', contactNumber: user.contactNumber || '' });
     }
     setErrors({});
-  }, [user?.profile, isEditing]);
+  }, [user, isEditing]);
   
-  const validateField = (name: keyof CompanyProfile, value: string) => {
+  const validateField = (name: string, value: string) => {
     let error = '';
     switch (name) {
         case 'companyName':
@@ -84,22 +89,33 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    const fieldName = name as keyof CompanyProfile;
-    setFormData(prev => ({ ...prev, [fieldName]: value }));
-    validateField(fieldName, value);
+    
+    if (name === 'name' || name === 'contactNumber') {
+        setUserData(prev => ({ ...prev, [name]: value }));
+    } else {
+        const fieldName = name as keyof CompanyProfile;
+        setProfileData(prev => ({ ...prev, [fieldName]: value }));
+        validateField(fieldName, value);
+    }
   };
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    const isFormValid = (Object.keys(formData) as Array<keyof CompanyProfile>).every(key =>
-      validateField(key, formData[key] || '')
+    
+    // Validate profile fields
+    const isProfileValid = (Object.keys(profileData) as Array<keyof CompanyProfile>).every(key =>
+      validateField(key, profileData[key] || '')
     );
     
-    if (!isFormValid || Object.values(errors).some(e => e)) return;
+    if (!isProfileValid || Object.values(errors).some(e => e)) return;
     
     setIsSaving(true);
     try {
-        await onUpdateProfile(formData);
+        await onUpdateProfile({
+            profile: profileData,
+            name: userData.name,
+            contactNumber: userData.contactNumber
+        });
         setIsEditing(false);
     } catch (error: any) {
         setToastMessage(`Failed to save profile: ${error.message}`);
@@ -110,7 +126,8 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
 
   const handleCancel = () => {
     if (user) {
-      setFormData(user.profile);
+      setProfileData(user.profile);
+      setUserData({ name: user.name || '', contactNumber: user.contactNumber || '' });
     }
     setIsEditing(false);
   };
@@ -273,13 +290,21 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
                 {isEditing ? (
                     <form onSubmit={handleSave} className="space-y-4">
                          <div>
+                            <label className="block text-sm font-medium text-gray-700">Your Name</label>
+                            <input type="text" name="name" value={userData.name} onChange={handleInputChange} className="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-primary focus:border-primary" />
+                        </div>
+                         <div>
+                            <label className="block text-sm font-medium text-gray-700">Contact Number</label>
+                            <input type="text" name="contactNumber" value={userData.contactNumber} onChange={handleInputChange} className="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-primary focus:border-primary" />
+                        </div>
+                         <div>
                             <label className="block text-sm font-medium text-gray-700">Company Name</label>
-                            <input type="text" name="companyName" value={formData.companyName || ''} onChange={handleInputChange} className={`mt-1 block w-full p-2 border rounded-md shadow-sm focus:ring-primary focus:border-primary ${errors.companyName ? 'border-red-500' : 'border-gray-300'}`} />
+                            <input type="text" name="companyName" value={profileData.companyName || ''} onChange={handleInputChange} className={`mt-1 block w-full p-2 border rounded-md shadow-sm focus:ring-primary focus:border-primary ${errors.companyName ? 'border-red-500' : 'border-gray-300'}`} />
                             {errors.companyName && <p className="text-red-600 text-xs mt-1">{errors.companyName}</p>}
                         </div>
                          <div>
                             <label className="block text-sm font-medium text-gray-700">Industry</label>
-                            <select name="industry" value={formData.industry || ''} onChange={handleInputChange} className={`mt-1 block w-full p-2 border rounded-md shadow-sm bg-white focus:ring-primary focus:border-primary ${errors.industry ? 'border-red-500' : 'border-gray-300'}`}>
+                            <select name="industry" value={profileData.industry || ''} onChange={handleInputChange} className={`mt-1 block w-full p-2 border rounded-md shadow-sm bg-white focus:ring-primary focus:border-primary ${errors.industry ? 'border-red-500' : 'border-gray-300'}`}>
                                 <option value="" disabled>Select an industry...</option>
                                 {INDUSTRIES.map(ind => <option key={ind} value={ind}>{ind}</option>)}
                             </select>
@@ -287,7 +312,7 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
                         </div>
                         <div>
                             <label className="block text-sm font-medium text-gray-700">Company Size</label>
-                            <select name="companySize" value={formData.companySize || ''} onChange={handleInputChange} className={`mt-1 block w-full p-2 border rounded-md shadow-sm bg-white focus:ring-primary focus:border-primary border-gray-300`}>
+                            <select name="companySize" value={profileData.companySize || ''} onChange={handleInputChange} className={`mt-1 block w-full p-2 border rounded-md shadow-sm bg-white focus:ring-primary focus:border-primary border-gray-300`}>
                                 <option value="">Select a size...</option>
                                 <option value="1-10">1-10 employees</option>
                                 <option value="11-50">11-50 employees</option>
@@ -298,16 +323,16 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
                         </div>
                         <div>
                             <label className="block text-sm font-medium text-gray-700">Company Address</label>
-                            <input type="text" name="address" placeholder="e.g., 123 Main St, Johannesburg, 2000" value={formData.address || ''} onChange={handleInputChange} className="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-primary focus:border-primary" />
+                            <input type="text" name="address" placeholder="e.g., 123 Main St, Johannesburg, 2000" value={profileData.address || ''} onChange={handleInputChange} className="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-primary focus:border-primary" />
                         </div>
                         <div>
                             <label className="block text-sm font-medium text-gray-700">Company Website</label>
-                            <input type="url" name="companyUrl" placeholder="https://www.example.com" value={formData.companyUrl || ''} onChange={handleInputChange} className={`mt-1 block w-full p-2 border rounded-md shadow-sm focus:ring-primary focus:border-primary ${errors.companyUrl ? 'border-red-500' : 'border-gray-300'}`} />
+                            <input type="url" name="companyUrl" placeholder="https://www.example.com" value={profileData.companyUrl || ''} onChange={handleInputChange} className={`mt-1 block w-full p-2 border rounded-md shadow-sm focus:ring-primary focus:border-primary ${errors.companyUrl ? 'border-red-500' : 'border-gray-300'}`} />
                             {errors.companyUrl && <p className="text-red-600 text-xs mt-1">{errors.companyUrl}</p>}
                         </div>
                         <div>
                             <label className="block text-sm font-medium text-gray-700">Company Summary</label>
-                            <textarea name="summary" value={formData.summary || ''} onChange={handleInputChange} rows={3} placeholder="Briefly describe what your company does." className="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-primary focus:border-primary" />
+                            <textarea name="summary" value={profileData.summary || ''} onChange={handleInputChange} rows={3} placeholder="Briefly describe what your company does." className="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-primary focus:border-primary" />
                         </div>
                         <div className="flex justify-end space-x-2 pt-2">
                             <button type="button" onClick={handleCancel} disabled={isSaving} className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300 disabled:bg-gray-100">Cancel</button>
@@ -318,6 +343,9 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
                     </form>
                 ) : (
                     <div className="space-y-3 text-sm">
+                        <div className="flex items-start"><span className="text-gray-500 w-32 flex-shrink-0">Your Name:</span><span className="font-medium text-secondary">{user.name || 'Not set'}</span></div>
+                        <div className="flex items-start"><span className="text-gray-500 w-32 flex-shrink-0">Contact Number:</span><span className="font-medium text-secondary">{user.contactNumber || 'Not set'}</span></div>
+                        <div className="border-t border-gray-100 my-2 pt-2"></div>
                         <div className="flex items-start"><span className="text-gray-500 w-32 flex-shrink-0">Company Name:</span><span className="font-medium text-secondary">{user.profile.companyName || 'Not set'}</span></div>
                         <div className="flex items-start"><span className="text-gray-500 w-32 flex-shrink-0">Industry:</span><span className="font-medium text-secondary">{user.profile.industry || 'Not set'}</span></div>
                         <div className="flex items-start"><span className="text-gray-500 w-32 flex-shrink-0">Company Size:</span><span className="font-medium text-secondary">{user.profile.companySize ? `${user.profile.companySize} employees` : 'Not set'}</span></div>
