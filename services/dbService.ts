@@ -45,7 +45,7 @@ const mapDocument = (doc: any): GeneratedDocument => ({
     companyProfile: {
        companyName: '', 
        industry: '',
-       ...doc.question_answers 
+       ...(doc.question_answers || {})
     },
     questionAnswers: doc.question_answers || {},
     outputFormat: doc.output_format,

@@ -1,6 +1,6 @@
 
 import React, { createContext, useContext, useState, useEffect, useMemo, useCallback } from 'react';
-import type { GeneratedDocument, CompanyProfile, User, Transaction, AdminActionLog, AdminNotification, UserFile, Coupon } from '../types';
+import type { GeneratedDocument, CompanyProfile, User, Transaction, AdminActionLog, AdminNotification, UserFile, Coupon, PolicyType, FormType } from '../types';
 import {
     updateUser,
     getGeneratedDocuments,
@@ -31,6 +31,7 @@ import {
 import { useAuthContext } from './AuthContext';
 import { useUIContext } from './UIContext';
 import { useModalContext } from './ModalContext';
+import { POLICIES, FORMS } from '../constants';
 
 const PAGE_SIZE = 25;
 
@@ -380,12 +381,23 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
             }
         } else {
             docToSave = { ...doc, version: 1, history: [] };
-            if (user.plan === 'payg' && doc.kind === 'policy') {
-                const item = {price: 5000};
-                await addTransactionToUser(user.uid, { description: `Generated: ${doc.title}`, amount: -item.price });
-                const updatedUser = await getUserProfile(user.uid);
-                if(updatedUser) setUser(updatedUser);
-                setToastMessage("Document generated! Cost deducted from credit.");
+            // Correctly lookup price for deduction
+            if (user.plan === 'payg') {
+                let price = 0;
+                if (doc.kind === 'policy') {
+                    price = POLICIES[doc.type as PolicyType]?.price || 0;
+                } else {
+                    price = FORMS[doc.type as FormType]?.price || 0;
+                }
+
+                if (price > 0) {
+                    await addTransactionToUser(user.uid, { description: `Generated: ${doc.title}`, amount: -price });
+                    const updatedUser = await getUserProfile(user.uid);
+                    if(updatedUser) setUser(updatedUser);
+                    setToastMessage("Document generated! Cost deducted from credit.");
+                } else {
+                     setToastMessage("Document generated successfully!");
+                }
             } else {
                 setToastMessage("Document generated successfully!");
             }
