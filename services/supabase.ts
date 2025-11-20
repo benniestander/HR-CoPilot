@@ -3,196 +3,106 @@ import { createClient } from '@supabase/supabase-js';
 
 /* 
    ==========================================================================
-   SUPABASE SQL SETUP & FIX SCRIPT
+   SUPABASE MASTER FIX SCRIPT
    ==========================================================================
-   Run this script in your Supabase SQL Editor to fix "Permission Denied" 
-   errors and set up the database correctly.
+   Copy and Run this ENTIRE block in your Supabase SQL Editor to fix
+   all permission denied errors for Coupons, Admins, and Transactions.
    ==========================================================================
 
-   -- 1. SECURITY DEFINER FUNCTIONS (The "Smooth" Fix)
-   -- These functions bypass RLS to perform specific actions safely.
-
-   -- Check if current user is admin
-   create or replace function public.is_admin()
-   returns boolean as $$
-   begin
-     return exists (
-       select 1 from public.profiles
-       where id = auth.uid() and is_admin = true
-     );
-   end;
-   $$ language plpgsql security definer;
-
-   -- Increment Coupon Uses (Safe for Users)
-   create or replace function public.increment_coupon_uses(coupon_id uuid)
-   returns void as $$
-   begin
-     update public.coupons
-     set uses = uses + 1
-     where id = coupon_id;
-   end;
-   $$ language plpgsql security definer;
-
-
-   -- 2. TABLE SETUP & POLICIES
-
-   -- PROFILES
-   create table if not exists public.profiles (
-     id uuid references auth.users not null primary key,
-     email text,
-     full_name text,
-     contact_number text,
-     plan text default 'payg',
-     credit_balance numeric default 0,
-     is_admin boolean default false,
-     avatar_url text,
-     company_name text,
-     industry text,
-     company_size text,
-     company_address text,
-     company_url text,
-     company_summary text,
-     created_at timestamptz default now()
-   );
-   alter table public.profiles enable row level security;
-
-   drop policy if exists "Public profiles are viewable by everyone" on profiles;
-   drop policy if exists "Users can insert their own profile" on profiles;
-   drop policy if exists "Users can update own profile" on profiles;
-   drop policy if exists "Admins can update all profiles" on profiles;
-
-   create policy "Public profiles are viewable by everyone" on profiles for select using (true);
-   create policy "Users can insert their own profile" on profiles for insert with check (auth.uid() = id);
-   create policy "Users can update own profile" on profiles for update using (auth.uid() = id);
-   create policy "Admins can update all profiles" on profiles for update using (public.is_admin());
-
-
-   -- COUPONS
-   create table if not exists public.coupons (
-     id uuid default gen_random_uuid() primary key,
-     code text not null unique,
-     type text not null, -- 'percentage' or 'fixed'
-     value numeric not null,
-     max_uses int,
-     uses int default 0,
-     applicable_to text[], -- Array of user IDs or null for all
-     is_active boolean default true,
-     expires_at timestamptz,
-     created_at timestamptz default now()
-   );
-   alter table public.coupons enable row level security;
-
-   drop policy if exists "Coupons viewable by everyone" on coupons;
-   drop policy if exists "Admins can manage coupons" on coupons;
-   drop policy if exists "Admins can insert coupons" on coupons;
-   drop policy if exists "Admins can update coupons" on coupons;
-   drop policy if exists "Admins can delete coupons" on coupons;
-
-   create policy "Coupons viewable by everyone" on coupons for select using (true);
-   create policy "Admins can insert coupons" on coupons for insert with check (public.is_admin());
-   create policy "Admins can update coupons" on coupons for update using (public.is_admin());
-   create policy "Admins can delete coupons" on coupons for delete using (public.is_admin());
-
-
-   -- ADMIN ACTION LOGS
-   create table if not exists public.admin_action_logs (
-     id uuid default gen_random_uuid() primary key,
-     admin_email text,
-     action text,
-     target_user_id text,
-     target_user_email text,
-     details jsonb,
-     timestamp timestamptz default now()
-   );
-   alter table public.admin_action_logs enable row level security;
+   -- 1. SECURE FUNCTIONS (Bypass RLS safely)
    
-   drop policy if exists "Admins access logs" on admin_action_logs;
-   create policy "Admins access logs" on admin_action_logs for all using (public.is_admin());
+   -- Function to check if user is admin (Prevents infinite recursion in policies)
+   CREATE OR REPLACE FUNCTION public.is_admin() 
+   RETURNS boolean 
+   LANGUAGE plpgsql 
+   SECURITY DEFINER 
+   SET search_path = public 
+   AS $$ 
+   BEGIN 
+     RETURN EXISTS (
+       SELECT 1 FROM profiles 
+       WHERE id = auth.uid() AND is_admin = true
+     ); 
+   END; 
+   $$;
+
+   -- Function for Users to redeem coupons (Users can't update the coupon table directly)
+   CREATE OR REPLACE FUNCTION public.increment_coupon_uses(coupon_id uuid) 
+   RETURNS void 
+   LANGUAGE plpgsql 
+   SECURITY DEFINER 
+   SET search_path = public 
+   AS $$ 
+   BEGIN 
+     UPDATE coupons 
+     SET uses = uses + 1 
+     WHERE id = coupon_id; 
+   END; 
+   $$;
 
 
-   -- ADMIN NOTIFICATIONS
-   create table if not exists public.admin_notifications (
-     id uuid default gen_random_uuid() primary key,
-     type text,
-     message text,
-     related_user_id text,
-     is_read boolean default false,
-     timestamp timestamptz default now()
+   -- 2. COUPONS TABLE & POLICIES
+   
+   CREATE TABLE IF NOT EXISTS public.coupons (
+     id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+     code text NOT NULL UNIQUE,
+     type text NOT NULL,
+     value numeric NOT NULL,
+     max_uses int,
+     uses int DEFAULT 0,
+     applicable_to text[],
+     is_active boolean DEFAULT true,
+     expires_at timestamptz,
+     created_at timestamptz DEFAULT now()
    );
-   alter table public.admin_notifications enable row level security;
+   
+   ALTER TABLE coupons ENABLE ROW LEVEL SECURITY;
 
-   drop policy if exists "Admins manage notifications" on admin_notifications;
-   drop policy if exists "Users create notifications" on admin_notifications;
+   -- Drop old policies to ensure clean slate
+   DROP POLICY IF EXISTS "Admins can insert coupons" ON coupons;
+   DROP POLICY IF EXISTS "Admins can update coupons" ON coupons;
+   DROP POLICY IF EXISTS "Admins can delete coupons" ON coupons;
+   DROP POLICY IF EXISTS "Everyone can view coupons" ON coupons;
 
-   create policy "Admins manage notifications" on admin_notifications for all using (public.is_admin());
-   create policy "Users create notifications" on admin_notifications for insert with check (auth.role() = 'authenticated');
-
-
-   -- GENERATED DOCUMENTS
-   create table if not exists public.generated_documents (
-     id text primary key,
-     user_id uuid references public.profiles(id) not null,
-     title text,
-     kind text,
-     type text,
-     content text,
-     question_answers jsonb,
-     output_format text,
-     sources jsonb,
-     version int default 1,
-     history jsonb,
-     created_at timestamptz default now()
-   );
-   alter table public.generated_documents enable row level security;
-
-   drop policy if exists "Users view own documents" on generated_documents;
-   drop policy if exists "Admins view all documents" on generated_documents;
-   drop policy if exists "Users insert own documents" on generated_documents;
-   drop policy if exists "Users update own documents" on generated_documents;
-
-   create policy "Users view own documents" on generated_documents for select using (auth.uid() = user_id);
-   create policy "Admins view all documents" on generated_documents for select using (public.is_admin());
-   create policy "Users insert own documents" on generated_documents for insert with check (auth.uid() = user_id);
-   create policy "Users update own documents" on generated_documents for update using (auth.uid() = user_id);
+   -- Create correct policies using is_admin() function
+   CREATE POLICY "Admins can insert coupons" ON coupons FOR INSERT WITH CHECK (is_admin());
+   CREATE POLICY "Admins can update coupons" ON coupons FOR UPDATE USING (is_admin());
+   CREATE POLICY "Admins can delete coupons" ON coupons FOR DELETE USING (is_admin());
+   CREATE POLICY "Everyone can view coupons" ON coupons FOR SELECT USING (true);
 
 
-   -- TRANSACTIONS
-   create table if not exists public.transactions (
-     id uuid default gen_random_uuid() primary key,
-     user_id uuid references public.profiles(id) not null,
+   -- 3. TRANSACTIONS TABLE & POLICIES
+
+   CREATE TABLE IF NOT EXISTS public.transactions (
+     id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+     user_id uuid REFERENCES auth.users NOT NULL,
      description text,
      amount numeric,
      discount jsonb,
-     date timestamptz default now()
+     date timestamptz DEFAULT now()
    );
-   alter table public.transactions enable row level security;
 
-   drop policy if exists "Users view own transactions" on transactions;
-   drop policy if exists "Admins view all transactions" on transactions;
-   drop policy if exists "System insert transactions" on transactions;
+   ALTER TABLE transactions ENABLE ROW LEVEL SECURITY;
 
-   create policy "Users view own transactions" on transactions for select using (auth.uid() = user_id);
-   create policy "Admins view all transactions" on transactions for select using (public.is_admin());
-   create policy "System insert transactions" on transactions for insert with check (true);
+   DROP POLICY IF EXISTS "Users can insert own transactions" ON transactions;
+   DROP POLICY IF EXISTS "Users can view own transactions" ON transactions;
+   DROP POLICY IF EXISTS "Admins can view all transactions" ON transactions;
+
+   CREATE POLICY "Users can insert own transactions" ON transactions FOR INSERT WITH CHECK (auth.uid() = user_id);
+   CREATE POLICY "Users can view own transactions" ON transactions FOR SELECT USING (auth.uid() = user_id);
+   CREATE POLICY "Admins can view all transactions" ON transactions FOR SELECT USING (is_admin());
 
 
-   -- USER FILES
-   create table if not exists public.user_files (
-     id uuid default gen_random_uuid() primary key,
-     user_id uuid references public.profiles(id) not null,
-     name text,
-     notes text,
-     size numeric,
-     storage_path text,
-     created_at timestamptz default now()
-   );
-   alter table public.user_files enable row level security;
+   -- 4. PROFILES TABLE & POLICIES
    
-   drop policy if exists "Users manage own files" on user_files;
-   drop policy if exists "Admins view all files" on user_files;
-
-   create policy "Users manage own files" on user_files for all using (auth.uid() = user_id);
-   create policy "Admins view all files" on user_files for select using (public.is_admin());
+   -- Ensure Users can update their own profile (needed for credit balance updates)
+   ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
+   
+   DROP POLICY IF EXISTS "Users can update own profile" ON profiles;
+   CREATE POLICY "Users can update own profile" ON profiles FOR UPDATE USING (auth.uid() = id);
+   
+   DROP POLICY IF EXISTS "Admins can update all profiles" ON profiles;
+   CREATE POLICY "Admins can update all profiles" ON profiles FOR UPDATE USING (is_admin());
 
 */
 

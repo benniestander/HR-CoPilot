@@ -156,9 +156,7 @@ export const addTransactionToUser = async (uid: string, transaction: Omit<Transa
                 discountAmount = coupon.value;
             }
             
-            // If transaction is a cost (negative), we reduce the cost (add discount)
-            // If transaction is a top-up (positive), we add to the credit (add discount)
-            // Simplified logic: Effectively increasing the net positive result for user
+            // Apply discount (reduce cost or increase credit)
             if (finalAmount < 0) {
                  finalAmount += discountAmount; 
             } else {
@@ -167,8 +165,9 @@ export const addTransactionToUser = async (uid: string, transaction: Omit<Transa
 
             discountDetails = { couponCode: coupon.code, amount: discountAmount };
 
-            // Increment uses using secure RPC to bypass RLS
-            await supabase.rpc('increment_coupon_uses', { coupon_id: coupon.id });
+            // Increment uses using secure RPC to bypass RLS (Users cannot update coupons table directly)
+            const { error: rpcError } = await supabase.rpc('increment_coupon_uses', { coupon_id: coupon.id });
+            if (rpcError) console.error("Failed to increment coupon usage", rpcError);
         }
     }
 
