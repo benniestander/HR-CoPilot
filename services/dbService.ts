@@ -495,16 +495,22 @@ export const deleteProfilePhoto = async (uid: string): Promise<void> => {
 // --- Coupons ---
 
 export const createCoupon = async (adminEmail: string, couponData: Omit<Coupon, 'id' | 'createdAt' | 'uses' | 'isActive'>): Promise<void> => {
+    // Map 'all' to null for storage to handle DB schema types safely
+    const dbApplicableTo = couponData.applicableTo === 'all' ? null : couponData.applicableTo;
+
     const { data, error } = await supabase.from('coupons').insert({
         code: couponData.code,
         type: couponData.type,
         value: couponData.value,
         max_uses: couponData.maxUses,
-        applicable_to: couponData.applicableTo,
+        applicable_to: dbApplicableTo,
         is_active: true
     }).select().single();
 
-    if (error) throw error;
+    if (error) {
+        console.error("Error creating coupon:", error);
+        throw error;
+    }
 
     await logAdminAction({
         adminEmail, action: 'Created Coupon', targetUserId: 'N/A', targetUserEmail: 'N/A',
@@ -523,7 +529,7 @@ export const getCoupons = async (): Promise<Coupon[]> => {
         value: c.value,
         uses: c.uses,
         maxUses: c.max_uses,
-        applicableTo: c.applicable_to,
+        applicableTo: c.applicable_to === null ? 'all' : c.applicable_to,
         isActive: c.is_active,
         expiresAt: c.expires_at,
         createdAt: c.created_at
@@ -554,7 +560,8 @@ export const validateCoupon = async (uid: string, code: string): Promise<{ valid
     }
     
     const applicableTo = coupon.applicable_to;
-    if (Array.isArray(applicableTo) && applicableTo.length > 0 && !applicableTo.includes(uid)) {
+    // If null, it means 'all'
+    if (applicableTo !== null && Array.isArray(applicableTo) && applicableTo.length > 0 && !applicableTo.includes(uid)) {
         return { valid: false, message: 'This coupon is not valid for your account.' };
     }
 
@@ -565,7 +572,7 @@ export const validateCoupon = async (uid: string, code: string): Promise<{ valid
         value: coupon.value,
         uses: coupon.uses,
         maxUses: coupon.max_uses,
-        applicableTo: coupon.applicable_to,
+        applicableTo: applicableTo === null ? 'all' : applicableTo,
         isActive: coupon.is_active,
         expiresAt: coupon.expires_at,
         createdAt: coupon.created_at

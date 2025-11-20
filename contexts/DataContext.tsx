@@ -311,9 +311,13 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         },
         createCoupon: async (couponData: Omit<Coupon, 'id' | 'createdAt' | 'uses' | 'isActive'>) => {
             if (!user || !isAdmin) return;
-            await createCoupon(user.email, couponData);
-            await getCoupons().then(setAllCoupons);
-            setToastMessage(`Coupon "${couponData.code}" created successfully!`);
+            try {
+                await createCoupon(user.email, couponData);
+                await getCoupons().then(setAllCoupons);
+                setToastMessage(`Coupon "${couponData.code}" created successfully!`);
+            } catch (error: any) {
+                setToastMessage(`Failed to create coupon: ${error.message}`);
+            }
         },
         deactivateCoupon: async (couponId: string) => {
             if (!user || !isAdmin) return;

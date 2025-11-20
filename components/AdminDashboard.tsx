@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from 'react';
 import type { User, GeneratedDocument, Transaction, AdminActionLog, Coupon, AdminNotification } from '../types';
 import { UserIcon, MasterPolicyIcon, FormsIcon, SearchIcon, CreditCardIcon, HistoryIcon, DownloadIcon, CouponIcon } from './Icons';
@@ -140,22 +141,33 @@ const UserList: React.FC<{ users: User[], pageInfo: PageInfo, onNext: () => void
     );
 };
 
-const CouponManager: React.FC<{ coupons: Coupon[], onCreateCoupon: (data: Omit<Coupon, 'id' | 'createdAt' | 'uses' | 'isActive'>) => void, onDeactivateCoupon: (id: string) => void }> = ({ coupons, onCreateCoupon, onDeactivateCoupon }) => {
+const CouponManager: React.FC<{ coupons: Coupon[], onCreateCoupon: (data: Omit<Coupon, 'id' | 'createdAt' | 'uses' | 'isActive'>) => Promise<void>, onDeactivateCoupon: (id: string) => void }> = ({ coupons, onCreateCoupon, onDeactivateCoupon }) => {
   const [newCoupon, setNewCoupon] = useState({ code: '', type: 'percentage' as 'percentage' | 'fixed', value: '10', maxUses: '100', applicableTo: 'all' as 'all' | string[] });
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleCreate = () => {
+  const handleCreate = async () => {
     if (!newCoupon.code || !newCoupon.value) {
       alert("Code and value are required.");
       return;
     }
+    
+    setIsLoading(true);
     const couponData = {
       ...newCoupon,
       code: newCoupon.code.toUpperCase(),
       value: Number(newCoupon.value),
       maxUses: newCoupon.maxUses ? Number(newCoupon.maxUses) : undefined,
     };
-    onCreateCoupon(couponData);
-    setNewCoupon({ code: '', type: 'percentage', value: '10', maxUses: '100', applicableTo: 'all' });
+    
+    try {
+        await onCreateCoupon(couponData);
+        setNewCoupon({ code: '', type: 'percentage', value: '10', maxUses: '100', applicableTo: 'all' });
+    } catch (e) {
+        // Error toast is handled in DataContext, but we catch here to prevent reset on error if needed
+        console.error("Failed to create coupon in UI", e);
+    } finally {
+        setIsLoading(false);
+    }
   };
 
   return (
@@ -169,7 +181,9 @@ const CouponManager: React.FC<{ coupons: Coupon[], onCreateCoupon: (data: Omit<C
         </select>
         <input type="number" value={newCoupon.value} onChange={e => setNewCoupon({ ...newCoupon, value: e.target.value })} placeholder="Value" className="p-2 border rounded" />
         <input type="number" value={newCoupon.maxUses} onChange={e => setNewCoupon({ ...newCoupon, maxUses: e.target.value })} placeholder="Max Uses (optional)" className="p-2 border rounded" />
-        <button onClick={handleCreate} className="bg-primary text-white p-2 rounded">Create Coupon</button>
+        <button onClick={handleCreate} disabled={isLoading} className="bg-primary text-white p-2 rounded disabled:bg-gray-400">
+            {isLoading ? 'Creating...' : 'Create Coupon'}
+        </button>
       </div>
       
       <h2 className="text-xl font-bold mb-4">Existing Coupons</h2>
