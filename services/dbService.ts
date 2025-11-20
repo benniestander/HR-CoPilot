@@ -43,30 +43,16 @@ const mapDocument = (doc: any): GeneratedDocument => ({
     content: doc.content,
     createdAt: doc.created_at,
     companyProfile: {
-       companyName: '', // Often simpler to reload user profile, but doc history needs profile snapshot
+       companyName: '', 
        industry: '',
-       ...doc.question_answers // Assuming profile snapshot was stored in answers or needs specific column
-       // Note: In the original app, companyProfile was part of the document object.
-       // For Supabase, we'll assume `question_answers` contains the profile data used at generation time
-       // OR we can add a specific column for it if strict history is needed.
-       // For migration, we map from question_answers if possible or default.
+       ...doc.question_answers 
     },
-    // Re-construct profile from answers if it was merged there, OR strictly strictly use columns
-    // To maintain compatibility, let's assume question_answers holds the specific run data
     questionAnswers: doc.question_answers || {},
     outputFormat: doc.output_format,
     sources: doc.sources,
     version: doc.version,
     history: doc.history
 });
-
-// Fix for companyProfile in mapDocument:
-// The original `GeneratedDocument` type has a `companyProfile` property. 
-// We should probably store this in the DB as a JSONB column if we want to preserve exact historical data.
-// In the SQL schema, I didn't add it explicitly, but `question_answers` often contains it. 
-// Let's ensure the `saveGeneratedDocument` stores it in `question_answers` or `history`.
-// *Correction*: The SQL schema has `question_answers jsonb`. We will store the profile there for simplicity or add a column.
-// For this implementation, I will extract it from `question_answers` assuming it was merged there during save.
 
 // --- User Profile Functions ---
 
@@ -98,7 +84,6 @@ export const createUserProfile = async (
     const { data: existing } = await supabase.from('profiles').select('*').eq('id', uid).single();
     
     if (existing) {
-        // Just return it
         return mapProfileToUser(existing);
     }
 
@@ -129,7 +114,6 @@ export const createUserProfile = async (
         });
     }
 
-    // Return mapped user with empty transactions
     return mapProfileToUser(newProfile, []);
 };
 
@@ -172,19 +156,15 @@ export const addTransactionToUser = async (uid: string, transaction: Omit<Transa
                 discountAmount = coupon.value;
             }
             
-            // Logic: if deduction (negative), add discount (positive) to reduce cost (closer to 0)
-            // If payment (positive), add discount? No, usually coupons discount costs.
-            // Let's assume top-up (positive) gets bonus, cost (negative) gets discount.
             if (finalAmount < 0) {
-                 finalAmount += discountAmount; // Reduces the negative number (cost)
+                 finalAmount += discountAmount;
             } else {
-                 finalAmount += discountAmount; // Increases the positive number (bonus credit)
+                 finalAmount += discountAmount;
             }
 
             discountDetails = { couponCode: coupon.code, amount: discountAmount };
 
             // Increment uses
-            // For simplicity without RPC, fetch and update
             const { data: c } = await supabase.from('coupons').select('uses').eq('id', coupon.id).single();
             if (c) await supabase.from('coupons').update({ uses: c.uses + 1 }).eq('id', coupon.id);
         }
@@ -207,7 +187,10 @@ export const addTransactionToUser = async (uid: string, transaction: Omit<Transa
         if (fetchError) throw fetchError;
         
         if (profile) {
-            const newBalance = (profile.credit_balance || 0) + finalAmount;
+            // Explicitly cast to Number to prevent string concatenation
+            const currentBalance = Number(profile.credit_balance || 0);
+            const newBalance = currentBalance + finalAmount;
+            
             const { error: updateError } = await supabase.from('profiles').update({ credit_balance: newBalance }).eq('id', uid);
             if (updateError) throw updateError;
         }
@@ -228,8 +211,6 @@ export const getGeneratedDocuments = async (uid: string): Promise<GeneratedDocum
     
     return data.map(d => {
         const doc = mapDocument(d);
-        // Hydrate company profile from the separate JSON if we stored it, or fallback
-        // For now, we reconstruct it roughly or assume it's in question_answers
         if (d.question_answers && d.question_answers.companyName) {
              doc.companyProfile = d.question_answers as CompanyProfile;
         }
@@ -238,15 +219,13 @@ export const getGeneratedDocuments = async (uid: string): Promise<GeneratedDocum
 };
 
 export const saveGeneratedDocument = async (uid: string, docData: GeneratedDocument): Promise<void> => {
-    // We store the profile snapshot inside question_answers or a specific column if we modified schema
-    // Let's merge profile into question_answers for persistence
     const combinedData = {
         ...docData.questionAnswers,
         ...docData.companyProfile
     };
 
     const dataToSave = {
-        id: docData.id.length < 30 ? undefined : docData.id, // Let DB generate ID if it looks temporary
+        id: docData.id.length < 30 ? undefined : docData.id,
         user_id: uid,
         title: docData.title,
         kind: docData.kind,
@@ -257,10 +236,9 @@ export const saveGeneratedDocument = async (uid: string, docData: GeneratedDocum
         sources: docData.sources,
         version: docData.version,
         history: docData.history,
-        created_at: new Date().toISOString() // Update timestamp
+        created_at: new Date().toISOString()
     };
 
-    // Upsert based on ID
     const { error } = await supabase.from('generated_documents').upsert(dataToSave);
     if (error) throw error;
 };
@@ -313,6 +291,7 @@ export const adjustUserCreditByAdmin = async (adminEmail: string, targetUid: str
         details: { amountInCents, reason }
     });
 
+    // Return the updated user profile so UI can refresh
     return await getUserProfile(targetUid);
 };
 
@@ -389,9 +368,6 @@ export const markAllNotificationsAsRead = async (): Promise<void> => {
 
 // --- Pagination Wrappers for Admin ---
 
-// Note: lastVisible in Supabase context will be an OFFSET number or a TIMESTAMP for keyset pagination. 
-// Let's use offset for simplicity in this migration unless performance is critical.
-
 export const getAllUsers = async (pageSize: number, cursor?: any): Promise<{ data: User[], lastVisible: any }> => {
     const offset = cursor || 0;
     const { data, error, count } = await supabase
@@ -403,7 +379,7 @@ export const getAllUsers = async (pageSize: number, cursor?: any): Promise<{ dat
     if (error) return { data: [], lastVisible: null };
 
     const users = data.map(p => mapProfileToUser(p));
-    return { data: users, lastVisible: offset + pageSize }; // Simple offset cursor
+    return { data: users, lastVisible: offset + pageSize };
 };
 
 export const getAllDocumentsForAllUsers = async (pageSize: number, cursor?: any): Promise<{ data: GeneratedDocument[], lastVisible: any }> => {
@@ -421,7 +397,6 @@ export const getAllDocumentsForAllUsers = async (pageSize: number, cursor?: any)
 
     const docs = data.map(d => {
         const doc = mapDocument(d);
-        // Inject company name from join if needed, though mapDocument uses mapped fields
         if ((d as any).profiles) {
              doc.companyProfile = { companyName: (d as any).profiles.company_name, industry: '' };
         }
@@ -460,11 +435,9 @@ export const getAdminActionLogs = async (pageSize: number, cursor?: any): Promis
 export const uploadUserFile = async (uid: string, file: File, notes: string): Promise<void> => {
     const path = `${uid}/${Date.now()}_${file.name}`;
     
-    // Upload to Storage
     const { error: uploadError } = await supabase.storage.from('user-files').upload(path, file);
     if (uploadError) throw uploadError;
 
-    // Record in DB
     await supabase.from('user_files').insert({
         user_id: uid,
         name: file.name,
@@ -490,7 +463,7 @@ export const getUserFiles = async (uid: string): Promise<UserFile[]> => {
 };
 
 export const getDownloadUrlForFile = async (storagePath: string): Promise<string> => {
-    const { data } = await supabase.storage.from('user-files').createSignedUrl(storagePath, 60); // 60 seconds valid
+    const { data } = await supabase.storage.from('user-files').createSignedUrl(storagePath, 60);
     return data?.signedUrl || '';
 };
 
@@ -500,7 +473,7 @@ export const deleteUserFile = async (uid: string, fileId: string, storagePath: s
 };
 
 export const uploadProfilePhoto = async (uid: string, file: File): Promise<string> => {
-    const path = `${uid}/avatar.png`; // Overwrite same file for simplicity
+    const path = `${uid}/avatar.png`;
     
     const { error: uploadError } = await supabase.storage.from('avatars').upload(path, file, { upsert: true });
     if (uploadError) throw uploadError;
@@ -580,13 +553,11 @@ export const validateCoupon = async (uid: string, code: string): Promise<{ valid
         return { valid: false, message: 'This coupon has reached its usage limit.' };
     }
     
-    // Check applicable_to
     const applicableTo = coupon.applicable_to;
     if (Array.isArray(applicableTo) && applicableTo.length > 0 && !applicableTo.includes(uid)) {
         return { valid: false, message: 'This coupon is not valid for your account.' };
     }
 
-    // Map back to frontend type
     const mappedCoupon: Coupon = {
         id: coupon.id,
         code: coupon.code,

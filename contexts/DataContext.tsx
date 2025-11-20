@@ -287,8 +287,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         },
         adjustCredit: async (targetUid: string, amountInCents: number, reason: string) => {
             if (!user || !isAdmin) return;
-            await adjustUserCreditByAdmin(user.email, targetUid, amountInCents, reason);
-            await fetchUsersPage(userPageIndex);
+            const updatedUser = await adjustUserCreditByAdmin(user.email, targetUid, amountInCents, reason);
+            
+            if (updatedUser) {
+                // Optimistic/Direct update of the paginated list to show changes immediately
+                setPaginatedUsers(prev => prev.map(u => u.uid === targetUid ? updatedUser : u));
+            } else {
+                await fetchUsersPage(userPageIndex);
+            }
             setToastMessage(`Credit adjusted.`);
         },
         changePlan: async (targetUid: string, newPlan: 'pro' | 'payg') => {

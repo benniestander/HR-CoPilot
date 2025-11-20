@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import type { User, GeneratedDocument, Transaction, CompanyProfile } from '../types';
 import { UserIcon, ShieldCheckIcon, HistoryIcon, MasterPolicyIcon, EditIcon, CreditCardIcon, LoadingIcon } from './Icons';
 import { INDUSTRIES } from '../constants';
@@ -34,6 +34,11 @@ const AdminUserDetailModal: React.FC<AdminUserDetailModalProps> = ({ isOpen, onC
   const [isAdjustingCredit, setIsAdjustingCredit] = useState(false);
 
   const modalRef = useFocusTrap<HTMLDivElement>(isOpen, onClose);
+  
+  // Sync internal state when user prop updates (e.g. after credit adjustment)
+  useEffect(() => {
+      setFormData({ ...user, profile: { ...user.profile } });
+  }, [user]);
 
   if (!isOpen) return null;
   
