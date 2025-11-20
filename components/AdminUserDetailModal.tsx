@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import type { User, GeneratedDocument, Transaction, CompanyProfile } from '../types';
-import { UserIcon, ShieldCheckIcon, HistoryIcon, MasterPolicyIcon, EditIcon, CreditCardIcon } from './Icons';
+import { UserIcon, ShieldCheckIcon, HistoryIcon, MasterPolicyIcon, EditIcon, CreditCardIcon, LoadingIcon } from './Icons';
 import { INDUSTRIES } from '../constants';
 import { useFocusTrap } from '../hooks/useFocusTrap';
 
@@ -31,6 +31,7 @@ const AdminUserDetailModal: React.FC<AdminUserDetailModalProps> = ({ isOpen, onC
   
   const [creditAmount, setCreditAmount] = useState('');
   const [creditReason, setCreditReason] = useState('');
+  const [isAdjustingCredit, setIsAdjustingCredit] = useState(false);
 
   const modalRef = useFocusTrap<HTMLDivElement>(isOpen, onClose);
 
@@ -58,9 +59,14 @@ const AdminUserDetailModal: React.FC<AdminUserDetailModalProps> = ({ isOpen, onC
         alert('Please enter a valid amount and reason.');
         return;
     }
-    await adminActions.adjustCredit(user.uid, amount, creditReason);
-    setCreditAmount('');
-    setCreditReason('');
+    setIsAdjustingCredit(true);
+    try {
+        await adminActions.adjustCredit(user.uid, amount, creditReason);
+        setCreditAmount('');
+        setCreditReason('');
+    } finally {
+        setIsAdjustingCredit(false);
+    }
   };
 
   const handleChangePlan = async () => {
@@ -178,8 +184,12 @@ const AdminUserDetailModal: React.FC<AdminUserDetailModalProps> = ({ isOpen, onC
                         <div className="space-y-2 mt-2">
                             <input type="number" value={creditAmount} onChange={e => setCreditAmount(e.target.value)} placeholder="Amount (R)" className="w-full p-2 border rounded-md" />
                             <input type="text" value={creditReason} onChange={e => setCreditReason(e.target.value)} placeholder="Reason for adjustment" className="w-full p-2 border rounded-md" />
-                            <button onClick={handleAdjustCredit} disabled={!creditAmount || !creditReason} className="w-full px-4 py-2 text-sm font-medium text-white bg-primary rounded-md hover:bg-opacity-90 disabled:bg-gray-400">
-                                Adjust Credit
+                            <button 
+                                onClick={handleAdjustCredit} 
+                                disabled={!creditAmount || !creditReason || isAdjustingCredit} 
+                                className="w-full px-4 py-2 text-sm font-medium text-white bg-primary rounded-md hover:bg-opacity-90 disabled:bg-gray-400 flex justify-center items-center"
+                            >
+                                {isAdjustingCredit ? <LoadingIcon className="animate-spin h-4 w-4 text-white" /> : 'Adjust Credit'}
                             </button>
                         </div>
                     </div>

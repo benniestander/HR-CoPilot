@@ -203,10 +203,13 @@ export const addTransactionToUser = async (uid: string, transaction: Omit<Transa
 
     // 2. Update User Balance (only if not subscription)
     if (transaction.description !== 'HR CoPilot Pro Subscription (12 months)') {
-        const { data: profile } = await supabase.from('profiles').select('credit_balance').eq('id', uid).single();
+        const { data: profile, error: fetchError } = await supabase.from('profiles').select('credit_balance').eq('id', uid).single();
+        if (fetchError) throw fetchError;
+        
         if (profile) {
             const newBalance = (profile.credit_balance || 0) + finalAmount;
-            await supabase.from('profiles').update({ credit_balance: newBalance }).eq('id', uid);
+            const { error: updateError } = await supabase.from('profiles').update({ credit_balance: newBalance }).eq('id', uid);
+            if (updateError) throw updateError;
         }
     }
 };

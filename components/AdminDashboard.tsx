@@ -305,6 +305,14 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [activeTab, setActiveTab] = useState<AdminTab>('users');
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
 
+  // Ensure activeUser reflects the latest data from the paginated list
+  // This fixes the issue where the modal would show stale data (e.g., old credit balance)
+  // after an update action.
+  const activeUser = useMemo(() => {
+    if (!selectedUser) return null;
+    return paginatedUsers.data.find(u => u.uid === selectedUser.uid) || selectedUser;
+  }, [selectedUser, paginatedUsers.data]);
+
   // Note: These stats are now based on the first page of users/transactions for performance.
   // A more advanced implementation would use separate Firestore aggregation queries.
   const stats = useMemo(() => {
@@ -376,12 +384,12 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
             </div>
         </div>
 
-        {selectedUser && (
+        {activeUser && (
             <AdminUserDetailModal
-                isOpen={!!selectedUser}
+                isOpen={!!activeUser}
                 onClose={() => setSelectedUser(null)}
-                user={selectedUser}
-                userDocuments={paginatedDocuments.data.filter(doc => doc.companyProfile.companyName === selectedUser.profile.companyName)}
+                user={activeUser}
+                userDocuments={paginatedDocuments.data.filter(doc => doc.companyProfile.companyName === activeUser.profile.companyName)}
                 adminActions={adminActions}
             />
         )}
