@@ -1,6 +1,6 @@
 
 import React, { createContext, useContext, useState, useEffect, useMemo, useCallback } from 'react';
-import type { Policy, Form, GeneratedDocument, PolicyType, FormType, CompanyProfile, User, Transaction, AdminActionLog, AdminNotification, UserFile, Coupon } from '../types';
+import type { GeneratedDocument, CompanyProfile, User, Transaction, AdminActionLog, AdminNotification, UserFile, Coupon } from '../types';
 import {
     updateUser,
     getGeneratedDocuments,
@@ -27,11 +27,10 @@ import {
     deactivateCoupon,
     validateCoupon,
     getUserProfile
-} from '../services/firestoreService';
+} from '../services/dbService';
 import { useAuthContext } from './AuthContext';
 import { useUIContext } from './UIContext';
 import { useModalContext } from './ModalContext';
-import { QueryDocumentSnapshot } from 'firebase/firestore';
 
 const PAGE_SIZE = 25;
 
@@ -40,7 +39,7 @@ export interface PageInfo {
     pageSize: number;
     hasNextPage: boolean;
     dataLength: number;
-    total?: number; // Optional total count
+    total?: number;
 }
 
 interface DataContextType {
@@ -102,17 +101,18 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     // Admin data (paginated)
     const [paginatedUsers, setPaginatedUsers] = useState<User[]>([]);
-    const [userCursors, setUserCursors] = useState<(QueryDocumentSnapshot | undefined)[]>([undefined]);
+    // For Supabase, cursors are simply offsets (numbers)
+    const [userCursors, setUserCursors] = useState<number[]>([0]);
     const [userPageIndex, setUserPageIndex] = useState(0);
     const [userHasNextPage, setUserHasNextPage] = useState(true);
 
     const [paginatedDocuments, setPaginatedDocuments] = useState<GeneratedDocument[]>([]);
-    const [docCursors, setDocCursors] = useState<(QueryDocumentSnapshot | undefined)[]>([undefined]);
+    const [docCursors, setDocCursors] = useState<number[]>([0]);
     const [docPageIndex, setDocPageIndex] = useState(0);
     const [docHasNextPage, setDocHasNextPage] = useState(true);
 
     const [paginatedLogs, setPaginatedLogs] = useState<AdminActionLog[]>([]);
-    const [logCursors, setLogCursors] = useState<(QueryDocumentSnapshot | undefined)[]>([undefined]);
+    const [logCursors, setLogCursors] = useState<number[]>([0]);
     const [logPageIndex, setLogPageIndex] = useState(0);
     const [logHasNextPage, setLogHasNextPage] = useState(true);
     
@@ -121,12 +121,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const [allCoupons, setAllCoupons] = useState<Coupon[]>([]);
 
     const createPageFetcher = <T,>(
-        fetchFn: (pageSize: number, cursor?: QueryDocumentSnapshot) => Promise<{ data: T[], lastVisible: QueryDocumentSnapshot | null }>,
+        fetchFn: (pageSize: number, cursor?: number) => Promise<{ data: T[], lastVisible: number | null }>,
         setData: React.Dispatch<React.SetStateAction<T[]>>,
-        setCursors: React.Dispatch<React.SetStateAction<(QueryDocumentSnapshot | undefined)[]>>,
+        setCursors: React.Dispatch<React.SetStateAction<number[]>>,
         setPageIndex: React.Dispatch<React.SetStateAction<number>>,
         setHasNextPage: React.Dispatch<React.SetStateAction<boolean>>,
-        cursors: (QueryDocumentSnapshot | undefined)[]
+        cursors: number[]
     ) => async (pageIndex: number) => {
         if (pageIndex < 0 || pageIndex >= cursors.length) return;
         const cursor = cursors[pageIndex];
@@ -136,7 +136,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setPageIndex(pageIndex);
 
         if (pageIndex === cursors.length - 1) {
-            if (lastVisible && data.length === PAGE_SIZE) {
+            if (lastVisible !== null && data.length === PAGE_SIZE) {
                 setCursors(prev => [...prev, lastVisible]);
                 setHasNextPage(true);
             } else {
@@ -169,11 +169,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     useEffect(() => {
         if (user) {
             if (isAdmin) {
-                // Fetch first page of all paginated data
                 fetchUsersPage(0);
                 fetchDocsPage(0);
                 fetchLogsPage(0);
-                // Fetch non-paginated data
                 getAdminNotifications().then(setAdminNotifications);
                 getCoupons().then(setAllCoupons);
             } else {
@@ -181,7 +179,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 getUserFiles(user.uid).then(setUserFiles);
             }
         } else {
-            // Reset all state on logout
             setGeneratedDocuments([]);
             setUserFiles([]);
             setPaginatedUsers([]);
@@ -194,13 +191,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const handleUpdateProfile = async (data: { profile: CompanyProfile; name?: string; contactNumber?: string }) => {
         if (!user) return;
-        
-        // Merge existing profile data to prevent data loss for fields not in the update
         const updatedProfile = { ...user.profile, ...data.profile };
-        
-        const updates: Partial<User> = {
-            profile: updatedProfile,
-        };
+        const updates: Partial<User> = { profile: updatedProfile };
         if (data.name !== undefined) updates.name = data.name;
         if (data.contactNumber !== undefined) updates.contactNumber = data.contactNumber;
 

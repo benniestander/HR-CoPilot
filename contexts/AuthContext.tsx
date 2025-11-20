@@ -1,24 +1,14 @@
 
 import React, { createContext, useContext, useState } from 'react';
-import { 
-    createUserWithEmailAndPassword, 
-    sendEmailVerification, 
-    signInWithEmailAndPassword, 
-    signOut, 
-    sendPasswordResetEmail,
-    GoogleAuthProvider,
-    signInWithPopup,
-    signInWithRedirect
-} from 'firebase/auth';
-import { auth } from '../services/firebase';
+import { supabase } from '../services/supabase';
 import { useAuth } from '../hooks/useAuth';
 import type { User } from '../types';
 import type { AuthPage, AuthFlow } from '../AppContent';
-import { createAdminNotification } from '../services/firestoreService';
+import { createAdminNotification } from '../services/dbService';
 
 interface AuthContextType {
     user: User | null;
-    unverifiedUser: import('firebase/auth').User | null;
+    unverifiedUser: any | null;
     isAdmin: boolean;
     isLoading: boolean;
     isSubscribed: boolean;
@@ -51,12 +41,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const [onboardingSkipped, setOnboardingSkipped] = useState(false);
     const [showOnboardingWalkthrough, setShowOnboardingWalkthrough] = useState(false);
     
-    // This state is derived from user, but we manage it here to pass down
     const [isSubscribed, setIsSubscribed] = useState(false);
     React.useEffect(() => {
         if (user) {
-            // A 'pro' user is considered subscribed if their profile exists with the pro plan.
-            // The payment status would be a more robust check in a real app.
             setIsSubscribed(user.plan === 'pro');
         } else {
             setIsSubscribed(false);
@@ -66,17 +53,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const handleStartAuthFlow = async (flow: AuthFlow, email: string, details: { password: string; name?: string; contactNumber?: string }) => {
         const { password, name, contactNumber } = details;
         try {
-            const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-            
-            // Attempt to send email verification, but don't block the flow if it fails (e.g. rate limiting)
-            // The VerifyEmailPage has a manual resend button.
-            try {
-                await sendEmailVerification(userCredential.user);
-            } catch (emailError) {
-                console.warn("Failed to send initial verification email:", emailError);
-            }
+            const { data, error } = await supabase.auth.signUp({
+                email,
+                password,
+                options: {
+                    data: {
+                        full_name: name,
+                        contact_number: contactNumber
+                    }
+                }
+            });
 
-            await signOut(auth);
+            if (error) throw error;
+
             window.localStorage.setItem('authFlow', flow);
             if (name || contactNumber) {
                 window.localStorage.setItem('authDetails', JSON.stringify({ name, contactNumber }));
@@ -91,29 +80,40 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
 
     const handleStartGoogleAuthFlow = async (flow: AuthFlow) => {
-        const provider = new GoogleAuthProvider();
         try {
             window.localStorage.setItem('authFlow', flow);
-            // Use signInWithPopup for better compatibility and UX in this environment
-            // It prevents issues with redirect loops or state loss on some browsers/networks
-            await signInWithPopup(auth, provider);
+            const { error } = await supabase.auth.signInWithOAuth({
+                provider: 'google',
+                options: {
+                    queryParams: {
+                        access_type: 'offline',
+                        prompt: 'consent',
+                    },
+                },
+            });
+            if (error) throw error;
         } catch (error) {
             console.error("Google Sign-in Error:", error);
-            // Rethrow so the UI can handle loading states
             throw error;
         }
     };
     
     const handleLogin = async (email: string, password: string) => {
         try {
-            await signInWithEmailAndPassword(auth, email, password);
+            const { error } = await supabase.auth.signInWithPassword({ email, password });
+            if (error) throw error;
         } catch (error: any) {
             throw error;
         }
     };
 
     const handleForgotPassword = async (email: string) => {
-        await sendPasswordResetEmail(auth, email);
+        const { error } = await supabase.auth.resetPasswordForEmail(email, {
+             redirectTo: window.location.origin + '/#reset-password', // You might need to handle this route
+        });
+        
+        if (error) throw error;
+        
         await createAdminNotification({
             type: 'password_reset_request',
             message: `User with email ${email} requested a password reset.`,
@@ -121,11 +121,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
 
     const handleLogout = () => {
-        signOut(auth)
-            .then(() => {
-                window.localStorage.removeItem('hr_copilot_user_profile');
-            })
-            .catch((error) => console.error("Logout Error:", error));
+        supabase.auth.signOut().then(() => {
+            window.localStorage.removeItem('hr_copilot_user_profile');
+        });
     };
     
     const handleSkipOnboarding = () => {

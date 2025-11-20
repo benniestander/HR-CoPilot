@@ -1,8 +1,7 @@
 
 import { useState, useEffect } from 'react';
-import { onIdTokenChanged, type User as FirebaseUser } from 'firebase/auth';
-import { auth } from '../services/firebase';
-import { getUserProfile, createUserProfile } from '../services/firestoreService';
+import { supabase } from '../services/supabase';
+import { getUserProfile, createUserProfile } from '../services/dbService';
 import type { User } from '../types';
 import type { AuthFlow } from '../AppContent';
 
@@ -19,123 +18,99 @@ export const useAuth = () => {
         }
     });
     
-    const [unverifiedUser, setUnverifiedUser] = useState<FirebaseUser | null>(null);
-    
-    const [isAdmin, setIsAdmin] = useState(() => {
-        try {
-             const cached = window.localStorage.getItem(USER_CACHE_KEY);
-             return cached ? !!JSON.parse(cached).isAdmin : false;
-        } catch {
-            return false;
-        }
-    });
-
-    // If we have a cached user, we are not "loading" in the sense of blocking the UI
-    const [isLoading, setIsLoading] = useState(!user); 
+    const [unverifiedUser, setUnverifiedUser] = useState<any | null>(null);
+    const [isAdmin, setIsAdmin] = useState(false);
+    const [isLoading, setIsLoading] = useState(true);
     const [needsOnboarding, setNeedsOnboarding] = useState(false);
 
     useEffect(() => {
-        const unsubscribe = onIdTokenChanged(auth, async (firebaseUser: FirebaseUser | null) => {
-            if (!firebaseUser) {
-                setUser(null);
-                setUnverifiedUser(null);
-                setIsAdmin(false);
-                setNeedsOnboarding(false);
-                setIsLoading(false);
-                window.localStorage.removeItem(USER_CACHE_KEY);
-                return;
-            }
-
-            // Only set loading if we don't already have a user to show (prevents flash)
-            if (!user) setIsLoading(true);
-
-            try {
-                if (!firebaseUser.emailVerified && firebaseUser.providerData.some(p => p.providerId === 'password')) {
-                    setUnverifiedUser(firebaseUser);
-                    setUser(null);
-                    window.localStorage.removeItem(USER_CACHE_KEY);
-                    setIsLoading(false);
-                    return;
-                }
-
-                setUnverifiedUser(null);
-                let appUser: User | null = null;
-
-                try {
-                    // Fetch fresh data
-                    appUser = await getUserProfile(firebaseUser.uid);
-                    if (appUser) {
-                         // Update state and cache with fresh data
-                         setUser(appUser);
-                         setIsAdmin(!!appUser.isAdmin);
-                         window.localStorage.setItem(USER_CACHE_KEY, JSON.stringify(appUser));
-                    }
-                } catch (e) {
-                    console.error("Error fetching user profile from Firestore:", e);
-                }
-                
-                // Fallback to cache if fetch failed but we have data (handled by initial state, but checking mismatch)
-                if (!appUser && user && user.uid === firebaseUser.uid) {
-                    appUser = user;
-                }
-
-                if (!appUser) {
-                    const flow = window.localStorage.getItem('authFlow') as AuthFlow | null;
-                    const detailsJson = window.localStorage.getItem('authDetails');
-                    const details = detailsJson ? JSON.parse(detailsJson) : null;
-                    
-                    let plan: 'pro' | 'payg' = 'payg';
-                    if (flow === 'signup') plan = 'pro';
-
-                    try {
-                        appUser = await createUserProfile(firebaseUser.uid, firebaseUser.email!, plan, details?.name || firebaseUser.displayName || undefined, details?.contactNumber);
-                        setUser(appUser);
-                        setIsAdmin(!!appUser.isAdmin);
-                        window.localStorage.setItem(USER_CACHE_KEY, JSON.stringify(appUser));
-                    } catch (e: any) {
-                        console.error("CRITICAL: Error creating user profile in Firestore.", e);
-                        if (e.code === 'permission-denied') {
-                            console.error("Check your Firestore Security Rules. The app cannot write to the 'users' collection.");
-                        }
-
-                        // CRITICAL FALLBACK: Create a temporary in-memory user so the app doesn't crash for the user
-                        appUser = {
-                            uid: firebaseUser.uid,
-                            email: firebaseUser.email || '',
-                            name: firebaseUser.displayName || details?.name || '',
-                            contactNumber: details?.contactNumber || '',
-                            plan: plan,
-                            creditBalance: 0,
-                            transactions: [],
-                            profile: { companyName: '', industry: '' },
-                            createdAt: new Date().toISOString(),
-                            isAdmin: false
-                        };
-                        setUser(appUser);
-                        // We don't cache this fake user to force a retry next reload
-                    }
-
-                    window.localStorage.removeItem('authFlow');
-                    window.localStorage.removeItem('authDetails');
-                }
-
-                if (appUser) {
-                    if (!appUser.profile.companyName || !appUser.profile.industry) {
-                        setNeedsOnboarding(true);
-                    } else {
-                        setNeedsOnboarding(false);
-                    }
-                }
-
-            } catch (error) {
-                console.error("Auth state change error:", error);
-            } finally {
-                setIsLoading(false);
-            }
+        // Initial Session Check
+        supabase.auth.getSession().then(({ data: { session } }) => {
+            handleSessionChange(session);
         });
 
-        return () => unsubscribe();
+        // Listen for changes
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+            handleSessionChange(session);
+        });
+
+        return () => subscription.unsubscribe();
     }, []);
+
+    const handleSessionChange = async (session: any) => {
+        if (!session?.user) {
+            setUser(null);
+            setUnverifiedUser(null);
+            setIsAdmin(false);
+            setNeedsOnboarding(false);
+            setIsLoading(false);
+            window.localStorage.removeItem(USER_CACHE_KEY);
+            return;
+        }
+
+        // NOTE: Supabase handles verification via email redirects usually, 
+        // but we can check `email_confirmed_at` if needed.
+        // If you strictly require verification before login, you configure that in Supabase Dashboard.
+
+        // Only set loading if we don't have a user yet
+        if (!user) setIsLoading(true);
+
+        try {
+            const sbUser = session.user;
+            let appUser: User | null = null;
+
+            try {
+                appUser = await getUserProfile(sbUser.id);
+            } catch (e) {
+                console.error("Error fetching user profile:", e);
+            }
+
+            if (appUser) {
+                setUser(appUser);
+                setIsAdmin(!!appUser.isAdmin);
+                window.localStorage.setItem(USER_CACHE_KEY, JSON.stringify(appUser));
+                
+                if (!appUser.profile.companyName) setNeedsOnboarding(true);
+                else setNeedsOnboarding(false);
+
+            } else {
+                // New User logic - Profile doesn't exist yet in 'profiles' table
+                const flow = window.localStorage.getItem('authFlow') as AuthFlow | null;
+                const detailsJson = window.localStorage.getItem('authDetails');
+                const details = detailsJson ? JSON.parse(detailsJson) : null;
+                
+                let plan: 'pro' | 'payg' = 'payg';
+                if (flow === 'signup') plan = 'pro';
+
+                try {
+                    appUser = await createUserProfile(
+                        sbUser.id, 
+                        sbUser.email!, 
+                        plan, 
+                        details?.name || sbUser.user_metadata?.full_name, 
+                        details?.contactNumber
+                    );
+                    
+                    setUser(appUser);
+                    setIsAdmin(false);
+                    window.localStorage.setItem(USER_CACHE_KEY, JSON.stringify(appUser));
+                    setNeedsOnboarding(true); // New profiles usually need onboarding
+                    
+                    // Clean up temp storage
+                    window.localStorage.removeItem('authFlow');
+                    window.localStorage.removeItem('authDetails');
+
+                } catch (e) {
+                    console.error("Error creating profile:", e);
+                }
+            }
+
+        } catch (error) {
+            console.error("Auth Error", error);
+        } finally {
+            setIsLoading(false);
+        }
+    };
 
     return { user, setUser, unverifiedUser, isAdmin, isLoading, needsOnboarding, setNeedsOnboarding };
 };
