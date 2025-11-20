@@ -5,6 +5,7 @@ import type { Policy, Form } from '../types';
 import { MasterPolicyIcon, FormsIcon, HelpIcon, UpdateIcon, ComplianceIcon, WordIcon, ExcelIcon, InfoIcon } from './Icons';
 import HowToUseModal from './HowToUseModal';
 import OnboardingWalkthrough from './OnboardingWalkthrough';
+import ConfirmationModal from './ConfirmationModal';
 import { useAuthContext } from '../contexts/AuthContext';
 import { useDataContext } from '../contexts/DataContext';
 import { useUIContext } from '../contexts/UIContext';
@@ -27,10 +28,55 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartUpdate, onStartChecklist, 
   const [activeTab, setActiveTab] = useState<'policies' | 'forms'>('policies');
   const [isHowToUseModalOpen, setIsHowToUseModalOpen] = useState(false);
 
-  const onSelectItem = (item: Policy | Form) => {
+  // PAYG Confirmation State
+  const [paygModalState, setPaygModalState] = useState<{
+    isOpen: boolean;
+    type: 'confirm' | 'insufficient';
+    item: Policy | Form | null;
+  }>({ isOpen: false, type: 'confirm', item: null });
+
+  const proceedToGenerator = (item: Policy | Form) => {
     setSelectedItem(item);
     setDocumentToView(null);
     navigateTo('generator');
+  };
+
+  const onSelectItem = (item: Policy | Form) => {
+    // Logic for PAYG users
+    if (user?.plan === 'payg') {
+        const price = item.price;
+        const balance = user.creditBalance || 0;
+
+        if (balance < price) {
+            setPaygModalState({
+                isOpen: true,
+                type: 'insufficient',
+                item: item
+            });
+        } else {
+            setPaygModalState({
+                isOpen: true,
+                type: 'confirm',
+                item: item
+            });
+        }
+        return;
+    }
+
+    // Logic for Pro users (or fallback)
+    proceedToGenerator(item);
+  };
+
+  const handlePaygConfirm = () => {
+    if (paygModalState.item) {
+        proceedToGenerator(paygModalState.item);
+    }
+    setPaygModalState({ isOpen: false, type: 'confirm', item: null });
+  };
+
+  const handleTopUpRedirect = () => {
+    setPaygModalState({ isOpen: false, type: 'confirm', item: null });
+    navigateTo('topup');
   };
 
   const onViewDocument = (doc: any) => {
@@ -213,6 +259,47 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartUpdate, onStartChecklist, 
             isOpen={isHowToUseModalOpen}
             onClose={() => setIsHowToUseModalOpen(false)}
         />
+
+        {/* PAYG Confirmation Modal - Sufficient Funds */}
+        {paygModalState.type === 'confirm' && (
+            <ConfirmationModal
+                isOpen={paygModalState.isOpen}
+                title="Confirm Deduction"
+                message={
+                    <div className="text-center">
+                        <p className="mb-4">
+                            The <strong>{paygModalState.item?.title}</strong> costs <strong className="text-secondary">R{((paygModalState.item?.price || 0) / 100).toFixed(2)}</strong>.
+                        </p>
+                        <p className="text-sm text-gray-600">
+                            This amount will be deducted from your credit balance of <strong>R{((user?.creditBalance || 0) / 100).toFixed(2)}</strong> upon successful generation.
+                        </p>
+                    </div>
+                }
+                onConfirm={handlePaygConfirm}
+                onCancel={() => setPaygModalState({ isOpen: false, type: 'confirm', item: null })}
+            />
+        )}
+
+        {/* PAYG Confirmation Modal - Insufficient Funds */}
+        {paygModalState.type === 'insufficient' && (
+            <ConfirmationModal
+                isOpen={paygModalState.isOpen}
+                title="Insufficient Credit"
+                message={
+                    <div className="text-center">
+                        <p className="text-red-600 font-semibold mb-2">You do not have enough credit.</p>
+                        <p className="mb-4">
+                            The <strong>{paygModalState.item?.title}</strong> costs <strong className="text-secondary">R{((paygModalState.item?.price || 0) / 100).toFixed(2)}</strong>, but you only have <strong>R{((user?.creditBalance || 0) / 100).toFixed(2)}</strong> available.
+                        </p>
+                        <p className="text-sm text-gray-600">
+                            Please top up your account to continue.
+                        </p>
+                    </div>
+                }
+                onConfirm={handleTopUpRedirect}
+                onCancel={() => setPaygModalState({ isOpen: false, type: 'confirm', item: null })}
+            />
+        )}
     </div>
   );
 };
