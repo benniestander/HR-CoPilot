@@ -140,6 +140,7 @@ export const updateUser = async (uid: string, userData: Partial<User> & { name?:
     if (userData.contactNumber !== undefined) updates.contact_number = userData.contactNumber;
     if (userData.plan) updates.plan = userData.plan;
     if (userData.photoURL) updates.avatar_url = userData.photoURL;
+    if (userData.isAdmin !== undefined) updates.is_admin = userData.isAdmin;
     
     if (userData.profile) {
         if (userData.profile.companyName) updates.company_name = userData.profile.companyName;

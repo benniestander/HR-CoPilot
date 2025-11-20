@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import type { User, GeneratedDocument, Transaction, CompanyProfile } from '../types';
 import { UserIcon, ShieldCheckIcon, HistoryIcon, MasterPolicyIcon, EditIcon, CreditCardIcon } from './Icons';
@@ -39,6 +40,8 @@ const AdminUserDetailModal: React.FC<AdminUserDetailModalProps> = ({ isOpen, onC
     const updates: Partial<User> = {};
     if (formData.name !== user.name) updates.name = formData.name;
     if (formData.contactNumber !== user.contactNumber) updates.contactNumber = formData.contactNumber;
+    if (formData.isAdmin !== user.isAdmin) updates.isAdmin = formData.isAdmin;
+
     if (JSON.stringify(formData.profile) !== JSON.stringify(user.profile)) {
         updates.profile = formData.profile;
     }
@@ -116,6 +119,22 @@ const AdminUserDetailModal: React.FC<AdminUserDetailModalProps> = ({ isOpen, onC
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div><label className="block text-xs font-medium text-gray-500">Name</label><input type="text" name="name" value={formData.name} onChange={handleInputChange} className="w-full p-2 border rounded-md" /></div>
                         <div><label className="block text-xs font-medium text-gray-500">Contact Number</label><input type="text" name="contactNumber" value={formData.contactNumber} onChange={handleInputChange} className="w-full p-2 border rounded-md" /></div>
+                        <div>
+                            <label className="block text-xs font-medium text-gray-500">Role</label>
+                            <div className="mt-2 flex items-center">
+                                <input 
+                                    type="checkbox" 
+                                    id="isAdmin" 
+                                    name="isAdmin" 
+                                    checked={formData.isAdmin || false} 
+                                    onChange={(e) => setFormData(prev => ({ ...prev, isAdmin: e.target.checked }))}
+                                    className="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
+                                />
+                                <label htmlFor="isAdmin" className="ml-2 block text-sm text-gray-900">
+                                    Admin Privileges
+                                </label>
+                            </div>
+                        </div>
                         <div><label className="block text-xs font-medium text-gray-500">Company Name</label><input type="text" name="companyName" value={formData.profile.companyName} onChange={handleInputChange} className="w-full p-2 border rounded-md" /></div>
                         <div><label className="block text-xs font-medium text-gray-500">Industry</label>
                             <select name="industry" value={formData.profile.industry} onChange={handleInputChange} className="w-full p-2 border rounded-md bg-white">
@@ -132,6 +151,7 @@ const AdminUserDetailModal: React.FC<AdminUserDetailModalProps> = ({ isOpen, onC
                     <>
                         <DetailRow label="Name" value={user.name || 'Not provided'} />
                         <DetailRow label="Contact" value={user.contactNumber || 'Not provided'} />
+                        <DetailRow label="Role" value={user.isAdmin ? <span className="px-2 py-0.5 text-xs font-bold bg-red-100 text-red-800 rounded-full">Admin</span> : 'User'} />
                         <DetailRow label="Company Name" value={user.profile.companyName || 'Not set'} />
                         <DetailRow label="Industry" value={user.profile.industry || 'Not set'} />
                         <DetailRow label="Signed Up" value={new Date(user.createdAt).toLocaleString()} />
