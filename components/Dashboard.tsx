@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import PolicySelector from './PolicySelector';
 import FormSelector from './FormSelector';
@@ -44,8 +45,8 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartUpdate, onStartChecklist, 
   const onSelectItem = (item: Policy | Form) => {
     // Logic for PAYG users
     if (user?.plan === 'payg') {
-        const price = item.price;
-        const balance = user.creditBalance || 0;
+        const price = Number(item.price);
+        const balance = Number(user.creditBalance || 0);
 
         if (balance < price) {
             setPaygModalState({
@@ -265,6 +266,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartUpdate, onStartChecklist, 
             <ConfirmationModal
                 isOpen={paygModalState.isOpen}
                 title="Confirm Deduction"
+                confirmText="Confirm & Generate"
                 message={
                     <div className="text-center">
                         <p className="mb-4">
@@ -285,6 +287,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartUpdate, onStartChecklist, 
             <ConfirmationModal
                 isOpen={paygModalState.isOpen}
                 title="Insufficient Credit"
+                confirmText="Top Up Now"
                 message={
                     <div className="text-center">
                         <p className="text-red-600 font-semibold mb-2">You do not have enough credit.</p>
