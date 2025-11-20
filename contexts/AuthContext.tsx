@@ -7,6 +7,7 @@ import {
     signOut, 
     sendPasswordResetEmail,
     GoogleAuthProvider,
+    signInWithPopup,
     signInWithRedirect
 } from 'firebase/auth';
 import { auth } from '../services/firebase';
@@ -93,10 +94,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const provider = new GoogleAuthProvider();
         try {
             window.localStorage.setItem('authFlow', flow);
-            await signInWithRedirect(auth, provider);
+            // Use signInWithPopup for better compatibility and UX in this environment
+            await signInWithPopup(auth, provider);
         } catch (error) {
             console.error("Google Sign-in Error:", error);
-            // In a real app, you might want to show a toast message to the user.
+            // Rethrow so the UI can handle loading states
+            throw error;
         }
     };
     

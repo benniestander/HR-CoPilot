@@ -4,7 +4,7 @@ import { CheckIcon, GoogleIcon } from './Icons';
 
 interface PlanSelectionPageProps {
   onStartAuthFlow: (flow: 'signup' | 'payg_signup', email: string, details: { password: string, name?: string, contactNumber?: string }) => void;
-  onStartGoogleAuthFlow: (flow: 'signup' | 'payg_signup') => void;
+  onStartGoogleAuthFlow: (flow: 'signup' | 'payg_signup') => Promise<void>;
   onShowLogin: () => void;
   onShowPrivacyPolicy: () => void;
   onShowTerms: () => void;
@@ -158,8 +158,20 @@ const PlanSelectionPage: React.FC<PlanSelectionPageProps> = ({ onStartAuthFlow, 
                         <h2 className="text-2xl font-bold text-secondary text-center mb-6">Create your account</h2>
                         {selectedPlan === 'pro' && (
                             <div className="space-y-4">
-                                <button onClick={() => { setLoading('google_pro'); onStartGoogleAuthFlow('signup'); }} disabled={loading !== 'none'} className="w-full flex justify-center items-center py-3 px-4 border border-gray-300 rounded-md shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:bg-gray-200">
-                                    <GoogleIcon className="w-5 h-5 mr-2" /> {loading === 'google_pro' ? 'Redirecting...' : 'Sign Up with Google'}
+                                <button 
+                                    onClick={async () => { 
+                                        setLoading('google_pro'); 
+                                        try {
+                                            await onStartGoogleAuthFlow('signup'); 
+                                        } catch (e) {
+                                            console.error(e);
+                                            setLoading('none');
+                                        }
+                                    }} 
+                                    disabled={loading !== 'none'} 
+                                    className="w-full flex justify-center items-center py-3 px-4 border border-gray-300 rounded-md shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:bg-gray-200"
+                                >
+                                    <GoogleIcon className="w-5 h-5 mr-2" /> {loading === 'google_pro' ? 'Signing in...' : 'Sign Up with Google'}
                                 </button>
                                 <div className="my-4 flex items-center"><div className="flex-grow border-t border-gray-300"></div><span className="flex-shrink mx-4 text-gray-400 text-sm">OR</span><div className="flex-grow border-t border-gray-300"></div></div>
                                 <form onSubmit={handleProSubmit} className="space-y-4">
@@ -187,8 +199,20 @@ const PlanSelectionPage: React.FC<PlanSelectionPageProps> = ({ onStartAuthFlow, 
                         )}
                         {selectedPlan === 'payg' && (
                              <div className="space-y-4">
-                                <button onClick={() => { setLoading('google_payg'); onStartGoogleAuthFlow('payg_signup'); }} disabled={loading !== 'none'} className="w-full flex justify-center items-center py-3 px-4 border border-gray-300 rounded-md shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:bg-gray-200">
-                                    <GoogleIcon className="w-5 h-5 mr-2" /> {loading === 'google_payg' ? 'Redirecting...' : 'Sign Up with Google'}
+                                <button 
+                                    onClick={async () => { 
+                                        setLoading('google_payg'); 
+                                        try {
+                                            await onStartGoogleAuthFlow('payg_signup'); 
+                                        } catch (e) {
+                                            console.error(e);
+                                            setLoading('none');
+                                        }
+                                    }} 
+                                    disabled={loading !== 'none'} 
+                                    className="w-full flex justify-center items-center py-3 px-4 border border-gray-300 rounded-md shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:bg-gray-200"
+                                >
+                                    <GoogleIcon className="w-5 h-5 mr-2" /> {loading === 'google_payg' ? 'Signing in...' : 'Sign Up with Google'}
                                 </button>
                                 <div className="my-4 flex items-center"><div className="flex-grow border-t border-gray-300"></div><span className="flex-shrink mx-4 text-gray-400 text-sm">OR</span><div className="flex-grow border-t border-gray-300"></div></div>
                                  <form onSubmit={handlePaygSubmit} className="space-y-4">
