@@ -95,6 +95,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         try {
             window.localStorage.setItem('authFlow', flow);
             // Use signInWithPopup for better compatibility and UX in this environment
+            // It prevents issues with redirect loops or state loss on some browsers/networks
             await signInWithPopup(auth, provider);
         } catch (error) {
             console.error("Google Sign-in Error:", error);

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { UserIcon, ShieldCheckIcon, EditIcon, MasterPolicyIcon, FormsIcon, WordIcon, ExcelIcon, CheckIcon, CreditCardIcon, LoadingIcon, HistoryIcon, FileUploadIcon, FileIcon, TrashIcon } from './Icons';
 import type { CompanyProfile, GeneratedDocument, UserFile, Policy, Form, PolicyType, FormType } from '../types';
@@ -41,6 +42,7 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
   const [isSaving, setIsSaving] = useState(false);
   
   // Separate state for Profile (Firestore map) and User (Top-level fields)
+  // Initialize with safe defaults
   const [profileData, setProfileData] = useState<CompanyProfile>(user?.profile || { companyName: '', industry: '' });
   const [userData, setUserData] = useState({ name: user?.name || '', contactNumber: user?.contactNumber || '' });
   
@@ -59,11 +61,14 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
 
 
   useEffect(() => {
-    if (user) {
-      setProfileData(user.profile);
+    // Only sync from user prop if NOT editing. This prevents overwriting unsaved changes if user object updates in background.
+    if (user && !isEditing) {
+      setProfileData(user.profile || { companyName: '', industry: '' });
       setUserData({ name: user.name || '', contactNumber: user.contactNumber || '' });
     }
-    setErrors({});
+    if (!isEditing) {
+        setErrors({});
+    }
   }, [user, isEditing]);
   
   const validateField = (name: string, value: string) => {
@@ -104,7 +109,8 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
     
     // Validate profile fields
     const isProfileValid = (Object.keys(profileData) as Array<keyof CompanyProfile>).every(key =>
-      validateField(key, profileData[key] || '')
+      // Only validate required fields or fields that have values
+      (key === 'companyName' || key === 'industry' || profileData[key]) ? validateField(key, profileData[key] || '') : true
     );
     
     if (!isProfileValid || Object.values(errors).some(e => e)) return;
@@ -125,11 +131,13 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
   };
 
   const handleCancel = () => {
+    // Reset to current user data
     if (user) {
-      setProfileData(user.profile);
+      setProfileData(user.profile || { companyName: '', industry: '' });
       setUserData({ name: user.name || '', contactNumber: user.contactNumber || '' });
     }
     setIsEditing(false);
+    setErrors({});
   };
   
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -224,7 +232,7 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
   return (
     <div className="max-w-4xl mx-auto">
       <button onClick={onBack} className="mb-6 text-primary font-semibold hover:underline flex items-center">
-        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" /></svg>
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" /></svg>
         Back to Dashboard
       </button>
 

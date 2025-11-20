@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { POLICY_CATEGORIES, INDUSTRIES } from '../constants';
 import type { Policy } from '../types';

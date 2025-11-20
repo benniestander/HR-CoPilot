@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, useEffect, useMemo, useCallback } from 'react';
 import type { Policy, Form, GeneratedDocument, PolicyType, FormType, CompanyProfile, User, Transaction, AdminActionLog, AdminNotification, UserFile, Coupon } from '../types';
 import {
@@ -194,8 +195,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const handleUpdateProfile = async (data: { profile: CompanyProfile; name?: string; contactNumber?: string }) => {
         if (!user) return;
         
+        // Merge existing profile data to prevent data loss for fields not in the update
+        const updatedProfile = { ...user.profile, ...data.profile };
+        
         const updates: Partial<User> = {
-            profile: data.profile,
+            profile: updatedProfile,
         };
         if (data.name !== undefined) updates.name = data.name;
         if (data.contactNumber !== undefined) updates.contactNumber = data.contactNumber;
