@@ -1,26 +1,27 @@
 import type { User, GeneratedDocument, Transaction, AdminActionLog, AdminNotification, UserFile, Coupon } from '../types';
 import {
-  collection,
-  doc,
-  getDoc,
-  setDoc,
-  updateDoc,
-  addDoc,
-  getDocs,
-  query,
-  orderBy,
-  serverTimestamp,
-  Timestamp,
-  deleteDoc,
-  writeBatch,
-  arrayUnion,
-  increment,
-  where,
-  collectionGroup,
-  limit,
-  startAfter,
-  QueryDocumentSnapshot,
-  getCountFromServer,
+    collection,
+    doc,
+    getDoc,
+    setDoc,
+    updateDoc,
+    addDoc,
+    getDocs,
+    query,
+    orderBy,
+    serverTimestamp,
+    Timestamp,
+    deleteDoc,
+    writeBatch,
+    arrayUnion,
+    increment,
+    where,
+    collectionGroup,
+    limit,
+    startAfter,
+    QueryDocumentSnapshot,
+    getCountFromServer,
+    QueryConstraint,
 } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { firestore, storage } from './firebase';
@@ -63,65 +64,65 @@ export const markAllNotificationsAsRead = async (): Promise<void> => {
 // --- User Profile Functions ---
 
 export const getUserProfile = async (uid: string): Promise<User | null> => {
-  const userDocRef = doc(firestore, 'users', uid);
-  const userDoc = await getDoc(userDocRef);
-  if (userDoc.exists()) {
-    const data = userDoc.data();
-    // Convert Timestamps to ISO strings
-    return {
-      ...data,
-      createdAt: (data.createdAt as Timestamp)?.toDate().toISOString() || new Date().toISOString(),
-      transactions: (data.transactions || []).map((tx: any) => ({
-          ...tx,
-          date: (tx.date as Timestamp)?.toDate().toISOString() || new Date().toISOString(),
-      })),
-    } as User;
-  }
-  return null;
+    const userDocRef = doc(firestore, 'users', uid);
+    const userDoc = await getDoc(userDocRef);
+    if (userDoc.exists()) {
+        const data = userDoc.data();
+        // Convert Timestamps to ISO strings
+        return {
+            ...data,
+            createdAt: (data.createdAt as Timestamp)?.toDate().toISOString() || new Date().toISOString(),
+            transactions: (data.transactions || []).map((tx: any) => ({
+                ...tx,
+                date: (tx.date as Timestamp)?.toDate().toISOString() || new Date().toISOString(),
+            })),
+        } as User;
+    }
+    return null;
 };
 
 export const createUserProfile = async (
-  uid: string,
-  email: string,
-  plan: 'payg' | 'pro',
-  name?: string,
-  contactNumber?: string
+    uid: string,
+    email: string,
+    plan: 'payg' | 'pro',
+    name?: string,
+    contactNumber?: string
 ): Promise<User> => {
-  const existingUser = await getUserProfile(uid);
-  if (existingUser) {
-    return existingUser;
-  }
+    const existingUser = await getUserProfile(uid);
+    if (existingUser) {
+        return existingUser;
+    }
 
-  const clientTimestamp = new Date().toISOString();
-  const newUser: User = {
-    uid,
-    email,
-    name: name || '',
-    contactNumber: contactNumber || '',
-    plan,
-    creditBalance: 0,
-    transactions: [],
-    profile: {
-      companyName: '',
-      industry: '',
-    },
-    createdAt: clientTimestamp, // Use client time for the immediate return
-  };
+    const clientTimestamp = new Date().toISOString();
+    const newUser: User = {
+        uid,
+        email,
+        name: name || '',
+        contactNumber: contactNumber || '',
+        plan,
+        creditBalance: 0,
+        transactions: [],
+        profile: {
+            companyName: '',
+            industry: '',
+        },
+        createdAt: clientTimestamp, // Use client time for the immediate return
+    };
 
-  await setDoc(doc(firestore, 'users', uid), {
-    ...newUser,
-    createdAt: serverTimestamp(), // Write server time to Firestore
-  });
-
-  if (email !== 'admin@hrcopilot.co.za') {
-    await createAdminNotification({
-        type: 'new_user',
-        message: `New ${plan.toUpperCase()} user signed up: ${email}`,
-        relatedUserId: uid,
+    await setDoc(doc(firestore, 'users', uid), {
+        ...newUser,
+        createdAt: serverTimestamp(), // Write server time to Firestore
     });
-  }
 
-  return newUser;
+    if (email !== 'admin@hrcopilot.co.za') {
+        await createAdminNotification({
+            type: 'new_user',
+            message: `New ${plan.toUpperCase()} user signed up: ${email}`,
+            relatedUserId: uid,
+        });
+    }
+
+    return newUser;
 };
 
 export const updateUser = async (uid: string, userData: Partial<User>): Promise<void> => {
@@ -132,7 +133,7 @@ export const addTransactionToUser = async (uid: string, transaction: Omit<Transa
     const userDocRef = doc(firestore, 'users', uid);
     const user = await getUserProfile(uid);
     if (!user) return;
-    
+
     let discountDetails: Transaction['discount'] | undefined = undefined;
     let finalAmount = Number(transaction.amount);
 
@@ -141,30 +142,30 @@ export const addTransactionToUser = async (uid: string, transaction: Omit<Transa
         if (couponRes.valid && couponRes.coupon) {
             const coupon = couponRes.coupon;
             let discountAmount = 0;
-            
+
             if (coupon.type === 'percentage') {
                 discountAmount = (Math.abs(finalAmount) * coupon.value) / 100;
-            } else { 
+            } else {
                 discountAmount = coupon.value;
             }
-            
+
             if (finalAmount < 0) {
                 finalAmount += discountAmount;
             } else {
                 finalAmount += discountAmount;
             }
-            
+
             discountDetails = { couponCode: coupon.code, amount: discountAmount };
-            
+
             await updateDoc(doc(firestore, 'coupons', coupon.id), {
                 uses: increment(1)
             });
         }
     }
-    
+
     const newTransaction: Omit<Transaction, 'id'> = {
         ...transaction,
-        amount: finalAmount, 
+        amount: finalAmount,
         date: new Date().toISOString(),
         userId: uid,
         userEmail: user.email,
@@ -172,7 +173,7 @@ export const addTransactionToUser = async (uid: string, transaction: Omit<Transa
     };
 
     const updates: any = {
-      transactions: arrayUnion({ ...newTransaction, date: serverTimestamp() }),
+        transactions: arrayUnion({ ...newTransaction, date: serverTimestamp() }),
     };
 
     if (transaction.description !== 'HR CoPilot Pro Subscription (12 months)') {
@@ -200,8 +201,8 @@ export const saveGeneratedDocument = async (uid: string, docData: GeneratedDocum
     const { id, ...dataToSave } = docData;
     const docRef = doc(firestore, 'users', uid, 'generatedDocuments', id);
     await setDoc(docRef, {
-      ...dataToSave,
-      createdAt: serverTimestamp(),
+        ...dataToSave,
+        createdAt: serverTimestamp(),
     }, { merge: true });
 };
 
@@ -229,7 +230,7 @@ export const updateUserByAdmin = async (adminEmail: string, targetUid: string, u
         targetUserEmail: user.email,
         details: { updates }
     });
-    
+
     return { ...user, ...updates };
 }
 
@@ -258,7 +259,7 @@ export const adjustUserCreditByAdmin = async (adminEmail: string, targetUid: str
         targetUserEmail: user.email,
         details: { amountInCents, reason }
     });
-    
+
     return await getUserProfile(targetUid);
 };
 
@@ -266,7 +267,7 @@ export const changeUserPlanByAdmin = async (adminEmail: string, targetUid: strin
     const userDocRef = doc(firestore, 'users', targetUid);
     const user = await getUserProfile(targetUid);
     if (!user) return null;
-    
+
     const oldPlan = user.plan;
     await updateDoc(userDocRef, { plan: newPlan });
 
@@ -297,7 +298,7 @@ export const simulateFailedPaymentForUser = async (adminEmail: string, targetUid
 };
 
 export const getAllUsers = async (pageSize: number, startAfterDoc?: QueryDocumentSnapshot): Promise<{ data: User[], lastVisible: QueryDocumentSnapshot | null }> => {
-    const constraints = [orderBy('createdAt', 'desc'), limit(pageSize)];
+    const constraints: QueryConstraint[] = [orderBy('createdAt', 'desc'), limit(pageSize)];
     if (startAfterDoc) {
         constraints.push(startAfter(startAfterDoc));
     }
@@ -306,15 +307,15 @@ export const getAllUsers = async (pageSize: number, startAfterDoc?: QueryDocumen
     const data = querySnapshot.docs.map(doc => {
         const docData = doc.data();
         return {
-          ...docData,
-          createdAt: (docData.createdAt as Timestamp)?.toDate().toISOString() || new Date().toISOString(),
+            ...docData,
+            createdAt: (docData.createdAt as Timestamp)?.toDate().toISOString() || new Date().toISOString(),
         } as User;
     });
     return { data, lastVisible: querySnapshot.docs[querySnapshot.docs.length - 1] || null };
 };
 
 export const getAllDocumentsForAllUsers = async (pageSize: number, startAfterDoc?: QueryDocumentSnapshot): Promise<{ data: GeneratedDocument[], lastVisible: QueryDocumentSnapshot | null }> => {
-    const constraints = [orderBy('createdAt', 'desc'), limit(pageSize)];
+    const constraints: QueryConstraint[] = [orderBy('createdAt', 'desc'), limit(pageSize)];
     if (startAfterDoc) {
         constraints.push(startAfter(startAfterDoc));
     }
@@ -329,7 +330,7 @@ export const getAllDocumentsForAllUsers = async (pageSize: number, startAfterDoc
 };
 
 export const getAdminActionLogs = async (pageSize: number, startAfterDoc?: QueryDocumentSnapshot): Promise<{ data: AdminActionLog[], lastVisible: QueryDocumentSnapshot | null }> => {
-    const constraints = [orderBy('timestamp', 'desc'), limit(pageSize)];
+    const constraints: QueryConstraint[] = [orderBy('timestamp', 'desc'), limit(pageSize)];
     if (startAfterDoc) {
         constraints.push(startAfter(startAfterDoc));
     }
@@ -455,7 +456,7 @@ export const validateCoupon = async (uid: string, code: string): Promise<{ valid
     const querySnapshot = await getDocs(q);
 
     if (querySnapshot.empty) return { valid: false, message: 'Coupon not found.' };
-    
+
     const couponDoc = querySnapshot.docs[0];
     const coupon = { id: couponDoc.id, ...couponDoc.data() } as Coupon;
 
@@ -471,6 +472,6 @@ export const validateCoupon = async (uid: string, code: string): Promise<{ valid
     if (Array.isArray(coupon.applicableTo) && coupon.applicableTo.length > 0 && !coupon.applicableTo.includes(uid)) {
         return { valid: false, message: 'This coupon is not valid for your account.' };
     }
-    
+
     return { valid: true, message: 'Coupon applied successfully!', coupon };
 };

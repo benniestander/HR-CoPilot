@@ -32,60 +32,62 @@ const PaygPaymentPage = lazy(() => import('./components/PaygPaymentPage'));
 
 
 const AppContent: React.FC = () => {
-    const { 
-      user, 
-      unverifiedUser, 
-      isAdmin, 
-      isLoading, 
-      handleLogout, 
-      authPage, 
-      setAuthPage,
-      authEmail,
-      authFlow,
-      needsOnboarding, 
-      onboardingSkipped, 
-      handleSkipOnboarding,
-      handleGoToProfileSetup,
-      isSubscribed
+    const {
+        user,
+        unverifiedUser,
+        isAdmin,
+        isLoading,
+        handleLogout,
+        authPage,
+        setAuthPage,
+        authEmail,
+        authFlow,
+        needsOnboarding,
+        onboardingSkipped,
+        handleSkipOnboarding,
+        handleGoToProfileSetup,
+        isSubscribed,
+        handleStartAuthFlow,
+        handleStartGoogleAuthFlow
     } = useAuthContext();
 
     const {
-      paginatedUsers,
-// FIX: Remove userPage, docPage, and logPage which are no longer part of the DataContextType
-      handleNextUsers,
-      handlePrevUsers,
-      paginatedDocuments,
-      handleNextDocs,
-      handlePrevDocs,
-      transactionsForUserPage,
-      paginatedLogs,
-      handleNextLogs,
-      handlePrevLogs,
-      adminNotifications,
-      allCoupons,
-      handleInitialProfileSubmit,
-      adminActions,
-      handleMarkNotificationRead,
-      handleMarkAllNotificationsRead,
-      handleSubscriptionSuccess,
-      handleTopUpSuccess,
-      handleDocumentGenerated,
-      handleValidateCoupon
+        paginatedUsers,
+        // FIX: Remove userPage, docPage, and logPage which are no longer part of the DataContextType
+        handleNextUsers,
+        handlePrevUsers,
+        paginatedDocuments,
+        handleNextDocs,
+        handlePrevDocs,
+        transactionsForUserPage,
+        paginatedLogs,
+        handleNextLogs,
+        handlePrevLogs,
+        adminNotifications,
+        allCoupons,
+        handleInitialProfileSubmit,
+        adminActions,
+        handleMarkNotificationRead,
+        handleMarkAllNotificationsRead,
+        handleSubscriptionSuccess,
+        handleTopUpSuccess,
+        handleDocumentGenerated,
+        handleValidateCoupon
     } = useDataContext();
 
     const {
-      currentView,
-      navigateTo,
-      selectedItem,
-      setSelectedItem,
-      documentToView,
-      setDocumentToView,
-      toastMessage,
-      setToastMessage,
-      isNotificationPanelOpen,
-      setNotificationPanelOpen,
-      showOnboardingWalkthrough,
-      setShowOnboardingWalkthrough
+        currentView,
+        navigateTo,
+        selectedItem,
+        setSelectedItem,
+        documentToView,
+        setDocumentToView,
+        toastMessage,
+        setToastMessage,
+        isNotificationPanelOpen,
+        setNotificationPanelOpen,
+        showOnboardingWalkthrough,
+        setShowOnboardingWalkthrough
     } = useUIContext();
 
     const { legalModalContent, showLegalModal, confirmation, hideConfirmationModal } = useModalContext();
@@ -130,7 +132,7 @@ const AppContent: React.FC = () => {
         setSelectedItem(null);
         setDocumentToView(null);
     }
-    
+
     const AuthHeader = ({ isAdminHeader = false }: { isAdminHeader?: boolean }) => {
         const unreadCount = adminNotifications.filter(n => !n.isRead).length;
 
@@ -190,91 +192,91 @@ const AppContent: React.FC = () => {
     };
 
     const AppFooter = () => (
-      <footer className="bg-secondary text-white py-8">
-          <div className="container mx-auto px-6 text-center">
-              <img 
-              src="https://i.postimg.cc/h48FMCNY/edited-image-11-removebg-preview.png" 
-              alt="HR CoPilot Logo" 
-              className="h-10 mx-auto mb-4"
-              />
-               <div className="flex justify-center space-x-6 mb-4">
-                  <button onClick={() => showLegalModal('Privacy Policy', PRIVACY_POLICY_CONTENT)} className="text-sm text-gray-300 hover:text-white hover:underline">
-                    Privacy Policy
-                  </button>
-                  <button onClick={() => showLegalModal('Terms of Use', TERMS_OF_USE_CONTENT)} className="text-sm text-gray-300 hover:text-white hover:underline">
-                    Terms of Use
-                  </button>
-              </div>
-              <p className="text-sm text-gray-300">
-                  © {new Date().getFullYear()} HR CoPilot. All rights reserved.
-              </p>
-          </div>
-      </footer>
-  );
+        <footer className="bg-secondary text-white py-8">
+            <div className="container mx-auto px-6 text-center">
+                <img
+                    src="https://i.postimg.cc/h48FMCNY/edited-image-11-removebg-preview.png"
+                    alt="HR CoPilot Logo"
+                    className="h-10 mx-auto mb-4"
+                />
+                <div className="flex justify-center space-x-6 mb-4">
+                    <button onClick={() => showLegalModal('Privacy Policy', PRIVACY_POLICY_CONTENT)} className="text-sm text-gray-300 hover:text-white hover:underline">
+                        Privacy Policy
+                    </button>
+                    <button onClick={() => showLegalModal('Terms of Use', TERMS_OF_USE_CONTENT)} className="text-sm text-gray-300 hover:text-white hover:underline">
+                        Terms of Use
+                    </button>
+                </div>
+                <p className="text-sm text-gray-300">
+                    © {new Date().getFullYear()} HR CoPilot. All rights reserved.
+                </p>
+            </div>
+        </footer>
+    );
 
     const renderDashboardContent = () => {
-      switch (currentView) {
-          case 'dashboard':
-              return <Dashboard 
-                          onStartUpdate={() => navigateTo('updater')}
-                          onStartChecklist={() => navigateTo('checklist')}
-                          showOnboardingWalkthrough={showOnboardingWalkthrough}
-                          onCloseWalkthrough={handleCloseWalkthrough}
-                          onGoToProfileSetup={handleGoToProfileSetup}
-                      />;
-          case 'generator':
-              if (!selectedItem || !user) {
-                  handleBackToDashboard();
-                  return null;
-              }
-              return <GeneratorPage 
-                          selectedItem={selectedItem}
-                          initialData={documentToView}
-                          userProfile={user.profile}
-                          onDocumentGenerated={handleDocumentGenerated}
-                          onBack={handleBackToDashboard}
-                      />;
-          case 'updater':
-              return <PolicyUpdater 
-                          onBack={handleBackToDashboard}
-                      />;
-          case 'checklist':
-              if (!user) { handleBackToDashboard(); return null; }
-              return <ComplianceChecklist
-                          userProfile={user.profile}
-                          onBack={handleBackToDashboard}
-                      />;
-          case 'profile':
-              if (!user) { handleBackToDashboard(); return null; }
-              return <ProfilePage 
-                          onBack={handleBackToDashboard}
-                          onUpgrade={() => navigateTo('upgrade')}
-                          onGoToTopUp={() => navigateTo('topup')}
-                      />;
-          case 'upgrade':
-               if (!user) { handleBackToDashboard(); return null; }
-               return <SubscriptionPage
-                          onSuccess={handleSubscriptionSuccess}
-                          onCancel={handleBackToDashboard}
-                          onValidateCoupon={handleValidateCoupon}
-                      />;
-          case 'topup':
-              if (!user || user.plan !== 'payg') { handleBackToDashboard(); return null; }
-              return <PaygPaymentPage
-                          onTopUpSuccess={handleTopUpSuccess}
-                          onCancel={handleBackToDashboard}
-                          onUpgrade={() => navigateTo('upgrade')}
-                          onValidateCoupon={handleValidateCoupon}
-                      />;
-          default:
-               return <Dashboard 
-                          onStartUpdate={() => navigateTo('updater')}
-                          onStartChecklist={() => navigateTo('checklist')}
-                          showOnboardingWalkthrough={showOnboardingWalkthrough}
-                          onCloseWalkthrough={handleCloseWalkthrough}
-                          onGoToProfileSetup={handleGoToProfileSetup}
-                      />;
-      }
+        switch (currentView) {
+            case 'dashboard':
+                return <Dashboard
+                    onStartUpdate={() => navigateTo('updater')}
+                    onStartChecklist={() => navigateTo('checklist')}
+                    showOnboardingWalkthrough={showOnboardingWalkthrough}
+                    onCloseWalkthrough={handleCloseWalkthrough}
+                    onGoToProfileSetup={handleGoToProfileSetup}
+                />;
+            case 'generator':
+                if (!selectedItem || !user) {
+                    handleBackToDashboard();
+                    return null;
+                }
+                return <GeneratorPage
+                    selectedItem={selectedItem}
+                    initialData={documentToView}
+                    userProfile={user.profile}
+                    onDocumentGenerated={handleDocumentGenerated}
+                    onBack={handleBackToDashboard}
+                />;
+            case 'updater':
+                return <PolicyUpdater
+                    onBack={handleBackToDashboard}
+                />;
+            case 'checklist':
+                if (!user) { handleBackToDashboard(); return null; }
+                return <ComplianceChecklist
+                    userProfile={user.profile}
+                    onBack={handleBackToDashboard}
+                />;
+            case 'profile':
+                if (!user) { handleBackToDashboard(); return null; }
+                return <ProfilePage
+                    onBack={handleBackToDashboard}
+                    onUpgrade={() => navigateTo('upgrade')}
+                    onGoToTopUp={() => navigateTo('topup')}
+                />;
+            case 'upgrade':
+                if (!user) { handleBackToDashboard(); return null; }
+                return <SubscriptionPage
+                    onSuccess={handleSubscriptionSuccess}
+                    onCancel={handleBackToDashboard}
+                    onValidateCoupon={handleValidateCoupon}
+                />;
+            case 'topup':
+                if (!user || user.plan !== 'payg') { handleBackToDashboard(); return null; }
+                return <PaygPaymentPage
+                    onTopUpSuccess={handleTopUpSuccess}
+                    onCancel={handleBackToDashboard}
+                    onUpgrade={() => navigateTo('upgrade')}
+                    onValidateCoupon={handleValidateCoupon}
+                />;
+            default:
+                return <Dashboard
+                    onStartUpdate={() => navigateTo('updater')}
+                    onStartChecklist={() => navigateTo('checklist')}
+                    showOnboardingWalkthrough={showOnboardingWalkthrough}
+                    onCloseWalkthrough={handleCloseWalkthrough}
+                    onGoToProfileSetup={handleGoToProfileSetup}
+                />;
+        }
     }
 
     const renderPage = () => {
@@ -323,9 +325,19 @@ const AppContent: React.FC = () => {
                 return <Login />;
             }
 
-            return <Suspense fallback={<FullPageLoader />}><PlanSelectionPage /></Suspense>;
+            return (
+                <Suspense fallback={<FullPageLoader />}>
+                    <PlanSelectionPage
+                        onStartAuthFlow={handleStartAuthFlow}
+                        onStartGoogleAuthFlow={handleStartGoogleAuthFlow}
+                        onShowLogin={() => setAuthPage('login')}
+                        onShowPrivacyPolicy={() => showLegalModal('Privacy Policy', PRIVACY_POLICY_CONTENT)}
+                        onShowTerms={() => showLegalModal('Terms of Use', TERMS_OF_USE_CONTENT)}
+                    />
+                </Suspense>
+            );
         }
-        
+
         if (user.plan === 'pro' && !isSubscribed) {
             return (
                 <Suspense fallback={<FullPageLoader />}>
