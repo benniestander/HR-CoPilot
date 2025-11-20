@@ -1,15 +1,14 @@
-
-
 import React, { useState } from 'react';
 import { FORM_CATEGORIES } from '../constants';
 import type { Form } from '../types';
 import { SearchIcon, WordIcon, ExcelIcon } from './Icons';
+import { useAuthContext } from '../contexts/AuthContext';
 
 interface FormSelectorProps {
   onSelectForm: (form: Form) => void;
 }
 
-const FormCard: React.FC<{ form: Form; onSelect: () => void; }> = ({ form, onSelect }) => {
+const FormCard: React.FC<{ form: Form; onSelect: () => void; showPrice: boolean }> = ({ form, onSelect, showPrice }) => {
   const isExcel = form.outputFormat === 'excel';
   
   return (
@@ -39,9 +38,11 @@ const FormCard: React.FC<{ form: Form; onSelect: () => void; }> = ({ form, onSel
         <h3 className="text-xl font-bold text-secondary mb-2 pr-8">{form.title}</h3>
       </div>
       <p className="text-gray-600 flex-grow">{form.description}</p>
-       <div className="mt-4 pt-4 border-t border-gray-100">
-          <p className="text-lg font-bold text-primary">R{(form.price / 100).toFixed(2)}</p>
-        </div>
+       {showPrice && (
+         <div className="mt-4 pt-4 border-t border-gray-100">
+            <p className="text-lg font-bold text-primary">R{(form.price / 100).toFixed(2)}</p>
+          </div>
+       )}
     </div>
   );
 };
@@ -49,6 +50,8 @@ const FormCard: React.FC<{ form: Form; onSelect: () => void; }> = ({ form, onSel
 
 const FormSelector: React.FC<FormSelectorProps> = ({ onSelectForm }) => {
   const [searchTerm, setSearchTerm] = useState('');
+  const { user } = useAuthContext();
+  const showPrice = user?.plan !== 'pro';
 
   const searchWords = searchTerm.toLowerCase().split(' ').filter(word => word.length > 0);
 
@@ -88,6 +91,7 @@ const FormSelector: React.FC<FormSelectorProps> = ({ onSelectForm }) => {
                     key={form.type}
                     form={form}
                     onSelect={() => onSelectForm(form)}
+                    showPrice={showPrice}
                   />
                 ))}
               </div>

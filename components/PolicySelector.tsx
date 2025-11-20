@@ -2,12 +2,13 @@ import React, { useState } from 'react';
 import { POLICY_CATEGORIES, INDUSTRIES } from '../constants';
 import type { Policy } from '../types';
 import { SearchIcon } from './Icons';
+import { useAuthContext } from '../contexts/AuthContext';
 
 interface PolicySelectorProps {
   onSelectPolicy: (policy: Policy) => void;
 }
 
-const PolicyCard: React.FC<{ policy: Policy; onSelect: () => void; }> = ({ policy, onSelect }) => (
+const PolicyCard: React.FC<{ policy: Policy; onSelect: () => void; showPrice: boolean }> = ({ policy, onSelect, showPrice }) => (
   <div
     onClick={onSelect}
     onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && onSelect()}
@@ -21,9 +22,11 @@ const PolicyCard: React.FC<{ policy: Policy; onSelect: () => void; }> = ({ polic
       <h3 className="text-xl font-bold text-secondary mb-2">{policy.title}</h3>
     </div>
     <p className="text-gray-600 flex-grow">{policy.description}</p>
-    <div className="mt-4 pt-4 border-t border-gray-100">
-      <p className="text-lg font-bold text-primary">R{(policy.price / 100).toFixed(2)}</p>
-    </div>
+    {showPrice && (
+      <div className="mt-4 pt-4 border-t border-gray-100">
+        <p className="text-lg font-bold text-primary">R{(policy.price / 100).toFixed(2)}</p>
+      </div>
+    )}
   </div>
 );
 
@@ -31,6 +34,8 @@ const PolicyCard: React.FC<{ policy: Policy; onSelect: () => void; }> = ({ polic
 const PolicySelector: React.FC<PolicySelectorProps> = ({ onSelectPolicy }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedIndustry, setSelectedIndustry] = useState('All');
+  const { user } = useAuthContext();
+  const showPrice = user?.plan !== 'pro';
 
   const categorizedAndFiltered = POLICY_CATEGORIES.map(category => {
     const searchWords = searchTerm.toLowerCase().split(' ').filter(word => word.length > 0);
@@ -105,6 +110,7 @@ const PolicySelector: React.FC<PolicySelectorProps> = ({ onSelectPolicy }) => {
                     key={policy.type}
                     policy={policy}
                     onSelect={() => onSelectPolicy(policy)}
+                    showPrice={showPrice}
                   />
                 ))}
               </div>
