@@ -318,7 +318,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
             } catch (error: any) {
                 console.error(error);
                 if (error.message && error.message.includes('row-level security')) {
-                     setToastMessage("DB Error: Missing RLS Policy. Check services/supabase.ts for SQL.");
+                     setToastMessage("Database permission denied. Please run the SQL fix in services/supabase.ts.");
                 } else {
                      setToastMessage(`Failed to create coupon: ${error.message}`);
                 }
