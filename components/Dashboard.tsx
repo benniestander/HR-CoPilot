@@ -28,6 +28,9 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartUpdate, onStartChecklist, 
 
   const [activeTab, setActiveTab] = useState<'policies' | 'forms'>('policies');
   const [isHowToUseModalOpen, setIsHowToUseModalOpen] = useState(false);
+  
+  // Profile Incomplete Modal
+  const [profileIncompleteModalOpen, setProfileIncompleteModalOpen] = useState(false);
 
   // PAYG Confirmation State
   const [paygModalState, setPaygModalState] = useState<{
@@ -43,6 +46,17 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartUpdate, onStartChecklist, 
   };
 
   const onSelectItem = (item: Policy | Form) => {
+    // Logic for Pro users
+    if (user?.plan === 'pro') {
+        // Check if profile is complete
+        if (!user.profile.companyName || !user.profile.industry) {
+            setProfileIncompleteModalOpen(true);
+            return;
+        }
+        proceedToGenerator(item);
+        return;
+    }
+
     // Logic for PAYG users
     if (user?.plan === 'payg') {
         const price = Number(item.price);
@@ -64,7 +78,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartUpdate, onStartChecklist, 
         return;
     }
 
-    // Logic for Pro users (or fallback)
+    // Fallback (e.g. admin or undefined plan)
     proceedToGenerator(item);
   };
 
@@ -102,7 +116,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartUpdate, onStartChecklist, 
                 </div>
             </div>
             <button 
-                onClick={onGoToProfileSetup} 
+                onClick={() => navigateTo('profile')} 
                 className="bg-yellow-500 text-white font-semibold py-2 px-4 rounded-md hover:bg-yellow-600 transition-colors flex-shrink-0 self-start sm:self-center"
             >
                 Complete Profile Now
@@ -259,6 +273,17 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartUpdate, onStartChecklist, 
         <HowToUseModal
             isOpen={isHowToUseModalOpen}
             onClose={() => setIsHowToUseModalOpen(false)}
+        />
+        
+        {/* Profile Incomplete Confirmation Modal */}
+        <ConfirmationModal
+            isOpen={profileIncompleteModalOpen}
+            title="Incomplete Profile"
+            message="As a Pro user, please complete your Company Profile (Company Name and Industry) before generating documents. This ensures all your documents are automatically personalized and legally compliant."
+            confirmText="Go to Profile"
+            cancelText="Cancel"
+            onConfirm={() => { setProfileIncompleteModalOpen(false); navigateTo('profile'); }}
+            onCancel={() => setProfileIncompleteModalOpen(false)}
         />
 
         {/* PAYG Confirmation Modal - Sufficient Funds */}

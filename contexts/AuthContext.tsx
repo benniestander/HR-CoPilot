@@ -42,9 +42,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const [showOnboardingWalkthrough, setShowOnboardingWalkthrough] = useState(false);
     
     const [isSubscribed, setIsSubscribed] = useState(false);
+    
     React.useEffect(() => {
         if (user) {
-            setIsSubscribed(user.plan === 'pro');
+            if (user.plan === 'pro') {
+                // Strictly check for a transaction indicating a subscription payment or admin grant
+                const hasPayment = user.transactions?.some(tx => 
+                   tx.description.toLowerCase().includes('subscription') || 
+                   tx.description.toLowerCase().includes('pro plan')
+                );
+                setIsSubscribed(!!hasPayment);
+            } else {
+                setIsSubscribed(false);
+            }
         } else {
             setIsSubscribed(false);
         }

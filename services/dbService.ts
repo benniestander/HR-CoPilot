@@ -183,6 +183,8 @@ export const addTransactionToUser = async (uid: string, transaction: Omit<Transa
     if (txError) throw txError;
 
     // 2. Update User Balance (only if not subscription)
+    // Note: Subscription transactions usually have a large negative amount, but balances aren't tracked for Pro users typically.
+    // However, we still update it to keep records consistent.
     if (transaction.description !== 'HR CoPilot Pro Subscription (12 months)') {
         const { data: profile, error: fetchError } = await supabase.from('profiles').select('credit_balance').eq('id', uid).single();
         if (fetchError) throw fetchError;
@@ -303,6 +305,14 @@ export const changeUserPlanByAdmin = async (adminEmail: string, targetUid: strin
     const oldPlan = user.plan;
     await supabase.from('profiles').update({ plan: newPlan }).eq('id', targetUid);
 
+    // If changing to Pro, add a transaction so "isSubscribed" check passes (which requires a transaction record)
+    if (newPlan === 'pro') {
+        await addTransactionToUser(targetUid, {
+            description: 'Pro Plan (Admin Grant)',
+            amount: 0
+        });
+    }
+
     await logAdminAction({
         adminEmail,
         action: 'Changed User Plan',
@@ -310,8 +320,9 @@ export const changeUserPlanByAdmin = async (adminEmail: string, targetUid: strin
         targetUserEmail: user.email,
         details: { from: oldPlan, to: newPlan }
     });
-
-    return { ...user, plan: newPlan };
+    
+    // Refetch user to get updated plan and transaction list
+    return await getUserProfile(targetUid);
 };
 
 export const simulateFailedPaymentForUser = async (adminEmail: string, targetUid: string, targetUserEmail: string): Promise<void> => {
