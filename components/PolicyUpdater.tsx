@@ -4,6 +4,7 @@ import type { GeneratedDocument, PolicyUpdateResult } from '../types';
 import { LoadingIcon, UpdateIcon, CheckIcon, HistoryIcon } from './Icons';
 import ConfirmationModal from './ConfirmationModal';
 import { useDataContext } from '../contexts/DataContext';
+import { useUIContext } from '../contexts/UIContext';
 
 // Simple Diffing function (line-based)
 const createDiff = (original: string, updated: string) => {
@@ -71,6 +72,7 @@ type HistoryItem = { version: number; createdAt: string; content: string };
 
 const PolicyUpdater: React.FC<PolicyUpdaterProps> = ({ onBack }) => {
   const { generatedDocuments, handleDocumentGenerated } = useDataContext();
+  const { setToastMessage } = useUIContext();
   const [step, setStep] = useState<'select' | 'chooseMethod' | 'review'>('select');
   const [selectedDocId, setSelectedDocId] = useState('');
   const [updateMethod, setUpdateMethod] = useState<'ai' | 'manual' | null>(null);
@@ -80,6 +82,7 @@ const PolicyUpdater: React.FC<PolicyUpdaterProps> = ({ onBack }) => {
   const [error, setError] = useState<string | null>(null);
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
   const [selectedHistoryItem, setSelectedHistoryItem] = useState<HistoryItem | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
   const [confirmation, setConfirmation] = useState<{
       title: string;
       message: React.ReactNode;
@@ -112,15 +115,22 @@ const PolicyUpdater: React.FC<PolicyUpdaterProps> = ({ onBack }) => {
     }
   };
   
-  const handleConfirmAndSave = () => {
+  const handleConfirmAndSave = async () => {
     if (!updateResult || !selectedDocument) return;
 
+    setIsSaving(true);
     const newDoc: GeneratedDocument = {
       ...selectedDocument,
       content: updateResult.updatedPolicyText,
     };
 
-    handleDocumentGenerated(newDoc, selectedDocument.id);
+    try {
+        await handleDocumentGenerated(newDoc, selectedDocument.id);
+    } catch (error: any) {
+        setToastMessage(`Failed to save update: ${error.message}`);
+    } finally {
+        setIsSaving(false);
+    }
   };
 
   const handleViewHistoryItem = (item: HistoryItem) => {
@@ -134,14 +144,19 @@ const PolicyUpdater: React.FC<PolicyUpdaterProps> = ({ onBack }) => {
     setConfirmation({
         title: "Revert to Previous Version",
         message: `Are you sure you want to revert to Version ${historyItem.version}? Your current version (${selectedDocument.version}) will be archived, and this content will become the new latest version.`,
-        onConfirm: () => {
+        onConfirm: async () => {
             const revertedDoc: GeneratedDocument = {
                 ...selectedDocument,
                 content: historyItem.content,
             };
-            handleDocumentGenerated(revertedDoc, selectedDocument.id);
-            setIsHistoryModalOpen(false);
-            setConfirmation(null);
+            setIsSaving(true); // Reusing isSaving for revert loading state if needed
+            try {
+                await handleDocumentGenerated(revertedDoc, selectedDocument.id);
+                setIsHistoryModalOpen(false);
+                setConfirmation(null);
+            } finally {
+                setIsSaving(false);
+            }
         }
     });
   };
@@ -302,10 +317,9 @@ const PolicyUpdater: React.FC<PolicyUpdaterProps> = ({ onBack }) => {
                 </div>
             </div>
             <div className="mt-8 flex justify-between items-center bg-white p-4 rounded-lg shadow-md">
-                 <button onClick={() => { setUpdateResult(null); setStatus('idle'); setStep('chooseMethod'); }} className="text-sm font-semibold text-gray-600 hover:text-primary">Go Back & Edit</button>
-                 <button onClick={handleConfirmAndSave} className="bg-green-600 text-white font-bold py-3 px-6 rounded-md hover:bg-green-700 transition-colors flex items-center">
-                    <CheckIcon className="w-5 h-5 mr-2" />
-                    Confirm & Save New Version
+                 <button onClick={() => { setUpdateResult(null); setStatus('idle'); setStep('chooseMethod'); }} disabled={isSaving} className="text-sm font-semibold text-gray-600 hover:text-primary disabled:opacity-50">Go Back & Edit</button>
+                 <button onClick={handleConfirmAndSave} disabled={isSaving} className="bg-green-600 text-white font-bold py-3 px-6 rounded-md hover:bg-green-700 transition-colors flex items-center disabled:bg-gray-400 disabled:cursor-not-allowed">
+                    {isSaving ? <><LoadingIcon className="animate-spin -ml-1 mr-2 h-5 w-5 text-white" /> Saving...</> : <><CheckIcon className="w-5 h-5 mr-2" /> Confirm & Save New Version</>}
                  </button>
             </div>
         </div>
@@ -354,7 +368,8 @@ const PolicyUpdater: React.FC<PolicyUpdaterProps> = ({ onBack }) => {
            <div className="p-4 bg-gray-100 border-t border-gray-200 flex justify-between items-center">
             <button
                 onClick={() => handleRevertToVersion(selectedHistoryItem)}
-                className="px-4 py-2 rounded-md text-white bg-amber-600 hover:bg-amber-700 transition flex items-center text-sm font-semibold"
+                disabled={isSaving}
+                className="px-4 py-2 rounded-md text-white bg-amber-600 hover:bg-amber-700 transition flex items-center text-sm font-semibold disabled:bg-gray-400"
             >
                 <HistoryIcon className="w-5 h-5 mr-2" />
                 Revert to this Version

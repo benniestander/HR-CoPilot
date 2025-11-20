@@ -1,14 +1,17 @@
 import React, { useState } from 'react';
 import { INDUSTRIES } from '../constants';
 import type { CompanyProfile } from '../types';
+import { useUIContext } from '../contexts/UIContext';
+import { LoadingIcon } from './Icons';
 
 interface InitialProfileSetupProps {
-  onProfileSubmit: (profileData: CompanyProfile) => void;
+  onProfileSubmit: (profileData: CompanyProfile) => Promise<void>;
   userEmail: string;
   onSkip: () => void;
 }
 
 const InitialProfileSetup: React.FC<InitialProfileSetupProps> = ({ onProfileSubmit, userEmail, onSkip }) => {
+    const { setToastMessage } = useUIContext();
     const [formData, setFormData] = useState<CompanyProfile>({
         companyName: '',
         industry: '',
@@ -19,6 +22,7 @@ const InitialProfileSetup: React.FC<InitialProfileSetupProps> = ({ onProfileSubm
     });
     const [errors, setErrors] = useState<Partial<Record<keyof CompanyProfile, string>>>({});
     const [touched, setTouched] = useState<Partial<Record<keyof CompanyProfile, boolean>>>({});
+    const [isSaving, setIsSaving] = useState(false);
 
     const validateField = (name: keyof CompanyProfile, value: string) => {
         let error = '';
@@ -47,7 +51,7 @@ const InitialProfileSetup: React.FC<InitialProfileSetupProps> = ({ onProfileSubm
         }
     };
     
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         
         const allTouched = Object.keys(formData).reduce((acc, key) => {
@@ -61,7 +65,15 @@ const InitialProfileSetup: React.FC<InitialProfileSetupProps> = ({ onProfileSubm
         );
         
         if (isFormValid) {
-            onProfileSubmit(formData);
+            setIsSaving(true);
+            try {
+                await onProfileSubmit(formData);
+            } catch (error: any) {
+                console.error("Error saving profile:", error);
+                setToastMessage("Failed to save profile. Please try again.");
+            } finally {
+                setIsSaving(false);
+            }
         }
     };
 
@@ -125,14 +137,15 @@ const InitialProfileSetup: React.FC<InitialProfileSetupProps> = ({ onProfileSubm
                              <textarea id="summary" name="summary" rows={3} value={formData.summary} onChange={handleInputChange} onBlur={handleBlur} placeholder="e.g., A leading provider of widgets in the manufacturing sector, committed to quality and innovation." className={`mt-1 w-full p-3 border rounded-md shadow-sm focus:ring-primary focus:border-primary border-gray-300`}></textarea>
                            </div>
 
-                            <button type="submit" className="w-full bg-primary text-white font-bold py-3 px-4 rounded-md hover:bg-opacity-90 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors flex items-center justify-center">
-                                Save & Continue
+                            <button type="submit" disabled={isSaving} className="w-full bg-primary text-white font-bold py-3 px-4 rounded-md hover:bg-opacity-90 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors flex items-center justify-center">
+                                {isSaving ? <><LoadingIcon className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" /> Saving...</> : 'Save & Continue'}
                             </button>
                              <div className="text-center mt-4">
                                 <button
                                     type="button"
                                     onClick={onSkip}
-                                    className="text-sm font-semibold text-gray-600 hover:text-primary hover:underline"
+                                    disabled={isSaving}
+                                    className="text-sm font-semibold text-gray-600 hover:text-primary hover:underline disabled:opacity-50"
                                 >
                                     Complete profile later
                                 </button>

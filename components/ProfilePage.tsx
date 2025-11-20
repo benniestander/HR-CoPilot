@@ -38,6 +38,7 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
   };
   
   const [isEditing, setIsEditing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [formData, setFormData] = useState<CompanyProfile>(user?.profile || { companyName: '', industry: '' });
   const [errors, setErrors] = useState<Partial<Record<keyof CompanyProfile, string>>>({});
   
@@ -88,7 +89,7 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
     validateField(fieldName, value);
   };
 
-  const handleSave = (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     const isFormValid = (Object.keys(formData) as Array<keyof CompanyProfile>).every(key =>
       validateField(key, formData[key] || '')
@@ -96,8 +97,15 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
     
     if (!isFormValid || Object.values(errors).some(e => e)) return;
     
-    onUpdateProfile(formData);
-    setIsEditing(false);
+    setIsSaving(true);
+    try {
+        await onUpdateProfile(formData);
+        setIsEditing(false);
+    } catch (error: any) {
+        setToastMessage(`Failed to save profile: ${error.message}`);
+    } finally {
+        setIsSaving(false);
+    }
   };
 
   const handleCancel = () => {
@@ -302,8 +310,10 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
                             <textarea name="summary" value={formData.summary || ''} onChange={handleInputChange} rows={3} placeholder="Briefly describe what your company does." className="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-primary focus:border-primary" />
                         </div>
                         <div className="flex justify-end space-x-2 pt-2">
-                            <button type="button" onClick={handleCancel} className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300">Cancel</button>
-                            <button type="submit" disabled={Object.values(errors).some(e => e)} className="px-4 py-2 text-sm font-medium text-white bg-primary rounded-md hover:bg-opacity-90 disabled:bg-gray-400 disabled:cursor-not-allowed">Save Changes</button>
+                            <button type="button" onClick={handleCancel} disabled={isSaving} className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300 disabled:bg-gray-100">Cancel</button>
+                            <button type="submit" disabled={Object.values(errors).some(e => e) || isSaving} className="px-4 py-2 text-sm font-medium text-white bg-primary rounded-md hover:bg-opacity-90 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center">
+                                {isSaving ? <><LoadingIcon className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" /> Saving...</> : 'Save Changes'}
+                            </button>
                         </div>
                     </form>
                 ) : (

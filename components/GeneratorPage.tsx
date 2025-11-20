@@ -5,13 +5,13 @@ import GuidedQuestionnaire from './GuidedQuestionnaire';
 import PolicyPreview from './PolicyPreview';
 import { generatePolicyStream, generateFormStream } from '../services/geminiService';
 import type { Policy, Form, CompanyProfile, FormAnswers, GeneratedDocument, AppStatus, Source } from '../types';
-import { CheckIcon } from './Icons';
+import { CheckIcon, LoadingIcon } from './Icons';
 
 interface GeneratorPageProps {
     selectedItem: Policy | Form;
     initialData: GeneratedDocument | null;
     userProfile: CompanyProfile;
-    onDocumentGenerated: (doc: GeneratedDocument, originalId?: string) => void;
+    onDocumentGenerated: (doc: GeneratedDocument, originalId?: string) => Promise<void>; // Updated to Promise
     onBack: () => void;
 }
 
@@ -35,6 +35,7 @@ const GeneratorPage: React.FC<GeneratorPageProps> = ({ selectedItem, initialData
     const [status, setStatus] = useState<AppStatus>(initialData ? 'success' : 'idle');
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
     const [finalizedDoc, setFinalizedDoc] = useState<GeneratedDocument | null>(initialData);
+    const [isSaving, setIsSaving] = useState(false);
     
     const handleProfileSubmit = (profile: CompanyProfile) => {
         setCompanyProfile(profile);
@@ -109,9 +110,17 @@ const GeneratorPage: React.FC<GeneratorPageProps> = ({ selectedItem, initialData
         }
     }, [selectedItem, companyProfile, questionAnswers, initialData]);
 
-    const handleSaveDocument = () => {
+    const handleSaveDocument = async () => {
         if (finalizedDoc) {
-            onDocumentGenerated(finalizedDoc, initialData?.id);
+            setIsSaving(true);
+            try {
+                await onDocumentGenerated(finalizedDoc, initialData?.id);
+            } catch (error) {
+                console.error("Error saving document:", error);
+                // Error handled by parent or UI context if propagated, but safe to catch here
+            } finally {
+                setIsSaving(false);
+            }
         }
     };
 
@@ -156,15 +165,15 @@ const GeneratorPage: React.FC<GeneratorPageProps> = ({ selectedItem, initialData
                         />
                         {status === 'success' && (
                              <div className="mt-8 flex justify-between items-center bg-white p-6 rounded-lg shadow-md border border-gray-200">
-                                <button onClick={onBack} className="text-sm font-semibold text-gray-600 hover:text-primary transition-colors">
+                                <button onClick={onBack} disabled={isSaving} className="text-sm font-semibold text-gray-600 hover:text-primary transition-colors disabled:opacity-50">
                                     Cancel & Start Over
                                 </button>
                                 <button
                                     onClick={handleSaveDocument}
-                                    className="bg-green-600 text-white font-bold py-3 px-6 rounded-md hover:bg-green-700 transition-colors flex items-center"
+                                    disabled={isSaving}
+                                    className="bg-green-600 text-white font-bold py-3 px-6 rounded-md hover:bg-green-700 transition-colors flex items-center disabled:bg-gray-400 disabled:cursor-not-allowed"
                                 >
-                                    <CheckIcon className="w-5 h-5 mr-2" />
-                                    Save Document
+                                    {isSaving ? <><LoadingIcon className="animate-spin -ml-1 mr-2 h-5 w-5 text-white" /> Saving...</> : <><CheckIcon className="w-5 h-5 mr-2" /> Save Document</>}
                                 </button>
                             </div>
                         )}
@@ -177,7 +186,7 @@ const GeneratorPage: React.FC<GeneratorPageProps> = ({ selectedItem, initialData
 
     return (
         <div className="max-w-7xl mx-auto">
-            <Stepper steps={STEPS} currentStep={currentStep} onStepClick={setCurrentStep} isStepClickable={!!companyProfile} />
+            <Stepper steps={STEPS} currentStep={currentStep} onStepClick={setCurrentStep} isStepClickable={!!companyProfile && !isSaving} />
             <div className="mt-8">
                 {renderStepContent()}
             </div>
