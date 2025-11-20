@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState } from 'react';
 import { 
     createUserWithEmailAndPassword, 
@@ -116,7 +117,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
 
     const handleLogout = () => {
-        signOut(auth).catch((error) => console.error("Logout Error:", error));
+        signOut(auth)
+            .then(() => {
+                window.localStorage.removeItem('hr_copilot_user_profile');
+            })
+            .catch((error) => console.error("Logout Error:", error));
     };
     
     const handleSkipOnboarding = () => {

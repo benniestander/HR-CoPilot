@@ -351,7 +351,7 @@ const AppContent: React.FC = () => {
         }
 
         if (user && needsOnboarding && !onboardingSkipped) {
-            return <InitialProfileSetup onProfileSubmit={handleInitialProfileSubmit} userEmail={user.email} onSkip={handleSkipOnboarding} />;
+            return <InitialProfileSetup onProfileSubmit={handleInitialProfileSubmit} userEmail={user.email} userName={user.name} onSkip={handleSkipOnboarding} />;
         }
 
         if (user) {

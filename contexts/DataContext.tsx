@@ -66,7 +66,7 @@ interface DataContextType {
     allCoupons: Coupon[];
     
     handleUpdateProfile: (updatedProfile: CompanyProfile) => Promise<void>;
-    handleInitialProfileSubmit: (profileData: CompanyProfile) => Promise<void>;
+    handleInitialProfileSubmit: (profileData: CompanyProfile, name: string) => Promise<void>;
     handleProfilePhotoUpload: (file: File) => Promise<void>;
     handleProfilePhotoDelete: () => Promise<void>;
     handleFileUpload: (file: File, notes: string) => Promise<void>;
@@ -199,10 +199,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setToastMessage("Profile updated successfully!");
     };
     
-    const handleInitialProfileSubmit = async (profileData: CompanyProfile) => {
+    const handleInitialProfileSubmit = async (profileData: CompanyProfile, name: string) => {
         if (!user) return;
         const updatedProfile = { ...user.profile, ...profileData };
-        await handleUpdateProfile(updatedProfile);
+        const updatedUser = { ...user, name, profile: updatedProfile };
+        setUser(updatedUser);
+        await updateUser(user.uid, { name, profile: updatedProfile });
         setNeedsOnboarding(false);
         setShowOnboardingWalkthrough(true);
     };

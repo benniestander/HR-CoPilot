@@ -5,13 +5,15 @@ import { useUIContext } from '../contexts/UIContext';
 import { LoadingIcon } from './Icons';
 
 interface InitialProfileSetupProps {
-  onProfileSubmit: (profileData: CompanyProfile) => Promise<void>;
+  onProfileSubmit: (profileData: CompanyProfile, name: string) => Promise<void>;
   userEmail: string;
+  userName?: string;
   onSkip: () => void;
 }
 
-const InitialProfileSetup: React.FC<InitialProfileSetupProps> = ({ onProfileSubmit, userEmail, onSkip }) => {
+const InitialProfileSetup: React.FC<InitialProfileSetupProps> = ({ onProfileSubmit, userEmail, userName, onSkip }) => {
     const { setToastMessage } = useUIContext();
+    const [name, setName] = useState(userName || '');
     const [formData, setFormData] = useState<CompanyProfile>({
         companyName: '',
         industry: '',
@@ -20,54 +22,58 @@ const InitialProfileSetup: React.FC<InitialProfileSetupProps> = ({ onProfileSubm
         companyUrl: '',
         summary: ''
     });
-    const [errors, setErrors] = useState<Partial<Record<keyof CompanyProfile, string>>>({});
-    const [touched, setTouched] = useState<Partial<Record<keyof CompanyProfile, boolean>>>({});
+    const [errors, setErrors] = useState<Record<string, string>>({});
+    const [touched, setTouched] = useState<Record<string, boolean>>({});
     const [isSaving, setIsSaving] = useState(false);
 
-    const validateField = (name: keyof CompanyProfile, value: string) => {
+    const validateField = (fieldName: string, value: string) => {
         let error = '';
-        if (name === 'companyName' && !value.trim()) error = 'Company name is required.';
-        if (name === 'industry' && !value) error = 'Please select an industry.';
-        if (name === 'companyUrl' && value && !/^(https?:\/\/)?([\da-z.-]+)\.([a-z.]{2,6})([/\w .-]*)*\/?$/.test(value)) {
+        if (fieldName === 'name' && !value.trim()) error = 'Your name is required.';
+        if (fieldName === 'companyName' && !value.trim()) error = 'Company name is required.';
+        if (fieldName === 'industry' && !value) error = 'Please select an industry.';
+        if (fieldName === 'companyUrl' && value && !/^(https?:\/\/)?([\da-z.-]+)\.([a-z.]{2,6})([/\w .-]*)*\/?$/.test(value)) {
             error = 'Please enter a valid URL.';
         }
-        setErrors(prev => ({ ...prev, [name]: error }));
+        setErrors(prev => ({ ...prev, [fieldName]: error }));
         return !error;
     };
 
     const handleBlur = (e: React.FocusEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
         const { name, value } = e.target;
-        const fieldName = name as keyof CompanyProfile;
-        setTouched(prev => ({ ...prev, [fieldName]: true }));
-        validateField(fieldName, value);
+        setTouched(prev => ({ ...prev, [name]: true }));
+        validateField(name, value);
     };
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
         const { name, value } = e.target;
-        const fieldName = name as keyof CompanyProfile;
-        setFormData(prev => ({ ...prev, [fieldName]: value }));
-        if (touched[fieldName]) {
-            validateField(fieldName, value);
+        if (name === 'name') {
+            setName(value);
+        } else {
+            const fieldName = name as keyof CompanyProfile;
+            setFormData(prev => ({ ...prev, [fieldName]: value }));
+        }
+        
+        if (touched[name]) {
+            validateField(name, value);
         }
     };
     
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         
-        const allTouched = Object.keys(formData).reduce((acc, key) => {
-            acc[key as keyof CompanyProfile] = true;
-            return acc;
-        }, {} as Partial<Record<keyof CompanyProfile, boolean>>);
+        const allTouched: Record<string, boolean> = { name: true };
+        Object.keys(formData).forEach(key => { allTouched[key] = true; });
         setTouched(allTouched);
 
-        const isFormValid = (Object.keys(formData) as Array<keyof CompanyProfile>).every(key =>
-            validateField(key, formData[key] || '')
-        );
+        let isFormValid = validateField('name', name);
+        isFormValid = validateField('companyName', formData.companyName) && isFormValid;
+        isFormValid = validateField('industry', formData.industry) && isFormValid;
+        if (formData.companyUrl) isFormValid = validateField('companyUrl', formData.companyUrl) && isFormValid;
         
         if (isFormValid) {
             setIsSaving(true);
             try {
-                await onProfileSubmit(formData);
+                await onProfileSubmit(formData, name);
             } catch (error: any) {
                 console.error("Error saving profile:", error);
                 setToastMessage("Failed to save profile. Please try again.");
@@ -93,10 +99,16 @@ const InitialProfileSetup: React.FC<InitialProfileSetupProps> = ({ onProfileSubm
                     <div className="bg-white p-8 rounded-lg shadow-md border border-gray-200">
                         <div className="text-center">
                             <h1 className="text-2xl font-bold text-secondary mb-2">Welcome to HR CoPilot!</h1>
-                            <p className="text-gray-600 mb-6">Let's complete your company profile to get started. This helps us tailor documents for you.</p>
+                            <p className="text-gray-600 mb-6">Let's complete your profile to get started. This helps us tailor documents for you.</p>
                         </div>
                         
                         <form onSubmit={handleSubmit} className="space-y-6">
+                           <div>
+                             <label htmlFor="name" className="block text-sm font-medium text-gray-700">Your Name</label>
+                             <input type="text" id="name" name="name" value={name} onChange={handleInputChange} onBlur={handleBlur} placeholder="e.g., John Doe" required className={`mt-1 w-full p-3 border rounded-md shadow-sm focus:ring-primary focus:border-primary ${errors.name && touched.name ? 'border-red-500' : 'border-gray-300'}`} />
+                             {errors.name && touched.name && <p className="text-red-600 text-sm mt-1">{errors.name}</p>}
+                           </div>
+
                            <div>
                              <label htmlFor="companyName" className="block text-sm font-medium text-gray-700">Company's Legal Name</label>
                              <input type="text" id="companyName" name="companyName" value={formData.companyName} onChange={handleInputChange} onBlur={handleBlur} placeholder="e.g., ABC (Pty) Ltd" required className={`mt-1 w-full p-3 border rounded-md shadow-sm focus:ring-primary focus:border-primary ${errors.companyName && touched.companyName ? 'border-red-500' : 'border-gray-300'}`} />

@@ -126,7 +126,8 @@ export const createUserProfile = async (
 };
 
 export const updateUser = async (uid: string, userData: Partial<User>): Promise<void> => {
-    await updateDoc(doc(firestore, 'users', uid), userData);
+    // Use setDoc with merge: true to ensure document exists if it was missed during creation
+    await setDoc(doc(firestore, 'users', uid), userData, { merge: true });
 }
 
 export const addTransactionToUser = async (uid: string, transaction: Omit<Transaction, 'id' | 'date' | 'userId' | 'userEmail'>, couponCode?: string): Promise<void> => {
