@@ -71,7 +71,7 @@ export const useAuth = () => {
                          window.localStorage.setItem(USER_CACHE_KEY, JSON.stringify(appUser));
                     }
                 } catch (e) {
-                    console.error("Error fetching user profile:", e);
+                    console.error("Error fetching user profile from Firestore:", e);
                 }
                 
                 // Fallback to cache if fetch failed but we have data (handled by initial state, but checking mismatch)
@@ -92,9 +92,13 @@ export const useAuth = () => {
                         setUser(appUser);
                         setIsAdmin(!!appUser.isAdmin);
                         window.localStorage.setItem(USER_CACHE_KEY, JSON.stringify(appUser));
-                    } catch (e) {
-                        console.error("Error creating user profile:", e);
-                        // CRITICAL FALLBACK: Create a temporary in-memory user 
+                    } catch (e: any) {
+                        console.error("CRITICAL: Error creating user profile in Firestore.", e);
+                        if (e.code === 'permission-denied') {
+                            console.error("Check your Firestore Security Rules. The app cannot write to the 'users' collection.");
+                        }
+
+                        // CRITICAL FALLBACK: Create a temporary in-memory user so the app doesn't crash for the user
                         appUser = {
                             uid: firebaseUser.uid,
                             email: firebaseUser.email || '',
@@ -108,6 +112,7 @@ export const useAuth = () => {
                             isAdmin: false
                         };
                         setUser(appUser);
+                        // We don't cache this fake user to force a retry next reload
                     }
 
                     window.localStorage.removeItem('authFlow');

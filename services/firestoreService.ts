@@ -1,3 +1,4 @@
+
 import type { User, GeneratedDocument, Transaction, AdminActionLog, AdminNotification, UserFile, Coupon } from '../types';
 import {
     collection,
@@ -30,11 +31,16 @@ import { firestore, storage } from './firebase';
 // --- Notification Functions ---
 
 export const createAdminNotification = async (notification: Omit<AdminNotification, 'id' | 'timestamp' | 'isRead'>): Promise<void> => {
-    await addDoc(collection(firestore, 'adminNotifications'), {
-        ...notification,
-        timestamp: serverTimestamp(),
-        isRead: false,
-    });
+    try {
+        await addDoc(collection(firestore, 'adminNotifications'), {
+            ...notification,
+            timestamp: serverTimestamp(),
+            isRead: false,
+        });
+    } catch (error) {
+        console.warn("Failed to create admin notification (likely permission issue):", error);
+        // We suppress the error here so it doesn't break the calling function (like user creation)
+    }
 };
 
 export const getAdminNotifications = async (): Promise<AdminNotification[]> => {
@@ -109,11 +115,13 @@ export const createUserProfile = async (
         createdAt: clientTimestamp, // Use client time for the immediate return
     };
 
+    // Create the user document
     await setDoc(doc(firestore, 'users', uid), {
         ...newUser,
         createdAt: serverTimestamp(), // Write server time to Firestore
     });
 
+    // Attempt to notify admin, but don't fail if permissions deny it
     if (email !== 'admin@hrcopilot.co.za') {
         await createAdminNotification({
             type: 'new_user',
@@ -211,10 +219,14 @@ export const saveGeneratedDocument = async (uid: string, docData: GeneratedDocum
 // --- Admin Functions ---
 
 const logAdminAction = async (action: Omit<AdminActionLog, 'id' | 'timestamp'>) => {
-    await addDoc(collection(firestore, 'adminActionLogs'), {
-        ...action,
-        timestamp: serverTimestamp(),
-    });
+    try {
+        await addDoc(collection(firestore, 'adminActionLogs'), {
+            ...action,
+            timestamp: serverTimestamp(),
+        });
+    } catch (e) {
+        console.warn("Failed to log admin action", e);
+    }
 };
 
 export const updateUserByAdmin = async (adminEmail: string, targetUid: string, updates: Partial<User>): Promise<User | null> => {
