@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { CreditCardIcon, LoadingIcon, ShieldCheckIcon } from './Icons';
 import type { Coupon } from '../types';
 import { useAuthContext } from '../contexts/AuthContext';
+import { processPayment } from '../services/paymentService';
 
 declare global {
   interface Window {
@@ -79,7 +80,7 @@ const PaygPaymentPage: React.FC<PaygPaymentPageProps> = ({ onTopUpSuccess, onCan
   const isUserDetailsValid = Object.values(formData).every(val => typeof val === 'string' && val.trim() !== '') && Object.values(errors).every(err => err === '');
   const isAmountValid = finalAmount !== null && finalAmount >= 5000;
   
-  const handlePayment = (e: React.FormEvent) => {
+  const handlePayment = async (e: React.FormEvent) => {
     e.preventDefault();
 
     const isFirstNameValid = validateField('firstName', formData.firstName);
@@ -90,31 +91,24 @@ const PaygPaymentPage: React.FC<PaygPaymentPageProps> = ({ onTopUpSuccess, onCan
     setIsLoading(true);
     setApiError(null);
 
-    const yoco = new (window as any).YocoSDK({
-      publicKey: 'pk_test_53ac2c421WPdK17b8ac4',
+    const result = await processPayment({
+        amountInCents: Math.round(finalAmount),
+        name: `Credit Top-Up R${(finalAmount / 100).toFixed(2)}`,
+        description: 'Credit for HR CoPilot',
+        customer: {
+            name: formData.firstName,
+            surname: formData.lastName,
+            email: user.email
+        }
     });
 
-    yoco.showPopup({
-      amountInCents: Math.round(finalAmount),
-      currency: 'ZAR',
-      name: `Credit Top-Up R${(finalAmount / 100).toFixed(2)}`,
-      description: 'Credit for HR CoPilot',
-      customer: {
-        name: formData.firstName,
-        surname: formData.lastName,
-        email: user.email,
-      },
-      callback: (result: any) => {
-        setIsLoading(false);
-        if (result.error) {
-          if (result.error.message !== "User closed popup") {
-            setApiError(`Payment failed: ${result.error.message}`);
-          }
-        } else {
-          onTopUpSuccess(finalAmount, validatedCoupon?.code);
-        }
-      },
-    });
+    setIsLoading(false);
+
+    if (result.success) {
+        onTopUpSuccess(finalAmount, validatedCoupon?.code);
+    } else if (result.error && result.error !== "User cancelled") {
+        setApiError(`Payment failed: ${result.error}`);
+    }
   };
 
   return (

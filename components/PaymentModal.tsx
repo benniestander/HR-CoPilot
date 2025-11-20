@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { LoadingIcon, CreditCardIcon } from './Icons';
+import { processPayment } from '../services/paymentService';
 
-// Extend the Window interface to include the YocoSDK, preventing TypeScript errors.
 declare global {
   interface Window {
     YocoSDK: any;
@@ -54,7 +54,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onSuccess,
     validateField(name, value);
   };
   
-  const handlePayment = (e: React.FormEvent) => {
+  const handlePayment = async (e: React.FormEvent) => {
     e.preventDefault();
     
     const isNameValid = validateField('name', formData.name);
@@ -68,38 +68,27 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onSuccess,
     setIsLoading(true);
     setApiError(null);
 
-    // This assumes the YocoSDK script has been loaded in index.html
-    const yoco = new (window as any).YocoSDK({
-      // IMPORTANT: Replace this with your actual Yoco public key
-      publicKey: 'pk_test_53ac2c421WPdK17b8ac4',
-    });
-
-    yoco.showPopup({
-      amountInCents: amountInCents,
-      currency: 'ZAR',
-      name: itemName,
-      description: 'Service from HR CoPilot',
-      customer: {
-        name: formData.name,
-        surname: formData.surname,
-        email: formData.email,
-      },
-      callback: async (result: any) => {
-        setIsLoading(false);
-
-        if (result.error) {
-          if (result.error.message !== "User closed popup") {
-            setApiError(`Payment failed: ${result.error.message}`);
-          } else {
-             onClose();
-          }
-        } else {
-          console.log("Received Yoco token:", result.id);
-          console.log("Simulating successful backend payment processing...");
-          onSuccess(couponCode);
+    const result = await processPayment({
+        amountInCents,
+        name: itemName,
+        description: 'Service from HR CoPilot',
+        customer: {
+            name: formData.name,
+            surname: formData.surname,
+            email: formData.email
         }
-      },
     });
+
+    setIsLoading(false);
+
+    if (result.success) {
+        onSuccess(couponCode);
+    } else if (result.error && result.error !== "User cancelled") {
+        setApiError(`Payment failed: ${result.error}`);
+    } else if (result.error === "User cancelled") {
+        // Optionally close modal on cancel
+        // onClose(); 
+    }
   };
   
   const isFormValid = Object.values(formData).every(val => typeof val === 'string' && val.trim() !== '') && Object.values(errors).every(err => err === '');
