@@ -5,7 +5,7 @@ import { supabase } from './supabase';
 // ==============================================================================
 
 // 1. REPLACE WITH YOUR YOCO LIVE PUBLIC KEY FOR PRODUCTION
-export const YOCO_PUBLIC_KEY = 'pk_test_53ac2c421WPdK17b8ac4'; 
+export const YOCO_PUBLIC_KEY = 'pk_live_922ec78alWPdK17eeac4'; 
 
 // 2. DEPLOY SUPABASE EDGE FUNCTION
 // To make payments 100% secure, you must verify them on the backend.
