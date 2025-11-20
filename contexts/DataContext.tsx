@@ -316,7 +316,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 await getCoupons().then(setAllCoupons);
                 setToastMessage(`Coupon "${couponData.code}" created successfully!`);
             } catch (error: any) {
-                setToastMessage(`Failed to create coupon: ${error.message}`);
+                console.error(error);
+                if (error.message && error.message.includes('row-level security')) {
+                     setToastMessage("DB Error: Missing RLS Policy. Check services/supabase.ts for SQL.");
+                } else {
+                     setToastMessage(`Failed to create coupon: ${error.message}`);
+                }
             }
         },
         deactivateCoupon: async (couponId: string) => {
