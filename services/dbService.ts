@@ -156,17 +156,19 @@ export const addTransactionToUser = async (uid: string, transaction: Omit<Transa
                 discountAmount = coupon.value;
             }
             
+            // If transaction is a cost (negative), we reduce the cost (add discount)
+            // If transaction is a top-up (positive), we add to the credit (add discount)
+            // Simplified logic: Effectively increasing the net positive result for user
             if (finalAmount < 0) {
-                 finalAmount += discountAmount;
+                 finalAmount += discountAmount; 
             } else {
                  finalAmount += discountAmount;
             }
 
             discountDetails = { couponCode: coupon.code, amount: discountAmount };
 
-            // Increment uses
-            const { data: c } = await supabase.from('coupons').select('uses').eq('id', coupon.id).single();
-            if (c) await supabase.from('coupons').update({ uses: c.uses + 1 }).eq('id', coupon.id);
+            // Increment uses using secure RPC to bypass RLS
+            await supabase.rpc('increment_coupon_uses', { coupon_id: coupon.id });
         }
     }
 

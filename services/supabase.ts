@@ -9,8 +9,34 @@ import { createClient } from '@supabase/supabase-js';
    errors and set up the database correctly.
    ==========================================================================
 
-   -- 1. PROFILES (Users) - Fix Recursion Issues
-   -- We drop existing policies first to ensure a clean slate.
+   -- 1. SECURITY DEFINER FUNCTIONS (The "Smooth" Fix)
+   -- These functions bypass RLS to perform specific actions safely.
+
+   -- Check if current user is admin
+   create or replace function public.is_admin()
+   returns boolean as $$
+   begin
+     return exists (
+       select 1 from public.profiles
+       where id = auth.uid() and is_admin = true
+     );
+   end;
+   $$ language plpgsql security definer;
+
+   -- Increment Coupon Uses (Safe for Users)
+   create or replace function public.increment_coupon_uses(coupon_id uuid)
+   returns void as $$
+   begin
+     update public.coupons
+     set uses = uses + 1
+     where id = coupon_id;
+   end;
+   $$ language plpgsql security definer;
+
+
+   -- 2. TABLE SETUP & POLICIES
+
+   -- PROFILES
    create table if not exists public.profiles (
      id uuid references auth.users not null primary key,
      email text,
@@ -30,28 +56,18 @@ import { createClient } from '@supabase/supabase-js';
    );
    alter table public.profiles enable row level security;
 
-   drop policy if exists "Users can view own profile" on profiles;
-   drop policy if exists "Admins can view all profiles" on profiles;
+   drop policy if exists "Public profiles are viewable by everyone" on profiles;
+   drop policy if exists "Users can insert their own profile" on profiles;
    drop policy if exists "Users can update own profile" on profiles;
    drop policy if exists "Admins can update all profiles" on profiles;
-   drop policy if exists "Users can insert own profile" on profiles;
 
-   -- Simple non-recursive policies
-   create policy "Users can view own profile" on profiles for select using (auth.uid() = id);
+   create policy "Public profiles are viewable by everyone" on profiles for select using (true);
+   create policy "Users can insert their own profile" on profiles for insert with check (auth.uid() = id);
    create policy "Users can update own profile" on profiles for update using (auth.uid() = id);
-   create policy "Users can insert own profile" on profiles for insert with check (auth.uid() = id);
-   
-   -- Allow admins to view/update everything (using a simplified check to avoid recursion)
-   -- Note: For strict security, ensure you manually set is_admin=true in the DB for your admin user.
-   create policy "Admins can view all profiles" on profiles for select using (
-     (select is_admin from profiles where id = auth.uid()) = true
-   );
-   create policy "Admins can update all profiles" on profiles for update using (
-     (select is_admin from profiles where id = auth.uid()) = true
-   );
+   create policy "Admins can update all profiles" on profiles for update using (public.is_admin());
 
 
-   -- 2. COUPONS - Fix Creation Permission
+   -- COUPONS
    create table if not exists public.coupons (
      id uuid default gen_random_uuid() primary key,
      code text not null unique,
@@ -66,34 +82,19 @@ import { createClient } from '@supabase/supabase-js';
    );
    alter table public.coupons enable row level security;
 
+   drop policy if exists "Coupons viewable by everyone" on coupons;
+   drop policy if exists "Admins can manage coupons" on coupons;
    drop policy if exists "Admins can insert coupons" on coupons;
    drop policy if exists "Admins can update coupons" on coupons;
-   drop policy if exists "Anyone can view coupons" on coupons;
-   drop policy if exists "Users can update coupon usage" on coupons;
+   drop policy if exists "Admins can delete coupons" on coupons;
 
-   -- Admin Access
-   create policy "Admins can insert coupons" on coupons for insert with check (
-     (select is_admin from profiles where id = auth.uid()) = true
-   );
-
-   create policy "Admins can update coupons" on coupons for update using (
-     (select is_admin from profiles where id = auth.uid()) = true
-   );
-
-   create policy "Admins can delete coupons" on coupons for delete using (
-     (select is_admin from profiles where id = auth.uid()) = true
-   );
-
-   -- Public/User Access
-   create policy "Anyone can view coupons" on coupons for select using (true);
-
-   -- Allow authenticated users to increment usage (needed for applying coupons)
-   create policy "Users can update coupon usage" on coupons for update using (
-     auth.role() = 'authenticated'
-   );
+   create policy "Coupons viewable by everyone" on coupons for select using (true);
+   create policy "Admins can insert coupons" on coupons for insert with check (public.is_admin());
+   create policy "Admins can update coupons" on coupons for update using (public.is_admin());
+   create policy "Admins can delete coupons" on coupons for delete using (public.is_admin());
 
 
-   -- 3. ADMIN LOGS & NOTIFICATIONS
+   -- ADMIN ACTION LOGS
    create table if not exists public.admin_action_logs (
      id uuid default gen_random_uuid() primary key,
      admin_email text,
@@ -104,7 +105,12 @@ import { createClient } from '@supabase/supabase-js';
      timestamp timestamptz default now()
    );
    alter table public.admin_action_logs enable row level security;
+   
+   drop policy if exists "Admins access logs" on admin_action_logs;
+   create policy "Admins access logs" on admin_action_logs for all using (public.is_admin());
 
+
+   -- ADMIN NOTIFICATIONS
    create table if not exists public.admin_notifications (
      id uuid default gen_random_uuid() primary key,
      type text,
@@ -115,30 +121,14 @@ import { createClient } from '@supabase/supabase-js';
    );
    alter table public.admin_notifications enable row level security;
 
-   drop policy if exists "Admins view logs" on admin_action_logs;
-   drop policy if exists "Admins insert logs" on admin_action_logs;
    drop policy if exists "Admins manage notifications" on admin_notifications;
-   drop policy if exists "System inserts notifications" on admin_notifications;
+   drop policy if exists "Users create notifications" on admin_notifications;
 
-   -- Logs
-   create policy "Admins view logs" on admin_action_logs for select using (
-     (select is_admin from profiles where id = auth.uid()) = true
-   );
-   create policy "Admins insert logs" on admin_action_logs for insert with check (
-     (select is_admin from profiles where id = auth.uid()) = true
-   );
-
-   -- Notifications
-   create policy "Admins manage notifications" on admin_notifications for all using (
-     (select is_admin from profiles where id = auth.uid()) = true
-   );
-   -- Allow any authenticated user to create a notification (e.g. "New user signed up")
-   create policy "Users create notifications" on admin_notifications for insert with check (
-     auth.role() = 'authenticated'
-   );
+   create policy "Admins manage notifications" on admin_notifications for all using (public.is_admin());
+   create policy "Users create notifications" on admin_notifications for insert with check (auth.role() = 'authenticated');
 
 
-   -- 4. GENERATED DOCUMENTS
+   -- GENERATED DOCUMENTS
    create table if not exists public.generated_documents (
      id text primary key,
      user_id uuid references public.profiles(id) not null,
@@ -155,18 +145,18 @@ import { createClient } from '@supabase/supabase-js';
    );
    alter table public.generated_documents enable row level security;
 
-   drop policy if exists "Users can view own documents" on generated_documents;
-   drop policy if exists "Admins can view all documents" on generated_documents;
-   drop policy if exists "Users can insert own documents" on generated_documents;
-   drop policy if exists "Users can update own documents" on generated_documents;
+   drop policy if exists "Users view own documents" on generated_documents;
+   drop policy if exists "Admins view all documents" on generated_documents;
+   drop policy if exists "Users insert own documents" on generated_documents;
+   drop policy if exists "Users update own documents" on generated_documents;
 
-   create policy "Users can view own documents" on generated_documents for select using (auth.uid() = user_id);
-   create policy "Admins can view all documents" on generated_documents for select using ((select is_admin from profiles where id = auth.uid()) = true);
-   create policy "Users can insert own documents" on generated_documents for insert with check (auth.uid() = user_id);
-   create policy "Users can update own documents" on generated_documents for update using (auth.uid() = user_id);
+   create policy "Users view own documents" on generated_documents for select using (auth.uid() = user_id);
+   create policy "Admins view all documents" on generated_documents for select using (public.is_admin());
+   create policy "Users insert own documents" on generated_documents for insert with check (auth.uid() = user_id);
+   create policy "Users update own documents" on generated_documents for update using (auth.uid() = user_id);
 
 
-   -- 5. TRANSACTIONS
+   -- TRANSACTIONS
    create table if not exists public.transactions (
      id uuid default gen_random_uuid() primary key,
      user_id uuid references public.profiles(id) not null,
@@ -177,17 +167,16 @@ import { createClient } from '@supabase/supabase-js';
    );
    alter table public.transactions enable row level security;
 
-   drop policy if exists "Users can view own transactions" on transactions;
-   drop policy if exists "Admins can view all transactions" on transactions;
-   drop policy if exists "System/Admin can insert transactions" on transactions;
+   drop policy if exists "Users view own transactions" on transactions;
+   drop policy if exists "Admins view all transactions" on transactions;
+   drop policy if exists "System insert transactions" on transactions;
 
-   create policy "Users can view own transactions" on transactions for select using (auth.uid() = user_id);
-   create policy "Admins can view all transactions" on transactions for select using ((select is_admin from profiles where id = auth.uid()) = true);
-   -- Allow insert for authenticated users (logic handled in app for payments) or admins
-   create policy "System/Admin can insert transactions" on transactions for insert with check (true);
+   create policy "Users view own transactions" on transactions for select using (auth.uid() = user_id);
+   create policy "Admins view all transactions" on transactions for select using (public.is_admin());
+   create policy "System insert transactions" on transactions for insert with check (true);
 
 
-   -- 6. USER FILES
+   -- USER FILES
    create table if not exists public.user_files (
      id uuid default gen_random_uuid() primary key,
      user_id uuid references public.profiles(id) not null,
@@ -199,11 +188,11 @@ import { createClient } from '@supabase/supabase-js';
    );
    alter table public.user_files enable row level security;
    
-   drop policy if exists "Users can manage own files" on user_files;
-   drop policy if exists "Admins can view all files" on user_files;
+   drop policy if exists "Users manage own files" on user_files;
+   drop policy if exists "Admins view all files" on user_files;
 
-   create policy "Users can manage own files" on user_files for all using (auth.uid() = user_id);
-   create policy "Admins can view all files" on user_files for select using ((select is_admin from profiles where id = auth.uid()) = true);
+   create policy "Users manage own files" on user_files for all using (auth.uid() = user_id);
+   create policy "Admins view all files" on user_files for select using (public.is_admin());
 
 */
 
