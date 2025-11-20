@@ -1,6 +1,10 @@
 
 // This file is deprecated. The application has migrated to Supabase.
-// It is left empty to prevent import errors until all references are removed.
-export const auth = {};
+export const auth = {
+    currentUser: null,
+    onAuthStateChanged: () => () => {},
+    signInWithPopup: async () => {},
+    signOut: async () => {}
+};
 export const firestore = {};
 export const storage = {};

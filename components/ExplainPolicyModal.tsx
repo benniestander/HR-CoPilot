@@ -1,6 +1,7 @@
+
 import React from 'react';
-import ReactMarkdown from 'https://esm.sh/react-markdown@9?deps=react@^19.2.0';
-import rehypeSanitize from 'https://esm.sh/rehype-sanitize@6?deps=react@^19.2.0';
+import ReactMarkdown from 'react-markdown';
+import rehypeSanitize from 'rehype-sanitize';
 import { LoadingIcon } from './Icons';
 import type { AppStatus } from '../types';
 import { useFocusTrap } from '../hooks/useFocusTrap';

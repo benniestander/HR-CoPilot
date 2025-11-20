@@ -1,7 +1,8 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { LoadingIcon, CopyIcon, DownloadIcon, CheckIcon, WordIcon, TxtIcon } from './Icons';
 import type { AppStatus, Source } from '../types';
-import { marked } from 'https://esm.sh/marked@12';
+import { marked } from 'marked';
 
 interface PolicyPreviewProps {
   policyText: string;

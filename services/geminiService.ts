@@ -1,11 +1,16 @@
+
 import { GoogleGenAI, GenerateContentResponse, Type } from "@google/genai";
 import { POLICIES, FORM_BASE_TEMPLATES, FORMS, FORM_ENRICHMENT_PROMPTS } from '../constants';
 import type { PolicyType, FormType, FormAnswers, PolicyUpdateResult, ComplianceChecklistResult, CompanyProfile } from '../types';
 
 // Helper function to lazily initialize the AI client.
 const getAi = () => {
-  const apiKey = (typeof process !== 'undefined' && process.env) ? process.env.API_KEY : undefined;
-  
+  // Safely check for process.env to avoid ReferenceErrors in browser environments that don't shim 'process'
+  let apiKey = undefined;
+  if (typeof process !== 'undefined' && process.env) {
+    apiKey = process.env.API_KEY;
+  }
+
   if (!apiKey) {
     throw new Error("API_KEY environment variable is not set. This app requires a Gemini API key to function.");
   }
