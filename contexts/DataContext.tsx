@@ -1,6 +1,6 @@
 
 import React, { createContext, useContext, useState, useEffect, useMemo, useCallback } from 'react';
-import type { GeneratedDocument, CompanyProfile, User, Transaction, AdminActionLog, AdminNotification, UserFile, Coupon, PolicyType, FormType } from '../types';
+import type { GeneratedDocument, CompanyProfile, User, Transaction, AdminActionLog, AdminNotification, UserFile, PolicyType, FormType } from '../types';
 import {
     updateUser,
     getGeneratedDocuments,
@@ -22,10 +22,6 @@ import {
     deleteUserFile,
     uploadProfilePhoto,
     deleteProfilePhoto,
-    createCoupon,
-    getCoupons,
-    deactivateCoupon,
-    validateCoupon,
     getUserProfile
 } from '../services/dbService';
 import { useAuthContext } from './AuthContext';
@@ -64,7 +60,6 @@ interface DataContextType {
 
     // Non-paginated admin data
     adminNotifications: AdminNotification[];
-    allCoupons: Coupon[];
     
     handleUpdateProfile: (data: { profile: CompanyProfile; name?: string; contactNumber?: string }) => Promise<void>;
     handleInitialProfileSubmit: (profileData: CompanyProfile, name: string) => Promise<void>;
@@ -78,15 +73,12 @@ interface DataContextType {
         adjustCredit: (targetUid: string, amountInCents: number, reason: string) => Promise<void>;
         changePlan: (targetUid: string, newPlan: 'pro' | 'payg') => Promise<void>;
         simulateFailedPayment: (targetUid: string, targetUserEmail: string) => Promise<void>;
-        createCoupon: (couponData: Omit<Coupon, 'id' | 'createdAt' | 'uses' | 'isActive'>) => Promise<void>;
-        deactivateCoupon: (couponId: string) => Promise<void>;
     };
     handleMarkNotificationRead: (notificationId: string) => Promise<void>;
     handleMarkAllNotificationsRead: () => Promise<void>;
-    handleSubscriptionSuccess: (couponCode?: string) => Promise<void>;
-    handleTopUpSuccess: (amountInCents: number, couponCode?: string) => Promise<void>;
+    handleSubscriptionSuccess: () => Promise<void>;
+    handleTopUpSuccess: (amountInCents: number) => Promise<void>;
     handleDocumentGenerated: (doc: GeneratedDocument, originalId?: string) => Promise<void>;
-    handleValidateCoupon: (code: string) => Promise<{ valid: boolean; message: string; coupon?: Coupon | undefined; }>;
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
@@ -119,7 +111,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     
     // Admin data (non-paginated)
     const [adminNotifications, setAdminNotifications] = useState<AdminNotification[]>([]);
-    const [allCoupons, setAllCoupons] = useState<Coupon[]>([]);
 
     const createPageFetcher = <T,>(
         fetchFn: (pageSize: number, cursor?: number) => Promise<{ data: T[], lastVisible: number | null }>,
@@ -174,7 +165,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 fetchDocsPage(0);
                 fetchLogsPage(0);
                 getAdminNotifications().then(setAdminNotifications);
-                getCoupons().then(setAllCoupons);
             } else {
                 getGeneratedDocuments(user.uid).then(setGeneratedDocuments);
                 getUserFiles(user.uid).then(setUserFiles);
@@ -186,7 +176,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setPaginatedDocuments([]);
             setPaginatedLogs([]);
             setAdminNotifications([]);
-            setAllCoupons([]);
         }
     }, [user, isAdmin]);
 
@@ -309,27 +298,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
             await getAdminNotifications().then(setAdminNotifications);
             setToastMessage(`Simulated a failed payment for ${targetUserEmail}.`);
         },
-        createCoupon: async (couponData: Omit<Coupon, 'id' | 'createdAt' | 'uses' | 'isActive'>) => {
-            if (!user || !isAdmin) return;
-            try {
-                await createCoupon(user.email, couponData);
-                await getCoupons().then(setAllCoupons);
-                setToastMessage(`Coupon "${couponData.code}" created successfully!`);
-            } catch (error: any) {
-                console.error(error);
-                if (error.message && error.message.includes('Permission denied')) {
-                     setToastMessage("Permission denied. Check database 'is_admin' rights.");
-                } else {
-                     setToastMessage(`Failed to create coupon: ${error.message}`);
-                }
-            }
-        },
-        deactivateCoupon: async (couponId: string) => {
-            if (!user || !isAdmin) return;
-            await deactivateCoupon(user.email, couponId);
-            await getCoupons().then(setAllCoupons);
-            setToastMessage(`Coupon deactivated.`);
-        }
     };
     
     const handleMarkNotificationRead = async (notificationId: string) => {
@@ -342,20 +310,20 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         await getAdminNotifications().then(setAdminNotifications);
     };
 
-    const handleSubscriptionSuccess = async (couponCode?: string) => {
+    const handleSubscriptionSuccess = async () => {
         if (!user) return;
         const updatedUser = { ...user, plan: 'pro' as const };
         setUser(updatedUser);
         await updateUser(user.uid, { plan: 'pro' });
-        await addTransactionToUser(user.uid, { description: 'HR CoPilot Pro Subscription (12 months)', amount: -74700 }, couponCode);
+        await addTransactionToUser(user.uid, { description: 'HR CoPilot Pro Subscription (12 months)', amount: -74700 });
         setToastMessage("Success! Welcome to HR CoPilot Pro.");
         navigateTo('dashboard');
         setShowOnboardingWalkthrough(true);
     };
     
-    const handleTopUpSuccess = async (amountInCents: number, couponCode?: string) => {
+    const handleTopUpSuccess = async (amountInCents: number) => {
         if (!user) return;
-        await addTransactionToUser(user.uid, { description: 'Credit Top-Up', amount: amountInCents }, couponCode);
+        await addTransactionToUser(user.uid, { description: 'Credit Top-Up', amount: amountInCents });
         const updatedUser = await getUserProfile(user.uid);
         if(updatedUser) setUser(updatedUser);
         setToastMessage(`Success! R${(amountInCents / 100).toFixed(2)} has been added.`);
@@ -408,11 +376,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         navigateTo('dashboard');
     };
 
-    const handleValidateCoupon = async (code: string) => {
-        if (!user) return { valid: false, message: 'You must be logged in.' };
-        return await validateCoupon(user.uid, code);
-    };
-
     const value: DataContextType = {
         generatedDocuments,
         userFiles,
@@ -427,7 +390,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         handleNextLogs,
         handlePrevLogs,
         adminNotifications,
-        allCoupons,
         handleUpdateProfile,
         handleInitialProfileSubmit,
         handleProfilePhotoUpload,
@@ -441,7 +403,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         handleSubscriptionSuccess,
         handleTopUpSuccess,
         handleDocumentGenerated,
-        handleValidateCoupon,
     };
 
     return <DataContext.Provider value={value}>{children}</DataContext.Provider>;

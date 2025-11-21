@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { LoadingIcon, CreditCardIcon } from './Icons';
 import { processPayment } from '../services/paymentService';
@@ -11,13 +12,12 @@ declare global {
 interface PaymentModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSuccess: (couponCode?: string) => void;
+  onSuccess: () => void;
   amountInCents: number;
   itemName: string;
-  couponCode?: string;
 }
 
-const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onSuccess, amountInCents, itemName, couponCode }) => {
+const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onSuccess, amountInCents, itemName }) => {
   const [formData, setFormData] = useState({ name: '', surname: '', email: '' });
   const [errors, setErrors] = useState({ name: '', surname: '', email: '' });
   const [isLoading, setIsLoading] = useState(false);
@@ -82,7 +82,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onSuccess,
     setIsLoading(false);
 
     if (result.success) {
-        onSuccess(couponCode);
+        onSuccess();
     } else if (result.error && result.error !== "User cancelled") {
         setApiError(`Payment failed: ${result.error}`);
     } else if (result.error === "User cancelled") {

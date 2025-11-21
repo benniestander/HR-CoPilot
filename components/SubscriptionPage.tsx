@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+
+import React, { useState } from 'react';
 import { CheckIcon, CreditCardIcon, LoadingIcon } from './Icons';
-import type { User, Coupon } from '../types';
+import type { User } from '../types';
 import { useAuthContext } from '../contexts/AuthContext';
 import { processPayment } from '../services/paymentService';
 
@@ -11,12 +12,11 @@ declare global {
 }
 
 interface SubscriptionPageProps {
-  onSuccess: (couponCode?: string) => void;
+  onSuccess: () => void;
   onCancel: () => void;
-  onValidateCoupon: (code: string) => Promise<{ valid: boolean; message: string; coupon?: Coupon }>;
 }
 
-const SubscriptionPage: React.FC<SubscriptionPageProps> = ({ onSuccess, onCancel, onValidateCoupon }) => {
+const SubscriptionPage: React.FC<SubscriptionPageProps> = ({ onSuccess, onCancel }) => {
   const { user } = useAuthContext();
   const [formData, setFormData] = useState({ 
     firstName: user?.name?.split(' ')[0] || '', 
@@ -27,26 +27,8 @@ const SubscriptionPage: React.FC<SubscriptionPageProps> = ({ onSuccess, onCancel
   const [isLoading, setIsLoading] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
 
-  const [couponCode, setCouponCode] = useState('');
-  const [couponStatus, setCouponStatus] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
-  const [validatedCoupon, setValidatedCoupon] = useState<Coupon | null>(null);
-  
   const originalAmount = 74700;
-  const [finalAmount, setFinalAmount] = useState(originalAmount);
-
-  useEffect(() => {
-    if (validatedCoupon) {
-      let discount = 0;
-      if (validatedCoupon.type === 'fixed') {
-        discount = validatedCoupon.value;
-      } else { // percentage
-        discount = (originalAmount * validatedCoupon.value) / 100;
-      }
-      setFinalAmount(Math.max(0, originalAmount - discount));
-    } else {
-      setFinalAmount(originalAmount);
-    }
-  }, [validatedCoupon, originalAmount]);
+  const finalAmount = originalAmount;
 
   const features = [
     'Unlimited HR Policy Generation',
@@ -75,18 +57,6 @@ const SubscriptionPage: React.FC<SubscriptionPageProps> = ({ onSuccess, onCancel
     validateField(name, value);
   };
 
-  const handleApplyCoupon = async () => {
-    if (!couponCode) return;
-    const result = await onValidateCoupon(couponCode);
-    if (result.valid && result.coupon) {
-      setCouponStatus({ message: result.message, type: 'success' });
-      setValidatedCoupon(result.coupon);
-    } else {
-      setCouponStatus({ message: result.message, type: 'error' });
-      setValidatedCoupon(null);
-    }
-  };
-  
   const isFormValid = Object.values(formData).every(val => typeof val === 'string' && val.trim() !== '') && Object.values(errors).every(err => err === '');
 
   const handlePayment = async (e: React.FormEvent) => {
@@ -111,7 +81,7 @@ const SubscriptionPage: React.FC<SubscriptionPageProps> = ({ onSuccess, onCancel
     setIsLoading(false);
 
     if (result.success) {
-        onSuccess(validatedCoupon?.code);
+        onSuccess();
     } else if (result.error && result.error !== "User cancelled") {
         setApiError(`Payment failed: ${result.error}`);
     }
@@ -197,25 +167,12 @@ const SubscriptionPage: React.FC<SubscriptionPageProps> = ({ onSuccess, onCancel
                   </div>
                 ))}
               </div>
-               <div className="mt-6 pt-6 border-t border-gray-200 space-y-2">
-                 <div className="flex">
-                    <input type="text" value={couponCode} onChange={e => setCouponCode(e.target.value)} placeholder="Enter coupon code" className="flex-grow p-2 border rounded-l-md text-sm" />
-                    <button type="button" onClick={handleApplyCoupon} className="bg-gray-200 text-gray-700 font-semibold px-4 rounded-r-md text-sm hover:bg-gray-300">Apply</button>
-                 </div>
-                 {couponStatus && <p className={`text-xs mt-1 ${couponStatus.type === 'success' ? 'text-green-600' : 'text-red-600'}`}>{couponStatus.message}</p>}
-              </div>
 
               <div className="mt-6 pt-6 border-t border-gray-200">
                 <div className="flex justify-between items-center text-gray-600">
                     <span>12-Month Membership</span>
                     <span>R{(originalAmount / 100).toFixed(2)}</span>
                 </div>
-                 {validatedCoupon && (
-                    <div className="flex justify-between items-center text-green-600">
-                        <span>Discount ({validatedCoupon.code})</span>
-                        <span>- R{((originalAmount - finalAmount) / 100).toFixed(2)}</span>
-                    </div>
-                )}
                 <div className="flex justify-between items-center font-bold text-xl mt-4">
                     <span>Total Due Today (ZAR)</span>
                     <span>R{(finalAmount / 100).toFixed(2)}</span>

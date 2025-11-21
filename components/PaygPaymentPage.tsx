@@ -1,6 +1,6 @@
+
 import React, { useState } from 'react';
 import { CreditCardIcon, LoadingIcon, ShieldCheckIcon } from './Icons';
-import type { Coupon } from '../types';
 import { useAuthContext } from '../contexts/AuthContext';
 import { processPayment } from '../services/paymentService';
 
@@ -11,13 +11,12 @@ declare global {
 }
 
 interface PaygPaymentPageProps {
-  onTopUpSuccess: (amountInCents: number, couponCode?: string) => void;
+  onTopUpSuccess: (amountInCents: number) => void;
   onCancel: () => void;
   onUpgrade: () => void;
-  onValidateCoupon: (code: string) => Promise<{ valid: boolean; message: string; coupon?: Coupon }>;
 }
 
-const PaygPaymentPage: React.FC<PaygPaymentPageProps> = ({ onTopUpSuccess, onCancel, onUpgrade, onValidateCoupon }) => {
+const PaygPaymentPage: React.FC<PaygPaymentPageProps> = ({ onTopUpSuccess, onCancel, onUpgrade }) => {
   const { user } = useAuthContext();
   const [selectedAmount, setSelectedAmount] = useState<number | null>(10000); // Default to R100
   const [customAmount, setCustomAmount] = useState('');
@@ -32,10 +31,6 @@ const PaygPaymentPage: React.FC<PaygPaymentPageProps> = ({ onTopUpSuccess, onCan
   const [isLoading, setIsLoading] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
 
-  const [couponCode, setCouponCode] = useState('');
-  const [couponStatus, setCouponStatus] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
-  const [validatedCoupon, setValidatedCoupon] = useState<Coupon | null>(null);
-  
   const handleAmountSelect = (amount: number | 'custom') => {
     if (amount === 'custom') {
       setIsCustom(true);
@@ -49,18 +44,6 @@ const PaygPaymentPage: React.FC<PaygPaymentPageProps> = ({ onTopUpSuccess, onCan
 
   const finalAmount = isCustom ? (Number(customAmount) * 100) : selectedAmount;
 
-  const handleApplyCoupon = async () => {
-    if (!couponCode) return;
-    const result = await onValidateCoupon(couponCode);
-    if (result.valid && result.coupon) {
-      setCouponStatus({ message: result.message, type: 'success' });
-      setValidatedCoupon(result.coupon);
-    } else {
-      setCouponStatus({ message: result.message, type: 'error' });
-      setValidatedCoupon(null);
-    }
-  };
-  
   const validateField = (name: keyof typeof formData, value: string) => {
     let error = '';
     if (!value.trim()) {
@@ -105,7 +88,7 @@ const PaygPaymentPage: React.FC<PaygPaymentPageProps> = ({ onTopUpSuccess, onCan
     setIsLoading(false);
 
     if (result.success) {
-        onTopUpSuccess(finalAmount, validatedCoupon?.code);
+        onTopUpSuccess(finalAmount);
     } else if (result.error && result.error !== "User cancelled") {
         setApiError(`Payment failed: ${result.error}`);
     }
@@ -167,15 +150,6 @@ const PaygPaymentPage: React.FC<PaygPaymentPageProps> = ({ onTopUpSuccess, onCan
                           {errors.lastName && <p className="text-red-600 text-xs mt-1">{errors.lastName}</p>}
                         </div>
                       </div>
-                    </div>
-
-                    <div>
-                        <h3 className="text-lg font-semibold text-secondary mb-3">Have a coupon?</h3>
-                         <div className="flex">
-                            <input type="text" value={couponCode} onChange={e => setCouponCode(e.target.value)} placeholder="Enter coupon for bonus" className="flex-grow p-2 border rounded-l-md text-sm" />
-                            <button type="button" onClick={handleApplyCoupon} className="bg-gray-200 text-gray-700 font-semibold px-4 rounded-r-md text-sm hover:bg-gray-300">Apply</button>
-                        </div>
-                        {couponStatus && <p className={`text-xs mt-1 ${couponStatus.type === 'success' ? 'text-green-600' : 'text-red-600'}`}>{couponStatus.message}</p>}
                     </div>
 
                     <div className="pt-6 border-t border-gray-200">

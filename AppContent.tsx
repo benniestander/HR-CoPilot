@@ -1,3 +1,4 @@
+
 import React, { useRef, useEffect, lazy, Suspense } from 'react';
 import Dashboard from './components/Dashboard';
 import FullPageLoader from './components/FullPageLoader';
@@ -53,7 +54,6 @@ const AppContent: React.FC = () => {
 
     const {
         paginatedUsers,
-        // FIX: Remove userPage, docPage, and logPage which are no longer part of the DataContextType
         handleNextUsers,
         handlePrevUsers,
         paginatedDocuments,
@@ -64,7 +64,6 @@ const AppContent: React.FC = () => {
         handleNextLogs,
         handlePrevLogs,
         adminNotifications,
-        allCoupons,
         handleInitialProfileSubmit,
         adminActions,
         handleMarkNotificationRead,
@@ -72,7 +71,6 @@ const AppContent: React.FC = () => {
         handleSubscriptionSuccess,
         handleTopUpSuccess,
         handleDocumentGenerated,
-        handleValidateCoupon
     } = useDataContext();
 
     const {
@@ -258,7 +256,6 @@ const AppContent: React.FC = () => {
                 return <SubscriptionPage
                     onSuccess={handleSubscriptionSuccess}
                     onCancel={handleBackToDashboard}
-                    onValidateCoupon={handleValidateCoupon}
                 />;
             case 'topup':
                 if (!user || user.plan !== 'payg') { handleBackToDashboard(); return null; }
@@ -266,7 +263,6 @@ const AppContent: React.FC = () => {
                     onTopUpSuccess={handleTopUpSuccess}
                     onCancel={handleBackToDashboard}
                     onUpgrade={() => navigateTo('upgrade')}
-                    onValidateCoupon={handleValidateCoupon}
                 />;
             default:
                 return <Dashboard
@@ -301,7 +297,6 @@ const AppContent: React.FC = () => {
                                 paginatedLogs={paginatedLogs}
                                 onNextLogs={handleNextLogs}
                                 onPrevLogs={handlePrevLogs}
-                                allCoupons={allCoupons}
                                 adminNotifications={adminNotifications}
                                 adminActions={adminActions}
                             />
@@ -344,7 +339,6 @@ const AppContent: React.FC = () => {
                     <SubscriptionPage
                         onSuccess={handleSubscriptionSuccess}
                         onCancel={handleLogout}
-                        onValidateCoupon={handleValidateCoupon}
                     />
                 </Suspense>
             );

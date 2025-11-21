@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo } from 'react';
-import type { User, GeneratedDocument, Transaction, AdminActionLog, Coupon, AdminNotification } from '../types';
-import { UserIcon, MasterPolicyIcon, FormsIcon, SearchIcon, CreditCardIcon, HistoryIcon, DownloadIcon, CouponIcon } from './Icons';
+import type { User, GeneratedDocument, Transaction, AdminActionLog, AdminNotification } from '../types';
+import { UserIcon, MasterPolicyIcon, FormsIcon, SearchIcon, CreditCardIcon, HistoryIcon, DownloadIcon } from './Icons';
 import AdminUserDetailModal from './AdminUserDetailModal';
 import { PageInfo } from '../contexts/DataContext';
 
@@ -20,15 +20,12 @@ interface AdminDashboardProps {
   onNextLogs: () => void;
   onPrevLogs: () => void;
   
-  allCoupons: Coupon[];
   adminNotifications: AdminNotification[];
   adminActions: {
     updateUser: (targetUid: string, updates: Partial<User>) => Promise<void>;
     adjustCredit: (targetUid: string, amountInCents: number, reason: string) => Promise<void>;
     changePlan: (targetUid: string, newPlan: 'pro' | 'payg') => Promise<void>;
     simulateFailedPayment: (targetUid: string, targetUserEmail: string) => Promise<void>;
-    createCoupon: (couponData: Omit<Coupon, 'id' | 'createdAt' | 'uses' | 'isActive'>) => Promise<void>;
-    deactivateCoupon: (couponId: string) => Promise<void>;
   };
 }
 
@@ -140,117 +137,6 @@ const UserList: React.FC<{ users: User[], pageInfo: PageInfo, onNext: () => void
     );
 };
 
-const CouponManager: React.FC<{ coupons: Coupon[], onCreateCoupon: (data: Omit<Coupon, 'id' | 'createdAt' | 'uses' | 'isActive'>) => Promise<void>, onDeactivateCoupon: (id: string) => void }> = ({ coupons, onCreateCoupon, onDeactivateCoupon }) => {
-  const [newCoupon, setNewCoupon] = useState({ code: '', type: 'percentage' as 'percentage' | 'fixed', value: '10', maxUses: '100' });
-  const [targetAudience, setTargetAudience] = useState<'all' | 'pro' | 'payg'>('all');
-  const [isLoading, setIsLoading] = useState(false);
-
-  const handleCreate = async () => {
-    if (!newCoupon.code || !newCoupon.value) {
-      alert("Code and value are required.");
-      return;
-    }
-    
-    setIsLoading(true);
-    
-    // Calculate final value: Fixed is cents, Percentage is raw number
-    const finalValue = newCoupon.type === 'fixed' 
-        ? Math.round(Number(newCoupon.value) * 100) // Convert Rands to Cents
-        : Number(newCoupon.value);
-
-    let applicableTo: 'all' | string[] = 'all';
-    if (targetAudience === 'pro') applicableTo = ['plan:pro'];
-    if (targetAudience === 'payg') applicableTo = ['plan:payg'];
-
-    const couponData = {
-      ...newCoupon,
-      code: newCoupon.code.toUpperCase(),
-      value: finalValue,
-      maxUses: newCoupon.maxUses ? Number(newCoupon.maxUses) : undefined,
-      applicableTo
-    };
-    
-    try {
-        await onCreateCoupon(couponData);
-        setNewCoupon({ code: '', type: 'percentage', value: '10', maxUses: '100' });
-        setTargetAudience('all');
-    } catch (e) {
-        // Error handled in DataContext
-        console.error("Failed to create coupon in UI", e);
-    } finally {
-        setIsLoading(false);
-    }
-  };
-
-  return (
-    <div>
-      <h2 className="text-xl font-bold mb-4">Create New Coupon</h2>
-      <div className="grid grid-cols-1 md:grid-cols-6 gap-4 items-end p-4 border rounded-lg bg-gray-50 mb-6">
-        <div className="md:col-span-1">
-            <label className="block text-xs font-semibold text-gray-500 mb-1">Code</label>
-            <input value={newCoupon.code} onChange={e => setNewCoupon({ ...newCoupon, code: e.target.value })} placeholder="e.g. PROMO2024" className="w-full p-2 border rounded" />
-        </div>
-        <div className="md:col-span-1">
-            <label className="block text-xs font-semibold text-gray-500 mb-1">Type</label>
-            <select value={newCoupon.type} onChange={e => setNewCoupon({ ...newCoupon, type: e.target.value as any })} className="w-full p-2 border rounded bg-white">
-            <option value="percentage">Percentage (%)</option>
-            <option value="fixed">Fixed Amount (R)</option>
-            </select>
-        </div>
-        <div className="md:col-span-1">
-            <label className="block text-xs font-semibold text-gray-500 mb-1">Value ({newCoupon.type === 'percentage' ? '%' : 'Rand'})</label>
-            <input type="number" value={newCoupon.value} onChange={e => setNewCoupon({ ...newCoupon, value: e.target.value })} placeholder={newCoupon.type === 'percentage' ? '10' : '50'} className="w-full p-2 border rounded" />
-        </div>
-        <div className="md:col-span-1">
-            <label className="block text-xs font-semibold text-gray-500 mb-1">Max Uses</label>
-            <input type="number" value={newCoupon.maxUses} onChange={e => setNewCoupon({ ...newCoupon, maxUses: e.target.value })} placeholder="Optional" className="w-full p-2 border rounded" />
-        </div>
-        <div className="md:col-span-1">
-            <label className="block text-xs font-semibold text-gray-500 mb-1">Applicable To</label>
-            <select value={targetAudience} onChange={e => setTargetAudience(e.target.value as any)} className="w-full p-2 border rounded bg-white">
-            <option value="all">All Users</option>
-            <option value="pro">Pro Users Only</option>
-            <option value="payg">PAYG Users Only</option>
-            </select>
-        </div>
-        <div className="md:col-span-1">
-            <button onClick={handleCreate} disabled={isLoading} className="w-full bg-primary text-white p-2 rounded disabled:bg-gray-400 font-semibold">
-                {isLoading ? 'Creating...' : 'Create'}
-            </button>
-        </div>
-      </div>
-      
-      <h2 className="text-xl font-bold mb-4">Existing Coupons</h2>
-      <div className="space-y-2">
-        {coupons.map(coupon => {
-            const applicableToArray = coupon.applicableTo === 'all' ? [] : (Array.isArray(coupon.applicableTo) ? coupon.applicableTo : []);
-            let audienceLabel = 'All Users';
-            if (applicableToArray.includes('plan:pro')) audienceLabel = 'Pro Only';
-            if (applicableToArray.includes('plan:payg')) audienceLabel = 'PAYG Only';
-
-            return (
-            <div key={coupon.id} className="p-3 border rounded-md flex justify-between items-center bg-white">
-                <div>
-                <p className="font-bold text-lg">{coupon.code}</p>
-                <p className="text-sm text-gray-600">
-                    {coupon.type === 'percentage' ? `${coupon.value}% OFF` : `R${(coupon.value / 100).toFixed(2)} OFF`} 
-                    <span className="mx-2 text-gray-300">|</span> 
-                    Used: {coupon.uses} {coupon.maxUses ? `/ ${coupon.maxUses}` : ''}
-                    <span className="mx-2 text-gray-300">|</span> 
-                    <span className="text-xs font-semibold bg-gray-100 px-2 py-0.5 rounded text-gray-600">{audienceLabel}</span>
-                </p>
-                </div>
-                <button onClick={() => onDeactivateCoupon(coupon.id)} disabled={!coupon.isActive} className={`px-3 py-1 rounded text-sm font-medium ${coupon.isActive ? 'bg-red-100 text-red-700 hover:bg-red-200' : 'bg-gray-100 text-gray-500'}`}>
-                {coupon.isActive ? 'Deactivate' : 'Inactive'}
-                </button>
-            </div>
-            );
-        })}
-      </div>
-    </div>
-  );
-};
-
 const DocumentAnalytics: React.FC<{ documents: GeneratedDocument[], pageInfo: PageInfo, onNext: () => void, onPrev: () => void }> = ({ documents, pageInfo, onNext, onPrev }) => {
   return (
     <div>
@@ -356,24 +242,19 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
   paginatedDocuments, onNextDocs, onPrevDocs,
   transactionsForUserPage,
   paginatedLogs, onNextLogs, onPrevLogs,
-  allCoupons, 
   adminActions,
   adminNotifications
 }) => {
-  type AdminTab = 'users' | 'analytics' | 'transactions' | 'logs' | 'coupons';
+  type AdminTab = 'users' | 'analytics' | 'transactions' | 'logs';
   const [activeTab, setActiveTab] = useState<AdminTab>('users');
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
 
   // Ensure activeUser reflects the latest data from the paginated list
-  // This fixes the issue where the modal would show stale data (e.g., old credit balance)
-  // after an update action.
   const activeUser = useMemo(() => {
     if (!selectedUser) return null;
     return paginatedUsers.data.find(u => u.uid === selectedUser.uid) || selectedUser;
   }, [selectedUser, paginatedUsers.data]);
 
-  // Note: These stats are now based on the first page of users/transactions for performance.
-  // A more advanced implementation would use separate Firestore aggregation queries.
   const stats = useMemo(() => {
     const proUsers = paginatedUsers.data.filter(u => u.plan === 'pro' && !u.isAdmin).length;
     const paygUsers = paginatedUsers.data.filter(u => u.plan === 'payg').length;
@@ -390,7 +271,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
   const tabs: { id: AdminTab, name: string, icon: React.FC<{className?:string}> }[] = [
     { id: 'users', name: 'User Management', icon: UserIcon },
-    { id: 'coupons', name: 'Coupons', icon: CouponIcon },
     { id: 'analytics', name: 'Document Analytics', icon: FormsIcon },
     { id: 'transactions', name: 'Transaction Log', icon: CreditCardIcon },
     { id: 'logs', name: 'Admin Activity', icon: HistoryIcon },
@@ -399,7 +279,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const renderTabContent = () => {
     switch(activeTab) {
       case 'users': return <UserList users={paginatedUsers.data} pageInfo={paginatedUsers.pageInfo} onNext={onNextUsers} onPrev={onPrevUsers} onViewUser={handleViewUser} />;
-      case 'coupons': return <CouponManager coupons={allCoupons} onCreateCoupon={adminActions.createCoupon} onDeactivateCoupon={adminActions.deactivateCoupon} />;
       case 'analytics': return <DocumentAnalytics documents={paginatedDocuments.data} pageInfo={paginatedDocuments.pageInfo} onNext={onNextDocs} onPrev={onPrevDocs} />;
       case 'transactions': return <TransactionLog transactions={transactionsForUserPage} usersPageInfo={paginatedUsers.pageInfo} onNext={onNextUsers} onPrev={onPrevUsers} />;
       case 'logs': return <ActivityLog logs={paginatedLogs.data} pageInfo={paginatedLogs.pageInfo} onNext={onNextLogs} onPrev={onPrevLogs} />;

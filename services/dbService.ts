@@ -1,6 +1,6 @@
 
 import { supabase } from './supabase';
-import type { User, GeneratedDocument, Transaction, AdminActionLog, AdminNotification, UserFile, Coupon, CompanyProfile } from '../types';
+import type { User, GeneratedDocument, Transaction, AdminActionLog, AdminNotification, UserFile, CompanyProfile } from '../types';
 
 // --- Helpers for Type Mapping (Snake Case <-> Camel Case) ---
 
@@ -31,7 +31,6 @@ const mapTransaction = (tx: any): Transaction => ({
     description: tx.description,
     amount: Number(tx.amount), // Ensure number
     userId: tx.user_id,
-    discount: tx.discount
 });
 
 const mapDocument = (doc: any): GeneratedDocument => ({
@@ -138,45 +137,15 @@ export const updateUser = async (uid: string, userData: Partial<User> & { name?:
     if (error) throw error;
 };
 
-export const addTransactionToUser = async (uid: string, transaction: Omit<Transaction, 'id' | 'date' | 'userId' | 'userEmail'>, couponCode?: string): Promise<void> => {
+export const addTransactionToUser = async (uid: string, transaction: Omit<Transaction, 'id' | 'date' | 'userId' | 'userEmail'>): Promise<void> => {
     
-    let discountDetails: any = null;
     let finalAmount = Number(transaction.amount);
-
-    if (couponCode) {
-        const couponRes = await validateCoupon(uid, couponCode);
-        if (couponRes.valid && couponRes.coupon) {
-            const coupon = couponRes.coupon;
-            let discountAmount = 0;
-
-            if (coupon.type === 'percentage') {
-                discountAmount = (Math.abs(finalAmount) * coupon.value) / 100;
-            } else {
-                discountAmount = coupon.value;
-            }
-            
-            // Apply discount logic
-            if (finalAmount < 0) {
-                 finalAmount += discountAmount; 
-                 if (finalAmount > 0) finalAmount = 0; // Cannot pay user to generate
-            } else {
-                 finalAmount += discountAmount;
-            }
-
-            discountDetails = { couponCode: coupon.code, amount: discountAmount };
-
-            // Increment uses using secure RPC
-            const { error: rpcError } = await supabase.rpc('increment_coupon_uses', { coupon_id: coupon.id });
-            if (rpcError) console.error("Failed to increment coupon usage via RPC:", rpcError);
-        }
-    }
 
     // 1. Insert Transaction
     const { error: txError } = await supabase.from('transactions').insert({
         user_id: uid,
         amount: finalAmount,
         description: transaction.description,
-        discount: discountDetails,
         date: new Date().toISOString()
     });
 
@@ -494,102 +463,4 @@ export const deleteProfilePhoto = async (uid: string): Promise<void> => {
     const path = `${uid}/avatar.png`;
     await supabase.storage.from('avatars').remove([path]);
     await supabase.from('profiles').update({ avatar_url: null }).eq('id', uid);
-};
-
-
-// --- Coupons ---
-
-export const createCoupon = async (adminEmail: string, couponData: Omit<Coupon, 'id' | 'createdAt' | 'uses' | 'isActive'>): Promise<void> => {
-    const dbApplicableTo = couponData.applicableTo === 'all' ? null : couponData.applicableTo;
-
-    const { data, error } = await supabase.from('coupons').insert({
-        code: couponData.code,
-        type: couponData.type,
-        value: couponData.value,
-        max_uses: couponData.maxUses,
-        applicable_to: dbApplicableTo,
-        is_active: true
-    }).select().single();
-
-    if (error) {
-        console.error("Error creating coupon:", error);
-        // If error is 42501, it means RLS denied access.
-        // We log user status to help debugging.
-        if (error.code === '42501') {
-             throw new Error("Permission denied. You must be an Admin (check 'is_admin' in database) to create coupons.");
-        }
-        throw error;
-    }
-
-    await logAdminAction({
-        adminEmail, action: 'Created Coupon', targetUserId: 'N/A', targetUserEmail: 'N/A',
-        details: { couponId: data.id, code: couponData.code }
-    });
-};
-
-export const getCoupons = async (): Promise<Coupon[]> => {
-    const { data, error } = await supabase.from('coupons').select('*').order('created_at', { ascending: false });
-    if (error) return [];
-
-    return data.map((c: any) => ({
-        id: c.id,
-        code: c.code,
-        type: c.type,
-        value: c.value,
-        uses: c.uses,
-        maxUses: c.max_uses,
-        applicableTo: c.applicable_to === null ? 'all' : c.applicable_to,
-        isActive: c.is_active,
-        expiresAt: c.expires_at,
-        createdAt: c.created_at
-    }));
-};
-
-export const deactivateCoupon = async (adminEmail: string, couponId: string): Promise<void> => {
-    await supabase.from('coupons').update({ is_active: false }).eq('id', couponId);
-    await logAdminAction({
-        adminEmail, action: 'Deactivated Coupon', targetUserId: 'N/A', targetUserEmail: 'N/A',
-        details: { couponId }
-    });
-};
-
-export const validateCoupon = async (uid: string, code: string): Promise<{ valid: boolean; message: string; coupon?: Coupon }> => {
-    const { data: coupon, error } = await supabase.from('coupons').select('*').eq('code', code.toUpperCase()).single();
-
-    if (error || !coupon) return { valid: false, message: 'Coupon not found.' };
-
-    if (!coupon.is_active) return { valid: false, message: 'This coupon is no longer active.' };
-    if (coupon.expires_at && new Date(coupon.expires_at) < new Date()) return { valid: false, message: 'This coupon has expired.' };
-    if (coupon.max_uses != null && coupon.uses >= coupon.max_uses) return { valid: false, message: 'This coupon has reached its usage limit.' };
-    
-    const applicableTo = coupon.applicable_to;
-    
-    if (applicableTo !== null && Array.isArray(applicableTo) && applicableTo.length > 0) {
-        const isProRestricted = applicableTo.includes('plan:pro');
-        const isPaygRestricted = applicableTo.includes('plan:payg');
-
-        if (isProRestricted || isPaygRestricted) {
-            const { data: profile } = await supabase.from('profiles').select('plan').eq('id', uid).single();
-            if (isProRestricted && profile?.plan !== 'pro') return { valid: false, message: 'Valid for Pro users only.' };
-            if (isPaygRestricted && profile?.plan !== 'payg') return { valid: false, message: 'Valid for Pay-As-You-Go users only.' };
-        } 
-        else if (!applicableTo.includes(uid)) {
-            return { valid: false, message: 'This coupon is not valid for your account.' };
-        }
-    }
-
-    const mappedCoupon: Coupon = {
-        id: coupon.id,
-        code: coupon.code,
-        type: coupon.type,
-        value: coupon.value,
-        uses: coupon.uses,
-        maxUses: coupon.max_uses,
-        applicableTo: applicableTo === null ? 'all' : applicableTo,
-        isActive: coupon.is_active,
-        expiresAt: coupon.expires_at,
-        createdAt: coupon.created_at
-    };
-
-    return { valid: true, message: 'Coupon applied successfully!', coupon: mappedCoupon };
 };

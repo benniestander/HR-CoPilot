@@ -1,3 +1,4 @@
+
 import type React from 'react';
 
 export type PolicyType =
@@ -190,10 +191,6 @@ export type Transaction = {
   amount: number; // in cents, positive for deposits, negative for deductions
   userId?: string; // Added for admin transaction log
   userEmail?: string; // Added for admin transaction log
-  discount?: {
-    couponCode: string;
-    amount: number; // in cents
-  };
 };
 
 export type User = {
@@ -291,17 +288,4 @@ export type UserFile = {
   size: number;
   storagePath: string;
   createdAt: string; // ISO string
-};
-
-export type Coupon = {
-  id: string;
-  code: string;
-  type: 'percentage' | 'fixed'; // 'fixed' is in cents
-  value: number;
-  createdAt: string; // ISO string
-  expiresAt?: string; // ISO string
-  uses: number;
-  maxUses?: number; // How many times in total this coupon can be used
-  applicableTo: 'all' | string[]; // 'all' or an array of user UIDs
-  isActive: boolean;
 };

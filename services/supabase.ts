@@ -15,29 +15,9 @@ import { createClient } from '@supabase/supabase-js';
    ==========================================================================
 
    -- 1. CLEANUP (Remove old functions/policies to prevent conflicts)
-   DROP POLICY IF EXISTS "Admins can insert coupons" ON coupons;
-   DROP POLICY IF EXISTS "Admins can update coupons" ON coupons;
-   DROP POLICY IF EXISTS "Admins can delete coupons" ON coupons;
-   DROP POLICY IF EXISTS "Everyone can view coupons" ON coupons;
-   
    DROP FUNCTION IF EXISTS public.is_admin();
-   DROP FUNCTION IF EXISTS public.increment_coupon_uses(uuid);
 
-   -- 2. CREATE/UPDATE TABLES
-   CREATE TABLE IF NOT EXISTS public.coupons (
-     id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
-     code text NOT NULL UNIQUE,
-     type text NOT NULL,
-     value numeric NOT NULL,
-     max_uses int,
-     uses int DEFAULT 0,
-     applicable_to text[], -- Array of user IDs (text) or null for all
-     is_active boolean DEFAULT true,
-     expires_at timestamptz,
-     created_at timestamptz DEFAULT now()
-   );
-
-   -- 3. CREATE SECURE FUNCTIONS
+   -- 2. CREATE SECURE FUNCTIONS
    
    -- Function to check if the current user is an admin
    -- SECURITY DEFINER = runs with the privileges of the creator (bypassing RLS on profiles)
@@ -55,42 +35,13 @@ import { createClient } from '@supabase/supabase-js';
    END; 
    $$;
 
-   -- Function to increment coupon usage safely
-   -- SECURITY DEFINER = allows regular users to update the coupon table via this function only
-   CREATE OR REPLACE FUNCTION public.increment_coupon_uses(coupon_id uuid) 
-   RETURNS void 
-   LANGUAGE plpgsql 
-   SECURITY DEFINER 
-   SET search_path = public 
-   AS $$ 
-   BEGIN 
-     UPDATE coupons 
-     SET uses = uses + 1 
-     WHERE id = coupon_id; 
-   END; 
-   $$;
-
-   -- 4. GRANT PERMISSIONS
+   -- 3. GRANT PERMISSIONS
    -- Essential for the API to actually call these functions
    GRANT EXECUTE ON FUNCTION public.is_admin TO authenticated;
    GRANT EXECUTE ON FUNCTION public.is_admin TO service_role;
    GRANT EXECUTE ON FUNCTION public.is_admin TO anon;
 
-   GRANT EXECUTE ON FUNCTION public.increment_coupon_uses TO authenticated;
-   GRANT EXECUTE ON FUNCTION public.increment_coupon_uses TO service_role;
-
-   -- 5. ENABLE RLS & CREATE POLICIES
-   ALTER TABLE coupons ENABLE ROW LEVEL SECURITY;
-
-   -- Admin Access (Full Control)
-   CREATE POLICY "Admins can insert coupons" ON coupons FOR INSERT WITH CHECK (is_admin());
-   CREATE POLICY "Admins can update coupons" ON coupons FOR UPDATE USING (is_admin());
-   CREATE POLICY "Admins can delete coupons" ON coupons FOR DELETE USING (is_admin());
-
-   -- User Access (View Only)
-   CREATE POLICY "Everyone can view coupons" ON coupons FOR SELECT USING (true);
-
-   -- 6. FIX PROFILES RLS (Just in case)
+   -- 4. FIX PROFILES RLS
    ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
    
    DROP POLICY IF EXISTS "Admins can view all profiles" ON profiles;
