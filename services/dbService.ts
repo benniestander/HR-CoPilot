@@ -10,7 +10,7 @@ const mapProfileToUser = (profile: any, transactions: any[] = []): User => ({
     name: profile.full_name || '',
     contactNumber: profile.contact_number || '',
     plan: profile.plan as 'payg' | 'pro',
-    creditBalance: profile.credit_balance || 0,
+    creditBalance: Number(profile.credit_balance || 0), // Ensure it's a number
     isAdmin: profile.is_admin,
     photoURL: profile.avatar_url,
     createdAt: profile.created_at,
@@ -29,9 +29,8 @@ const mapTransaction = (tx: any): Transaction => ({
     id: tx.id,
     date: tx.date,
     description: tx.description,
-    amount: tx.amount,
+    amount: Number(tx.amount), // Ensure number
     userId: tx.user_id,
-    // Discount JSONB is stored directly, assuming structure matches
     discount: tx.discount
 });
 
@@ -45,13 +44,13 @@ const mapDocument = (doc: any): GeneratedDocument => ({
     companyProfile: {
        companyName: '', 
        industry: '',
-       ...(doc.question_answers || {})
+       ...(doc.question_answers || {}) // Safe spread even if null
     },
     questionAnswers: doc.question_answers || {},
     outputFormat: doc.output_format,
-    sources: doc.sources,
+    sources: doc.sources || [],
     version: doc.version,
-    history: doc.history
+    history: doc.history || []
 });
 
 // --- User Profile Functions ---
@@ -156,20 +155,17 @@ export const addTransactionToUser = async (uid: string, transaction: Omit<Transa
                 discountAmount = coupon.value;
             }
             
-            // Apply discount (reduce cost or increase credit)
-            // Logic: if buying (neg amount), discount reduces cost (adds pos value).
-            // If top-up (pos amount), discount adds EXTRA credit.
+            // Apply discount logic
             if (finalAmount < 0) {
                  finalAmount += discountAmount; 
-                 // cap at 0 so we don't pay user to generate docs
-                 if (finalAmount > 0) finalAmount = 0; 
+                 if (finalAmount > 0) finalAmount = 0; // Cannot pay user to generate
             } else {
                  finalAmount += discountAmount;
             }
 
             discountDetails = { couponCode: coupon.code, amount: discountAmount };
 
-            // Increment uses using secure RPC to bypass RLS (Users cannot update coupons table directly)
+            // Increment uses using secure RPC
             const { error: rpcError } = await supabase.rpc('increment_coupon_uses', { coupon_id: coupon.id });
             if (rpcError) console.error("Failed to increment coupon usage via RPC:", rpcError);
         }
@@ -186,15 +182,13 @@ export const addTransactionToUser = async (uid: string, transaction: Omit<Transa
 
     if (txError) throw txError;
 
-    // 2. Update User Balance (only if not subscription)
-    // Note: Subscription transactions usually have a large negative amount, but balances aren't tracked for Pro users typically.
-    // However, we still update it to keep records consistent.
+    // 2. Update User Balance (if not subscription record)
     if (transaction.description !== 'HR CoPilot Pro Subscription (12 months)') {
         const { data: profile, error: fetchError } = await supabase.from('profiles').select('credit_balance').eq('id', uid).single();
         if (fetchError) throw fetchError;
         
         if (profile) {
-            // Explicitly cast to Number to prevent string concatenation
+            // Explicitly cast to Number to prevent string concatenation issues
             const currentBalance = Number(profile.credit_balance || 0);
             const newBalance = currentBalance + finalAmount;
             
@@ -298,7 +292,6 @@ export const adjustUserCreditByAdmin = async (adminEmail: string, targetUid: str
         details: { amountInCents, reason }
     });
 
-    // Return the updated user profile so UI can refresh
     return await getUserProfile(targetUid);
 };
 
@@ -309,7 +302,6 @@ export const changeUserPlanByAdmin = async (adminEmail: string, targetUid: strin
     const oldPlan = user.plan;
     await supabase.from('profiles').update({ plan: newPlan }).eq('id', targetUid);
 
-    // If changing to Pro, add a transaction so "isSubscribed" check passes (which requires a transaction record)
     if (newPlan === 'pro') {
         await addTransactionToUser(targetUid, {
             description: 'Pro Plan (Admin Grant)',
@@ -325,7 +317,6 @@ export const changeUserPlanByAdmin = async (adminEmail: string, targetUid: strin
         details: { from: oldPlan, to: newPlan }
     });
     
-    // Refetch user to get updated plan and transaction list
     return await getUserProfile(targetUid);
 };
 
@@ -386,7 +377,7 @@ export const markAllNotificationsAsRead = async (): Promise<void> => {
 
 export const getAllUsers = async (pageSize: number, cursor?: any): Promise<{ data: User[], lastVisible: any }> => {
     const offset = cursor || 0;
-    const { data, error, count } = await supabase
+    const { data, error } = await supabase
         .from('profiles')
         .select('*', { count: 'exact' })
         .range(offset, offset + pageSize - 1)
@@ -450,7 +441,6 @@ export const getAdminActionLogs = async (pageSize: number, cursor?: any): Promis
 
 export const uploadUserFile = async (uid: string, file: File, notes: string): Promise<void> => {
     const path = `${uid}/${Date.now()}_${file.name}`;
-    
     const { error: uploadError } = await supabase.storage.from('user-files').upload(path, file);
     if (uploadError) throw uploadError;
 
@@ -490,7 +480,6 @@ export const deleteUserFile = async (uid: string, fileId: string, storagePath: s
 
 export const uploadProfilePhoto = async (uid: string, file: File): Promise<string> => {
     const path = `${uid}/avatar.png`;
-    
     const { error: uploadError } = await supabase.storage.from('avatars').upload(path, file, { upsert: true });
     if (uploadError) throw uploadError;
 
@@ -511,7 +500,6 @@ export const deleteProfilePhoto = async (uid: string): Promise<void> => {
 // --- Coupons ---
 
 export const createCoupon = async (adminEmail: string, couponData: Omit<Coupon, 'id' | 'createdAt' | 'uses' | 'isActive'>): Promise<void> => {
-    // Map 'all' to null for storage to handle DB schema types safely
     const dbApplicableTo = couponData.applicableTo === 'all' ? null : couponData.applicableTo;
 
     const { data, error } = await supabase.from('coupons').insert({
@@ -525,9 +513,10 @@ export const createCoupon = async (adminEmail: string, couponData: Omit<Coupon, 
 
     if (error) {
         console.error("Error creating coupon:", error);
-        // Throw a specific error message if permissions are denied, which helps in debugging RLS
-        if (error.code === '42501') { // Postgres error for permission denied
-            throw new Error("Permission denied. You must be an Admin (check 'is_admin' in database) to create coupons.");
+        // If error is 42501, it means RLS denied access.
+        // We log user status to help debugging.
+        if (error.code === '42501') {
+             throw new Error("Permission denied. You must be an Admin (check 'is_admin' in database) to create coupons.");
         }
         throw error;
     }
@@ -570,33 +559,20 @@ export const validateCoupon = async (uid: string, code: string): Promise<{ valid
     if (error || !coupon) return { valid: false, message: 'Coupon not found.' };
 
     if (!coupon.is_active) return { valid: false, message: 'This coupon is no longer active.' };
-    
-    if (coupon.expires_at && new Date(coupon.expires_at) < new Date()) {
-        return { valid: false, message: 'This coupon has expired.' };
-    }
-    
-    if (coupon.max_uses != null && coupon.uses >= coupon.max_uses) {
-        return { valid: false, message: 'This coupon has reached its usage limit.' };
-    }
+    if (coupon.expires_at && new Date(coupon.expires_at) < new Date()) return { valid: false, message: 'This coupon has expired.' };
+    if (coupon.max_uses != null && coupon.uses >= coupon.max_uses) return { valid: false, message: 'This coupon has reached its usage limit.' };
     
     const applicableTo = coupon.applicable_to;
     
-    // Check restrictions if not null ('all')
     if (applicableTo !== null && Array.isArray(applicableTo) && applicableTo.length > 0) {
-        // Check for plan restrictions first
         const isProRestricted = applicableTo.includes('plan:pro');
         const isPaygRestricted = applicableTo.includes('plan:payg');
 
         if (isProRestricted || isPaygRestricted) {
             const { data: profile } = await supabase.from('profiles').select('plan').eq('id', uid).single();
-            if (isProRestricted && profile?.plan !== 'pro') {
-                return { valid: false, message: 'This coupon is valid for Pro plan users only.' };
-            }
-            if (isPaygRestricted && profile?.plan !== 'payg') {
-                return { valid: false, message: 'This coupon is valid for Pay-As-You-Go users only.' };
-            }
+            if (isProRestricted && profile?.plan !== 'pro') return { valid: false, message: 'Valid for Pro users only.' };
+            if (isPaygRestricted && profile?.plan !== 'payg') return { valid: false, message: 'Valid for Pay-As-You-Go users only.' };
         } 
-        // Check for specific user restriction if not a plan-based restriction (or in addition to it, depending on desired logic)
         else if (!applicableTo.includes(uid)) {
             return { valid: false, message: 'This coupon is not valid for your account.' };
         }

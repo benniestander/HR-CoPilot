@@ -291,7 +291,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
             const updatedUser = await adjustUserCreditByAdmin(user.email, targetUid, amountInCents, reason);
             
             if (updatedUser) {
-                // Optimistic/Direct update of the paginated list to show changes immediately
                 setPaginatedUsers(prev => prev.map(u => u.uid === targetUid ? updatedUser : u));
             } else {
                 await fetchUsersPage(userPageIndex);
@@ -318,8 +317,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 setToastMessage(`Coupon "${couponData.code}" created successfully!`);
             } catch (error: any) {
                 console.error(error);
-                if (error.message && error.message.includes('row-level security')) {
-                     setToastMessage("Database permission denied. Please run the SQL fix in services/supabase.ts.");
+                if (error.message && error.message.includes('Permission denied')) {
+                     setToastMessage("Permission denied. Check database 'is_admin' rights.");
                 } else {
                      setToastMessage(`Failed to create coupon: ${error.message}`);
                 }
@@ -381,7 +380,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
             }
         } else {
             docToSave = { ...doc, version: 1, history: [] };
-            // Correctly lookup price for deduction
+            // Correctly lookup price for deduction based on plan
             if (user.plan === 'payg') {
                 let price = 0;
                 if (doc.kind === 'policy') {
