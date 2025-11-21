@@ -525,6 +525,10 @@ export const createCoupon = async (adminEmail: string, couponData: Omit<Coupon, 
 
     if (error) {
         console.error("Error creating coupon:", error);
+        // Throw a specific error message if permissions are denied, which helps in debugging RLS
+        if (error.code === '42501') { // Postgres error for permission denied
+            throw new Error("Permission denied. You must be an Admin (check 'is_admin' in database) to create coupons.");
+        }
         throw error;
     }
 
@@ -576,9 +580,26 @@ export const validateCoupon = async (uid: string, code: string): Promise<{ valid
     }
     
     const applicableTo = coupon.applicable_to;
-    // If null, it means 'all'
-    if (applicableTo !== null && Array.isArray(applicableTo) && applicableTo.length > 0 && !applicableTo.includes(uid)) {
-        return { valid: false, message: 'This coupon is not valid for your account.' };
+    
+    // Check restrictions if not null ('all')
+    if (applicableTo !== null && Array.isArray(applicableTo) && applicableTo.length > 0) {
+        // Check for plan restrictions first
+        const isProRestricted = applicableTo.includes('plan:pro');
+        const isPaygRestricted = applicableTo.includes('plan:payg');
+
+        if (isProRestricted || isPaygRestricted) {
+            const { data: profile } = await supabase.from('profiles').select('plan').eq('id', uid).single();
+            if (isProRestricted && profile?.plan !== 'pro') {
+                return { valid: false, message: 'This coupon is valid for Pro plan users only.' };
+            }
+            if (isPaygRestricted && profile?.plan !== 'payg') {
+                return { valid: false, message: 'This coupon is valid for Pay-As-You-Go users only.' };
+            }
+        } 
+        // Check for specific user restriction if not a plan-based restriction (or in addition to it, depending on desired logic)
+        else if (!applicableTo.includes(uid)) {
+            return { valid: false, message: 'This coupon is not valid for your account.' };
+        }
     }
 
     const mappedCoupon: Coupon = {

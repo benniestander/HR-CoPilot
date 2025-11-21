@@ -6,15 +6,15 @@ import { createClient } from '@supabase/supabase-js';
    SUPABASE MASTER FIX SCRIPT (RUN THIS IN SQL EDITOR)
    ==========================================================================
    
-   1. Copy this entire block.
-   2. Paste into Supabase SQL Editor.
+   1. Copy this entire block (between the start/end comments).
+   2. Paste into Supabase SQL Editor (https://supabase.com/dashboard/project/_/sql).
    3. Run it.
-   4. AFTER RUNNING: Execute this separate command to make yourself admin:
-      UPDATE profiles SET is_admin = true WHERE email = 'your-email@example.com';
+   4. IMPORTANT: After running, execute this command to make yourself admin:
+      UPDATE profiles SET is_admin = true WHERE email = 'YOUR_EMAIL_ADDRESS_HERE';
 
    ==========================================================================
 
-   -- 1. CLEANUP (Start Fresh)
+   -- 1. CLEANUP (Remove old functions/policies to prevent conflicts)
    DROP POLICY IF EXISTS "Admins can insert coupons" ON coupons;
    DROP POLICY IF EXISTS "Admins can update coupons" ON coupons;
    DROP POLICY IF EXISTS "Admins can delete coupons" ON coupons;
@@ -23,9 +23,24 @@ import { createClient } from '@supabase/supabase-js';
    DROP FUNCTION IF EXISTS public.is_admin();
    DROP FUNCTION IF EXISTS public.increment_coupon_uses(uuid);
 
-   -- 2. SECURE FUNCTIONS
+   -- 2. CREATE/UPDATE TABLES
+   CREATE TABLE IF NOT EXISTS public.coupons (
+     id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+     code text NOT NULL UNIQUE,
+     type text NOT NULL,
+     value numeric NOT NULL,
+     max_uses int,
+     uses int DEFAULT 0,
+     applicable_to text[], -- Array of user IDs (text) or null for all
+     is_active boolean DEFAULT true,
+     expires_at timestamptz,
+     created_at timestamptz DEFAULT now()
+   );
+
+   -- 3. CREATE SECURE FUNCTIONS
    
-   -- Check Admin Status (Bypass RLS)
+   -- Function to check if the current user is an admin
+   -- SECURITY DEFINER = runs with the privileges of the creator (bypassing RLS on profiles)
    CREATE OR REPLACE FUNCTION public.is_admin() 
    RETURNS boolean 
    LANGUAGE plpgsql 
@@ -40,7 +55,8 @@ import { createClient } from '@supabase/supabase-js';
    END; 
    $$;
 
-   -- Increment Coupon Uses (Bypass RLS for Users)
+   -- Function to increment coupon usage safely
+   -- SECURITY DEFINER = allows regular users to update the coupon table via this function only
    CREATE OR REPLACE FUNCTION public.increment_coupon_uses(coupon_id uuid) 
    RETURNS void 
    LANGUAGE plpgsql 
@@ -54,37 +70,29 @@ import { createClient } from '@supabase/supabase-js';
    END; 
    $$;
 
-   -- 3. PERMISSIONS (Crucial for "Permission Denied" errors)
+   -- 4. GRANT PERMISSIONS
+   -- Essential for the API to actually call these functions
    GRANT EXECUTE ON FUNCTION public.is_admin TO authenticated;
    GRANT EXECUTE ON FUNCTION public.is_admin TO service_role;
+   GRANT EXECUTE ON FUNCTION public.is_admin TO anon;
+
    GRANT EXECUTE ON FUNCTION public.increment_coupon_uses TO authenticated;
    GRANT EXECUTE ON FUNCTION public.increment_coupon_uses TO service_role;
 
-   -- 4. COUPONS TABLE & POLICIES
-   CREATE TABLE IF NOT EXISTS public.coupons (
-     id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
-     code text NOT NULL UNIQUE,
-     type text NOT NULL,
-     value numeric NOT NULL,
-     max_uses int,
-     uses int DEFAULT 0,
-     applicable_to text[],
-     is_active boolean DEFAULT true,
-     expires_at timestamptz,
-     created_at timestamptz DEFAULT now()
-   );
-   
+   -- 5. ENABLE RLS & CREATE POLICIES
    ALTER TABLE coupons ENABLE ROW LEVEL SECURITY;
 
+   -- Admin Access (Full Control)
    CREATE POLICY "Admins can insert coupons" ON coupons FOR INSERT WITH CHECK (is_admin());
    CREATE POLICY "Admins can update coupons" ON coupons FOR UPDATE USING (is_admin());
    CREATE POLICY "Admins can delete coupons" ON coupons FOR DELETE USING (is_admin());
+
+   -- User Access (View Only)
    CREATE POLICY "Everyone can view coupons" ON coupons FOR SELECT USING (true);
 
-   -- 5. PROFILES TABLE FIXES
+   -- 6. FIX PROFILES RLS (Just in case)
    ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
    
-   -- Allow admins to view/edit all profiles (for dashboard)
    DROP POLICY IF EXISTS "Admins can view all profiles" ON profiles;
    CREATE POLICY "Admins can view all profiles" ON profiles FOR SELECT USING (is_admin() OR auth.uid() = id);
    
