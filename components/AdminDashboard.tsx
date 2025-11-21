@@ -25,6 +25,7 @@ interface AdminDashboardProps {
     updateUser: (targetUid: string, updates: Partial<User>) => Promise<void>;
     adjustCredit: (targetUid: string, amountInCents: number, reason: string) => Promise<void>;
     changePlan: (targetUid: string, newPlan: 'pro' | 'payg') => Promise<void>;
+    grantPro: (targetUid: string) => Promise<void>;
     simulateFailedPayment: (targetUid: string, targetUserEmail: string) => Promise<void>;
   };
 }

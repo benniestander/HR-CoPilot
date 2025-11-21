@@ -46,12 +46,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     React.useEffect(() => {
         if (user) {
             if (user.plan === 'pro') {
-                // Strictly check for a transaction indicating a subscription payment or admin grant
-                const hasPayment = user.transactions?.some(tx => 
-                   tx.description.toLowerCase().includes('subscription') || 
-                   tx.description.toLowerCase().includes('pro plan')
-                );
-                setIsSubscribed(!!hasPayment);
+                const now = new Date();
+                const oneYearAgo = new Date();
+                oneYearAgo.setFullYear(now.getFullYear() - 1);
+
+                // Check for a transaction indicating a subscription payment or admin grant within the last year
+                const validSubscription = user.transactions?.some(tx => {
+                    const desc = tx.description.toLowerCase();
+                    const isSubTx = desc.includes('subscription') || desc.includes('pro plan');
+                    const txDate = new Date(tx.date);
+                    return isSubTx && txDate > oneYearAgo;
+                });
+                
+                setIsSubscribed(!!validSubscription);
             } else {
                 setIsSubscribed(false);
             }

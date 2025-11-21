@@ -152,7 +152,7 @@ export const addTransactionToUser = async (uid: string, transaction: Omit<Transa
     if (txError) throw txError;
 
     // 2. Update User Balance (if not subscription record)
-    if (transaction.description !== 'HR CoPilot Pro Subscription (12 months)') {
+    if (!transaction.description.includes('Pro Plan')) {
         const { data: profile, error: fetchError } = await supabase.from('profiles').select('credit_balance').eq('id', uid).single();
         if (fetchError) throw fetchError;
         
@@ -289,7 +289,32 @@ export const changeUserPlanByAdmin = async (adminEmail: string, targetUid: strin
     return await getUserProfile(targetUid);
 };
 
+export const grantProPlanByAdmin = async (adminEmail: string, targetUid: string): Promise<User | null> => {
+    const user = await getUserProfile(targetUid);
+    if (!user) return null;
+
+    // Ensure plan is set to pro
+    await supabase.from('profiles').update({ plan: 'pro' }).eq('id', targetUid);
+
+    // Add transaction for record keeping and validity check
+    await addTransactionToUser(targetUid, {
+        description: 'Free Pro Plan (12 Months - Admin Gift)',
+        amount: 0
+    });
+
+    await logAdminAction({
+        adminEmail,
+        action: 'Granted Free Pro Plan',
+        targetUserId: targetUid,
+        targetUserEmail: user.email,
+        details: { duration: '12 months' }
+    });
+    
+    return await getUserProfile(targetUid);
+};
+
 export const simulateFailedPaymentForUser = async (adminEmail: string, targetUid: string, targetUserEmail: string): Promise<void> => {
+    if (targetUserEmail === 'admin@hrcopilot.co.za') return;
     await createAdminNotification({
         type: 'payment_failed',
         message: `A payment simulation failed for user ${targetUserEmail}.`,

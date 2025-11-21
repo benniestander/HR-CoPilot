@@ -189,7 +189,16 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
 
 
   const getExpiryDate = () => {
-    const date = new Date();
+    if (!user?.transactions) return 'N/A';
+    // Find the latest subscription transaction
+    const subTx = user.transactions.find(tx => 
+        tx.description.toLowerCase().includes('subscription') || 
+        tx.description.toLowerCase().includes('pro plan')
+    );
+
+    if (!subTx) return 'N/A';
+
+    const date = new Date(subTx.date);
     date.setFullYear(date.getFullYear() + 1);
     return date.toLocaleString('en-ZA', { year: 'numeric', month: 'long', day: 'numeric' });
   };

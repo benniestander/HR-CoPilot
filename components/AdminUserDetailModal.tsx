@@ -14,6 +14,7 @@ interface AdminUserDetailModalProps {
     updateUser: (targetUid: string, updates: Partial<User>) => Promise<void>;
     adjustCredit: (targetUid: string, amountInCents: number, reason: string) => Promise<void>;
     changePlan: (targetUid: string, newPlan: 'pro' | 'payg') => Promise<void>;
+    grantPro: (targetUid: string) => Promise<void>;
     simulateFailedPayment: (targetUid: string, targetUserEmail: string) => Promise<void>;
   };
 }
@@ -78,6 +79,12 @@ const AdminUserDetailModal: React.FC<AdminUserDetailModalProps> = ({ isOpen, onC
     const newPlan = user.plan === 'pro' ? 'payg' : 'pro';
     if (window.confirm(`Are you sure you want to change this user's plan to "${newPlan}"?`)) {
         await adminActions.changePlan(user.uid, newPlan);
+    }
+  };
+  
+  const handleGrantPro = async () => {
+    if (window.confirm(`Are you sure you want to grant a FREE Pro Plan (12 months) to ${user.email}?`)) {
+        await adminActions.grantPro(user.uid);
     }
   };
   
@@ -177,6 +184,9 @@ const AdminUserDetailModal: React.FC<AdminUserDetailModalProps> = ({ isOpen, onC
                     <DetailRow label="Current Plan" value={<span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${user.plan === 'pro' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>{user.plan}</span>} />
                     <button onClick={handleChangePlan} className="mt-2 w-full px-4 py-2 text-sm font-medium text-white bg-secondary rounded-md hover:bg-opacity-90">
                         Change to {user.plan === 'pro' ? 'Pay-As-You-Go' : 'Pro'}
+                    </button>
+                    <button onClick={handleGrantPro} className="mt-2 w-full px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-md hover:bg-green-700">
+                        Grant Free Pro Plan (1 Year)
                     </button>
                     <button onClick={handleSimulatePayment} className="mt-2 w-full px-4 py-2 text-sm font-medium text-white bg-red-500 rounded-md hover:bg-red-600">
                         Simulate Failed Payment

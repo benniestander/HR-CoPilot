@@ -12,6 +12,7 @@ import {
     updateUserByAdmin,
     adjustUserCreditByAdmin,
     changeUserPlanByAdmin,
+    grantProPlanByAdmin,
     getAdminNotifications,
     markNotificationAsRead,
     markAllNotificationsAsRead,
@@ -72,6 +73,7 @@ interface DataContextType {
         updateUser: (targetUid: string, updates: Partial<User>) => Promise<void>;
         adjustCredit: (targetUid: string, amountInCents: number, reason: string) => Promise<void>;
         changePlan: (targetUid: string, newPlan: 'pro' | 'payg') => Promise<void>;
+        grantPro: (targetUid: string) => Promise<void>;
         simulateFailedPayment: (targetUid: string, targetUserEmail: string) => Promise<void>;
     };
     handleMarkNotificationRead: (notificationId: string) => Promise<void>;
@@ -291,6 +293,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
             await changeUserPlanByAdmin(user.email, targetUid, newPlan);
             await fetchUsersPage(userPageIndex);
             setToastMessage("User plan changed successfully.");
+        },
+        grantPro: async (targetUid: string) => {
+            if (!user || !isAdmin) return;
+            await grantProPlanByAdmin(user.email, targetUid);
+            await fetchUsersPage(userPageIndex);
+            setToastMessage("Granted Free Pro Plan (12 Months).");
         },
         simulateFailedPayment: async (targetUid: string, targetUserEmail: string) => {
             if (!user || !isAdmin) return;
