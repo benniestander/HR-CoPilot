@@ -137,7 +137,18 @@ export const updateUser = async (uid: string, userData: Partial<User> & { name?:
     if (error) throw error;
 };
 
-export const addTransactionToUser = async (uid: string, transaction: Omit<Transaction, 'id' | 'date' | 'userId' | 'userEmail'>): Promise<void> => {
+/**
+ * Adds a transaction and optionally updates the user's credit balance.
+ * @param uid User ID
+ * @param transaction Transaction details
+ * @param shouldUpdateBalance If true, the amount is added to the user's credit_balance. 
+ *                            Set to FALSE for subscription payments or admin grants that shouldn't affect PAYG credit.
+ */
+export const addTransactionToUser = async (
+    uid: string, 
+    transaction: Omit<Transaction, 'id' | 'date' | 'userId' | 'userEmail'>,
+    shouldUpdateBalance: boolean = true
+): Promise<void> => {
     
     let finalAmount = Number(transaction.amount);
 
@@ -151,13 +162,9 @@ export const addTransactionToUser = async (uid: string, transaction: Omit<Transa
 
     if (txError) throw txError;
 
-    // 2. Update User Balance 
-    // CRITICAL FIX: Only update credit balance if it is NOT a subscription payment or plan change.
-    // Subscription payments (e.g. R747) are revenue, not "credits" to be spent on documents.
-    const desc = transaction.description.toLowerCase();
-    const isSubscriptionOrPlanChange = desc.includes('subscription') || desc.includes('pro plan') || desc.includes('plan change');
-
-    if (!isSubscriptionOrPlanChange) {
+    // 2. Update User Balance (If flag is true)
+    if (shouldUpdateBalance) {
+        // Fetch current balance first to ensure atomic-like update based on latest state
         const { data: profile, error: fetchError } = await supabase.from('profiles').select('credit_balance').eq('id', uid).single();
         if (fetchError) throw fetchError;
         
@@ -253,11 +260,11 @@ export const adjustUserCreditByAdmin = async (adminEmail: string, targetUid: str
     const user = await getUserProfile(targetUid);
     if (!user) return null;
 
-    // Add transaction (which updates balance)
+    // Add transaction AND update balance (true)
     await addTransactionToUser(targetUid, {
         description: `Admin adjustment: ${reason}`,
         amount: amountInCents,
-    });
+    }, true);
 
     await logAdminAction({
         adminEmail,
@@ -267,6 +274,7 @@ export const adjustUserCreditByAdmin = async (adminEmail: string, targetUid: str
         details: { amountInCents, reason }
     });
 
+    // Return the fresh profile to update UI
     return await getUserProfile(targetUid);
 };
 
@@ -278,10 +286,11 @@ export const changeUserPlanByAdmin = async (adminEmail: string, targetUid: strin
     await supabase.from('profiles').update({ plan: newPlan }).eq('id', targetUid);
 
     if (newPlan === 'pro') {
+        // Pro Plan Grant - Log transaction but DO NOT update credit balance (false)
         await addTransactionToUser(targetUid, {
             description: 'Pro Plan (Admin Grant)',
             amount: 0
-        });
+        }, false);
     }
 
     await logAdminAction({
@@ -302,11 +311,11 @@ export const grantProPlanByAdmin = async (adminEmail: string, targetUid: string)
     // Ensure plan is set to pro
     await supabase.from('profiles').update({ plan: 'pro' }).eq('id', targetUid);
 
-    // Add transaction for record keeping and validity check
+    // Add transaction for record keeping - DO NOT update credit balance (false)
     await addTransactionToUser(targetUid, {
         description: 'Free Pro Plan (12 Months - Admin Gift)',
         amount: 0
-    });
+    }, false);
 
     await logAdminAction({
         adminEmail,

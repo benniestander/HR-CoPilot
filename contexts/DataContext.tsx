@@ -375,7 +375,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 }
 
                 if (price > 0) {
-                    await addTransactionToUser(user.uid, { description: `Generated: ${doc.title}`, amount: -price });
+                    // Explicitly pass true to update balance
+                    await addTransactionToUser(user.uid, { description: `Generated: ${doc.title}`, amount: -price }, true);
                     const updatedUser = await getUserProfile(user.uid);
                     if(updatedUser) setUser(updatedUser);
                     setToastMessage("Document generated! Cost deducted from credit.");
