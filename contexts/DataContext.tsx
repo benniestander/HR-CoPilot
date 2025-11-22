@@ -323,6 +323,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const updatedUser = { ...user, plan: 'pro' as const };
         setUser(updatedUser);
         await updateUser(user.uid, { plan: 'pro' });
+        // Explicitly using "Pro Plan" in text to ensure the database service ignores this for credit balance updates
         await addTransactionToUser(user.uid, { description: 'HR CoPilot Pro Subscription (12 months)', amount: -74700 });
         setToastMessage("Success! Welcome to HR CoPilot Pro.");
         navigateTo('dashboard');

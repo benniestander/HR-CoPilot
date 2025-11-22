@@ -51,11 +51,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 oneYearAgo.setFullYear(now.getFullYear() - 1);
 
                 // Check for a transaction indicating a subscription payment or admin grant within the last year
+                // Explicitly check for "subscription" OR "pro plan" to catch manual grants
                 const validSubscription = user.transactions?.some(tx => {
                     const desc = tx.description.toLowerCase();
                     const isSubTx = desc.includes('subscription') || desc.includes('pro plan');
                     const txDate = new Date(tx.date);
-                    return isSubTx && txDate > oneYearAgo;
+                    // txDate must be AFTER oneYearAgo (i.e., newer than 365 days ago)
+                    return isSubTx && txDate.getTime() > oneYearAgo.getTime();
                 });
                 
                 setIsSubscribed(!!validSubscription);

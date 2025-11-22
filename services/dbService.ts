@@ -151,8 +151,13 @@ export const addTransactionToUser = async (uid: string, transaction: Omit<Transa
 
     if (txError) throw txError;
 
-    // 2. Update User Balance (if not subscription record)
-    if (!transaction.description.includes('Pro Plan')) {
+    // 2. Update User Balance 
+    // CRITICAL FIX: Only update credit balance if it is NOT a subscription payment or plan change.
+    // Subscription payments (e.g. R747) are revenue, not "credits" to be spent on documents.
+    const desc = transaction.description.toLowerCase();
+    const isSubscriptionOrPlanChange = desc.includes('subscription') || desc.includes('pro plan') || desc.includes('plan change');
+
+    if (!isSubscriptionOrPlanChange) {
         const { data: profile, error: fetchError } = await supabase.from('profiles').select('credit_balance').eq('id', uid).single();
         if (fetchError) throw fetchError;
         
