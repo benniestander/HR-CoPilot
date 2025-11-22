@@ -4,6 +4,7 @@ import type { User, GeneratedDocument, Transaction, CompanyProfile } from '../ty
 import { UserIcon, ShieldCheckIcon, HistoryIcon, MasterPolicyIcon, EditIcon, CreditCardIcon, LoadingIcon } from './Icons';
 import { INDUSTRIES } from '../constants';
 import { useFocusTrap } from '../hooks/useFocusTrap';
+import { useModalContext } from '../contexts/ModalContext';
 
 interface AdminUserDetailModalProps {
   isOpen: boolean;
@@ -27,6 +28,7 @@ const DetailRow: React.FC<{ label: string; value: React.ReactNode }> = React.mem
 ));
 
 const AdminUserDetailModal: React.FC<AdminUserDetailModalProps> = ({ isOpen, onClose, user, userDocuments, adminActions }) => {
+  const { showConfirmationModal, hideConfirmationModal } = useModalContext();
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({ ...user, profile: { ...user.profile } });
   
@@ -74,6 +76,30 @@ const AdminUserDetailModal: React.FC<AdminUserDetailModalProps> = ({ isOpen, onC
         await adminActions.adjustCredit(user.uid, amount, creditReason);
         setCreditAmount('');
         setCreditReason('');
+        
+        // Show Success Popup
+        showConfirmationModal({
+            title: 'Credit Added Successfully',
+            message: (
+                <div className="text-center">
+                    <div className="mb-4 flex justify-center">
+                        <div className="bg-green-100 p-3 rounded-full">
+                            <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path></svg>
+                        </div>
+                    </div>
+                    <p className="text-lg text-gray-800 font-medium mb-2">
+                        R{(amount / 100).toFixed(2)} has been added.
+                    </p>
+                    <p className="text-sm text-gray-500">
+                        The user's new balance has been updated.
+                    </p>
+                </div>
+            ),
+            confirmText: 'OK',
+            cancelText: null, // Hide cancel button
+            onConfirm: hideConfirmationModal
+        });
+
     } finally {
         setIsAdjustingCredit(false);
     }

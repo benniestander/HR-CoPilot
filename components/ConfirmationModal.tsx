@@ -9,7 +9,7 @@ interface ConfirmationModalProps {
   title: string;
   message: React.ReactNode;
   confirmText?: string;
-  cancelText?: string;
+  cancelText?: string | null;
 }
 
 const ConfirmationModal: React.FC<ConfirmationModalProps> = ({ 
@@ -40,12 +40,14 @@ const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
           {message}
         </div>
         <div className="flex justify-end space-x-4">
-          <button
-            onClick={onCancel}
-            className="px-4 py-2 rounded-md text-gray-700 bg-gray-200 hover:bg-gray-300 transition font-medium"
-          >
-            {cancelText}
-          </button>
+          {cancelText && (
+            <button
+              onClick={onCancel}
+              className="px-4 py-2 rounded-md text-gray-700 bg-gray-200 hover:bg-gray-300 transition font-medium"
+            >
+              {cancelText}
+            </button>
+          )}
           <button
             onClick={onConfirm}
             className="px-4 py-2 rounded-md text-white bg-primary hover:bg-opacity-90 transition font-medium"

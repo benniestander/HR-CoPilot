@@ -384,6 +384,8 @@ const AppContent: React.FC = () => {
                     message={confirmation.message}
                     onConfirm={confirmation.onConfirm}
                     onCancel={hideConfirmationModal}
+                    confirmText={confirmation.confirmText}
+                    cancelText={confirmation.cancelText}
                 />
             )}
         </>

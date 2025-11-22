@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, useCallback } from 'react';
 
 interface LegalModalState {
@@ -9,6 +10,8 @@ interface LegalModalState {
 interface ConfirmationModalState {
   title: string;
   message: React.ReactNode;
+  confirmText?: string;
+  cancelText?: string | null;
   onConfirm: () => void;
 }
 
