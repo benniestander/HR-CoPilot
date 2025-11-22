@@ -60,11 +60,15 @@ const AdminUserDetailModal: React.FC<AdminUserDetailModalProps> = ({ isOpen, onC
   };
 
   const handleAdjustCredit = async () => {
-    const amount = parseInt(creditAmount, 10) * 100;
-    if (isNaN(amount) || !creditReason.trim()) {
+    // Convert Rands to Cents (e.g., 10.50 -> 1050)
+    // Use Math.round to handle floating point precisions like 10.5 * 100 = 1050.0000001
+    const amount = Math.round(Number(creditAmount) * 100);
+    
+    if (isNaN(amount) || amount === 0 || !creditReason.trim()) {
         alert('Please enter a valid amount and reason.');
         return;
     }
+    
     setIsAdjustingCredit(true);
     try {
         await adminActions.adjustCredit(user.uid, amount, creditReason);
@@ -197,7 +201,7 @@ const AdminUserDetailModal: React.FC<AdminUserDetailModalProps> = ({ isOpen, onC
                         <h3 className="text-lg font-bold text-secondary mb-2">Credit Management</h3>
                          <DetailRow label="Balance" value={<span className="font-bold text-green-700">R{(user.creditBalance / 100).toFixed(2)}</span>} />
                         <div className="space-y-2 mt-2">
-                            <input type="number" value={creditAmount} onChange={e => setCreditAmount(e.target.value)} placeholder="Amount (R)" className="w-full p-2 border rounded-md" />
+                            <input type="number" value={creditAmount} onChange={e => setCreditAmount(e.target.value)} placeholder="Amount (R)" className="w-full p-2 border rounded-md" step="0.01" />
                             <input type="text" value={creditReason} onChange={e => setCreditReason(e.target.value)} placeholder="Reason for adjustment" className="w-full p-2 border rounded-md" />
                             <button 
                                 onClick={handleAdjustCredit} 
