@@ -18,8 +18,9 @@ export const YOCO_PUBLIC_KEY = 'pk_live_922ec78alWPdK17eeac4';
    1. Run: supabase functions new process-payment
    2. Paste the code below into supabase/functions/process-payment/index.ts
    3. Run: supabase secrets set YOCO_SECRET_KEY=sk_live_...
-   4. Run: supabase secrets set SUPABASE_SERVICE_ROLE_KEY=... (Found in Project Settings -> API -> Service Role)
-   5. Run: supabase functions deploy process-payment
+   4. Run: supabase secrets set SUPABASE_URL=...
+   5. Run: supabase secrets set SUPABASE_SERVICE_ROLE_KEY=... (Found in Project Settings -> API -> Service Role)
+   6. Run: supabase functions deploy process-payment
 
    --- EDGE FUNCTION CODE START (Copy this into index.ts) ---
    
