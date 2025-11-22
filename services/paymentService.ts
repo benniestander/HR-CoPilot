@@ -22,7 +22,10 @@ export const YOCO_PUBLIC_KEY = 'pk_live_922ec78alWPdK17eeac4';
    5. Run: supabase secrets set SUPABASE_SERVICE_ROLE_KEY=... (Found in Project Settings -> API -> Service Role)
    6. Run: supabase functions deploy process-payment
 
-   --- EDGE FUNCTION CODE START (Copy this into index.ts) ---
+   --- EDGE FUNCTION CODE START (Copy ONLY this block into index.ts) ---
+   
+   // DO NOT IMPORT FROM LOCAL FILES (e.g. './supabase'). 
+   // EDGE FUNCTIONS RUN IN DENO AND NEED URL IMPORTS.
    
    import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
    import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
