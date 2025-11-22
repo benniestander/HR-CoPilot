@@ -166,7 +166,8 @@ export const addTransactionToUser = async (uid: string, transaction: Omit<Transa
             const currentBalance = Number(profile.credit_balance || 0);
             const newBalance = currentBalance + finalAmount;
             
-            const { error: updateError } = await supabase.from('profiles').update({ credit_balance: newBalance }).eq('id', uid);
+            // Append .select() to ensure the update is committed and returned before proceeding
+            const { error: updateError } = await supabase.from('profiles').update({ credit_balance: newBalance }).eq('id', uid).select();
             if (updateError) throw updateError;
         }
     }
