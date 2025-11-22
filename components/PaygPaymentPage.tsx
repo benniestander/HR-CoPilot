@@ -82,6 +82,10 @@ const PaygPaymentPage: React.FC<PaygPaymentPageProps> = ({ onTopUpSuccess, onCan
             name: formData.firstName,
             surname: formData.lastName,
             email: user.email
+        },
+        metadata: {
+            userId: user.uid,
+            type: 'topup'
         }
     });
 

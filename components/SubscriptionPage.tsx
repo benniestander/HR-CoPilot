@@ -75,6 +75,10 @@ const SubscriptionPage: React.FC<SubscriptionPageProps> = ({ onSuccess, onCancel
             name: formData.firstName,
             surname: formData.lastName,
             email: formData.email
+        },
+        metadata: {
+            userId: user?.uid,
+            type: 'subscription'
         }
     });
 

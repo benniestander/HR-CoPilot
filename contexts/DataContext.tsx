@@ -320,23 +320,31 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const handleSubscriptionSuccess = async () => {
         if (!user) return;
-        const updatedUser = { ...user, plan: 'pro' as const };
-        setUser(updatedUser);
-        await updateUser(user.uid, { plan: 'pro' });
-        // Explicitly using "Pro Plan" in text to ensure the database service ignores this for credit balance updates
-        await addTransactionToUser(user.uid, { description: 'HR CoPilot Pro Subscription (12 months)', amount: -74700 });
-        setToastMessage("Success! Welcome to HR CoPilot Pro.");
-        navigateTo('dashboard');
-        setShowOnboardingWalkthrough(true);
+        // The server has already processed the payment via Edge Function.
+        // We just need to fetch the updated user profile.
+        const updatedUser = await getUserProfile(user.uid);
+        if(updatedUser) {
+            setUser(updatedUser);
+            setToastMessage("Success! Welcome to HR CoPilot Pro.");
+            navigateTo('dashboard');
+            setShowOnboardingWalkthrough(true);
+        } else {
+            setToastMessage("Subscription verified, but profile update failed. Please refresh.");
+        }
     };
     
     const handleTopUpSuccess = async (amountInCents: number) => {
         if (!user) return;
-        await addTransactionToUser(user.uid, { description: 'Credit Top-Up', amount: amountInCents });
+        // The server has already processed the payment via Edge Function.
+        // We just need to fetch the updated user profile to see new balance.
         const updatedUser = await getUserProfile(user.uid);
-        if(updatedUser) setUser(updatedUser);
-        setToastMessage(`Success! R${(amountInCents / 100).toFixed(2)} has been added.`);
-        navigateTo('dashboard');
+        if(updatedUser) {
+            setUser(updatedUser);
+            setToastMessage(`Success! R${(amountInCents / 100).toFixed(2)} has been added.`);
+            navigateTo('dashboard');
+        } else {
+            setToastMessage("Top-up verified, but profile update failed. Please refresh.");
+        }
     };
     
     const handleDocumentGenerated = async (doc: GeneratedDocument, originalId?: string) => {
