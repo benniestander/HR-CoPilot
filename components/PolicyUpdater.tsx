@@ -1,10 +1,17 @@
-import React, { useState, useMemo } from 'react';
+
+import React, { useState, useMemo, useRef } from 'react';
 import { updatePolicy } from '../services/geminiService';
-import type { GeneratedDocument, PolicyUpdateResult } from '../types';
-import { LoadingIcon, UpdateIcon, CheckIcon, HistoryIcon } from './Icons';
+import type { GeneratedDocument, PolicyUpdateResult, CompanyProfile } from '../types';
+import { LoadingIcon, UpdateIcon, CheckIcon, HistoryIcon, CreditCardIcon, FileUploadIcon, FileIcon } from './Icons';
 import ConfirmationModal from './ConfirmationModal';
 import { useDataContext } from '../contexts/DataContext';
 import { useUIContext } from '../contexts/UIContext';
+import { useAuthContext } from '../contexts/AuthContext';
+import * as mammoth from 'mammoth';
+import * as pdfjsLib from 'pdfjs-dist';
+
+const INTERNAL_UPDATE_COST_CENTS = 2500; // R25.00
+const EXTERNAL_UPDATE_COST_CENTS = 5000; // R50.00
 
 // Simple Diffing function (line-based)
 const createDiff = (original: string, updated: string) => {
@@ -71,31 +78,131 @@ interface PolicyUpdaterProps {
 type HistoryItem = { version: number; createdAt: string; content: string };
 
 const PolicyUpdater: React.FC<PolicyUpdaterProps> = ({ onBack }) => {
-  const { generatedDocuments, handleDocumentGenerated } = useDataContext();
-  const { setToastMessage } = useUIContext();
+  const { user } = useAuthContext();
+  const { generatedDocuments, handleDocumentGenerated, handleDeductCredit } = useDataContext();
+  const { setToastMessage, navigateTo } = useUIContext();
   const [step, setStep] = useState<'select' | 'chooseMethod' | 'review'>('select');
+  
+  // selection state
   const [selectedDocId, setSelectedDocId] = useState('');
+  const [externalDocument, setExternalDocument] = useState<GeneratedDocument | null>(null);
+  
   const [updateMethod, setUpdateMethod] = useState<'ai' | 'manual' | null>(null);
   const [manualInstructions, setManualInstructions] = useState('');
   const [updateResult, setUpdateResult] = useState<PolicyUpdateResult | null>(null);
-  const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
+  const [status, setStatus] = useState<'idle' | 'reading_file' | 'loading' | 'success' | 'error'>('idle');
   const [error, setError] = useState<string | null>(null);
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
   const [selectedHistoryItem, setSelectedHistoryItem] = useState<HistoryItem | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // State for Confirmations (Revert & Payment)
   const [confirmation, setConfirmation] = useState<{
       title: string;
       message: React.ReactNode;
+      confirmText?: string;
+      cancelText?: string;
       onConfirm: () => void;
     } | null>(null);
 
+  // Determine which document object to use (Internal or External)
   const selectedDocument = useMemo(() => {
+    if (selectedDocId.startsWith('external-')) {
+        return externalDocument;
+    }
     return generatedDocuments.find(d => d.id === selectedDocId);
-  }, [selectedDocId, generatedDocuments]);
+  }, [selectedDocId, generatedDocuments, externalDocument]);
 
-  const handleUpdate = async () => {
+  // Helper to extract text from DOCX
+  const extractTextFromDocx = async (arrayBuffer: ArrayBuffer): Promise<string> => {
+      const result = await mammoth.extractRawText({ arrayBuffer });
+      return result.value;
+  };
+
+  // Helper to extract text from PDF
+  const extractTextFromPdf = async (arrayBuffer: ArrayBuffer): Promise<string> => {
+      const pdfJs: any = pdfjsLib;
+      // Handle potential default export from CDN
+      const getDocument = pdfJs.getDocument || pdfJs.default?.getDocument;
+      
+      if (!getDocument) {
+          throw new Error("PDF.js library not loaded correctly.");
+      }
+
+      const loadingTask = getDocument({ data: arrayBuffer });
+      const pdf = await loadingTask.promise;
+      let fullText = '';
+      
+      for (let i = 1; i <= pdf.numPages; i++) {
+          const page = await pdf.getPage(i);
+          const textContent = await page.getTextContent();
+          const pageText = textContent.items.map((item: any) => item.str).join(' ');
+          fullText += pageText + '\n\n';
+      }
+      return fullText;
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+
+      setStatus('reading_file');
+      setError(null);
+
+      try {
+          const arrayBuffer = await file.arrayBuffer();
+          let extractedText = '';
+
+          if (file.type === 'application/pdf') {
+              extractedText = await extractTextFromPdf(arrayBuffer);
+          } else if (file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
+              extractedText = await extractTextFromDocx(arrayBuffer);
+          } else {
+              throw new Error('Unsupported file format. Please upload a PDF or DOCX.');
+          }
+
+          if (!extractedText.trim()) {
+              throw new Error('Could not extract text from the file. It might be empty or an image-based PDF.');
+          }
+
+          // Create a temporary "GeneratedDocument" structure
+          const tempDoc: GeneratedDocument = {
+              id: `external-${Date.now()}`,
+              title: file.name.replace(/\.[^/.]+$/, ""), // Remove extension
+              kind: 'policy',
+              type: 'master', // Defaulting type since we don't know
+              content: extractedText,
+              createdAt: new Date().toISOString(),
+              companyProfile: { companyName: 'External Document', industry: 'Unknown' },
+              questionAnswers: {},
+              version: 1,
+              history: [],
+              outputFormat: 'word'
+          };
+
+          setExternalDocument(tempDoc);
+          setSelectedDocId(tempDoc.id);
+          setStep('chooseMethod');
+          setStatus('idle');
+
+      } catch (err: any) {
+          console.error("File read error:", err);
+          setError(err.message);
+          setStatus('error');
+          setToastMessage(`Error reading file: ${err.message}`);
+      } finally {
+          // Reset input so same file can be selected again if needed
+          if (fileInputRef.current) fileInputRef.current.value = '';
+      }
+  };
+
+  const executeUpdate = async () => {
     if (!selectedDocument || !updateMethod) return;
-    if (updateMethod === 'manual' && !manualInstructions.trim()) return;
+    
+    // Close any open modals
+    setConfirmation(null);
 
     setStatus('loading');
     setError(null);
@@ -114,18 +221,105 @@ const PolicyUpdater: React.FC<PolicyUpdaterProps> = ({ onBack }) => {
       setStatus('error');
     }
   };
+
+  const handleUpdateClick = async () => {
+    if (!selectedDocument || !updateMethod) return;
+    if (updateMethod === 'manual' && !manualInstructions.trim()) return;
+
+    const isExternal = selectedDocument.id.startsWith('external-');
+    const cost = isExternal ? EXTERNAL_UPDATE_COST_CENTS : INTERNAL_UPDATE_COST_CENTS;
+
+    // Check PAYG Logic
+    if (user?.plan === 'payg') {
+        const balance = Number(user.creditBalance || 0);
+        
+        if (balance < cost) {
+            setConfirmation({
+                title: "Insufficient Credit",
+                message: (
+                    <div className="text-center">
+                        <p className="text-red-600 font-semibold mb-2">You do not have enough credit.</p>
+                        <p className="mb-4">
+                            {isExternal ? 'External' : 'AI'} Policy Updates cost <strong className="text-secondary">R{(cost / 100).toFixed(2)}</strong>, but you only have <strong>R{(balance / 100).toFixed(2)}</strong> available.
+                        </p>
+                        <p className="text-sm text-gray-600">Please top up to continue.</p>
+                    </div>
+                ),
+                confirmText: "Top Up Now",
+                onConfirm: () => {
+                    setConfirmation(null);
+                    navigateTo('topup');
+                }
+            });
+            return;
+        }
+
+        setConfirmation({
+            title: isExternal ? "Confirm External Policy Update" : "Confirm AI Update",
+            message: (
+                <div className="text-center">
+                    <p className="mb-4">
+                        Using the AI Updater {isExternal && 'for an external document'} costs <strong className="text-secondary">R{(cost / 100).toFixed(2)}</strong>.
+                    </p>
+                    <p className="text-sm text-gray-600">
+                        This amount will be deducted from your credit balance.
+                    </p>
+                </div>
+            ),
+            confirmText: "Confirm & Update",
+            onConfirm: async () => {
+                // Deduct credit first
+                const success = await handleDeductCredit(cost, `AI Policy Update: ${selectedDocument.title}`);
+                if (success) {
+                    executeUpdate();
+                } else {
+                    setConfirmation(null); // Close modal if deduction failed (toast handled in context)
+                }
+            }
+        });
+    } else {
+        // Pro users go straight through
+        executeUpdate();
+    }
+  };
   
   const handleConfirmAndSave = async () => {
     if (!updateResult || !selectedDocument) return;
 
     setIsSaving(true);
-    const newDoc: GeneratedDocument = {
-      ...selectedDocument,
-      content: updateResult.updatedPolicyText,
-    };
+    
+    // For external documents, we need to "import" them as new generated documents
+    // For internal documents, we just update the version
+    
+    const isExternal = selectedDocument.id.startsWith('external-');
+    
+    let newDoc: GeneratedDocument;
+
+    if (isExternal) {
+        // Create completely new entry in DB for this imported doc
+        newDoc = {
+            ...selectedDocument,
+            id: `imported-${Date.now()}`, // New ID
+            content: updateResult.updatedPolicyText,
+            version: 1,
+            history: [],
+            createdAt: new Date().toISOString()
+        };
+        // Try to extract company name if we can, otherwise keep generic
+        if (user?.profile?.companyName) {
+            newDoc.companyProfile = user.profile;
+        }
+    } else {
+        newDoc = {
+            ...selectedDocument,
+            content: updateResult.updatedPolicyText,
+        };
+    }
 
     try {
-        await handleDocumentGenerated(newDoc, selectedDocument.id);
+        // For external, handleDocumentGenerated will see no "originalId" and create new.
+        // For internal, we pass the ID to trigger update logic.
+        await handleDocumentGenerated(newDoc, isExternal ? undefined : selectedDocument.id);
     } catch (error: any) {
         setToastMessage(`Failed to save update: ${error.message}`);
     } finally {
@@ -166,38 +360,86 @@ const PolicyUpdater: React.FC<PolicyUpdaterProps> = ({ onBack }) => {
     <div className="bg-white p-8 rounded-lg shadow-md border border-gray-200">
       <div className="text-center">
         <h2 className="text-3xl font-bold text-secondary">Update Your HR Policy</h2>
-        <p className="text-gray-600 mt-2 mb-6 max-w-3xl mx-auto">First, select a previously generated document to update or review.</p>
+        <p className="text-gray-600 mt-2 mb-8 max-w-3xl mx-auto">Select a document to update. You can choose a policy generated by HR CoPilot or upload your own existing policy.</p>
       </div>
-      {generatedDocuments.length > 0 ? (
-        <div className="max-w-xl mx-auto">
-          <label htmlFor="document-select" className="block text-sm font-medium text-gray-700">Select a document:</label>
-          <select
-            id="document-select"
-            value={selectedDocId}
-            onChange={(e) => setSelectedDocId(e.target.value)}
-            className="mt-1 block w-full pl-3 pr-10 py-3 text-base border-gray-300 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm rounded-md bg-white"
-          >
-            <option value="" disabled>Choose a document...</option>
-            {generatedDocuments.map(doc => (
-              <option key={doc.id} value={doc.id}>{doc.title} (v{doc.version})</option>
-            ))}
-          </select>
-          <div className="mt-6 flex justify-center">
-            <button
-              onClick={() => setStep('chooseMethod')}
-              disabled={!selectedDocId}
-              className="w-full max-w-xs bg-primary text-white font-bold py-3 px-4 rounded-md hover:bg-opacity-90 disabled:bg-gray-400 transition-colors"
-            >
-              Continue
-            </button>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+          {/* Option 1: Existing App Documents */}
+          <div className="border border-gray-200 rounded-lg p-6 bg-gray-50">
+              <h3 className="text-lg font-bold text-secondary mb-4 flex items-center">
+                  <HistoryIcon className="w-5 h-5 mr-2 text-primary" />
+                  HR CoPilot Documents
+              </h3>
+              {generatedDocuments.length > 0 ? (
+                <div className="space-y-4">
+                    <p className="text-sm text-gray-600">Select one of your previously generated policies.</p>
+                    <select
+                        id="document-select"
+                        value={selectedDocId.startsWith('external-') ? '' : selectedDocId}
+                        onChange={(e) => setSelectedDocId(e.target.value)}
+                        className="block w-full pl-3 pr-10 py-3 text-base border-gray-300 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm rounded-md bg-white"
+                    >
+                        <option value="" disabled>Choose a document...</option>
+                        {generatedDocuments.map(doc => (
+                        <option key={doc.id} value={doc.id}>{doc.title} (v{doc.version})</option>
+                        ))}
+                    </select>
+                    <button
+                        onClick={() => setStep('chooseMethod')}
+                        disabled={!selectedDocId || selectedDocId.startsWith('external-')}
+                        className="w-full bg-primary text-white font-bold py-3 px-4 rounded-md hover:bg-opacity-90 disabled:bg-gray-300 disabled:text-gray-500 transition-colors"
+                    >
+                        Continue with Selected
+                    </button>
+                </div>
+              ) : (
+                <div className="text-center p-4">
+                    <p className="text-gray-500 text-sm">No HR CoPilot documents found.</p>
+                </div>
+              )}
           </div>
-        </div>
-      ) : (
-        <div className="text-center p-6 bg-gray-50 rounded-md">
-            <p className="text-gray-700 font-semibold">No documents found.</p>
-            <p className="text-sm text-gray-500 mt-1">You need to generate a document before you can update it.</p>
-        </div>
-      )}
+
+          {/* Option 2: Upload External */}
+          <div className="border border-gray-200 rounded-lg p-6 bg-blue-50">
+              <h3 className="text-lg font-bold text-secondary mb-4 flex items-center">
+                  <FileUploadIcon className="w-5 h-5 mr-2 text-primary" />
+                  External Policy
+              </h3>
+              <p className="text-sm text-gray-600 mb-4">
+                  Upload an existing policy (PDF or Word) created by a lawyer or consultant. We will scan it for compliance.
+              </p>
+              
+              {/* Hidden File Input */}
+              <input 
+                  type="file" 
+                  ref={fileInputRef}
+                  className="hidden" 
+                  accept=".pdf,.docx" 
+                  onChange={handleFileUpload} 
+              />
+
+              {status === 'reading_file' ? (
+                  <div className="flex items-center justify-center p-4 bg-white rounded-md border border-blue-100">
+                      <LoadingIcon className="w-6 h-6 animate-spin text-primary mr-3" />
+                      <span className="text-primary font-medium">Reading document...</span>
+                  </div>
+              ) : (
+                <button
+                    onClick={() => fileInputRef.current?.click()}
+                    className="w-full bg-white border-2 border-primary text-primary font-bold py-3 px-4 rounded-md hover:bg-blue-50 transition-colors flex items-center justify-center"
+                >
+                    <FileIcon className="w-5 h-5 mr-2" />
+                    Upload File
+                </button>
+              )}
+              
+              {user?.plan === 'payg' && (
+                  <p className="text-xs text-blue-700 mt-2 text-center">
+                      External Document Update: <strong>R{(EXTERNAL_UPDATE_COST_CENTS / 100).toFixed(2)}</strong>
+                  </p>
+              )}
+          </div>
+      </div>
     </div>
   );
 
@@ -235,9 +477,19 @@ const PolicyUpdater: React.FC<PolicyUpdaterProps> = ({ onBack }) => {
           )}
         </div>
       </div>
+      
+      {/* PAYG Pricing Notice */}
+      {user?.plan === 'payg' && (
+          <div className="mt-6 p-3 bg-blue-50 border border-blue-200 rounded-md flex items-center justify-center text-sm text-blue-800">
+              <CreditCardIcon className="w-5 h-5 mr-2" />
+              <span>
+                  Update Cost: <strong>R{((selectedDocument?.id.startsWith('external-') ? EXTERNAL_UPDATE_COST_CENTS : INTERNAL_UPDATE_COST_CENTS) / 100).toFixed(2)}</strong> (Deducted from credit)
+              </span>
+          </div>
+      )}
         
-      {/* Version History Section */}
-      {selectedDocument?.history && selectedDocument.history.length > 0 && (
+      {/* Version History Section (Only for internal documents) */}
+      {selectedDocument?.history && selectedDocument.history.length > 0 && !selectedDocument.id.startsWith('external-') && (
         <div className="mt-8 pt-6 border-t border-gray-200">
           <h3 className="text-xl font-bold text-secondary mb-4 flex items-center">
             <HistoryIcon className="w-6 h-6 mr-3 text-primary" />
@@ -267,12 +519,12 @@ const PolicyUpdater: React.FC<PolicyUpdaterProps> = ({ onBack }) => {
       <div className="mt-8 flex justify-between items-center">
         <button onClick={() => setStep('select')} className="text-sm font-semibold text-gray-600 hover:text-primary">Back to selection</button>
         <button
-          onClick={handleUpdate}
+          onClick={handleUpdateClick}
           disabled={!updateMethod || (updateMethod === 'manual' && !manualInstructions.trim())}
           className="bg-primary text-white font-bold py-3 px-6 rounded-md hover:bg-opacity-90 disabled:bg-gray-400 transition-colors flex items-center justify-center"
         >
           <UpdateIcon className="w-5 h-5 mr-2" />
-          Analyze & Update
+          {user?.plan === 'payg' ? 'Pay & Update' : 'Analyze & Update'}
         </button>
       </div>
     </div>
@@ -283,7 +535,7 @@ const PolicyUpdater: React.FC<PolicyUpdaterProps> = ({ onBack }) => {
       return <div className="text-center p-12 bg-white rounded-lg shadow-md"><LoadingIcon className="w-12 h-12 animate-spin mx-auto mb-4 text-primary" /><h3 className="text-lg font-semibold">Analyzing your document...</h3></div>;
     }
     if (status === 'error') {
-      return <div className="text-center text-red-600 bg-red-50 p-6 rounded-md"><h3 className="text-lg font-semibold mb-2">An Error Occurred</h3><p className="mb-4">{error}</p><button onClick={handleUpdate} className="bg-primary text-white font-semibold py-2 px-4 rounded-md">Retry</button></div>;
+      return <div className="text-center text-red-600 bg-red-50 p-6 rounded-md"><h3 className="text-lg font-semibold mb-2">An Error Occurred</h3><p className="mb-4">{error}</p><button onClick={handleUpdateClick} className="bg-primary text-white font-semibold py-2 px-4 rounded-md">Retry</button></div>;
     }
     if (status === 'success' && updateResult) {
       return (
@@ -397,6 +649,8 @@ const PolicyUpdater: React.FC<PolicyUpdaterProps> = ({ onBack }) => {
             isOpen={!!confirmation}
             title={confirmation.title}
             message={confirmation.message}
+            confirmText={confirmation.confirmText}
+            cancelText={confirmation.cancelText}
             onConfirm={confirmation.onConfirm}
             onCancel={() => setConfirmation(null)}
         />

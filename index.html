@@ -43,9 +43,24 @@
     "marked": "https://esm.sh/marked@12",
     "react-markdown": "https://esm.sh/react-markdown@9?deps=react@^19.2.0",
     "rehype-sanitize": "https://esm.sh/rehype-sanitize@6?deps=react@^19.2.0",
-    "dompurify": "https://aistudiocdn.com/dompurify@^3.3.0"
+    "dompurify": "https://aistudiocdn.com/dompurify@^3.3.0",
+    "mammoth": "https://esm.sh/mammoth@1.6.0",
+    "pdfjs-dist": "https://esm.sh/pdfjs-dist@3.11.174"
   }
 }
+</script>
+<script type="module">
+    // Set worker source for PDF.js
+    import * as pdfjsModule from 'pdfjs-dist';
+    
+    // Handle different export structures (default vs named) from CDN
+    const pdfjs = pdfjsModule.default || pdfjsModule;
+    
+    if (pdfjs && pdfjs.GlobalWorkerOptions) {
+        pdfjs.GlobalWorkerOptions.workerSrc = 'https://esm.sh/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
+    } else {
+        console.warn('PDF.js GlobalWorkerOptions not found. PDF parsing might fail.');
+    }
 </script>
 </head>
   <body class="bg-light font-sans">
