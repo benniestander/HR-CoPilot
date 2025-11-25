@@ -67,6 +67,7 @@ const AppContent: React.FC = () => {
         handlePrevLogs,
         isFetchingLogs,
         adminNotifications,
+        coupons,
         handleInitialProfileSubmit,
         adminActions,
         handleMarkNotificationRead,
@@ -304,6 +305,7 @@ const AppContent: React.FC = () => {
                                 onPrevLogs={handlePrevLogs}
                                 isFetchingLogs={isFetchingLogs}
                                 adminNotifications={adminNotifications}
+                                coupons={coupons}
                                 adminActions={adminActions}
                             />
                         </Suspense>

@@ -24,6 +24,7 @@ interface AdminDashboardProps {
   isFetchingLogs: boolean;
   
   adminNotifications: AdminNotification[];
+  coupons: Coupon[];
   adminActions: {
     updateUser: (targetUid: string, updates: Partial<User>) => Promise<void>;
     adjustCredit: (targetUid: string, amountInCents: number, reason: string) => Promise<void>;
@@ -270,18 +271,9 @@ const ActivityLog: React.FC<{ logs: AdminActionLog[], pageInfo: PageInfo, onNext
 };
 
 // --- New Coupon Manager Component ---
-const CouponManager: React.FC<{ adminActions: any }> = ({ adminActions }) => {
-    const [coupons, setCoupons] = React.useState<Coupon[]>([]);
+const CouponManager: React.FC<{ coupons: Coupon[], adminActions: any }> = ({ coupons, adminActions }) => {
     const [newCoupon, setNewCoupon] = React.useState({ code: '', discountType: 'fixed', discountValue: '', maxUses: '', applicableTo: 'all' });
     const [isCreating, setIsCreating] = React.useState(false);
-
-    // Fetch coupons on mount (conceptually, in real app these come from props to avoid dup fetching)
-    // For now, assuming passed or fetch inside
-    const { getCoupons } = require('../services/dbService'); // Lazy import to avoid circular dep issues in bundling if any
-    
-    React.useEffect(() => {
-        getCoupons().then(setCoupons);
-    }, []);
 
     const handleCreate = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -299,8 +291,7 @@ const CouponManager: React.FC<{ adminActions: any }> = ({ adminActions }) => {
                 maxUses: newCoupon.maxUses ? Number(newCoupon.maxUses) : null,
                 applicableTo: newCoupon.applicableTo === 'all' ? 'all' : newCoupon.applicableTo 
             });
-            const updated = await getCoupons();
-            setCoupons(updated);
+            // Coupons will update automatically via prop from DataContext
             setNewCoupon({ code: '', discountType: 'fixed', discountValue: '', maxUses: '', applicableTo: 'all' });
         } catch (error) {
             console.error(error);
@@ -312,8 +303,6 @@ const CouponManager: React.FC<{ adminActions: any }> = ({ adminActions }) => {
     const handleDeactivate = async (id: string) => {
         if (window.confirm('Are you sure you want to deactivate this coupon?')) {
             await adminActions.deactivateCoupon(id);
-            const updated = await getCoupons();
-            setCoupons(updated);
         }
     };
 
@@ -403,7 +392,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
   transactionsForUserPage,
   paginatedLogs, onNextLogs, onPrevLogs, isFetchingLogs,
   adminActions,
-  adminNotifications
+  adminNotifications,
+  coupons
 }) => {
   type AdminTab = 'users' | 'analytics' | 'transactions' | 'logs' | 'coupons';
   const [activeTab, setActiveTab] = useState<AdminTab>('users');
@@ -442,7 +432,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
       case 'users': return <UserList users={paginatedUsers.data} pageInfo={paginatedUsers.pageInfo} onNext={onNextUsers} onPrev={onPrevUsers} onViewUser={handleViewUser} isLoading={isFetchingUsers} />;
       case 'analytics': return <DocumentAnalytics documents={paginatedDocuments.data} pageInfo={paginatedDocuments.pageInfo} onNext={onNextDocs} onPrev={onPrevDocs} isLoading={isFetchingDocs} />;
       case 'transactions': return <TransactionLog transactions={transactionsForUserPage} usersPageInfo={paginatedUsers.pageInfo} onNext={onNextUsers} onPrev={onPrevUsers} isLoading={isFetchingUsers} />;
-      case 'coupons': return <CouponManager adminActions={adminActions} />;
+      case 'coupons': return <CouponManager coupons={coupons} adminActions={adminActions} />;
       case 'logs': return <ActivityLog logs={paginatedLogs.data} pageInfo={paginatedLogs.pageInfo} onNext={onNextLogs} onPrev={onPrevLogs} isLoading={isFetchingLogs} />;
       default: return null;
     }
