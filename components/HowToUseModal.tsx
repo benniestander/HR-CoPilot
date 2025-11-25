@@ -1,5 +1,6 @@
+
 import React, { useState } from 'react';
-import { MasterPolicyIcon, FormsIcon } from './Icons';
+import { MasterPolicyIcon, FormsIcon, UpdateIcon } from './Icons';
 import { useFocusTrap } from '../hooks/useFocusTrap';
 
 interface HowToUseModalProps {
@@ -8,7 +9,7 @@ interface HowToUseModalProps {
 }
 
 const HowToUseModal: React.FC<HowToUseModalProps> = ({ isOpen, onClose }) => {
-  const [activeTab, setActiveTab] = useState<'policies' | 'forms'>('policies');
+  const [activeTab, setActiveTab] = useState<'policies' | 'forms' | 'updater'>('policies');
   const modalRef = useFocusTrap<HTMLDivElement>(isOpen, onClose);
 
   if (!isOpen) return null;
@@ -32,11 +33,11 @@ const HowToUseModal: React.FC<HowToUseModalProps> = ({ isOpen, onClose }) => {
           </button>
         </div>
         
-        <div className="flex border-b border-gray-200" role="tablist" aria-label="How to use">
+        <div className="flex border-b border-gray-200 overflow-x-auto" role="tablist" aria-label="How to use">
           <button
             id="tab-policies"
             onClick={() => setActiveTab('policies')}
-            className={`flex-1 flex items-center justify-center px-4 py-3 text-md font-semibold border-b-2 transition-colors ${
+            className={`flex-1 flex items-center justify-center px-4 py-3 text-md font-semibold border-b-2 transition-colors whitespace-nowrap ${
               activeTab === 'policies'
                 ? 'border-primary text-primary'
                 : 'border-transparent text-gray-500 hover:text-gray-700'
@@ -51,7 +52,7 @@ const HowToUseModal: React.FC<HowToUseModalProps> = ({ isOpen, onClose }) => {
           <button
             id="tab-forms"
             onClick={() => setActiveTab('forms')}
-            className={`flex-1 flex items-center justify-center px-4 py-3 text-md font-semibold border-b-2 transition-colors ${
+            className={`flex-1 flex items-center justify-center px-4 py-3 text-md font-semibold border-b-2 transition-colors whitespace-nowrap ${
               activeTab === 'forms'
                 ? 'border-primary text-primary'
                 : 'border-transparent text-gray-500 hover:text-gray-700'
@@ -62,6 +63,21 @@ const HowToUseModal: React.FC<HowToUseModalProps> = ({ isOpen, onClose }) => {
           >
             <FormsIcon className="w-5 h-5 mr-2" />
             Form Generator
+          </button>
+          <button
+            id="tab-updater"
+            onClick={() => setActiveTab('updater')}
+            className={`flex-1 flex items-center justify-center px-4 py-3 text-md font-semibold border-b-2 transition-colors whitespace-nowrap ${
+              activeTab === 'updater'
+                ? 'border-primary text-primary'
+                : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}
+            role="tab"
+            aria-selected={activeTab === 'updater'}
+            aria-controls="tabpanel-updater"
+          >
+            <UpdateIcon className="w-5 h-5 mr-2" />
+            Update Policy
           </button>
         </div>
 
@@ -90,7 +106,7 @@ const HowToUseModal: React.FC<HowToUseModalProps> = ({ isOpen, onClose }) => {
                   </li>
                 </ol>
               </div>
-            ) : (
+            ) : activeTab === 'forms' ? (
               <div id="tabpanel-forms" role="tabpanel" aria-labelledby="tab-forms">
                 <h3 className="text-xl font-semibold text-secondary mb-4">How to Generate a Ready-to-Use HR Form</h3>
                 <ol className="list-decimal list-inside space-y-4">
@@ -109,6 +125,38 @@ const HowToUseModal: React.FC<HowToUseModalProps> = ({ isOpen, onClose }) => {
                             <li><strong>Edit directly</strong> in the preview pane.</li>
                             <li><strong>Copy</strong> the text to use elsewhere.</li>
                             <li><strong>Download</strong> the form. It will download as a Word-compatible .doc or an Excel-compatible .csv file, depending on the form's purpose.</li>
+                        </ul>
+                    </li>
+                </ol>
+              </div>
+            ) : (
+              <div id="tabpanel-updater" role="tabpanel" aria-labelledby="tab-updater">
+                <h3 className="text-xl font-semibold text-secondary mb-4">How to Update and Analyze Documents</h3>
+                <ol className="list-decimal list-inside space-y-4">
+                    <li>
+                        <strong className="font-semibold text-secondary">Choose a Document:</strong>
+                        <ul className="list-disc list-inside space-y-2 mt-2 ml-5">
+                            <li><strong>Internal:</strong> Select one of your previously generated HR CoPilot documents from the dropdown list.</li>
+                            <li><strong>External:</strong> Click "Upload File" to update an existing policy document (PDF or Word) that you have on file.</li>
+                        </ul>
+                    </li>
+                    <li>
+                        <strong className="font-semibold text-secondary">Select Update Method:</strong>
+                        <ul className="list-disc list-inside space-y-2 mt-2 ml-5">
+                            <li><strong>AI Compliance Review:</strong> Our AI will scan your document against current South African labour laws and suggest necessary changes to ensure compliance.</li>
+                            <li><strong>Update with Instructions:</strong> Tell the AI exactly what you want to change (e.g., "Change annual leave to 21 days" or "Add a section on remote work").</li>
+                        </ul>
+                    </li>
+                    <li>
+                        <strong className="font-semibold text-secondary">Review Changes:</strong>
+                        You will see a side-by-side visual comparison showing exactly what was added (green) or removed (red). The AI will also provide a summary explanation of why specific changes were made.
+                    </li>
+                    <li>
+                        <strong className="font-semibold text-secondary">Save New Version:</strong>
+                        Once satisfied, click "Confirm & Save". 
+                        <ul className="list-disc list-inside space-y-1 mt-1 ml-5 text-sm">
+                            <li>For <strong>Internal</strong> documents, this creates a new version in your history, allowing you to revert if needed.</li>
+                            <li>For <strong>External</strong> uploads, it saves as a new generated document in your dashboard.</li>
                         </ul>
                     </li>
                 </ol>
