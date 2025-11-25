@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import PolicySelector from './PolicySelector';
 import FormSelector from './FormSelector';
@@ -307,7 +306,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartUpdate, onStartChecklist, 
                             The <strong>{paygModalState.item?.title}</strong> costs <strong className="text-secondary">R{((paygModalState.item?.price || 0) / 100).toFixed(2)}</strong>.
                         </p>
                         <p className="text-sm text-gray-600">
-                            This amount will be deducted from your credit balance of <strong>R{((user?.creditBalance || 0) / 100).toFixed(2)}</strong> upon successful generation.
+                            This amount will be deducted from your credit balance <strong>when you click "Generate My Document"</strong> on the next screen.
                         </p>
                     </div>
                 }
@@ -342,4 +341,3 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartUpdate, onStartChecklist, 
 };
 
 export default Dashboard;
-    

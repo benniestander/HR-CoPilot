@@ -4,8 +4,11 @@ import CompanyProfileSetup from './CompanyProfileSetup';
 import GuidedQuestionnaire from './GuidedQuestionnaire';
 import PolicyPreview from './PolicyPreview';
 import { generatePolicyStream, generateFormStream } from '../services/geminiService';
-import type { Policy, Form, CompanyProfile, FormAnswers, GeneratedDocument, AppStatus, Source } from '../types';
+import type { Policy, Form, CompanyProfile, FormAnswers, GeneratedDocument, AppStatus, Source, PolicyType, FormType } from '../types';
 import { CheckIcon, LoadingIcon } from './Icons';
+import { useDataContext } from '../contexts/DataContext';
+import { useAuthContext } from '../contexts/AuthContext';
+import { POLICIES, FORMS } from '../constants';
 
 interface GeneratorPageProps {
     selectedItem: Policy | Form;
@@ -16,6 +19,9 @@ interface GeneratorPageProps {
 }
 
 const GeneratorPage: React.FC<GeneratorPageProps> = ({ selectedItem, initialData, userProfile, onDocumentGenerated, onBack }) => {
+    const { user } = useAuthContext();
+    const { handleDeductCredit } = useDataContext();
+    
     const isPolicy = selectedItem.kind === 'policy';
     const isProfileSufficient = userProfile && userProfile.companyName && (!isPolicy || userProfile.industry);
 
@@ -36,6 +42,7 @@ const GeneratorPage: React.FC<GeneratorPageProps> = ({ selectedItem, initialData
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
     const [finalizedDoc, setFinalizedDoc] = useState<GeneratedDocument | null>(initialData);
     const [isSaving, setIsSaving] = useState(false);
+    const [isDeducting, setIsDeducting] = useState(false);
     
     const handleProfileSubmit = (profile: CompanyProfile) => {
         setCompanyProfile(profile);
@@ -43,7 +50,29 @@ const GeneratorPage: React.FC<GeneratorPageProps> = ({ selectedItem, initialData
     };
 
     const handleGenerate = useCallback(async () => {
-        if (!selectedItem || !companyProfile) return;
+        if (!selectedItem || !companyProfile || !user) return;
+
+        // 1. Handle PAYG Credit Deduction BEFORE generation
+        if (user.plan === 'payg' && !initialData) {
+            setIsDeducting(true);
+            let price = 0;
+            if (selectedItem.kind === 'policy') {
+                price = POLICIES[selectedItem.type as PolicyType]?.price || 0;
+            } else {
+                price = FORMS[selectedItem.type as FormType]?.price || 0;
+            }
+
+            if (price > 0) {
+                const success = await handleDeductCredit(price, `Generated: ${selectedItem.title}`);
+                setIsDeducting(false);
+                if (!success) {
+                    // DataContext handles the toast for insufficient credit
+                    return; 
+                }
+            } else {
+                setIsDeducting(false);
+            }
+        }
 
         setCurrentStep(3);
         setStatus('loading');
@@ -108,7 +137,7 @@ const GeneratorPage: React.FC<GeneratorPageProps> = ({ selectedItem, initialData
             setStatus('error');
             setErrorMessage(error.message || 'An unexpected error occurred. Please try again.');
         }
-    }, [selectedItem, companyProfile, questionAnswers, initialData]);
+    }, [selectedItem, companyProfile, questionAnswers, initialData, user, handleDeductCredit]);
 
     const handleSaveDocument = async () => {
         if (finalizedDoc) {
@@ -137,6 +166,15 @@ const GeneratorPage: React.FC<GeneratorPageProps> = ({ selectedItem, initialData
                 if (!companyProfile) {
                     setCurrentStep(1);
                     return null;
+                }
+                if (isDeducting) {
+                    return (
+                        <div className="flex flex-col items-center justify-center p-12 bg-white rounded-lg shadow-md">
+                            <LoadingIcon className="w-12 h-12 animate-spin text-primary mb-4" />
+                            <h3 className="text-xl font-bold text-secondary">Processing Payment...</h3>
+                            <p className="text-gray-600">Please wait while we secure your document generation.</p>
+                        </div>
+                    )
                 }
                 return (
                     <GuidedQuestionnaire
@@ -186,7 +224,7 @@ const GeneratorPage: React.FC<GeneratorPageProps> = ({ selectedItem, initialData
 
     return (
         <div className="max-w-7xl mx-auto">
-            <Stepper steps={STEPS} currentStep={currentStep} onStepClick={setCurrentStep} isStepClickable={!!companyProfile && !isSaving} />
+            <Stepper steps={STEPS} currentStep={currentStep} onStepClick={setCurrentStep} isStepClickable={!!companyProfile && !isSaving && !isDeducting} />
             <div className="mt-8">
                 {renderStepContent()}
             </div>

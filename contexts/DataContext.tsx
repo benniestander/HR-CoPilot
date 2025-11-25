@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect, useMemo, useCallback } from 'react';
 import type { GeneratedDocument, CompanyProfile, User, Transaction, AdminActionLog, AdminNotification, UserFile, Coupon } from '../types';
 import {
@@ -96,6 +95,7 @@ interface DataContextType {
     handleMarkAllNotificationsRead: () => Promise<void>;
     handleSubscriptionSuccess: () => Promise<void>;
     handleTopUpSuccess: (amountInCents: number) => Promise<void>;
+    handleDeductCredit: (amountInCents: number, description: string) => Promise<boolean>;
     handleDocumentGenerated: (doc: GeneratedDocument, originalId?: string) => Promise<void>;
 }
 
@@ -403,6 +403,28 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setToastMessage("Top-up verified, but profile update failed. Please refresh.");
         }
     };
+
+    const handleDeductCredit = async (amountInCents: number, description: string): Promise<boolean> => {
+        if (!user) return false;
+        if (user.creditBalance < amountInCents) {
+            setToastMessage("Insufficient credit.");
+            return false;
+        }
+
+        try {
+            // Explicitly pass true to update balance
+            await addTransactionToUser(user.uid, { description, amount: -amountInCents }, true);
+            
+            // Optimistically update state or fetch fresh
+            const updatedUser = await getUserProfile(user.uid);
+            if (updatedUser) setUser(updatedUser);
+            return true;
+        } catch (error: any) {
+            console.error("Deduction failed:", error);
+            setToastMessage("Failed to deduct credit. Please try again.");
+            return false;
+        }
+    };
     
     const handleDocumentGenerated = async (doc: GeneratedDocument, originalId?: string) => {
         if (!user) return;
@@ -422,27 +444,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
             }
         } else {
             docToSave = { ...doc, version: 1, history: [] };
-            // Correctly lookup price for deduction based on plan
-            if (user.plan === 'payg') {
-                let price = 0;
-                if (doc.kind === 'policy') {
-                    price = POLICIES[doc.type as PolicyType]?.price || 0;
-                } else {
-                    price = FORMS[doc.type as FormType]?.price || 0;
-                }
-
-                if (price > 0) {
-                    // Explicitly pass true to update balance
-                    await addTransactionToUser(user.uid, { description: `Generated: ${doc.title}`, amount: -price }, true);
-                    const updatedUser = await getUserProfile(user.uid);
-                    if(updatedUser) setUser(updatedUser);
-                    setToastMessage("Document generated! Cost deducted from credit.");
-                } else {
-                     setToastMessage("Document generated successfully!");
-                }
-            } else {
-                setToastMessage("Document generated successfully!");
-            }
+            setToastMessage("Document saved successfully!");
         }
 
         await saveGeneratedDocument(user.uid, docToSave);
@@ -488,6 +490,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         handleMarkAllNotificationsRead,
         handleSubscriptionSuccess,
         handleTopUpSuccess,
+        handleDeductCredit,
         handleDocumentGenerated,
     };
 
