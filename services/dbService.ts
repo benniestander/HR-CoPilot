@@ -162,20 +162,16 @@ export const addTransactionToUser = async (
 
     if (txError) throw txError;
 
-    // 2. Update User Balance (If flag is true)
+    // 2. Update User Balance (If flag is true) using Atomic RPC
     if (shouldUpdateBalance) {
-        // Fetch current balance first to ensure atomic-like update based on latest state
-        const { data: profile, error: fetchError } = await supabase.from('profiles').select('credit_balance').eq('id', uid).single();
-        if (fetchError) throw fetchError;
-        
-        if (profile) {
-            // Explicitly cast to Number to prevent string concatenation issues
-            const currentBalance = Number(profile.credit_balance || 0);
-            const newBalance = currentBalance + finalAmount;
-            
-            // Append .select() to ensure the update is committed and returned before proceeding
-            const { error: updateError } = await supabase.from('profiles').update({ credit_balance: newBalance }).eq('id', uid).select();
-            if (updateError) throw updateError;
+        const { error } = await supabase.rpc('increment_balance', { 
+            user_id: uid, 
+            amount: finalAmount 
+        });
+
+        if (error) {
+            console.error("Error updating balance via RPC:", error);
+            throw new Error("Failed to update credit balance. Please contact support.");
         }
     }
 };

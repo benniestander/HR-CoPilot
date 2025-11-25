@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import PolicySelector from './PolicySelector';
 import FormSelector from './FormSelector';
 import type { Policy, Form } from '../types';
-import { MasterPolicyIcon, FormsIcon, HelpIcon, UpdateIcon, ComplianceIcon, WordIcon, ExcelIcon, InfoIcon } from './Icons';
+import { MasterPolicyIcon, FormsIcon, HelpIcon, UpdateIcon, ComplianceIcon, WordIcon, ExcelIcon, InfoIcon, LoadingIcon } from './Icons';
 import HowToUseModal from './HowToUseModal';
 import OnboardingWalkthrough from './OnboardingWalkthrough';
 import ConfirmationModal from './ConfirmationModal';
@@ -23,7 +23,7 @@ interface DashboardProps {
 
 const Dashboard: React.FC<DashboardProps> = ({ onStartUpdate, onStartChecklist, showOnboardingWalkthrough, onCloseWalkthrough, onGoToProfileSetup }) => {
   const { user } = useAuthContext();
-  const { generatedDocuments } = useDataContext();
+  const { generatedDocuments, isLoadingUserDocs } = useDataContext();
   const { navigateTo, setSelectedItem, setDocumentToView } = useUIContext();
 
   const [activeTab, setActiveTab] = useState<'policies' | 'forms'>('policies');
@@ -148,6 +148,14 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartUpdate, onStartChecklist, 
   };
 
   const DocumentHistory: React.FC = () => {
+    if (isLoadingUserDocs) {
+      return (
+        <div className="mb-12 bg-white p-6 rounded-lg shadow-md border border-gray-200 flex justify-center items-center min-h-[150px]">
+            <LoadingIcon className="w-8 h-8 animate-spin text-primary" />
+        </div>
+      );
+    }
+
     if (generatedDocuments.length === 0) {
       return null;
     }

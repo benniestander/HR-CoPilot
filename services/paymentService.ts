@@ -6,7 +6,8 @@ import { supabase } from './supabase';
 // ==============================================================================
 
 // 1. REPLACE WITH YOUR YOCO LIVE PUBLIC KEY FOR PRODUCTION
-export const YOCO_PUBLIC_KEY = 'pk_live_922ec78alWPdK17eeac4'; 
+// Using Vite env var for secure configuration
+export const YOCO_PUBLIC_KEY = (import.meta as any).env?.VITE_YOCO_PUBLIC_KEY || 'pk_live_922ec78alWPdK17eeac4'; 
 
 /* 
    ==============================================================================
@@ -97,10 +98,11 @@ export const YOCO_PUBLIC_KEY = 'pk_live_922ec78alWPdK17eeac4';
 
             // Update User Profile
             if (type === 'topup') {
-                // Fetch current balance to increment it
-                const { data: profile } = await supabaseAdmin.from('profiles').select('credit_balance').eq('id', userId).single();
-                const newBalance = (Number(profile?.credit_balance) || 0) + amountInCents;
-                await supabaseAdmin.from('profiles').update({ credit_balance: newBalance }).eq('id', userId);
+                // USE ATOMIC UPDATE VIA RPC to prevent race conditions
+                await supabaseAdmin.rpc('increment_balance', { 
+                    user_id: userId, 
+                    amount: amountInCents 
+                });
             } else if (type === 'subscription') {
                 // Enable Pro Plan
                 await supabaseAdmin.from('profiles').update({ plan: 'pro' }).eq('id', userId);

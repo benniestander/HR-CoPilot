@@ -48,21 +48,23 @@ const AppContent: React.FC = () => {
         handleSkipOnboarding,
         handleGoToProfileSetup,
         isSubscribed,
-        handleStartAuthFlow,
-        handleStartGoogleAuthFlow
+        handleStartAuthFlow
     } = useAuthContext();
 
     const {
         paginatedUsers,
         handleNextUsers,
         handlePrevUsers,
+        isFetchingUsers,
         paginatedDocuments,
         handleNextDocs,
         handlePrevDocs,
+        isFetchingDocs,
         transactionsForUserPage,
         paginatedLogs,
         handleNextLogs,
         handlePrevLogs,
+        isFetchingLogs,
         adminNotifications,
         handleInitialProfileSubmit,
         adminActions,
@@ -290,13 +292,16 @@ const AppContent: React.FC = () => {
                                 paginatedUsers={paginatedUsers}
                                 onNextUsers={handleNextUsers}
                                 onPrevUsers={handlePrevUsers}
+                                isFetchingUsers={isFetchingUsers}
                                 paginatedDocuments={paginatedDocuments}
                                 onNextDocs={handleNextDocs}
                                 onPrevDocs={handlePrevDocs}
+                                isFetchingDocs={isFetchingDocs}
                                 transactionsForUserPage={transactionsForUserPage}
                                 paginatedLogs={paginatedLogs}
                                 onNextLogs={handleNextLogs}
                                 onPrevLogs={handlePrevLogs}
+                                isFetchingLogs={isFetchingLogs}
                                 adminNotifications={adminNotifications}
                                 adminActions={adminActions}
                             />
@@ -324,7 +329,6 @@ const AppContent: React.FC = () => {
                 <Suspense fallback={<FullPageLoader />}>
                     <PlanSelectionPage
                         onStartAuthFlow={handleStartAuthFlow}
-                        onStartGoogleAuthFlow={handleStartGoogleAuthFlow}
                         onShowLogin={() => setAuthPage('login')}
                         onShowPrivacyPolicy={() => showLegalModal('Privacy Policy', PRIVACY_POLICY_CONTENT)}
                         onShowTerms={() => showLegalModal('Terms of Use', TERMS_OF_USE_CONTENT)}

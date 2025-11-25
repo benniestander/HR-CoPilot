@@ -34,7 +34,13 @@ const AdminUserDetailModal: React.FC<AdminUserDetailModalProps> = ({ isOpen, onC
   
   const [creditAmount, setCreditAmount] = useState('');
   const [creditReason, setCreditReason] = useState('');
+  
+  // Loading States
+  const [isSaving, setIsSaving] = useState(false);
   const [isAdjustingCredit, setIsAdjustingCredit] = useState(false);
+  const [isChangingPlan, setIsChangingPlan] = useState(false);
+  const [isGrantingPro, setIsGrantingPro] = useState(false);
+  const [isSimulating, setIsSimulating] = useState(false);
 
   const modalRef = useFocusTrap<HTMLDivElement>(isOpen, onClose);
   
@@ -56,9 +62,16 @@ const AdminUserDetailModal: React.FC<AdminUserDetailModalProps> = ({ isOpen, onC
     }
 
     if (Object.keys(updates).length > 0) {
-        await adminActions.updateUser(user.uid, updates);
+        setIsSaving(true);
+        try {
+            await adminActions.updateUser(user.uid, updates);
+            setIsEditing(false);
+        } finally {
+            setIsSaving(false);
+        }
+    } else {
+        setIsEditing(false);
     }
-    setIsEditing(false);
   };
 
   const handleAdjustCredit = async () => {
@@ -108,19 +121,34 @@ const AdminUserDetailModal: React.FC<AdminUserDetailModalProps> = ({ isOpen, onC
   const handleChangePlan = async () => {
     const newPlan = user.plan === 'pro' ? 'payg' : 'pro';
     if (window.confirm(`Are you sure you want to change this user's plan to "${newPlan}"?`)) {
-        await adminActions.changePlan(user.uid, newPlan);
+        setIsChangingPlan(true);
+        try {
+            await adminActions.changePlan(user.uid, newPlan);
+        } finally {
+            setIsChangingPlan(false);
+        }
     }
   };
   
   const handleGrantPro = async () => {
     if (window.confirm(`Are you sure you want to grant a FREE Pro Plan (12 months) to ${user.email}?`)) {
-        await adminActions.grantPro(user.uid);
+        setIsGrantingPro(true);
+        try {
+            await adminActions.grantPro(user.uid);
+        } finally {
+            setIsGrantingPro(false);
+        }
     }
   };
   
-  const handleSimulatePayment = () => {
+  const handleSimulatePayment = async () => {
     if (window.confirm(`This will create a "Failed Payment" notification for ${user.email}. Are you sure?`)) {
-        adminActions.simulateFailedPayment(user.uid, user.email);
+        setIsSimulating(true);
+        try {
+            await adminActions.simulateFailedPayment(user.uid, user.email);
+        } finally {
+            setIsSimulating(false);
+        }
     }
   };
 
@@ -132,6 +160,8 @@ const AdminUserDetailModal: React.FC<AdminUserDetailModalProps> = ({ isOpen, onC
         setFormData(prev => ({...prev, [name]: value }));
     }
   };
+
+  const isDisabled = isSaving || isAdjustingCredit || isChangingPlan || isGrantingPro || isSimulating;
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center p-4" onClick={onClose}>
@@ -191,8 +221,10 @@ const AdminUserDetailModal: React.FC<AdminUserDetailModalProps> = ({ isOpen, onC
                         </div>
                         <div className="md:col-span-2"><label className="block text-xs font-medium text-gray-500">Company Address</label><input type="text" name="address" value={formData.profile.address} onChange={handleInputChange} className="w-full p-2 border rounded-md" /></div>
                         <div className="flex justify-end md:col-span-2 space-x-2 mt-2">
-                            <button onClick={() => setIsEditing(false)} className="px-4 py-2 text-sm font-medium bg-gray-200 rounded-md">Cancel</button>
-                            <button onClick={handleSave} className="px-4 py-2 text-sm font-medium text-white bg-primary rounded-md">Save Changes</button>
+                            <button onClick={() => setIsEditing(false)} disabled={isDisabled} className="px-4 py-2 text-sm font-medium bg-gray-200 rounded-md disabled:opacity-50">Cancel</button>
+                            <button onClick={handleSave} disabled={isDisabled} className="px-4 py-2 text-sm font-medium text-white bg-primary rounded-md flex items-center justify-center min-w-[100px] disabled:opacity-50">
+                                {isSaving ? <LoadingIcon className="animate-spin h-4 w-4" /> : 'Save Changes'}
+                            </button>
                         </div>
                     </div>
                 ) : (
@@ -212,14 +244,14 @@ const AdminUserDetailModal: React.FC<AdminUserDetailModalProps> = ({ isOpen, onC
                 <div>
                     <h3 className="text-lg font-bold text-secondary mb-2">Plan Management</h3>
                     <DetailRow label="Current Plan" value={<span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${user.plan === 'pro' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>{user.plan}</span>} />
-                    <button onClick={handleChangePlan} className="mt-2 w-full px-4 py-2 text-sm font-medium text-white bg-secondary rounded-md hover:bg-opacity-90">
-                        Change to {user.plan === 'pro' ? 'Pay-As-You-Go' : 'Pro'}
+                    <button onClick={handleChangePlan} disabled={isDisabled} className="mt-2 w-full px-4 py-2 text-sm font-medium text-white bg-secondary rounded-md hover:bg-opacity-90 flex justify-center items-center min-h-[36px] disabled:opacity-50">
+                        {isChangingPlan ? <LoadingIcon className="animate-spin h-4 w-4" /> : `Change to ${user.plan === 'pro' ? 'Pay-As-You-Go' : 'Pro'}`}
                     </button>
-                    <button onClick={handleGrantPro} className="mt-2 w-full px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-md hover:bg-green-700">
-                        Grant Free Pro Plan (1 Year)
+                    <button onClick={handleGrantPro} disabled={isDisabled} className="mt-2 w-full px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-md hover:bg-green-700 flex justify-center items-center min-h-[36px] disabled:opacity-50">
+                        {isGrantingPro ? <LoadingIcon className="animate-spin h-4 w-4" /> : 'Grant Free Pro Plan (1 Year)'}
                     </button>
-                    <button onClick={handleSimulatePayment} className="mt-2 w-full px-4 py-2 text-sm font-medium text-white bg-red-500 rounded-md hover:bg-red-600">
-                        Simulate Failed Payment
+                    <button onClick={handleSimulatePayment} disabled={isDisabled} className="mt-2 w-full px-4 py-2 text-sm font-medium text-white bg-red-500 rounded-md hover:bg-red-600 flex justify-center items-center min-h-[36px] disabled:opacity-50">
+                        {isSimulating ? <LoadingIcon className="animate-spin h-4 w-4" /> : 'Simulate Failed Payment'}
                     </button>
                 </div>
                 {user.plan === 'payg' && (
@@ -227,12 +259,12 @@ const AdminUserDetailModal: React.FC<AdminUserDetailModalProps> = ({ isOpen, onC
                         <h3 className="text-lg font-bold text-secondary mb-2">Credit Management</h3>
                          <DetailRow label="Balance" value={<span className="font-bold text-green-700">R{(user.creditBalance / 100).toFixed(2)}</span>} />
                         <div className="space-y-2 mt-2">
-                            <input type="number" value={creditAmount} onChange={e => setCreditAmount(e.target.value)} placeholder="Amount (R)" className="w-full p-2 border rounded-md" step="0.01" />
-                            <input type="text" value={creditReason} onChange={e => setCreditReason(e.target.value)} placeholder="Reason for adjustment" className="w-full p-2 border rounded-md" />
+                            <input type="number" value={creditAmount} onChange={e => setCreditAmount(e.target.value)} placeholder="Amount (R)" className="w-full p-2 border rounded-md" step="0.01" disabled={isDisabled} />
+                            <input type="text" value={creditReason} onChange={e => setCreditReason(e.target.value)} placeholder="Reason for adjustment" className="w-full p-2 border rounded-md" disabled={isDisabled} />
                             <button 
                                 onClick={handleAdjustCredit} 
-                                disabled={!creditAmount || !creditReason || isAdjustingCredit} 
-                                className="w-full px-4 py-2 text-sm font-medium text-white bg-primary rounded-md hover:bg-opacity-90 disabled:bg-gray-400 flex justify-center items-center"
+                                disabled={!creditAmount || !creditReason || isDisabled} 
+                                className="w-full px-4 py-2 text-sm font-medium text-white bg-primary rounded-md hover:bg-opacity-90 disabled:bg-gray-400 flex justify-center items-center min-h-[36px]"
                             >
                                 {isAdjustingCredit ? <LoadingIcon className="animate-spin h-4 w-4 text-white" /> : 'Adjust Credit'}
                             </button>
@@ -273,7 +305,7 @@ const AdminUserDetailModal: React.FC<AdminUserDetailModalProps> = ({ isOpen, onC
         </div>
 
         <div className="p-4 bg-gray-50 border-t border-gray-200 flex justify-end">
-          <button onClick={onClose} className="px-6 py-2 rounded-md text-white bg-primary hover:bg-opacity-90 transition">Close</button>
+          <button onClick={onClose} disabled={isDisabled} className="px-6 py-2 rounded-md text-white bg-primary hover:bg-opacity-90 transition disabled:opacity-50">Close</button>
         </div>
       </div>
     </div>

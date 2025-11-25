@@ -48,20 +48,27 @@ interface DataContextType {
     paginatedUsers: { data: User[]; pageInfo: PageInfo };
     handleNextUsers: () => void;
     handlePrevUsers: () => void;
+    isFetchingUsers: boolean;
 
     paginatedDocuments: { data: GeneratedDocument[]; pageInfo: PageInfo };
     handleNextDocs: () => void;
     handlePrevDocs: () => void;
+    isFetchingDocs: boolean;
 
     transactionsForUserPage: Transaction[];
 
     paginatedLogs: { data: AdminActionLog[]; pageInfo: PageInfo };
     handleNextLogs: () => void;
     handlePrevLogs: () => void;
+    isFetchingLogs: boolean;
 
     // Non-paginated admin data
     adminNotifications: AdminNotification[];
     
+    // User Loading States
+    isLoadingUserDocs: boolean;
+    isLoadingUserFiles: boolean;
+
     handleUpdateProfile: (data: { profile: CompanyProfile; name?: string; contactNumber?: string }) => Promise<void>;
     handleInitialProfileSubmit: (profileData: CompanyProfile, name: string) => Promise<void>;
     handleProfilePhotoUpload: (file: File) => Promise<void>;
@@ -93,23 +100,27 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // User data
     const [generatedDocuments, setGeneratedDocuments] = useState<GeneratedDocument[]>([]);
     const [userFiles, setUserFiles] = useState<UserFile[]>([]);
+    const [isLoadingUserDocs, setIsLoadingUserDocs] = useState(true);
+    const [isLoadingUserFiles, setIsLoadingUserFiles] = useState(true);
 
     // Admin data (paginated)
     const [paginatedUsers, setPaginatedUsers] = useState<User[]>([]);
-    // For Supabase, cursors are simply offsets (numbers)
     const [userCursors, setUserCursors] = useState<number[]>([0]);
     const [userPageIndex, setUserPageIndex] = useState(0);
     const [userHasNextPage, setUserHasNextPage] = useState(true);
+    const [isFetchingUsers, setIsFetchingUsers] = useState(false);
 
     const [paginatedDocuments, setPaginatedDocuments] = useState<GeneratedDocument[]>([]);
     const [docCursors, setDocCursors] = useState<number[]>([0]);
     const [docPageIndex, setDocPageIndex] = useState(0);
     const [docHasNextPage, setDocHasNextPage] = useState(true);
+    const [isFetchingDocs, setIsFetchingDocs] = useState(false);
 
     const [paginatedLogs, setPaginatedLogs] = useState<AdminActionLog[]>([]);
     const [logCursors, setLogCursors] = useState<number[]>([0]);
     const [logPageIndex, setLogPageIndex] = useState(0);
     const [logHasNextPage, setLogHasNextPage] = useState(true);
+    const [isFetchingLogs, setIsFetchingLogs] = useState(false);
     
     // Admin data (non-paginated)
     const [adminNotifications, setAdminNotifications] = useState<AdminNotification[]>([]);
@@ -120,28 +131,35 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setCursors: React.Dispatch<React.SetStateAction<number[]>>,
         setPageIndex: React.Dispatch<React.SetStateAction<number>>,
         setHasNextPage: React.Dispatch<React.SetStateAction<boolean>>,
-        cursors: number[]
+        cursors: number[],
+        setLoading: React.Dispatch<React.SetStateAction<boolean>>
     ) => async (pageIndex: number) => {
         if (pageIndex < 0 || pageIndex >= cursors.length) return;
-        const cursor = cursors[pageIndex];
-        const { data, lastVisible } = await fetchFn(PAGE_SIZE, cursor);
+        
+        setLoading(true);
+        try {
+            const cursor = cursors[pageIndex];
+            const { data, lastVisible } = await fetchFn(PAGE_SIZE, cursor);
 
-        setData(data);
-        setPageIndex(pageIndex);
+            setData(data);
+            setPageIndex(pageIndex);
 
-        if (pageIndex === cursors.length - 1) {
-            if (lastVisible !== null && data.length === PAGE_SIZE) {
-                setCursors(prev => [...prev, lastVisible]);
-                setHasNextPage(true);
-            } else {
-                setHasNextPage(false);
+            if (pageIndex === cursors.length - 1) {
+                if (lastVisible !== null && data.length === PAGE_SIZE) {
+                    setCursors(prev => [...prev, lastVisible]);
+                    setHasNextPage(true);
+                } else {
+                    setHasNextPage(false);
+                }
             }
+        } finally {
+            setLoading(false);
         }
     };
 
-    const fetchUsersPage = useCallback(createPageFetcher(getAllUsers, setPaginatedUsers, setUserCursors, setUserPageIndex, setUserHasNextPage, userCursors), [userCursors]);
-    const fetchDocsPage = useCallback(createPageFetcher(getAllDocumentsForAllUsers, setPaginatedDocuments, setDocCursors, setDocPageIndex, setDocHasNextPage, docCursors), [docCursors]);
-    const fetchLogsPage = useCallback(createPageFetcher(getAdminActionLogs, setPaginatedLogs, setLogCursors, setLogPageIndex, setLogHasNextPage, logCursors), [logCursors]);
+    const fetchUsersPage = useCallback(createPageFetcher(getAllUsers, setPaginatedUsers, setUserCursors, setUserPageIndex, setUserHasNextPage, userCursors, setIsFetchingUsers), [userCursors]);
+    const fetchDocsPage = useCallback(createPageFetcher(getAllDocumentsForAllUsers, setPaginatedDocuments, setDocCursors, setDocPageIndex, setDocHasNextPage, docCursors, setIsFetchingDocs), [docCursors]);
+    const fetchLogsPage = useCallback(createPageFetcher(getAdminActionLogs, setPaginatedLogs, setLogCursors, setLogPageIndex, setLogHasNextPage, logCursors, setIsFetchingLogs), [logCursors]);
 
     const handleNextUsers = () => { if (userHasNextPage) fetchUsersPage(userPageIndex + 1); };
     const handlePrevUsers = () => { if (userPageIndex > 0) fetchUsersPage(userPageIndex - 1); };
@@ -168,8 +186,17 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 fetchLogsPage(0);
                 getAdminNotifications().then(setAdminNotifications);
             } else {
-                getGeneratedDocuments(user.uid).then(setGeneratedDocuments);
-                getUserFiles(user.uid).then(setUserFiles);
+                setIsLoadingUserDocs(true);
+                getGeneratedDocuments(user.uid).then(docs => {
+                    setGeneratedDocuments(docs);
+                    setIsLoadingUserDocs(false);
+                });
+                
+                setIsLoadingUserFiles(true);
+                getUserFiles(user.uid).then(files => {
+                    setUserFiles(files);
+                    setIsLoadingUserFiles(false);
+                });
             }
         } else {
             setGeneratedDocuments([]);
@@ -178,6 +205,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setPaginatedDocuments([]);
             setPaginatedLogs([]);
             setAdminNotifications([]);
+            setIsLoadingUserDocs(false);
+            setIsLoadingUserFiles(false);
         }
     }, [user, isAdmin]);
 
@@ -389,8 +418,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
 
         await saveGeneratedDocument(user.uid, docToSave);
+        // Fetch updated docs to show in history immediately
+        setIsLoadingUserDocs(true);
         const updatedDocs = await getGeneratedDocuments(user.uid);
         setGeneratedDocuments(updatedDocs);
+        setIsLoadingUserDocs(false);
+        
         navigateTo('dashboard');
     };
 
@@ -400,14 +433,19 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         paginatedUsers: { data: paginatedUsers, pageInfo: { pageIndex: userPageIndex, pageSize: PAGE_SIZE, hasNextPage: userHasNextPage, dataLength: paginatedUsers.length } },
         handleNextUsers,
         handlePrevUsers,
+        isFetchingUsers,
         paginatedDocuments: { data: paginatedDocuments, pageInfo: { pageIndex: docPageIndex, pageSize: PAGE_SIZE, hasNextPage: docHasNextPage, dataLength: paginatedDocuments.length } },
         handleNextDocs,
         handlePrevDocs,
+        isFetchingDocs,
         transactionsForUserPage,
         paginatedLogs: { data: paginatedLogs, pageInfo: { pageIndex: logPageIndex, pageSize: PAGE_SIZE, hasNextPage: logHasNextPage, dataLength: paginatedLogs.length } },
         handleNextLogs,
         handlePrevLogs,
+        isFetchingLogs,
         adminNotifications,
+        isLoadingUserDocs,
+        isLoadingUserFiles,
         handleUpdateProfile,
         handleInitialProfileSubmit,
         handleProfilePhotoUpload,

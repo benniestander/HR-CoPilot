@@ -3,6 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { LoadingIcon, CopyIcon, DownloadIcon, CheckIcon, WordIcon, TxtIcon } from './Icons';
 import type { AppStatus, Source } from '../types';
 import { marked } from 'marked';
+import DOMPurify from 'dompurify'; // Ensure this is available via importmap
 
 interface PolicyPreviewProps {
   policyText: string;
@@ -64,8 +65,10 @@ const PolicyPreview: React.FC<PolicyPreviewProps> = ({ policyText, status, onRet
   useEffect(() => {
     if (status === 'success' && editorRef.current) {
       (async () => {
-        const html = await marked.parse(policyText);
-        editorRef.current.innerHTML = html;
+        const rawHtml = await marked.parse(policyText);
+        // Sanitize the HTML to prevent XSS
+        const cleanHtml = DOMPurify.sanitize(rawHtml);
+        editorRef.current.innerHTML = cleanHtml;
       })();
     } else if (editorRef.current) {
       editorRef.current.innerHTML = '';

@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo } from 'react';
 import type { User, GeneratedDocument, Transaction, AdminActionLog, AdminNotification } from '../types';
-import { UserIcon, MasterPolicyIcon, FormsIcon, SearchIcon, CreditCardIcon, HistoryIcon, DownloadIcon } from './Icons';
+import { UserIcon, MasterPolicyIcon, FormsIcon, SearchIcon, CreditCardIcon, HistoryIcon, DownloadIcon, LoadingIcon } from './Icons';
 import AdminUserDetailModal from './AdminUserDetailModal';
 import { PageInfo } from '../contexts/DataContext';
 
@@ -9,16 +9,19 @@ interface AdminDashboardProps {
   paginatedUsers: { data: User[]; pageInfo: PageInfo };
   onNextUsers: () => void;
   onPrevUsers: () => void;
+  isFetchingUsers: boolean;
 
   paginatedDocuments: { data: GeneratedDocument[]; pageInfo: PageInfo };
   onNextDocs: () => void;
   onPrevDocs: () => void;
+  isFetchingDocs: boolean;
   
   transactionsForUserPage: Transaction[];
 
   paginatedLogs: { data: AdminActionLog[]; pageInfo: PageInfo };
   onNextLogs: () => void;
   onPrevLogs: () => void;
+  isFetchingLogs: boolean;
   
   adminNotifications: AdminNotification[];
   adminActions: {
@@ -44,7 +47,8 @@ const StatCard: React.FC<{ title: string; value: string | number; icon: React.FC
 
 // Helper for CSV Export
 const exportToCsv = (filename: string, rows: object[]) => {
-    if (!rows || rows.length === 0) {
+    if (!rows || !Array.isArray(rows) || rows.length === 0) {
+        console.warn("No data available to export");
         return;
     }
     const header = Object.keys(rows[0]).join(',');
@@ -63,7 +67,7 @@ const exportToCsv = (filename: string, rows: object[]) => {
     document.body.removeChild(link);
 };
 
-const PaginationControls: React.FC<{ pageInfo: PageInfo; onNext: () => void; onPrev: () => void; }> = ({ pageInfo, onNext, onPrev }) => {
+const PaginationControls: React.FC<{ pageInfo: PageInfo; onNext: () => void; onPrev: () => void; isLoading: boolean }> = ({ pageInfo, onNext, onPrev, isLoading }) => {
     const { pageIndex, pageSize, hasNextPage, dataLength, total } = pageInfo;
     const startItem = pageIndex * pageSize + 1;
     const endItem = startItem + dataLength - 1;
@@ -71,17 +75,17 @@ const PaginationControls: React.FC<{ pageInfo: PageInfo; onNext: () => void; onP
     return (
         <div className="flex items-center justify-between mt-4 text-sm">
             <p className="text-gray-600">
-                Showing {startItem} to {endItem}{total ? ` of ${total}` : ''}
+                Showing {dataLength > 0 ? startItem : 0} to {endItem}{total ? ` of ${total}` : ''}
             </p>
             <div className="space-x-2">
-                <button onClick={onPrev} disabled={pageIndex === 0} className="px-3 py-1 border rounded-md disabled:opacity-50">Previous</button>
-                <button onClick={onNext} disabled={!hasNextPage} className="px-3 py-1 border rounded-md disabled:opacity-50">Next</button>
+                <button onClick={onPrev} disabled={pageIndex === 0 || isLoading} className="px-3 py-1 border rounded-md disabled:opacity-50">Previous</button>
+                <button onClick={onNext} disabled={!hasNextPage || isLoading} className="px-3 py-1 border rounded-md disabled:opacity-50">Next</button>
             </div>
         </div>
     );
 };
 
-const UserList: React.FC<{ users: User[], pageInfo: PageInfo, onNext: () => void, onPrev: () => void, onViewUser: (user: User) => void }> = ({ users, pageInfo, onNext, onPrev, onViewUser }) => {
+const UserList: React.FC<{ users: User[], pageInfo: PageInfo, onNext: () => void, onPrev: () => void, onViewUser: (user: User) => void, isLoading: boolean }> = ({ users, pageInfo, onNext, onPrev, onViewUser, isLoading }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const filteredUsers = useMemo(() => {
         return users.filter(user => 
@@ -105,6 +109,11 @@ const UserList: React.FC<{ users: User[], pageInfo: PageInfo, onNext: () => void
                     <SearchIcon className="w-5 h-5 text-gray-400" />
                 </div>
             </div>
+            {isLoading ? (
+                <div className="p-12 flex justify-center">
+                    <LoadingIcon className="w-10 h-10 animate-spin text-primary" />
+                </div>
+            ) : (
             <div className="overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-50">
@@ -133,12 +142,13 @@ const UserList: React.FC<{ users: User[], pageInfo: PageInfo, onNext: () => void
                     </tbody>
                 </table>
             </div>
-            <PaginationControls pageInfo={pageInfo} onNext={onNext} onPrev={onPrev} />
+            )}
+            <PaginationControls pageInfo={pageInfo} onNext={onNext} onPrev={onPrev} isLoading={isLoading} />
         </div>
     );
 };
 
-const DocumentAnalytics: React.FC<{ documents: GeneratedDocument[], pageInfo: PageInfo, onNext: () => void, onPrev: () => void }> = ({ documents, pageInfo, onNext, onPrev }) => {
+const DocumentAnalytics: React.FC<{ documents: GeneratedDocument[], pageInfo: PageInfo, onNext: () => void, onPrev: () => void, isLoading: boolean }> = ({ documents, pageInfo, onNext, onPrev, isLoading }) => {
   return (
     <div>
       <div className="flex justify-end mb-4">
@@ -146,6 +156,11 @@ const DocumentAnalytics: React.FC<{ documents: GeneratedDocument[], pageInfo: Pa
           <DownloadIcon className="w-4 h-4 mr-1" /> Export as CSV
         </button>
       </div>
+      {isLoading ? (
+        <div className="p-12 flex justify-center">
+            <LoadingIcon className="w-10 h-10 animate-spin text-primary" />
+        </div>
+      ) : (
       <div className="overflow-x-auto">
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
@@ -166,12 +181,13 @@ const DocumentAnalytics: React.FC<{ documents: GeneratedDocument[], pageInfo: Pa
           </tbody>
         </table>
       </div>
-      <PaginationControls pageInfo={pageInfo} onNext={onNext} onPrev={onPrev} />
+      )}
+      <PaginationControls pageInfo={pageInfo} onNext={onNext} onPrev={onPrev} isLoading={isLoading} />
     </div>
   );
 };
 
-const TransactionLog: React.FC<{ transactions: Transaction[], usersPageInfo: PageInfo, onNext: () => void, onPrev: () => void }> = ({ transactions, usersPageInfo, onNext, onPrev }) => {
+const TransactionLog: React.FC<{ transactions: Transaction[], usersPageInfo: PageInfo, onNext: () => void, onPrev: () => void, isLoading: boolean }> = ({ transactions, usersPageInfo, onNext, onPrev, isLoading }) => {
   return (
     <div>
       <p className="text-sm text-gray-500 mb-4">Displaying transactions for the current page of users.</p>
@@ -180,6 +196,11 @@ const TransactionLog: React.FC<{ transactions: Transaction[], usersPageInfo: Pag
           <DownloadIcon className="w-4 h-4 mr-1" /> Export as CSV
         </button>
       </div>
+      {isLoading ? (
+        <div className="p-12 flex justify-center">
+            <LoadingIcon className="w-10 h-10 animate-spin text-primary" />
+        </div>
+      ) : (
       <div className="overflow-x-auto">
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
@@ -202,14 +223,20 @@ const TransactionLog: React.FC<{ transactions: Transaction[], usersPageInfo: Pag
           </tbody>
         </table>
       </div>
-      <PaginationControls pageInfo={usersPageInfo} onNext={onNext} onPrev={onPrev} />
+      )}
+      <PaginationControls pageInfo={usersPageInfo} onNext={onNext} onPrev={onPrev} isLoading={isLoading} />
     </div>
   );
 };
 
-const ActivityLog: React.FC<{ logs: AdminActionLog[], pageInfo: PageInfo, onNext: () => void, onPrev: () => void }> = ({ logs, pageInfo, onNext, onPrev }) => {
+const ActivityLog: React.FC<{ logs: AdminActionLog[], pageInfo: PageInfo, onNext: () => void, onPrev: () => void, isLoading: boolean }> = ({ logs, pageInfo, onNext, onPrev, isLoading }) => {
   return (
     <div>
+      {isLoading ? (
+        <div className="p-12 flex justify-center">
+            <LoadingIcon className="w-10 h-10 animate-spin text-primary" />
+        </div>
+      ) : (
       <div className="overflow-x-auto">
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
@@ -232,17 +259,18 @@ const ActivityLog: React.FC<{ logs: AdminActionLog[], pageInfo: PageInfo, onNext
           </tbody>
         </table>
       </div>
-      <PaginationControls pageInfo={pageInfo} onNext={onNext} onPrev={onPrev} />
+      )}
+      <PaginationControls pageInfo={pageInfo} onNext={onNext} onPrev={onPrev} isLoading={isLoading} />
     </div>
   );
 };
 
 
 const AdminDashboard: React.FC<AdminDashboardProps> = ({ 
-  paginatedUsers, onNextUsers, onPrevUsers,
-  paginatedDocuments, onNextDocs, onPrevDocs,
+  paginatedUsers, onNextUsers, onPrevUsers, isFetchingUsers,
+  paginatedDocuments, onNextDocs, onPrevDocs, isFetchingDocs,
   transactionsForUserPage,
-  paginatedLogs, onNextLogs, onPrevLogs,
+  paginatedLogs, onNextLogs, onPrevLogs, isFetchingLogs,
   adminActions,
   adminNotifications
 }) => {
@@ -279,10 +307,10 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
   const renderTabContent = () => {
     switch(activeTab) {
-      case 'users': return <UserList users={paginatedUsers.data} pageInfo={paginatedUsers.pageInfo} onNext={onNextUsers} onPrev={onPrevUsers} onViewUser={handleViewUser} />;
-      case 'analytics': return <DocumentAnalytics documents={paginatedDocuments.data} pageInfo={paginatedDocuments.pageInfo} onNext={onNextDocs} onPrev={onPrevDocs} />;
-      case 'transactions': return <TransactionLog transactions={transactionsForUserPage} usersPageInfo={paginatedUsers.pageInfo} onNext={onNextUsers} onPrev={onPrevUsers} />;
-      case 'logs': return <ActivityLog logs={paginatedLogs.data} pageInfo={paginatedLogs.pageInfo} onNext={onNextLogs} onPrev={onPrevLogs} />;
+      case 'users': return <UserList users={paginatedUsers.data} pageInfo={paginatedUsers.pageInfo} onNext={onNextUsers} onPrev={onPrevUsers} onViewUser={handleViewUser} isLoading={isFetchingUsers} />;
+      case 'analytics': return <DocumentAnalytics documents={paginatedDocuments.data} pageInfo={paginatedDocuments.pageInfo} onNext={onNextDocs} onPrev={onPrevDocs} isLoading={isFetchingDocs} />;
+      case 'transactions': return <TransactionLog transactions={transactionsForUserPage} usersPageInfo={paginatedUsers.pageInfo} onNext={onNextUsers} onPrev={onPrevUsers} isLoading={isFetchingUsers} />;
+      case 'logs': return <ActivityLog logs={paginatedLogs.data} pageInfo={paginatedLogs.pageInfo} onNext={onNextLogs} onPrev={onPrevLogs} isLoading={isFetchingLogs} />;
       default: return null;
     }
   }

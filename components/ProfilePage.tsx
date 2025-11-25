@@ -22,6 +22,8 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
   const { 
     generatedDocuments, 
     userFiles, 
+    isLoadingUserDocs,
+    isLoadingUserFiles,
     handleUpdateProfile: onUpdateProfile,
     handleFileUpload: onFileUpload,
     handleFileDownload: onFileDownload,
@@ -203,13 +205,17 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
     return date.toLocaleString('en-ZA', { year: 'numeric', month: 'long', day: 'numeric' });
   };
   
-  const DocumentHistorySection: React.FC<{ title: string; documents: GeneratedDocument[]; icon: React.FC<{className?: string;}> }> = ({ title, documents, icon: Icon }) => (
+  const DocumentHistorySection: React.FC<{ title: string; documents: GeneratedDocument[]; icon: React.FC<{className?: string;}>, isLoading: boolean }> = ({ title, documents, icon: Icon, isLoading }) => (
     <div className="p-6 border border-gray-200 rounded-lg">
       <div className="flex items-center mb-4">
         <Icon className="w-6 h-6 text-primary mr-3" />
         <h3 className="text-xl font-semibold text-secondary">{title}</h3>
       </div>
-      {documents.length > 0 ? (
+      {isLoading ? (
+        <div className="py-8 flex justify-center">
+            <LoadingIcon className="w-8 h-8 animate-spin text-primary" />
+        </div>
+      ) : documents.length > 0 ? (
         <ul className="space-y-3">
           {documents.map(doc => (
             <li key={doc.id} className="p-3 bg-light rounded-md border border-gray-200 hover:bg-gray-200/60 transition-colors flex flex-col sm:flex-row justify-between sm:items-center">
@@ -454,7 +460,11 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
                 </div>
                 <div className="mt-6">
                     <h4 className="font-semibold text-gray-800 mb-2">Uploaded Files</h4>
-                    {userFiles.length > 0 ? (
+                    {isLoadingUserFiles ? (
+                        <div className="py-8 flex justify-center">
+                            <LoadingIcon className="w-8 h-8 animate-spin text-primary" />
+                        </div>
+                    ) : userFiles.length > 0 ? (
                         <ul className="space-y-2 max-h-60 overflow-y-auto p-1">
                             {userFiles.map(file => (
                                 <li key={file.id} className="flex justify-between items-center text-sm p-3 bg-light rounded-md border border-gray-200">
@@ -481,8 +491,8 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
                 </div>
             </div>
 
-            <DocumentHistorySection title="Policies Generated" documents={generatedPolicies} icon={MasterPolicyIcon} />
-            <DocumentHistorySection title="Forms Generated" documents={generatedForms} icon={FormsIcon} />
+            <DocumentHistorySection title="Policies Generated" documents={generatedPolicies} icon={MasterPolicyIcon} isLoading={isLoadingUserDocs} />
+            <DocumentHistorySection title="Forms Generated" documents={generatedForms} icon={FormsIcon} isLoading={isLoadingUserDocs} />
         </div>
 
         <div className="mt-8 pt-8 border-t border-gray-200">
