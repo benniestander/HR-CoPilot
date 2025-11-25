@@ -81,6 +81,7 @@ export const YOCO_PUBLIC_KEY = (import.meta as any).env?.VITE_YOCO_PUBLIC_KEY ||
          const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
          const userId = metadata?.userId;
          const type = metadata?.type; // 'subscription' | 'topup'
+         const couponCode = metadata?.couponCode;
 
          if (userId && type) {
             // Determine transaction amount (Cost is negative, Credit is positive)
@@ -106,6 +107,11 @@ export const YOCO_PUBLIC_KEY = (import.meta as any).env?.VITE_YOCO_PUBLIC_KEY ||
             } else if (type === 'subscription') {
                 // Enable Pro Plan
                 await supabaseAdmin.from('profiles').update({ plan: 'pro' }).eq('id', userId);
+            }
+
+            // Track Coupon Usage
+            if (couponCode) {
+               await supabaseAdmin.rpc('increment_coupon_uses', { coupon_code: couponCode });
             }
          }
 
@@ -144,6 +150,7 @@ interface PaymentDetails {
   metadata?: {
     userId?: string;
     type?: 'subscription' | 'topup';
+    couponCode?: string;
   };
 }
 

@@ -193,6 +193,19 @@ export type Transaction = {
   userEmail?: string; // Added for admin transaction log
 };
 
+export type Coupon = {
+  id: string;
+  code: string;
+  discountType: 'percentage' | 'fixed';
+  discountValue: number; // Percentage (0-100) or Fixed Amount in Cents
+  maxUses: number | null;
+  usedCount: number;
+  expiryDate: string | null; // ISO string
+  active: boolean;
+  applicableTo: 'all' | 'plan:pro' | 'plan:payg'; // Target audience
+  createdAt: string;
+};
+
 export type User = {
   uid: string;
   email: string;

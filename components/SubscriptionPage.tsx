@@ -1,9 +1,10 @@
 
 import React, { useState } from 'react';
-import { CheckIcon, CreditCardIcon, LoadingIcon } from './Icons';
+import { CheckIcon, CreditCardIcon, LoadingIcon, CouponIcon } from './Icons';
 import type { User } from '../types';
 import { useAuthContext } from '../contexts/AuthContext';
 import { processPayment } from '../services/paymentService';
+import { validateCoupon } from '../services/dbService';
 
 declare global {
   interface Window {
@@ -27,8 +28,14 @@ const SubscriptionPage: React.FC<SubscriptionPageProps> = ({ onSuccess, onCancel
   const [isLoading, setIsLoading] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
 
+  // Coupon State
+  const [couponCode, setCouponCode] = useState('');
+  const [couponMessage, setCouponMessage] = useState<{type: 'success'|'error', text: string} | null>(null);
+  const [discount, setDiscount] = useState(0); // In cents
+  const [appliedCouponCode, setAppliedCouponCode] = useState<string | null>(null);
+
   const originalAmount = 74700;
-  const finalAmount = originalAmount;
+  const finalAmount = Math.max(0, originalAmount - discount);
 
   const features = [
     'Unlimited HR Policy Generation',
@@ -57,6 +64,31 @@ const SubscriptionPage: React.FC<SubscriptionPageProps> = ({ onSuccess, onCancel
     validateField(name, value);
   };
 
+  const handleApplyCoupon = async () => {
+      if (!couponCode.trim()) return;
+      setCouponMessage(null);
+      try {
+          const result = await validateCoupon(couponCode.trim(), 'pro');
+          if (result.valid && result.coupon) {
+              let calculatedDiscount = 0;
+              if (result.coupon.discountType === 'fixed') {
+                  calculatedDiscount = result.coupon.discountValue;
+              } else {
+                  calculatedDiscount = (originalAmount * result.coupon.discountValue) / 100;
+              }
+              setDiscount(calculatedDiscount);
+              setAppliedCouponCode(result.coupon.code);
+              setCouponMessage({ type: 'success', text: `Coupon applied! You save R${(calculatedDiscount / 100).toFixed(2)}` });
+          } else {
+              setDiscount(0);
+              setAppliedCouponCode(null);
+              setCouponMessage({ type: 'error', text: result.message || 'Invalid coupon.' });
+          }
+      } catch (error) {
+          setCouponMessage({ type: 'error', text: 'Error validating coupon.' });
+      }
+  };
+
   const isFormValid = Object.values(formData).every(val => typeof val === 'string' && val.trim() !== '') && Object.values(errors).every(err => err === '');
 
   const handlePayment = async (e: React.FormEvent) => {
@@ -78,7 +110,8 @@ const SubscriptionPage: React.FC<SubscriptionPageProps> = ({ onSuccess, onCancel
         },
         metadata: {
             userId: user?.uid,
-            type: 'subscription'
+            type: 'subscription',
+            couponCode: appliedCouponCode || undefined
         }
     });
 
@@ -144,6 +177,38 @@ const SubscriptionPage: React.FC<SubscriptionPageProps> = ({ onSuccess, onCancel
               </div>
             </div>
 
+             {/* Coupon Section */}
+             <div className="pt-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Have a coupon?</label>
+                <div className="flex space-x-2">
+                    <div className="relative flex-grow">
+                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <CouponIcon className="h-5 w-5 text-gray-400" />
+                        </div>
+                        <input 
+                            type="text" 
+                            value={couponCode} 
+                            onChange={(e) => setCouponCode(e.target.value.toUpperCase())} 
+                            placeholder="Enter code" 
+                            className="block w-full pl-10 p-3 border border-gray-300 rounded-md shadow-sm focus:ring-primary focus:border-primary sm:text-sm"
+                        />
+                    </div>
+                    <button 
+                        type="button" 
+                        onClick={handleApplyCoupon} 
+                        disabled={!couponCode}
+                        className="bg-gray-800 text-white px-4 py-2 rounded-md hover:bg-gray-900 disabled:bg-gray-400 transition-colors text-sm font-medium"
+                    >
+                        Apply
+                    </button>
+                </div>
+                {couponMessage && (
+                    <p className={`text-xs mt-1 ${couponMessage.type === 'success' ? 'text-green-600' : 'text-red-600'}`}>
+                        {couponMessage.text}
+                    </p>
+                )}
+            </div>
+
              <div className="pt-4">
                 <p className="text-xs text-gray-500 mb-4">By providing your details, you allow HR CoPilot to charge your card via our secure payment partner, Yoco.</p>
                  <button type="submit" disabled={isLoading || !isFormValid} className="w-full bg-primary text-white font-bold py-4 px-4 rounded-lg text-lg hover:bg-opacity-90 disabled:bg-gray-400 transition-colors flex items-center justify-center">
@@ -177,6 +242,12 @@ const SubscriptionPage: React.FC<SubscriptionPageProps> = ({ onSuccess, onCancel
                     <span>12-Month Membership</span>
                     <span>R{(originalAmount / 100).toFixed(2)}</span>
                 </div>
+                {discount > 0 && (
+                    <div className="flex justify-between items-center text-green-600 mt-2">
+                        <span>Discount</span>
+                        <span>-R{(discount / 100).toFixed(2)}</span>
+                    </div>
+                )}
                 <div className="flex justify-between items-center font-bold text-xl mt-4">
                     <span>Total Due Today (ZAR)</span>
                     <span>R{(finalAmount / 100).toFixed(2)}</span>

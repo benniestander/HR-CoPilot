@@ -672,6 +672,13 @@ export const IncidentReportIcon: React.FC<{ className?: string }> = ({ className
   ]} />
 );
 
+export const CouponIcon: React.FC<{ className?: string }> = ({ className }) => (
+  <DuotoneIcon className={className} paths={[
+    "M15 5V3h-2v2H5a2 2 0 00-2 2v10a2 2 0 002 2h8v2h2v-2h4a2 2 0 002-2V7a2 2 0 00-2-2h-4zm-4 12H7v-2h4v2zm0-4H7v-2h4v2zm0-4H7V7h4v2zm8 8h-4v-2h4v2zm0-4h-4v-2h4v2zm0-4h-4V7h4v2z",
+    "M13 3v14a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h6a2 2 0 012 2z"
+  ]} />
+);
+
 // --- UI Icons ---
 export const SearchIcon: React.FC<{ className?: string }> = ({ className }) => (
   <OutlineIcon className={className} path="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />

@@ -1,6 +1,6 @@
 
 import React, { createContext, useContext, useState, useEffect, useMemo, useCallback } from 'react';
-import type { GeneratedDocument, CompanyProfile, User, Transaction, AdminActionLog, AdminNotification, UserFile, PolicyType, FormType } from '../types';
+import type { GeneratedDocument, CompanyProfile, User, Transaction, AdminActionLog, AdminNotification, UserFile, Coupon } from '../types';
 import {
     updateUser,
     getGeneratedDocuments,
@@ -23,12 +23,17 @@ import {
     deleteUserFile,
     uploadProfilePhoto,
     deleteProfilePhoto,
-    getUserProfile
+    getUserProfile,
+    createCoupon,
+    getCoupons,
+    deactivateCoupon,
+    validateCoupon
 } from '../services/dbService';
 import { useAuthContext } from './AuthContext';
 import { useUIContext } from './UIContext';
 import { useModalContext } from './ModalContext';
 import { POLICIES, FORMS } from '../constants';
+import type { PolicyType, FormType } from '../types';
 
 const PAGE_SIZE = 25;
 
@@ -64,6 +69,7 @@ interface DataContextType {
 
     // Non-paginated admin data
     adminNotifications: AdminNotification[];
+    coupons: Coupon[];
     
     // User Loading States
     isLoadingUserDocs: boolean;
@@ -82,7 +88,10 @@ interface DataContextType {
         changePlan: (targetUid: string, newPlan: 'pro' | 'payg') => Promise<void>;
         grantPro: (targetUid: string) => Promise<void>;
         simulateFailedPayment: (targetUid: string, targetUserEmail: string) => Promise<void>;
+        createCoupon: (data: Partial<Coupon>) => Promise<void>;
+        deactivateCoupon: (id: string) => Promise<void>;
     };
+    validateCoupon: (code: string, planType: 'pro' | 'payg') => Promise<{ valid: boolean; coupon?: Coupon; message?: string }>;
     handleMarkNotificationRead: (notificationId: string) => Promise<void>;
     handleMarkAllNotificationsRead: () => Promise<void>;
     handleSubscriptionSuccess: () => Promise<void>;
@@ -124,6 +133,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     
     // Admin data (non-paginated)
     const [adminNotifications, setAdminNotifications] = useState<AdminNotification[]>([]);
+    const [coupons, setCoupons] = useState<Coupon[]>([]);
 
     const createPageFetcher = <T,>(
         fetchFn: (pageSize: number, cursor?: number) => Promise<{ data: T[], lastVisible: number | null }>,
@@ -185,6 +195,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 fetchDocsPage(0);
                 fetchLogsPage(0);
                 getAdminNotifications().then(setAdminNotifications);
+                getCoupons().then(setCoupons);
             } else {
                 setIsLoadingUserDocs(true);
                 getGeneratedDocuments(user.uid).then(docs => {
@@ -205,6 +216,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setPaginatedDocuments([]);
             setPaginatedLogs([]);
             setAdminNotifications([]);
+            setCoupons([]);
             setIsLoadingUserDocs(false);
             setIsLoadingUserFiles(false);
         }
@@ -335,6 +347,22 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
             await getAdminNotifications().then(setAdminNotifications);
             setToastMessage(`Simulated a failed payment for ${targetUserEmail}.`);
         },
+        createCoupon: async (data: Partial<Coupon>) => {
+            if (!user || !isAdmin) return;
+            try {
+                await createCoupon(data);
+                await getCoupons().then(setCoupons);
+                setToastMessage("Coupon created successfully.");
+            } catch (error: any) {
+                setToastMessage(`Failed to create coupon: ${error.message}`);
+            }
+        },
+        deactivateCoupon: async (id: string) => {
+            if (!user || !isAdmin) return;
+            await deactivateCoupon(id);
+            await getCoupons().then(setCoupons);
+            setToastMessage("Coupon deactivated.");
+        }
     };
     
     const handleMarkNotificationRead = async (notificationId: string) => {
@@ -444,6 +472,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         handlePrevLogs,
         isFetchingLogs,
         adminNotifications,
+        coupons,
         isLoadingUserDocs,
         isLoadingUserFiles,
         handleUpdateProfile,
@@ -454,6 +483,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         handleFileDownload,
         handleDeleteUserFile,
         adminActions,
+        validateCoupon,
         handleMarkNotificationRead,
         handleMarkAllNotificationsRead,
         handleSubscriptionSuccess,

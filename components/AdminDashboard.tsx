@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo } from 'react';
-import type { User, GeneratedDocument, Transaction, AdminActionLog, AdminNotification } from '../types';
-import { UserIcon, MasterPolicyIcon, FormsIcon, SearchIcon, CreditCardIcon, HistoryIcon, DownloadIcon, LoadingIcon } from './Icons';
+import type { User, GeneratedDocument, Transaction, AdminActionLog, AdminNotification, Coupon } from '../types';
+import { UserIcon, MasterPolicyIcon, FormsIcon, SearchIcon, CreditCardIcon, HistoryIcon, DownloadIcon, LoadingIcon, CouponIcon } from './Icons';
 import AdminUserDetailModal from './AdminUserDetailModal';
 import { PageInfo } from '../contexts/DataContext';
 
@@ -30,9 +30,12 @@ interface AdminDashboardProps {
     changePlan: (targetUid: string, newPlan: 'pro' | 'payg') => Promise<void>;
     grantPro: (targetUid: string) => Promise<void>;
     simulateFailedPayment: (targetUid: string, targetUserEmail: string) => Promise<void>;
+    createCoupon: (data: Partial<Coupon>) => Promise<void>;
+    deactivateCoupon: (id: string) => Promise<void>;
   };
 }
 
+// ... StatCard, exportToCsv, PaginationControls components remain same ...
 const StatCard: React.FC<{ title: string; value: string | number; icon: React.FC<{className?: string}> }> = React.memo(({ title, value, icon: Icon }) => (
   <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200 flex items-center">
     <div className="bg-primary/10 p-3 rounded-full mr-4">
@@ -85,6 +88,7 @@ const PaginationControls: React.FC<{ pageInfo: PageInfo; onNext: () => void; onP
     );
 };
 
+// ... UserList, DocumentAnalytics, TransactionLog, ActivityLog components remain same ...
 const UserList: React.FC<{ users: User[], pageInfo: PageInfo, onNext: () => void, onPrev: () => void, onViewUser: (user: User) => void, isLoading: boolean }> = ({ users, pageInfo, onNext, onPrev, onViewUser, isLoading }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const filteredUsers = useMemo(() => {
@@ -265,6 +269,133 @@ const ActivityLog: React.FC<{ logs: AdminActionLog[], pageInfo: PageInfo, onNext
   );
 };
 
+// --- New Coupon Manager Component ---
+const CouponManager: React.FC<{ adminActions: any }> = ({ adminActions }) => {
+    const [coupons, setCoupons] = React.useState<Coupon[]>([]);
+    const [newCoupon, setNewCoupon] = React.useState({ code: '', discountType: 'fixed', discountValue: '', maxUses: '', applicableTo: 'all' });
+    const [isCreating, setIsCreating] = React.useState(false);
+
+    // Fetch coupons on mount (conceptually, in real app these come from props to avoid dup fetching)
+    // For now, assuming passed or fetch inside
+    const { getCoupons } = require('../services/dbService'); // Lazy import to avoid circular dep issues in bundling if any
+    
+    React.useEffect(() => {
+        getCoupons().then(setCoupons);
+    }, []);
+
+    const handleCreate = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setIsCreating(true);
+        try {
+            // Auto-convert Rand to Cents for Fixed amounts
+            let value = Number(newCoupon.discountValue);
+            if (newCoupon.discountType === 'fixed') {
+                value = Math.round(value * 100); // R50 -> 5000 cents
+            }
+
+            await adminActions.createCoupon({
+                ...newCoupon,
+                discountValue: value,
+                maxUses: newCoupon.maxUses ? Number(newCoupon.maxUses) : null,
+                applicableTo: newCoupon.applicableTo === 'all' ? 'all' : newCoupon.applicableTo 
+            });
+            const updated = await getCoupons();
+            setCoupons(updated);
+            setNewCoupon({ code: '', discountType: 'fixed', discountValue: '', maxUses: '', applicableTo: 'all' });
+        } catch (error) {
+            console.error(error);
+        } finally {
+            setIsCreating(false);
+        }
+    };
+
+    const handleDeactivate = async (id: string) => {
+        if (window.confirm('Are you sure you want to deactivate this coupon?')) {
+            await adminActions.deactivateCoupon(id);
+            const updated = await getCoupons();
+            setCoupons(updated);
+        }
+    };
+
+    return (
+        <div className="space-y-8">
+            <div className="bg-gray-50 p-6 rounded-lg border border-gray-200">
+                <h3 className="text-lg font-bold text-secondary mb-4">Create New Coupon</h3>
+                <form onSubmit={handleCreate} className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
+                    <div>
+                        <label className="block text-xs font-medium text-gray-500 mb-1">Code</label>
+                        <input required type="text" placeholder="e.g. SAVE20" value={newCoupon.code} onChange={e => setNewCoupon({...newCoupon, code: e.target.value.toUpperCase()})} className="w-full p-2 border rounded-md" />
+                    </div>
+                    <div>
+                        <label className="block text-xs font-medium text-gray-500 mb-1">Type</label>
+                        <select value={newCoupon.discountType} onChange={e => setNewCoupon({...newCoupon, discountType: e.target.value})} className="w-full p-2 border rounded-md bg-white">
+                            <option value="fixed">Fixed Amount (R)</option>
+                            <option value="percentage">Percentage (%)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label className="block text-xs font-medium text-gray-500 mb-1">Value</label>
+                        <input required type="number" placeholder={newCoupon.discountType === 'fixed' ? '50 (Rand)' : '10 (%)'} value={newCoupon.discountValue} onChange={e => setNewCoupon({...newCoupon, discountValue: e.target.value})} className="w-full p-2 border rounded-md" />
+                    </div>
+                    <div>
+                        <label className="block text-xs font-medium text-gray-500 mb-1">Target Audience</label>
+                        <select value={newCoupon.applicableTo} onChange={e => setNewCoupon({...newCoupon, applicableTo: e.target.value})} className="w-full p-2 border rounded-md bg-white">
+                            <option value="all">All Users</option>
+                            <option value="plan:pro">Pro Subscription Only</option>
+                            <option value="plan:payg">PAYG Top-up Only</option>
+                        </select>
+                    </div>
+                    <button disabled={isCreating} type="submit" className="bg-primary text-white font-bold py-2 px-4 rounded-md hover:bg-opacity-90 disabled:opacity-50">
+                        {isCreating ? 'Creating...' : 'Create'}
+                    </button>
+                </form>
+            </div>
+
+            <div>
+                <h3 className="text-lg font-bold text-secondary mb-4">Active Coupons</h3>
+                <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-gray-200">
+                        <thead className="bg-gray-50">
+                            <tr>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Code</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Discount</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Usage</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Target</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody className="bg-white divide-y divide-gray-200">
+                            {coupons.map(c => (
+                                <tr key={c.id}>
+                                    <td className="px-6 py-4 font-bold text-primary">{c.code}</td>
+                                    <td className="px-6 py-4">
+                                        {c.discountType === 'fixed' ? `R${(c.discountValue / 100).toFixed(2)}` : `${c.discountValue}%`}
+                                    </td>
+                                    <td className="px-6 py-4">{c.usedCount} {c.maxUses ? `/ ${c.maxUses}` : ''}</td>
+                                    <td className="px-6 py-4 text-xs">
+                                        {c.applicableTo === 'plan:pro' ? <span className="bg-purple-100 text-purple-800 px-2 py-1 rounded-full">Pro Only</span> :
+                                         c.applicableTo === 'plan:payg' ? <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full">PAYG Only</span> :
+                                         <span className="bg-gray-100 text-gray-800 px-2 py-1 rounded-full">All</span>}
+                                    </td>
+                                    <td className="px-6 py-4">
+                                        {c.active ? <span className="text-green-600 font-semibold">Active</span> : <span className="text-red-600">Inactive</span>}
+                                    </td>
+                                    <td className="px-6 py-4 text-right">
+                                        {c.active && (
+                                            <button onClick={() => handleDeactivate(c.id)} className="text-red-600 hover:underline text-sm">Deactivate</button>
+                                        )}
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 
 const AdminDashboard: React.FC<AdminDashboardProps> = ({ 
   paginatedUsers, onNextUsers, onPrevUsers, isFetchingUsers,
@@ -274,7 +405,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
   adminActions,
   adminNotifications
 }) => {
-  type AdminTab = 'users' | 'analytics' | 'transactions' | 'logs';
+  type AdminTab = 'users' | 'analytics' | 'transactions' | 'logs' | 'coupons';
   const [activeTab, setActiveTab] = useState<AdminTab>('users');
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
 
@@ -302,6 +433,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
     { id: 'users', name: 'User Management', icon: UserIcon },
     { id: 'analytics', name: 'Document Analytics', icon: FormsIcon },
     { id: 'transactions', name: 'Transaction Log', icon: CreditCardIcon },
+    { id: 'coupons', name: 'Coupons', icon: CouponIcon },
     { id: 'logs', name: 'Admin Activity', icon: HistoryIcon },
   ];
 
@@ -310,6 +442,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
       case 'users': return <UserList users={paginatedUsers.data} pageInfo={paginatedUsers.pageInfo} onNext={onNextUsers} onPrev={onPrevUsers} onViewUser={handleViewUser} isLoading={isFetchingUsers} />;
       case 'analytics': return <DocumentAnalytics documents={paginatedDocuments.data} pageInfo={paginatedDocuments.pageInfo} onNext={onNextDocs} onPrev={onPrevDocs} isLoading={isFetchingDocs} />;
       case 'transactions': return <TransactionLog transactions={transactionsForUserPage} usersPageInfo={paginatedUsers.pageInfo} onNext={onNextUsers} onPrev={onPrevUsers} isLoading={isFetchingUsers} />;
+      case 'coupons': return <CouponManager adminActions={adminActions} />;
       case 'logs': return <ActivityLog logs={paginatedLogs.data} pageInfo={paginatedLogs.pageInfo} onNext={onNextLogs} onPrev={onPrevLogs} isLoading={isFetchingLogs} />;
       default: return null;
     }
@@ -325,7 +458,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
         </div>
 
         <div className="bg-white p-2 rounded-lg shadow-md border border-gray-200">
-            <nav className="flex space-x-2" role="tablist" aria-label="Admin Sections">
+            <nav className="flex space-x-2 overflow-x-auto" role="tablist" aria-label="Admin Sections">
                 {tabs.map(tab => (
                     <button
                         key={tab.id}
@@ -334,7 +467,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                         aria-selected={activeTab === tab.id}
                         aria-controls={`tabpanel-${tab.id}`}
                         onClick={() => setActiveTab(tab.id)}
-                        className={`flex items-center px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                        className={`flex items-center px-4 py-2 rounded-md text-sm font-medium transition-colors whitespace-nowrap ${
                             activeTab === tab.id
                             ? 'bg-primary text-white'
                             : 'text-gray-600 hover:bg-gray-100'

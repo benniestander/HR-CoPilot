@@ -1,6 +1,6 @@
 
 import { supabase } from './supabase';
-import type { User, GeneratedDocument, Transaction, AdminActionLog, AdminNotification, UserFile, CompanyProfile } from '../types';
+import type { User, GeneratedDocument, Transaction, AdminActionLog, AdminNotification, UserFile, CompanyProfile, Coupon } from '../types';
 
 // --- Helpers for Type Mapping (Snake Case <-> Camel Case) ---
 
@@ -50,6 +50,19 @@ const mapDocument = (doc: any): GeneratedDocument => ({
     sources: doc.sources || [],
     version: doc.version,
     history: doc.history || []
+});
+
+const mapCoupon = (c: any): Coupon => ({
+    id: c.id,
+    code: c.code,
+    discountType: c.discount_type,
+    discountValue: c.discount_value,
+    maxUses: c.max_uses,
+    usedCount: c.used_count,
+    expiryDate: c.expiry_date,
+    active: c.active,
+    applicableTo: c.applicable_to || 'all',
+    createdAt: c.created_at
 });
 
 // --- User Profile Functions ---
@@ -378,6 +391,62 @@ export const markAllNotificationsAsRead = async (): Promise<void> => {
     await supabase.from('admin_notifications').update({ is_read: true }).eq('is_read', false);
 };
 
+// --- Coupons ---
+
+export const createCoupon = async (couponData: Partial<Coupon>): Promise<void> => {
+    // Ensure admin status using secure function before writing
+    const { data: isAdmin } = await supabase.rpc('is_admin');
+    if (!isAdmin) throw new Error("Permission denied: You must be an admin to create coupons.");
+
+    const newCoupon = {
+        code: couponData.code,
+        discount_type: couponData.discountType,
+        discount_value: couponData.discountValue,
+        max_uses: couponData.maxUses || null,
+        expiry_date: couponData.expiryDate || null,
+        applicable_to: couponData.applicableTo === 'all' ? null : couponData.applicableTo,
+        active: true
+    };
+
+    const { error } = await supabase.from('coupons').insert(newCoupon);
+    if (error) throw error;
+};
+
+export const getCoupons = async (): Promise<Coupon[]> => {
+    const { data, error } = await supabase.from('coupons').select('*').order('created_at', { ascending: false });
+    if (error) return [];
+    return data.map(mapCoupon);
+};
+
+export const deactivateCoupon = async (id: string): Promise<void> => {
+    await supabase.from('coupons').update({ active: false }).eq('id', id);
+};
+
+export const validateCoupon = async (code: string, planType: 'pro' | 'payg'): Promise<{ valid: boolean; coupon?: Coupon; message?: string }> => {
+    const { data, error } = await supabase.from('coupons').select('*').eq('code', code).single();
+    
+    if (error || !data) return { valid: false, message: 'Invalid coupon code.' };
+    
+    const coupon = mapCoupon(data);
+
+    if (!coupon.active) return { valid: false, message: 'This coupon is inactive.' };
+    
+    if (coupon.expiryDate && new Date(coupon.expiryDate) < new Date()) {
+        return { valid: false, message: 'This coupon has expired.' };
+    }
+    
+    if (coupon.maxUses && coupon.usedCount >= coupon.maxUses) {
+        return { valid: false, message: 'This coupon has reached its usage limit.' };
+    }
+
+    if (coupon.applicableTo !== 'all' && coupon.applicableTo !== `plan:${planType}`) {
+        return { valid: false, message: `This coupon is not applicable to ${planType === 'pro' ? 'Pro subscriptions' : 'credit top-ups'}.` };
+    }
+
+    return { valid: true, coupon };
+};
+
+
 // --- Pagination Wrappers for Admin ---
 
 export const getAllUsers = async (pageSize: number, cursor?: any): Promise<{ data: User[], lastVisible: any }> => {
@@ -460,7 +529,7 @@ export const uploadUserFile = async (uid: string, file: File, notes: string): Pr
 };
 
 export const getUserFiles = async (uid: string): Promise<UserFile[]> => {
-    const { data, error } = await supabase.from('user_files').select('*').eq('user_id', uid).order('created_at', { ascending: false });
+    const { data, error } = await supabase.from('user-files').select('*').eq('user_id', uid).order('created_at', { ascending: false });
     if (error) return [];
 
     return data.map((f: any) => ({
