@@ -126,15 +126,16 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartUpdate, onStartChecklist, 
   };
 
   const PaygBanner: React.FC = () => {
-    if (user?.plan !== 'payg') return null;
+    // Only show if on PAYG AND balance is less than R75 (7500 cents)
+    if (user?.plan !== 'payg' || (Number(user?.creditBalance || 0) >= 7500)) return null;
 
     return (
       <div className="mb-8 p-4 bg-accent/20 border-l-4 border-accent text-accent-800 rounded-r-lg flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div className="flex items-center">
             <InfoIcon className="w-6 h-6 mr-3 text-accent-700 flex-shrink-0" />
             <div>
-              <h3 className="font-bold">You are on the Pay-As-You-Go plan.</h3>
-              <p className="text-sm">Your current balance is <strong>R{(Number(user.creditBalance) / 100).toFixed(2)}</strong>.</p>
+              <h3 className="font-bold">Low Credit Balance</h3>
+              <p className="text-sm">Your current balance is <strong>R{(Number(user.creditBalance) / 100).toFixed(2)}</strong>. Please top up to avoid interruptions.</p>
             </div>
         </div>
         <button 
@@ -341,3 +342,4 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartUpdate, onStartChecklist, 
 };
 
 export default Dashboard;
+    

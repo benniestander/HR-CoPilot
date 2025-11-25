@@ -17,24 +17,33 @@ import { createClient } from '@supabase/supabase-js';
    -- 1. Reset & Cleanup (Drop old policies to prevent conflicts)
    DROP POLICY IF EXISTS "Users can read own profile" ON profiles;
    DROP POLICY IF EXISTS "Users can update own profile" ON profiles;
+   DROP POLICY IF EXISTS "Users can insert own profile" ON profiles; -- Added missing drop
    DROP POLICY IF EXISTS "Admins can read all profiles" ON profiles;
    DROP POLICY IF EXISTS "Admins can update all profiles" ON profiles;
+   
    DROP POLICY IF EXISTS "Users can read own documents" ON generated_documents;
    DROP POLICY IF EXISTS "Users can create documents" ON generated_documents;
    DROP POLICY IF EXISTS "Users can update own documents" ON generated_documents;
    DROP POLICY IF EXISTS "Admins can read all documents" ON generated_documents;
+   
    DROP POLICY IF EXISTS "Users can read own transactions" ON transactions;
    DROP POLICY IF EXISTS "Admins can read all transactions" ON transactions;
    DROP POLICY IF EXISTS "Admins can create transactions" ON transactions;
+   DROP POLICY IF EXISTS "Users can create transactions (Legacy)" ON transactions; -- Added missing drop
+   
    DROP POLICY IF EXISTS "Users can read own files" ON user_files;
    DROP POLICY IF EXISTS "Users can upload own files" ON user_files;
    DROP POLICY IF EXISTS "Users can delete own files" ON user_files;
    DROP POLICY IF EXISTS "Admins can read all files" ON user_files;
+   
    DROP POLICY IF EXISTS "Admins can read logs" ON admin_action_logs;
    DROP POLICY IF EXISTS "Admins can create logs" ON admin_action_logs;
+   
    DROP POLICY IF EXISTS "Admins can read notifications" ON admin_notifications;
    DROP POLICY IF EXISTS "Admins can update notifications" ON admin_notifications;
-   DROP POLICY IF EXISTS "Admins can create notifications" ON admin_notifications; -- Fix for user signup
+   DROP POLICY IF EXISTS "Admins can create notifications" ON admin_notifications; -- Cleanup potential old policy
+   DROP POLICY IF EXISTS "Anyone can create notifications" ON admin_notifications; -- Cleanup current policy
+   
    DROP FUNCTION IF EXISTS is_admin() CASCADE;
    DROP FUNCTION IF EXISTS increment_balance(uuid, int) CASCADE;
 
