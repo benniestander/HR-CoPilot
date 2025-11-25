@@ -120,6 +120,11 @@ import { createClient } from '@supabase/supabase-js';
      applicable_to text, -- 'all', 'plan:pro', 'plan:payg'
      created_at timestamptz DEFAULT now()
    );
+   
+   -- REPAIR: Ensure columns exist if table was created by older script
+   ALTER TABLE coupons ADD COLUMN IF NOT EXISTS active boolean DEFAULT true;
+   ALTER TABLE coupons ADD COLUMN IF NOT EXISTS applicable_to text;
+
    ALTER TABLE coupons ENABLE ROW LEVEL SECURITY;
 
    -- 6. PROFILES Policies
@@ -163,6 +168,9 @@ import { createClient } from '@supabase/supabase-js';
    CREATE POLICY "Admins can delete coupons" ON coupons FOR DELETE USING (is_admin());
    -- Users can only Read (to validate)
    CREATE POLICY "Anyone can read coupons" ON coupons FOR SELECT USING (true);
+   
+   -- Force Schema Cache Reload
+   NOTIFY pgrst, 'reload config';
 
 */
 
