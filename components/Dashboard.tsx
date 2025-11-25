@@ -1,6 +1,8 @@
+
 import React, { useState } from 'react';
 import PolicySelector from './PolicySelector';
 import FormSelector from './FormSelector';
+import PolicyUpdater from './PolicyUpdater';
 import type { Policy, Form } from '../types';
 import { MasterPolicyIcon, FormsIcon, HelpIcon, UpdateIcon, ComplianceIcon, WordIcon, ExcelIcon, InfoIcon, LoadingIcon } from './Icons';
 import HowToUseModal from './HowToUseModal';
@@ -25,7 +27,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartUpdate, onStartChecklist, 
   const { generatedDocuments, isLoadingUserDocs } = useDataContext();
   const { navigateTo, setSelectedItem, setDocumentToView } = useUIContext();
 
-  const [activeTab, setActiveTab] = useState<'policies' | 'forms'>('policies');
+  const [activeTab, setActiveTab] = useState<'policies' | 'forms' | 'updater'>('policies');
   const [isHowToUseModalOpen, setIsHowToUseModalOpen] = useState(false);
   
   // Profile Incomplete Modal
@@ -211,68 +213,65 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartUpdate, onStartChecklist, 
         <PaygBanner />
         <DocumentHistory />
 
-        <div className="flex justify-center border-b border-gray-200 mb-8">
+        <div className="flex flex-col md:flex-row justify-center border-b border-gray-200 mb-8 space-y-2 md:space-y-0">
             <button
-            onClick={() => setActiveTab('policies')}
-            className={`flex items-center px-6 py-3 text-lg font-semibold border-b-2 transition-colors ${
-                activeTab === 'policies'
-                ? 'border-primary text-primary'
-                : 'border-transparent text-gray-500 hover:text-gray-700'
-            }`}
+                onClick={() => setActiveTab('policies')}
+                className={`flex items-center justify-center px-6 py-3 text-lg font-semibold border-b-2 transition-colors ${
+                    activeTab === 'policies'
+                    ? 'border-primary text-primary bg-gray-50 md:bg-transparent'
+                    : 'border-transparent text-gray-500 hover:text-gray-700'
+                }`}
             >
-            <MasterPolicyIcon className="w-6 h-6 mr-2" />
-            Generate HR Policy
+                <MasterPolicyIcon className="w-6 h-6 mr-2" />
+                Generate HR Policy
             </button>
             <button
-            onClick={() => setActiveTab('forms')}
-            className={`flex items-center px-6 py-3 text-lg font-semibold border-b-2 transition-colors ${
-                activeTab === 'forms'
-                ? 'border-primary text-primary'
-                : 'border-transparent text-gray-500 hover:text-gray-700'
-            }`}
+                onClick={() => setActiveTab('forms')}
+                className={`flex items-center justify-center px-6 py-3 text-lg font-semibold border-b-2 transition-colors ${
+                    activeTab === 'forms'
+                    ? 'border-primary text-primary bg-gray-50 md:bg-transparent'
+                    : 'border-transparent text-gray-500 hover:text-gray-700'
+                }`}
             >
                 <FormsIcon className="w-6 h-6 mr-2" />
-            Generate HR Form
+                Generate HR Form
+            </button>
+            <button
+                onClick={() => setActiveTab('updater')}
+                className={`flex items-center justify-center px-6 py-3 text-lg font-semibold border-b-2 transition-colors ${
+                    activeTab === 'updater'
+                    ? 'border-primary text-primary bg-gray-50 md:bg-transparent'
+                    : 'border-transparent text-gray-500 hover:text-gray-700'
+                }`}
+            >
+                <UpdateIcon className="w-6 h-6 mr-2" />
+                Update Existing Policy
             </button>
         </div>
 
         <div>
-            {activeTab === 'policies' ? (
-            <PolicySelector onSelectPolicy={onSelectItem} />
-            ) : (
-            <FormSelector onSelectForm={onSelectItem} />
+            {activeTab === 'policies' && <PolicySelector onSelectPolicy={onSelectItem} />}
+            {activeTab === 'forms' && <FormSelector onSelectForm={onSelectItem} />}
+            {activeTab === 'updater' && (
+                <div className="animate-fade-in">
+                    <PolicyUpdater onBack={() => setActiveTab('policies')} />
+                </div>
             )}
         </div>
 
-        <div className="mt-20 grid grid-cols-1 md:grid-cols-2 gap-8">
-            <div className="py-12 bg-white border rounded-lg shadow-md">
+        <div className="mt-20 flex justify-center">
+            <div className="w-full max-w-3xl py-12 bg-white border rounded-lg shadow-md">
                 <div className="text-center max-w-md mx-auto px-4">
                     <ComplianceIcon className="w-12 h-12 text-primary mx-auto mb-4" />
                     <h3 className="text-2xl font-bold text-secondary">Compliance Checklist</h3>
                     <p className="text-gray-600 mt-2 mb-6">
-                        Not sure where to start? Describe your business for a personalized checklist.
+                        Not sure where to start? Describe your business for a personalized checklist of essential documents.
                     </p>
                     <button
                     onClick={onStartChecklist}
                     className="inline-flex items-center px-8 py-3 border border-transparent text-base font-medium rounded-full shadow-sm text-white bg-primary hover:bg-opacity-90"
                     >
                     Get My Checklist
-                    </button>
-                </div>
-            </div>
-
-            <div className="py-12 bg-white border rounded-lg shadow-md">
-                <div className="text-center max-w-md mx-auto px-4">
-                    <UpdateIcon className="w-12 h-12 text-primary mx-auto mb-4" />
-                    <h3 className="text-2xl font-bold text-secondary">Update Existing Policy</h3>
-                    <p className="text-gray-600 mt-2 mb-6">
-                        Scan your policies for compliance with the latest South African labour laws.
-                    </p>
-                    <button
-                    onClick={onStartUpdate}
-                    className="inline-flex items-center px-8 py-3 border border-transparent text-base font-medium rounded-full shadow-sm text-white bg-primary hover:bg-opacity-90"
-                    >
-                    Update Policy
                     </button>
                 </div>
             </div>
