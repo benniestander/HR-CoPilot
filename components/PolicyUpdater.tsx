@@ -63,7 +63,7 @@ const DiffViewer: React.FC<{ originalText: string; updatedText: string }> = ({ o
                 return (
                     <div key={index} className={lineClass}>
                         <span className={`w-6 text-center flex-shrink-0 select-none ${symbolClass}`}>{symbol}</span>
-                        <span className="flex-grow pl-2">{item.line}</span>
+                        <span className="flex-grow pl-2 min-w-0 break-words whitespace-pre-wrap">{item.line}</span>
                     </div>
                 );
             })}
@@ -266,7 +266,7 @@ const PolicyUpdater: React.FC<PolicyUpdaterProps> = ({ onBack }) => {
                     <div className="text-center">
                         <p className="text-red-600 font-semibold mb-2">You do not have enough credit.</p>
                         <p className="mb-4">
-                            {isExternal ? 'External' : 'AI'} Policy Updates cost <strong className="text-secondary">R{(cost / 100).toFixed(2)}</strong>, but you only have <strong>R{(balance / 100).toFixed(2)}</strong> available.
+                            {isExternal ? 'External' : 'Ingcweti AI'} Policy Updates cost <strong className="text-secondary">R{(cost / 100).toFixed(2)}</strong>, but you only have <strong>R{(balance / 100).toFixed(2)}</strong> available.
                         </p>
                         <p className="text-sm text-gray-600">Please top up to continue.</p>
                     </div>
@@ -281,11 +281,11 @@ const PolicyUpdater: React.FC<PolicyUpdaterProps> = ({ onBack }) => {
         }
 
         setConfirmation({
-            title: isExternal ? "Confirm External Policy Update" : "Confirm AI Update",
+            title: isExternal ? "Confirm External Policy Update" : "Confirm Ingcweti AI Update",
             message: (
                 <div className="text-center">
                     <p className="mb-4">
-                        Using the AI Updater {isExternal && 'for an external document'} costs <strong className="text-secondary">R{(cost / 100).toFixed(2)}</strong>.
+                        Using the Ingcweti AI Updater {isExternal && 'for an external document'} costs <strong className="text-secondary">R{(cost / 100).toFixed(2)}</strong>.
                     </p>
                     <p className="text-sm text-gray-600">
                         This amount will be deducted from your credit balance.
@@ -294,7 +294,7 @@ const PolicyUpdater: React.FC<PolicyUpdaterProps> = ({ onBack }) => {
             ),
             confirmText: "Confirm & Update",
             onConfirm: async () => {
-                const success = await handleDeductCredit(cost, `AI Policy Update: ${selectedDocument.title}`);
+                const success = await handleDeductCredit(cost, `Ingcweti AI Policy Update: ${selectedDocument.title}`);
                 if (success) {
                     executeUpdate();
                 } else {
@@ -543,7 +543,7 @@ const PolicyUpdater: React.FC<PolicyUpdaterProps> = ({ onBack }) => {
                               <span className="text-xs bg-amber-200 text-amber-800 px-2 py-1 rounded-full">Draft</span>
                           </div>
                           <p className="text-sm text-gray-600 mt-2 line-clamp-2">
-                              {draft.manualInstructions ? `Manual Instruction: ${draft.manualInstructions}` : 'AI Compliance Review'}
+                              {draft.manualInstructions ? `Manual Instruction: ${draft.manualInstructions}` : 'Ingcweti AI Compliance Review'}
                           </p>
                           <p className="text-xs text-gray-500 mt-2">
                               Last updated: {new Date(draft.updatedAt || draft.createdAt).toLocaleString()}
@@ -566,8 +566,8 @@ const PolicyUpdater: React.FC<PolicyUpdaterProps> = ({ onBack }) => {
           className={`p-6 border-2 rounded-lg cursor-pointer transition-all ${updateMethod === 'ai' ? 'border-primary bg-primary/5' : 'border-gray-300 hover:border-primary/50'}`}
           onClick={() => setUpdateMethod('ai')}
         >
-          <h3 className="text-lg font-bold text-secondary">Automated AI Compliance Review</h3>
-          <p className="text-sm text-gray-600 mt-2">Let our AI analyze your entire document for compliance with the latest South African labour laws and suggest improvements.</p>
+          <h3 className="text-lg font-bold text-secondary">Automated Ingcweti AI Compliance Review</h3>
+          <p className="text-sm text-gray-600 mt-2">Let our Ingcweti AI analyze your entire document for compliance with the latest South African labour laws and suggest improvements.</p>
         </div>
 
         <div 
@@ -575,7 +575,7 @@ const PolicyUpdater: React.FC<PolicyUpdaterProps> = ({ onBack }) => {
         >
           <div className="cursor-pointer" onClick={() => setUpdateMethod('manual')}>
             <h3 className="text-lg font-bold text-secondary">Update with My Instructions</h3>
-            <p className="text-sm text-gray-600 mt-2">Provide specific instructions for the AI on what you want to change, add, or remove.</p>
+            <p className="text-sm text-gray-600 mt-2">Provide specific instructions for the Ingcweti AI on what you want to change, add, or remove.</p>
           </div>
           {updateMethod === 'manual' && (
             <textarea
@@ -657,7 +657,7 @@ const PolicyUpdater: React.FC<PolicyUpdaterProps> = ({ onBack }) => {
             <div className="text-center mb-8">
                 <h2 className="text-3xl font-bold text-secondary">Compliance Review Complete</h2>
                 <p className="text-gray-600 mt-2 max-w-2xl mx-auto">
-                    Our AI has analyzed your policy against current South African labour laws. Review the recommended changes below.
+                    Our Ingcweti AI has analyzed your policy against current South African labour laws. Review the recommended changes below.
                 </p>
             </div>
 

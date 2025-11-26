@@ -171,7 +171,7 @@ const PolicyPreview: React.FC<PolicyPreviewProps> = ({ policyText, status, onRet
                     </div>
                     <div className="bg-yellow-50 p-3 rounded border border-yellow-100">
                         <strong className="block text-yellow-800 mb-1">2. Verify</strong>
-                        <span className="text-yellow-700">While AI is powerful, we always recommend a final check by a labour law professional.</span>
+                        <span className="text-yellow-700">While our Ingcweti AI is powerful, we always recommend a final check by a labour law professional.</span>
                     </div>
                     <div className="bg-green-50 p-3 rounded border border-green-100">
                         <strong className="block text-green-800 mb-1">3. Finalize</strong>
@@ -235,4 +235,3 @@ const PolicyPreview: React.FC<PolicyPreviewProps> = ({ policyText, status, onRet
 };
 
 export default PolicyPreview;
-    

@@ -40,8 +40,8 @@ const SubscriptionPage: React.FC<SubscriptionPageProps> = ({ onSuccess, onCancel
   const features = [
     'Unlimited HR Policy Generation',
     'Unlimited HR Form Generation',
-    'AI-Powered Policy Updates & Analysis',
-    'Custom Compliance Checklists',
+    'Ingcweti AI-Powered Policy Updates & Analysis',
+    'Custom Ingcweti AI Compliance Checklists',
     'Secure Document History',
     'Priority Support',
   ];

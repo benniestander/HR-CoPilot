@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { MasterPolicyIcon, ComplianceIcon, UpdateIcon } from './Icons';
 import { useFocusTrap } from '../hooks/useFocusTrap';
@@ -15,7 +16,7 @@ const tourSteps = [
   {
     icon: MasterPolicyIcon,
     title: 'Generate Policies & Forms',
-    content: 'Start by selecting a document from the lists below. The AI will guide you through a few questions to create a customized, compliant document in minutes.',
+    content: 'Start by selecting a document from the lists below. The Ingcweti AI will guide you through a few questions to create a customized, compliant document in minutes.',
   },
   {
     icon: ComplianceIcon,
@@ -25,7 +26,7 @@ const tourSteps = [
   {
     icon: UpdateIcon,
     title: 'Keep Your Documents Current',
-    content: "Labour laws change. Use the Policy Updater to scan your existing documents for compliance, ensuring your business stays protected.",
+    content: "Labour laws change. Use the Ingcweti AI Policy Updater to scan your existing documents for compliance, ensuring your business stays protected.",
   },
 ];
 

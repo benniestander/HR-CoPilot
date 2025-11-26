@@ -4,7 +4,7 @@ import { CheckIcon, GoogleIcon } from './Icons';
 
 interface PlanSelectionPageProps {
   onStartAuthFlow: (flow: 'signup' | 'payg_signup', email: string, details: { password: string, name?: string, contactNumber?: string }) => void;
-  onStartGoogleAuthFlow: (flow: 'signup' | 'payg_signup') => Promise<void>;
+  onStartGoogleAuthFlow: (flow: 'signup' | 'payg_signup') => void;
   onShowLogin: () => void;
   onShowPrivacyPolicy: () => void;
   onShowTerms: () => void;
@@ -24,15 +24,15 @@ const PlanSelectionPage: React.FC<PlanSelectionPageProps> = ({ onStartAuthFlow, 
     const proFeatures = [
         'Unlimited HR Policy Generation',
         'Unlimited HR Form Generation',
-        'AI-Powered Policy Updates & Analysis',
-        'Custom Compliance Checklists',
+        'Ingcweti AI-Powered Policy Updates & Analysis',
+        'Custom Ingcweti AI Compliance Checklists',
         'Secure Document History',
         'Priority Support',
     ];
     
     const commonFeatures = [
         'Access to all document templates',
-        'AI-powered document generation',
+        'Ingcweti AI-powered document generation',
         'Secure cloud document storage',
         'Download as Word (.doc) or Excel',
     ];
@@ -85,18 +85,6 @@ const PlanSelectionPage: React.FC<PlanSelectionPageProps> = ({ onStartAuthFlow, 
         
         setLoading('payg');
         onStartAuthFlow('payg_signup', paygData.email, { name: paygData.name, contactNumber: paygData.contactNumber, password: paygData.password });
-    };
-
-    const handleGoogleAuth = async (plan: 'pro' | 'payg') => {
-        const flow = plan === 'pro' ? 'signup' : 'payg_signup';
-        const loadingState = plan === 'pro' ? 'google_pro' : 'google_payg';
-        setLoading(loadingState);
-        try {
-            await onStartGoogleAuthFlow(flow);
-        } catch (error) {
-            console.error("Google Auth Failed", error);
-            setLoading('none');
-        }
     };
     
     const PlanSelectorCard: React.FC<{ plan: 'pro' | 'payg', title: string, price: string, badge?: string }> = ({ plan, title, price, badge }) => {
@@ -159,8 +147,8 @@ const PlanSelectionPage: React.FC<PlanSelectionPageProps> = ({ onStartAuthFlow, 
                              <h3 className="text-lg font-bold text-primary mb-3">HR CoPilot Pro adds:</h3>
                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-3 max-w-lg mx-auto text-left">
                                 <div className="flex items-center"><CheckIcon className="w-5 h-5 text-green-500 mr-3" /><span>Unlimited document generation</span></div>
-                                <div className="flex items-center"><CheckIcon className="w-5 h-5 text-green-500 mr-3" /><span>AI Compliance Checklist</span></div>
-                                <div className="flex items-center"><CheckIcon className="w-5 h-5 text-green-500 mr-3" /><span>AI Policy Updater</span></div>
+                                <div className="flex items-center"><CheckIcon className="w-5 h-5 text-green-500 mr-3" /><span>Ingcweti AI Compliance Checklist</span></div>
+                                <div className="flex items-center"><CheckIcon className="w-5 h-5 text-green-500 mr-3" /><span>Ingcweti AI Policy Updater</span></div>
                                 <div className="flex items-center"><CheckIcon className="w-5 h-5 text-green-500 mr-3" /><span>Priority Support</span></div>
                             </div>
                         </div>
@@ -170,7 +158,7 @@ const PlanSelectionPage: React.FC<PlanSelectionPageProps> = ({ onStartAuthFlow, 
                         <h2 className="text-2xl font-bold text-secondary text-center mb-6">Create your account</h2>
                         {selectedPlan === 'pro' && (
                             <div className="space-y-4">
-                                <button onClick={() => handleGoogleAuth('pro')} disabled={loading !== 'none'} className="w-full flex justify-center items-center py-3 px-4 border border-gray-300 rounded-md shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:bg-gray-200">
+                                <button onClick={() => { setLoading('google_pro'); onStartGoogleAuthFlow('signup'); }} disabled={loading !== 'none'} className="w-full flex justify-center items-center py-3 px-4 border border-gray-300 rounded-md shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:bg-gray-200">
                                     <GoogleIcon className="w-5 h-5 mr-2" /> {loading === 'google_pro' ? 'Redirecting...' : 'Sign Up with Google'}
                                 </button>
                                 <div className="my-4 flex items-center"><div className="flex-grow border-t border-gray-300"></div><span className="flex-shrink mx-4 text-gray-400 text-sm">OR</span><div className="flex-grow border-t border-gray-300"></div></div>
@@ -199,7 +187,7 @@ const PlanSelectionPage: React.FC<PlanSelectionPageProps> = ({ onStartAuthFlow, 
                         )}
                         {selectedPlan === 'payg' && (
                              <div className="space-y-4">
-                                <button onClick={() => handleGoogleAuth('payg')} disabled={loading !== 'none'} className="w-full flex justify-center items-center py-3 px-4 border border-gray-300 rounded-md shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:bg-gray-200">
+                                <button onClick={() => { setLoading('google_payg'); onStartGoogleAuthFlow('payg_signup'); }} disabled={loading !== 'none'} className="w-full flex justify-center items-center py-3 px-4 border border-gray-300 rounded-md shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:bg-gray-200">
                                     <GoogleIcon className="w-5 h-5 mr-2" /> {loading === 'google_payg' ? 'Redirecting...' : 'Sign Up with Google'}
                                 </button>
                                 <div className="my-4 flex items-center"><div className="flex-grow border-t border-gray-300"></div><span className="flex-shrink mx-4 text-gray-400 text-sm">OR</span><div className="flex-grow border-t border-gray-300"></div></div>

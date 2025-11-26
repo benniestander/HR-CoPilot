@@ -211,7 +211,7 @@ Review Date: ${answers.reviewDate || 'Not Provided'}
     }
   } catch (error) {
     console.error("Error calling Gemini API:", error);
-    throw new Error("Failed to generate policy from AI. Service might be busy, please try again.");
+    throw new Error("Failed to generate policy from Ingcweti AI. Service might be busy, please try again.");
   }
 }
 
@@ -279,7 +279,7 @@ Based on the provided form text for a "${form.title}", please perform the follow
     }
   } catch (error) {
     console.error("Error calling Gemini API for form generation:", error);
-    throw new Error("Failed to generate form from AI. Service might be busy, please try again.");
+    throw new Error("Failed to generate form from Ingcweti AI. Service might be busy, please try again.");
   }
 }
 
@@ -315,7 +315,7 @@ Use simple, clear language suitable for someone who is not an HR expert. Use bul
     }
   } catch (error) {
     console.error("Error calling Gemini API for explanation:", error);
-    throw new Error("Failed to generate explanation from AI. Please try again.");
+    throw new Error("Failed to generate explanation from Ingcweti AI. Please try again.");
   }
 }
 
@@ -350,7 +350,7 @@ Use simple, clear language suitable for someone who is not an HR expert. Use bul
     }
   } catch (error) {
     console.error("Error calling Gemini API for form explanation:", error);
-    throw new Error("Failed to generate explanation from AI. Please try again.");
+    throw new Error("Failed to generate explanation from Ingcweti AI. Please try again.");
   }
 }
 
@@ -439,7 +439,7 @@ ${currentPolicyText}
 
   } catch (error) {
     console.error("Error calling Gemini API for policy update:", error);
-    throw new Error("Failed to update policy from AI. Service might be busy, please try again.");
+    throw new Error("Failed to update policy from Ingcweti AI. Service might be busy, please try again.");
   }
 }
 
@@ -525,6 +525,6 @@ For each recommended policy and form, provide a short, practical reason why it i
 
   } catch (error) {
     console.error("Error calling Gemini API for compliance checklist:", error);
-    throw new Error("Failed to generate compliance checklist from AI. Service might be busy, please try again.");
+    throw new Error("Failed to generate compliance checklist from Ingcweti AI. Service might be busy, please try again.");
   }
 }

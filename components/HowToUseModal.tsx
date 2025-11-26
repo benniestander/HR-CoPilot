@@ -93,13 +93,13 @@ const HowToUseModal: React.FC<HowToUseModalProps> = ({ isOpen, onClose }) => {
                     <strong className="font-semibold text-secondary">Enter Company Details:</strong> On the next screen, enter your company's official name and confirm your industry. This basic information is crucial for tailoring the document specifically for your business.
                   </li>
                   <li>
-                    <strong className="font-semibold text-secondary">Answer Guided Questions:</strong> You'll be presented with a short questionnaire. Choose a "Company Voice" to set the tone (e.g., formal or friendly) and answer a few simple questions. Your answers will be integrated directly into the policy clauses by our AI.
+                    <strong className="font-semibold text-secondary">Answer Guided Questions:</strong> You'll be presented with a short questionnaire. Choose a "Company Voice" to set the tone (e.g., formal or friendly) and answer a few simple questions. Your answers will be integrated directly into the policy clauses by our Ingcweti AI.
                   </li>
                   <li>
-                    <strong className="font-semibold text-secondary">Generate & Finalize:</strong> Click "Generate My Document". The AI will draft a comprehensive, legally-grounded policy in the preview pane. You can then:
+                    <strong className="font-semibold text-secondary">Generate & Finalize:</strong> Click "Generate My Document". The Ingcweti AI will draft a comprehensive, legally-grounded policy in the preview pane. You can then:
                     <ul className="list-disc list-inside space-y-2 mt-2 ml-5">
                         <li><strong>Edit directly</strong> in the text box for minor changes.</li>
-                        <li>Review the <strong>web sources</strong> the AI used for accuracy.</li>
+                        <li>Review the <strong>web sources</strong> the Ingcweti AI used for accuracy.</li>
                         <li><strong>Copy</strong> the full text to your clipboard.</li>
                         <li><strong>Download</strong> the document as a Word-compatible .doc file.</li>
                     </ul>
@@ -120,7 +120,7 @@ const HowToUseModal: React.FC<HowToUseModalProps> = ({ isOpen, onClose }) => {
                         <strong className="font-semibold text-secondary">Answer Simple Questions:</strong> Some forms have a few optional questions to pre-fill key details, such as an employee's name or a manager's title. This saves you time later.
                     </li>
                     <li>
-                        <strong className="font-semibold text-secondary">Generate & Use:</strong> Click "Generate My Document". The AI will refine the template into a clean, professional form. You can then:
+                        <strong className="font-semibold text-secondary">Generate & Use:</strong> Click "Generate My Document". The Ingcweti AI will refine the template into a clean, professional form. You can then:
                         <ul className="list-disc list-inside space-y-2 mt-2 ml-5">
                             <li><strong>Edit directly</strong> in the preview pane.</li>
                             <li><strong>Copy</strong> the text to use elsewhere.</li>
@@ -143,13 +143,13 @@ const HowToUseModal: React.FC<HowToUseModalProps> = ({ isOpen, onClose }) => {
                     <li>
                         <strong className="font-semibold text-secondary">Select Update Method:</strong>
                         <ul className="list-disc list-inside space-y-2 mt-2 ml-5">
-                            <li><strong>AI Compliance Review:</strong> Our AI will scan your document against current South African labour laws and suggest necessary changes to ensure compliance.</li>
-                            <li><strong>Update with Instructions:</strong> Tell the AI exactly what you want to change (e.g., "Change annual leave to 21 days" or "Add a section on remote work").</li>
+                            <li><strong>Ingcweti AI Compliance Review:</strong> Our Ingcweti AI will scan your document against current South African labour laws and suggest necessary changes to ensure compliance.</li>
+                            <li><strong>Update with Instructions:</strong> Tell the Ingcweti AI exactly what you want to change (e.g., "Change annual leave to 21 days" or "Add a section on remote work").</li>
                         </ul>
                     </li>
                     <li>
                         <strong className="font-semibold text-secondary">Review Changes:</strong>
-                        You will see a side-by-side visual comparison showing exactly what was added (green) or removed (red). The AI will also provide a summary explanation of why specific changes were made.
+                        You will see a side-by-side visual comparison showing exactly what was added (green) or removed (red). The Ingcweti AI will also provide a summary explanation of why specific changes were made.
                     </li>
                     <li>
                         <strong className="font-semibold text-secondary">Save New Version:</strong>
