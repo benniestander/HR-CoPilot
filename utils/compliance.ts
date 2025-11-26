@@ -15,113 +15,161 @@ interface ComplianceStatus {
   } | null;
 }
 
+export interface RoadmapItem {
+    id: PolicyType | FormType;
+    title: string;
+    type: 'policy' | 'form';
+    priority: 'critical' | 'recommended';
+    status: 'completed' | 'missing';
+    reason: string;
+}
+
 // Define baseline mandatory documents for ANY South African business
 const UNIVERSAL_MANDATORY: (PolicyType | FormType)[] = [
   'employment-contract', // Form
   'disciplinary',        // Policy
   'grievance',           // Policy
   'leave',               // Policy
-  'health-and-safety'    // Policy (OHS Act requires all employers to provide safe environment)
+  'health-and-safety',   // Policy (OHS Act requires all employers to provide safe environment)
+  'uif',                 // Policy
+  'termination-of-employment' // Policy
+];
+
+const UNIVERSAL_RECOMMENDED: (PolicyType | FormType)[] = [
+    'sexual-harassment',
+    'electronic-communications',
+    'recruitment-selection',
+    'job-description', // Form
+    'leave-application' // Form
 ];
 
 export const calculateComplianceScore = (
   profile: CompanyProfile,
   documents: GeneratedDocument[]
 ): ComplianceStatus => {
-  const mandatorySet = new Set<(PolicyType | FormType)>(UNIVERSAL_MANDATORY);
-
-  // 1. Add Industry Specific Requirements
-  if (profile.industry) {
-    switch (profile.industry) {
-      case 'Construction':
-      case 'Manufacturing':
-      case 'Agriculture':
-        mandatorySet.add('coida');
-        mandatorySet.add('alcohol-drug');
-        mandatorySet.add('incident-report');
-        break;
-      case 'Technology':
-      case 'Professional Services':
-        mandatorySet.add('confidentiality');
-        mandatorySet.add('data-protection-privacy'); // POPIA is critical here
-        break;
-      case 'Retail':
-      case 'Hospitality':
-        mandatorySet.add('working-hours'); // Shifts are complex here
-        mandatorySet.add('dress-code');
-        break;
-    }
-  }
-
-  // 2. Add Size Specific Requirements
-  // Parse size string "1-10", "500+" etc.
-  let isLarge = false;
-  if (profile.companySize) {
-      if (profile.companySize === '51-200' || profile.companySize === '201-500' || profile.companySize === '500+') {
-          isLarge = true;
-      }
-  }
-
-  if (isLarge) {
-      mandatorySet.add('employment-equity');
-      mandatorySet.add('workplace-skills-plan');
-      mandatorySet.add('sexual-harassment'); // Code of good practice requires this more strictly for larger orgs
-  } else {
-      // For smaller companies, these are still highly recommended, but maybe secondary logic later
-      // For now, we stick to the strict "Mandatory" set to keep the score achievable
-  }
-
-  const mandatoryList = Array.from(mandatorySet);
+  const roadmap = getComplianceRoadmap(profile, documents);
+  const mandatoryItems = roadmap.filter(i => i.priority === 'critical');
+  const completedMandatory = mandatoryItems.filter(i => i.status === 'completed');
   
-  // 3. Check what exists
-  // We check if the document type exists in the user's generated list
-  const generatedTypes = new Set(documents.map(d => d.type));
-  
-  const missingMandatory = mandatoryList.filter(item => !generatedTypes.has(item));
-  const completedMandatory = mandatoryList.length - missingMandatory.length;
-  
-  const score = mandatoryList.length > 0 
-    ? Math.round((completedMandatory / mandatoryList.length) * 100) 
+  const score = mandatoryItems.length > 0 
+    ? Math.round((completedMandatory.length / mandatoryItems.length) * 100) 
     : 0;
 
-  // 4. Determine Next Recommendation
+  // Determine Next Recommendation
   let nextRecommendation = null;
-  if (missingMandatory.length > 0) {
-      // Prioritize: Contract -> Disciplinary -> Health & Safety -> Industry Specifics
-      // The array order generally handles this if UNIVERSAL is first
-      const nextId = missingMandatory[0];
-      const isPolicy = nextId in POLICIES;
-      const item = isPolicy ? POLICIES[nextId as PolicyType] : FORMS[nextId as FormType];
-      
-      if (item) {
-          nextRecommendation = {
-              type: nextId,
-              title: item.title,
-              isForm: !isPolicy,
-              reason: getReasonForRecommendation(nextId, profile.industry)
-          };
-      }
+  const firstMissing = mandatoryItems.find(i => i.status === 'missing');
+  
+  if (firstMissing) {
+      nextRecommendation = {
+          type: firstMissing.id,
+          title: firstMissing.title,
+          isForm: firstMissing.type === 'form',
+          reason: firstMissing.reason
+      };
   }
 
   return {
       score,
-      totalMandatory: mandatoryList.length,
-      completedMandatory,
-      missingMandatory,
+      totalMandatory: mandatoryItems.length,
+      completedMandatory: completedMandatory.length,
+      missingMandatory: mandatoryItems.filter(i => i.status === 'missing').map(i => i.id),
       nextRecommendation
   };
 };
 
+export const getComplianceRoadmap = (
+    profile: CompanyProfile,
+    documents: GeneratedDocument[]
+): RoadmapItem[] => {
+    const generatedTypes = new Set(documents.map(d => d.type));
+    const roadmap: RoadmapItem[] = [];
+
+    const addItem = (id: PolicyType | FormType, priority: 'critical' | 'recommended', customReason?: string) => {
+        if (roadmap.find(r => r.id === id)) return; // Deduplicate
+
+        const isPolicy = id in POLICIES;
+        const itemDef = isPolicy ? POLICIES[id as PolicyType] : FORMS[id as FormType];
+        
+        if (!itemDef) return;
+
+        roadmap.push({
+            id,
+            title: itemDef.title,
+            type: isPolicy ? 'policy' : 'form',
+            priority,
+            status: generatedTypes.has(id) ? 'completed' : 'missing',
+            reason: customReason || getReasonForRecommendation(id, profile.industry)
+        });
+    };
+
+    // 1. Universal Requirements
+    UNIVERSAL_MANDATORY.forEach(id => addItem(id, 'critical'));
+    UNIVERSAL_RECOMMENDED.forEach(id => addItem(id, 'recommended'));
+
+    // 2. Industry Specifics
+    if (profile.industry) {
+        switch (profile.industry) {
+            case 'Construction':
+            case 'Manufacturing':
+            case 'Agriculture':
+                addItem('coida', 'critical', "High-risk industries must have clear injury-on-duty protocols (COIDA).");
+                addItem('alcohol-drug', 'critical', "Zero-tolerance policy is essential for safety-sensitive environments.");
+                addItem('incident-report', 'critical', "Mandatory for recording workplace accidents.");
+                addItem('company-vehicle', 'recommended', "Essential if staff use company transport or heavy machinery.");
+                break;
+            case 'Technology':
+            case 'Professional Services':
+                addItem('confidentiality', 'critical', "Crucial for protecting client data and intellectual property.");
+                addItem('data-protection-privacy', 'critical', "Mandatory for POPIA compliance when handling personal information.");
+                addItem('remote-hybrid-work', 'recommended', "Clarifies expectations for off-site work.");
+                addItem('byod', 'recommended', "Protects company data on personal devices.");
+                break;
+            case 'Retail':
+            case 'Hospitality':
+                addItem('working-hours', 'critical', "Essential for managing shifts, overtime, and public holiday pay.");
+                addItem('dress-code', 'recommended', "Maintains professional standards for customer-facing staff.");
+                addItem('attendance-punctuality', 'recommended', "Critical for shift-based operations.");
+                break;
+        }
+    }
+
+    // 3. Size Specifics
+    let isLarge = false;
+    if (profile.companySize) {
+        if (profile.companySize === '51-200' || profile.companySize === '201-500' || profile.companySize === '500+') {
+            isLarge = true;
+        }
+    }
+
+    if (isLarge) {
+        addItem('employment-equity', 'critical', "Mandatory for designated employers (over 50 staff) under the EEA.");
+        addItem('workplace-skills-plan', 'critical', "Required for claiming mandatory grant levies.");
+        addItem('sexual-harassment', 'critical', "Code of Good Practice requires strict policies for larger organizations.");
+        addItem('whistleblower', 'recommended', "Good governance practice for larger entities.");
+    }
+
+    return roadmap.sort((a, b) => {
+        // Sort by: Priority (Critical first) -> Status (Missing first)
+        if (a.priority === 'critical' && b.priority !== 'critical') return -1;
+        if (a.priority !== 'critical' && b.priority === 'critical') return 1;
+        if (a.status === 'missing' && b.status !== 'missing') return -1;
+        if (a.status !== 'missing' && b.status === 'missing') return 1;
+        return 0;
+    });
+};
+
 function getReasonForRecommendation(type: string, industry?: string): string {
     const mapping: Record<string, string> = {
-        'employment-contract': "Every employee must have a written contract by law.",
-        'disciplinary': "Essential for legally managing misconduct and preventing CCMA cases.",
-        'grievance': "Required to give employees a formal channel for complaints.",
-        'leave': "Necessary to define annual, sick, and family responsibility leave rules.",
-        'health-and-safety': "Mandatory under the OHS Act to ensure a safe workplace.",
-        'coida': `Critical for ${industry || 'your'} industry to manage injuries on duty.`,
-        'data-protection-privacy': "Required for POPIA compliance when handling client data.",
-        'employment-equity': "Mandatory for designated employers (over 50 staff).",
+        'employment-contract': "Section 29 of the BCEA requires written particulars of employment for every staff member.",
+        'disciplinary': "Essential for legally managing misconduct and preventing unfair dismissal disputes at the CCMA.",
+        'grievance': "Employees must have a formal, recorded channel to raise complaints or dissatisfaction.",
+        'leave': "Clarifies annual, sick, and family responsibility leave rules to prevent abuse and payroll disputes.",
+        'health-and-safety': "The OHS Act requires every employer to provide and maintain a safe working environment.",
+        'uif': "Employers must contribute to the Unemployment Insurance Fund and clarify these deductions.",
+        'termination-of-employment': "Ensures all dismissals or resignations follow fair procedure and notice periods.",
+        'sexual-harassment': "Protects the company from liability by establishing a zero-tolerance approach.",
+        'electronic-communications': "Regulates the use of email and internet to prevent liability and misuse.",
+        'recruitment-selection': "Ensures hiring practices are fair and non-discriminatory (EEA compliance).",
     };
-    return mapping[type] || "Recommended for full legal compliance.";
+    return mapping[type] || "Recommended for comprehensive HR governance and risk management.";
 }

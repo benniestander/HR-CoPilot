@@ -1,207 +1,171 @@
 
 import React, { useState, useMemo } from 'react';
-import { generateComplianceChecklist } from '../services/geminiService';
-import type { ComplianceChecklistResult, Policy, Form, GeneratedDocument, CompanyProfile } from '../types';
-import { LoadingIcon, DownloadIcon, ComplianceIcon, MasterPolicyIcon, FormsIcon, CheckIcon } from './Icons';
+import { getComplianceRoadmap } from '../utils/compliance';
+import type { Policy, Form, CompanyProfile, GeneratedDocument } from '../types';
+import { ComplianceIcon, MasterPolicyIcon, FormsIcon, CheckIcon, ShieldCheckIcon, InfoIcon } from './Icons';
 import { POLICIES, FORMS } from '../constants';
-import { useAuthContext } from '../contexts/AuthContext';
 import { useDataContext } from '../contexts/DataContext';
 import { useUIContext } from '../contexts/UIContext';
 import { PolicyType, FormType } from '../types';
-import SemanticLoader from './SemanticLoader';
 
 interface ComplianceChecklistProps {
   userProfile: CompanyProfile;
   onBack: () => void;
 }
 
-const checklistMessages = [
-    "Analyzing your business profile...",
-    "Identifying mandatory compliance requirements...",
-    "Selecting recommended best practices...",
-    "Compiling your personalized action plan..."
-];
-
 const ComplianceChecklist: React.FC<ComplianceChecklistProps> = ({ userProfile, onBack }) => {
   const { generatedDocuments } = useDataContext();
   const { setSelectedItem, setDocumentToView, navigateTo } = useUIContext();
-  const [result, setResult] = useState<ComplianceChecklistResult | null>(null);
-  const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
-  const [error, setError] = useState<string | null>(null);
+  const [filter, setFilter] = useState<'all' | 'missing'>('all');
 
-  const nameToItemMap = useMemo(() => {
-    const map = new Map<string, Policy | Form>();
-    Object.values(POLICIES).forEach(p => map.set(p.title.toLowerCase(), p));
-    Object.values(FORMS).forEach(f => map.set(f.title.toLowerCase(), f));
-    return map;
-  }, []);
+  const roadmap = useMemo(() => {
+      return getComplianceRoadmap(userProfile, generatedDocuments);
+  }, [userProfile, generatedDocuments]);
 
-  const onSelectItem = (item: Policy | Form) => {
-    setSelectedItem(item);
-    navigateTo('generator');
-  };
+  const filteredRoadmap = useMemo(() => {
+      if (filter === 'missing') {
+          return roadmap.filter(item => item.status === 'missing');
+      }
+      return roadmap;
+  }, [roadmap, filter]);
 
-  const onViewDocument = (doc: GeneratedDocument) => {
-    setDocumentToView(doc);
-    const item = doc.kind === 'policy' ? POLICIES[doc.type as PolicyType] : FORMS[doc.type as FormType];
-    setSelectedItem(item);
-    navigateTo('generator');
-  };
+  const criticalItems = filteredRoadmap.filter(i => i.priority === 'critical');
+  const recommendedItems = filteredRoadmap.filter(i => i.priority === 'recommended');
 
-  const handleGenerate = async () => {
-    setStatus('loading');
-    setError(null);
-    setResult(null);
-    try {
-      const checklistResult = await generateComplianceChecklist(userProfile);
-      setResult(checklistResult);
-      setStatus('success');
-    } catch (e: any) {
-      setError(e.message || 'An unknown error occurred while generating the checklist.');
-      setStatus('error');
+  const onSelectItem = (type: PolicyType | FormType, isPolicy: boolean) => {
+    const item = isPolicy ? POLICIES[type as PolicyType] : FORMS[type as FormType];
+    if (item) {
+        setSelectedItem(item);
+        navigateTo('generator');
     }
   };
-  
-  const handleDownload = () => {
-    if (!result) return;
 
-    const isGenerated = (itemName: string) => {
-        const matchingItem = nameToItemMap.get(itemName.toLowerCase());
-        return generatedDocuments.some(doc => doc.type === matchingItem?.type);
-    };
-
-    let content = `# HR Compliance Checklist for ${userProfile.companyName}\n\n`;
-    
-    content += `## Recommended Policies\n\n`;
-    result.policies.forEach(p => {
-        content += `- [${isGenerated(p.name) ? 'x' : ' '}] ${p.name}\n`;
-        content += `  - *Reason: ${p.reason}*\n\n`;
-    });
-
-    content += `## Recommended Forms\n\n`;
-    result.forms.forEach(f => {
-        content += `- [${isGenerated(f.name) ? 'x' : ' '}] ${f.name}\n`;
-        content += `  - *Reason: ${f.reason}*\n\n`;
-    });
-
-    const blob = new Blob([content], { type: 'text/markdown;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `HR_Checklist_${userProfile.companyName}.md`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-  };
-  
-  const handleStartOver = () => {
-    setResult(null);
-    setStatus('idle');
+  const onViewDocument = (type: PolicyType | FormType) => {
+    const doc = generatedDocuments.find(d => d.type === type);
+    if (doc) {
+        setDocumentToView(doc);
+        const item = doc.kind === 'policy' ? POLICIES[doc.type as PolicyType] : FORMS[doc.type as FormType];
+        setSelectedItem(item);
+        navigateTo('generator');
+    }
   };
 
-  const renderItem = (item: { name: string; reason: string }, type: 'policy' | 'form') => {
-      const matchingItem = nameToItemMap.get(item.name.toLowerCase());
-      const generatedDoc = generatedDocuments.find(doc => doc.type === matchingItem?.type);
-      const isGenerated = !!generatedDoc;
+  const renderRoadmapItem = (item: any) => {
+      const isPolicy = item.type === 'policy';
+      const isCompleted = item.status === 'completed';
 
       return (
-        <div key={`${type}-${item.name}`} className="flex items-start justify-between space-x-4 p-4 border rounded-md bg-white shadow-sm">
-            <div className="flex-1">
-                <p className="font-semibold text-secondary">{item.name}</p>
-                <p className="text-sm text-gray-600 mt-1">{item.reason}</p>
+        <div key={item.id} className={`flex flex-col sm:flex-row items-start justify-between p-4 border rounded-lg shadow-sm transition-colors ${isCompleted ? 'bg-green-50 border-green-200' : 'bg-white border-gray-200 hover:border-primary/50'}`}>
+            <div className="flex-1 mb-4 sm:mb-0">
+                <div className="flex items-center mb-1">
+                    {isPolicy ? <MasterPolicyIcon className="w-4 h-4 text-gray-400 mr-2" /> : <FormsIcon className="w-4 h-4 text-gray-400 mr-2" />}
+                    <h4 className={`font-bold text-lg ${isCompleted ? 'text-green-800' : 'text-secondary'}`}>{item.title}</h4>
+                    {item.priority === 'critical' && (
+                        <span className="ml-3 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800">
+                            Statutory
+                        </span>
+                    )}
+                </div>
+                <p className="text-sm text-gray-600">{item.reason}</p>
             </div>
             
-            <div className="flex-shrink-0 ml-4">
-                {isGenerated && generatedDoc ? (
-                    <div className="flex flex-col sm:flex-row items-end sm:items-center space-y-2 sm:space-y-0 sm:space-x-3">
-                        <span className="flex items-center text-sm font-semibold text-green-700 bg-green-100 px-3 py-1 rounded-full">
-                            <CheckIcon className="w-4 h-4 mr-1.5" />
-                            Completed
-                        </span>
-                        <button 
-                            onClick={() => onViewDocument(generatedDoc)}
-                            className="text-sm font-semibold text-primary hover:underline"
-                        >
-                            View Document
-                        </button>
-                    </div>
-                ) : matchingItem ? (
+            <div className="flex-shrink-0 sm:ml-4 self-start sm:self-center">
+                {isCompleted ? (
                     <button 
-                        onClick={() => onSelectItem(matchingItem)}
-                        className="px-4 py-2 text-sm font-semibold rounded-md transition-colors bg-primary text-white hover:bg-opacity-90"
+                        onClick={() => onViewDocument(item.id)}
+                        className="flex items-center px-4 py-2 text-sm font-semibold text-green-700 bg-green-100 border border-green-200 rounded-md hover:bg-green-200 transition-colors"
                     >
-                        Generate
+                        <CheckIcon className="w-4 h-4 mr-1.5" />
+                        Done
                     </button>
-                ) : null}
+                ) : (
+                    <button 
+                        onClick={() => onSelectItem(item.id, isPolicy)}
+                        className="px-4 py-2 text-sm font-semibold text-white bg-primary rounded-md hover:bg-opacity-90 shadow-sm whitespace-nowrap"
+                    >
+                        Generate Now
+                    </button>
+                )}
             </div>
         </div>
       );
-    };
-
-  if (status === 'success' && result) {
-     return (
-        <div>
-            <button onClick={onBack} className="mb-6 text-primary font-semibold hover:underline flex items-center">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" /></svg>
-                Back to Dashboard
-            </button>
-            <div className="text-center mb-8">
-                <h2 className="text-3xl font-bold text-secondary">Your Actionable Compliance Checklist</h2>
-                <p className="text-gray-600 mt-2 max-w-3xl mx-auto">This is your personalized action plan. Click any item to generate it, and watch your progress update automatically.</p>
-            </div>
-             <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
-                <div className="flex flex-col sm:flex-row justify-center sm:justify-end items-center mb-6 gap-4">
-                    <button onClick={handleStartOver} className="text-sm font-semibold text-gray-600 hover:text-primary">Start Over</button>
-                    <button onClick={handleDownload} className="inline-flex items-center px-4 py-2 bg-white text-primary border border-primary font-semibold rounded-md hover:bg-primary/10"><DownloadIcon className="w-5 h-5 mr-2" />Download as Markdown</button>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                    <div>
-                        <h3 className="text-xl font-bold text-secondary mb-4 border-b-2 border-primary pb-2 flex items-center"><MasterPolicyIcon className="w-6 h-6 mr-3 text-primary" />Recommended Policies</h3>
-                        <div className="space-y-4">{result.policies.map((item, i) => renderItem(item, 'policy'))}</div>
-                    </div>
-                    <div>
-                        <h3 className="text-xl font-bold text-secondary mb-4 border-b-2 border-primary pb-2 flex items-center"><FormsIcon className="w-6 h-6 mr-3 text-primary" />Recommended Forms</h3>
-                        <div className="space-y-4">{result.forms.map((item, i) => renderItem(item, 'form'))}</div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    );
-  }
+  };
 
   return (
-    <div className="max-w-4xl mx-auto">
+    <div className="max-w-5xl mx-auto">
       <button onClick={onBack} className="mb-6 text-primary font-semibold hover:underline flex items-center">
-        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" /></svg>
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" /></svg>
         Back to Dashboard
       </button>
 
       <div className="bg-white p-8 rounded-lg shadow-md border border-gray-200">
-        <div className="text-center">
-          {status === 'loading' ? (
-            <SemanticLoader messages={checklistMessages} />
-          ) : (
-            <>
-              <ComplianceIcon className="w-12 h-12 text-primary mx-auto mb-4" />
-              <h2 className="text-3xl font-bold text-secondary">HR Compliance Checklist Generator</h2>
-              <p className="text-gray-600 mt-2 mb-6 max-w-3xl mx-auto">Click the button below to generate a personalized checklist of essential HR documents based on your saved company profile.</p>
-            </>
-          )}
+        <div className="text-center mb-8">
+            <div className="inline-block p-3 bg-blue-50 rounded-full mb-4">
+                <ComplianceIcon className="w-10 h-10 text-primary" />
+            </div>
+            <h2 className="text-3xl font-bold text-secondary">Compliance Roadmap</h2>
+            <p className="text-gray-600 mt-2 max-w-2xl mx-auto">
+                Based on your profile (<strong>{userProfile.companyName}</strong> - {userProfile.industry}), here is your prioritized list of essential HR documents.
+            </p>
         </div>
 
-        {status !== 'loading' && (
-            <div className="mt-6 flex justify-center">
-                <button
-                onClick={handleGenerate}
-                className="w-full max-w-xs bg-primary text-white font-bold py-3 px-4 rounded-md hover:bg-opacity-90 flex items-center justify-center"
+        <div className="flex justify-between items-center mb-6 border-b border-gray-200 pb-4">
+            <div className="flex space-x-2">
+                <button 
+                    onClick={() => setFilter('all')}
+                    className={`px-4 py-2 rounded-full text-sm font-semibold transition-colors ${filter === 'all' ? 'bg-gray-800 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
                 >
-                Generate My Checklist
+                    All Requirements
+                </button>
+                <button 
+                    onClick={() => setFilter('missing')}
+                    className={`px-4 py-2 rounded-full text-sm font-semibold transition-colors ${filter === 'missing' ? 'bg-red-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+                >
+                    Show Missing Only
                 </button>
             </div>
-        )}
+            <div className="text-sm text-gray-500 hidden sm:block">
+                <span className="font-bold text-green-600">{roadmap.filter(i => i.status === 'completed').length}</span> of <span className="font-bold text-secondary">{roadmap.length}</span> completed
+            </div>
+        </div>
 
-        {status === 'error' && <p className="mt-4 text-center text-sm text-red-600 bg-red-50 p-3 rounded-md">{error}</p>}
+        <div className="space-y-8">
+            {/* Critical Section */}
+            {criticalItems.length > 0 && (
+                <div>
+                    <h3 className="text-xl font-bold text-red-600 mb-4 flex items-center">
+                        <ShieldCheckIcon className="w-6 h-6 mr-2" />
+                        Critical / Statutory Requirements
+                    </h3>
+                    <p className="text-sm text-gray-500 mb-4 ml-1">These documents are legally mandatory for your business type.</p>
+                    <div className="space-y-3">
+                        {criticalItems.map(renderRoadmapItem)}
+                    </div>
+                </div>
+            )}
+
+            {/* Recommended Section */}
+            {recommendedItems.length > 0 && (
+                <div>
+                    <h3 className="text-xl font-bold text-blue-600 mb-4 flex items-center mt-8">
+                        <InfoIcon className="w-6 h-6 mr-2" />
+                        Recommended Best Practice
+                    </h3>
+                    <p className="text-sm text-gray-500 mb-4 ml-1">Highly recommended to reduce risk and improve governance.</p>
+                    <div className="space-y-3">
+                        {recommendedItems.map(renderRoadmapItem)}
+                    </div>
+                </div>
+            )}
+
+            {criticalItems.length === 0 && recommendedItems.length === 0 && (
+                <div className="text-center py-12 bg-gray-50 rounded-lg">
+                    <CheckIcon className="w-12 h-12 text-green-500 mx-auto mb-3" />
+                    <h3 className="text-lg font-bold text-gray-800">All Clear!</h3>
+                    <p className="text-gray-600">You have completed all items in this view.</p>
+                </div>
+            )}
+        </div>
       </div>
     </div>
   );
