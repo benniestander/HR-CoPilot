@@ -17,6 +17,7 @@ import { useDataContext } from './contexts/DataContext';
 import { useUIContext } from './contexts/UIContext';
 import { useModalContext } from './contexts/ModalContext';
 import { PRIVACY_POLICY_CONTENT, TERMS_OF_USE_CONTENT } from './legalContent';
+import type { Policy, Form } from './types';
 
 export type AuthPage = 'landing' | 'login' | 'email-sent' | 'verify-email';
 export type AuthFlow = 'signup' | 'login' | 'payg_signup';
@@ -75,6 +76,7 @@ const AppContent: React.FC = () => {
         handleSubscriptionSuccess,
         handleTopUpSuccess,
         handleDocumentGenerated,
+        handleDeductCredit,
     } = useDataContext();
 
     const {
@@ -89,10 +91,11 @@ const AppContent: React.FC = () => {
         isNotificationPanelOpen,
         setNotificationPanelOpen,
         showOnboardingWalkthrough,
-        setShowOnboardingWalkthrough
+        setShowOnboardingWalkthrough,
+        setIsPrePaid
     } = useUIContext();
 
-    const { legalModalContent, showLegalModal, confirmation, hideConfirmationModal } = useModalContext();
+    const { legalModalContent, showLegalModal, confirmation, hideConfirmationModal, showConfirmationModal } = useModalContext();
 
     const notificationPanelRef = useRef<HTMLDivElement>(null);
 
@@ -134,6 +137,94 @@ const AppContent: React.FC = () => {
         setSelectedItem(null);
         setDocumentToView(null);
     }
+
+    const handleSelectDocument = (item: Policy | Form) => {
+        if (!user) return;
+    
+        // 1. Pro User Profile Check
+        if (user.plan === 'pro') {
+            // Ensure basic profile data exists before generating
+            if (!user.profile.companyName || (item.kind === 'policy' && !user.profile.industry)) {
+                 showConfirmationModal({
+                    title: "Complete Your Profile",
+                    message: "To generate documents with your Pro plan, please complete your company profile details first.",
+                    confirmText: "Go to Profile Setup",
+                    onConfirm: () => {
+                        hideConfirmationModal();
+                        handleGoToProfileSetup();
+                    },
+                    cancelText: "Cancel"
+                });
+                return;
+            }
+            
+            setSelectedItem(item);
+            setDocumentToView(null);
+            setIsPrePaid(false); // Not relevant for Pro, but good hygiene
+            navigateTo('generator');
+            return;
+        }
+    
+        // 2. PAYG Checks
+        if (user.plan === 'payg') {
+            const price = item.price;
+            const balance = user.creditBalance || 0;
+    
+            if (balance < price) {
+                 showConfirmationModal({
+                    title: "Insufficient Credit",
+                    message: (
+                        <div className="text-center">
+                            <p className="text-red-600 font-semibold mb-2">You do not have enough credit.</p>
+                            <p className="mb-4">
+                                This document costs <strong className="text-secondary">R{(price / 100).toFixed(2)}</strong>, but you only have <strong>R{(balance / 100).toFixed(2)}</strong> available.
+                            </p>
+                            <p className="text-sm text-gray-600">Please top up to continue.</p>
+                        </div>
+                    ),
+                    confirmText: "Top Up Now",
+                    onConfirm: () => {
+                        hideConfirmationModal();
+                        navigateTo('topup');
+                    },
+                    cancelText: "Cancel"
+                });
+                return;
+            }
+    
+            // Confirm Cost AND Deduct immediately
+            showConfirmationModal({
+                title: "Confirm Generation",
+                message: (
+                    <div className="text-center">
+                        <p className="mb-4">
+                            Generating a <strong>{item.title}</strong> costs <strong className="text-secondary">R{(price / 100).toFixed(2)}</strong>.
+                        </p>
+                        <p className="text-sm text-gray-600">
+                            This amount will be deducted from your credit balance immediately.
+                        </p>
+                    </div>
+                ),
+                confirmText: "Confirm & Generate",
+                onConfirm: async () => {
+                    // Execute deduction logic HERE
+                    const success = await handleDeductCredit(price, `Generated: ${item.title}`);
+                    
+                    if (success) {
+                        hideConfirmationModal();
+                        setSelectedItem(item);
+                        setDocumentToView(null);
+                        setIsPrePaid(true); // Flag that payment was collected
+                        navigateTo('generator');
+                    } else {
+                        // handleDeductCredit shows the toast error
+                        hideConfirmationModal();
+                    }
+                },
+                cancelText: "Cancel"
+            });
+        }
+    };
 
     const AuthHeader = ({ isAdminHeader = false }: { isAdminHeader?: boolean }) => {
         const unreadCount = adminNotifications.filter(n => !n.isRead).length;
@@ -225,6 +316,7 @@ const AppContent: React.FC = () => {
                     showOnboardingWalkthrough={showOnboardingWalkthrough}
                     onCloseWalkthrough={handleCloseWalkthrough}
                     onGoToProfileSetup={handleGoToProfileSetup}
+                    onSelectDocument={handleSelectDocument}
                 />;
             case 'generator':
                 if (!selectedItem || !user) {
@@ -247,6 +339,7 @@ const AppContent: React.FC = () => {
                 return <ComplianceChecklist
                     userProfile={user.profile}
                     onBack={handleBackToDashboard}
+                    onSelectDocument={handleSelectDocument}
                 />;
             case 'profile':
                 if (!user) { handleBackToDashboard(); return null; }
@@ -275,6 +368,7 @@ const AppContent: React.FC = () => {
                     showOnboardingWalkthrough={showOnboardingWalkthrough}
                     onCloseWalkthrough={handleCloseWalkthrough}
                     onGoToProfileSetup={handleGoToProfileSetup}
+                    onSelectDocument={handleSelectDocument}
                 />;
         }
     }

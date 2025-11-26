@@ -11,9 +11,10 @@ import { PolicyType, FormType } from '../types';
 interface ComplianceChecklistProps {
   userProfile: CompanyProfile;
   onBack: () => void;
+  onSelectDocument: (item: Policy | Form) => void;
 }
 
-const ComplianceChecklist: React.FC<ComplianceChecklistProps> = ({ userProfile, onBack }) => {
+const ComplianceChecklist: React.FC<ComplianceChecklistProps> = ({ userProfile, onBack, onSelectDocument }) => {
   const { generatedDocuments } = useDataContext();
   const { setSelectedItem, setDocumentToView, navigateTo } = useUIContext();
   const [filter, setFilter] = useState<'all' | 'missing'>('all');
@@ -35,8 +36,7 @@ const ComplianceChecklist: React.FC<ComplianceChecklistProps> = ({ userProfile, 
   const onSelectItem = (type: PolicyType | FormType, isPolicy: boolean) => {
     const item = isPolicy ? POLICIES[type as PolicyType] : FORMS[type as FormType];
     if (item) {
-        setSelectedItem(item);
-        navigateTo('generator');
+        onSelectDocument(item);
     }
   };
 
