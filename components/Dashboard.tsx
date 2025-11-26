@@ -4,11 +4,12 @@ import PolicySelector from './PolicySelector';
 import FormSelector from './FormSelector';
 import PolicyUpdater from './PolicyUpdater';
 import type { Policy, Form } from '../types';
-import { MasterPolicyIcon, FormsIcon, HelpIcon, UpdateIcon, ComplianceIcon, WordIcon, ExcelIcon, InfoIcon, LoadingIcon } from './Icons';
+import { MasterPolicyIcon, FormsIcon, HelpIcon, UpdateIcon, ComplianceIcon, WordIcon, ExcelIcon, InfoIcon, LoadingIcon, FileIcon } from './Icons';
 import HowToUseModal from './HowToUseModal';
 import OnboardingWalkthrough from './OnboardingWalkthrough';
 import ConfirmationModal from './ConfirmationModal';
 import EmptyState from './EmptyState';
+import ComplianceScore from './ComplianceScore';
 import { useAuthContext } from '../contexts/AuthContext';
 import { useDataContext } from '../contexts/DataContext';
 import { useUIContext } from '../contexts/UIContext';
@@ -28,7 +29,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartUpdate, onStartChecklist, 
   const { generatedDocuments, isLoadingUserDocs } = useDataContext();
   const { navigateTo, setSelectedItem, setDocumentToView } = useUIContext();
 
-  const [activeTab, setActiveTab] = useState<'policies' | 'forms' | 'updater'>('policies');
+  const [activeTab, setActiveTab] = useState<'policies' | 'forms' | 'updater' | 'documents'>('policies');
   const [isHowToUseModalOpen, setIsHowToUseModalOpen] = useState(false);
   
   // Profile Incomplete Modal
@@ -153,7 +154,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartUpdate, onStartChecklist, 
   const DocumentHistory: React.FC = () => {
     if (isLoadingUserDocs) {
       return (
-        <div className="mb-12 bg-white p-6 rounded-lg shadow-md border border-gray-200 flex justify-center items-center min-h-[150px]">
+        <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200 flex justify-center items-center min-h-[150px]">
             <LoadingIcon className="w-8 h-8 animate-spin text-primary" />
         </div>
       );
@@ -161,36 +162,41 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartUpdate, onStartChecklist, 
 
     if (generatedDocuments.length === 0) {
       return (
-        <div className="mb-12">
-            <EmptyState 
-                title="No documents yet" 
-                description="You haven't generated any HR policies or forms yet. Get started by selecting a template below."
-                icon={MasterPolicyIcon}
-                actionLabel="Browse Policies"
-                onAction={() => setActiveTab('policies')}
-            />
-        </div>
+        <EmptyState 
+            title="No documents yet" 
+            description="You haven't generated any HR policies or forms yet. Get started by selecting a template from the 'Generate HR Policy' tab."
+            icon={MasterPolicyIcon}
+            actionLabel="Generate My First Policy"
+            onAction={() => setActiveTab('policies')}
+        />
       );
     }
 
     return (
-      <div className="mb-12 bg-white p-6 rounded-lg shadow-md border border-gray-200">
-        <h2 className="text-2xl font-bold text-secondary mb-4">Recently Generated Documents</h2>
+      <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
+        <div className="flex justify-between items-center mb-6">
+            <h2 className="text-2xl font-bold text-secondary">My Documents</h2>
+            <span className="text-sm text-gray-500">{generatedDocuments.length} documents found</span>
+        </div>
         <ul className="space-y-3">
           {generatedDocuments.map(doc => (
-            <li key={doc.id} className="flex justify-between items-center p-3 bg-light rounded-md border border-gray-200 hover:bg-gray-200 transition-colors">
-              <div className="flex items-center">
-                {doc.outputFormat === 'excel' ? <ExcelIcon className="w-6 h-6 text-green-600 mr-3" /> : <WordIcon className="w-6 h-6 text-blue-600 mr-3" />}
+            <li key={doc.id} className="flex flex-col sm:flex-row justify-between items-start sm:items-center p-4 bg-light rounded-md border border-gray-200 hover:bg-gray-200 transition-colors gap-4">
+              <div className="flex items-start">
+                {doc.outputFormat === 'excel' ? <ExcelIcon className="w-8 h-8 text-green-600 mr-4 flex-shrink-0" /> : <WordIcon className="w-8 h-8 text-blue-600 mr-4 flex-shrink-0" />}
                 <div>
-                  <p className="font-semibold text-secondary">{doc.title}</p>
-                  <p className="text-xs text-gray-500">
-                    Generated on {new Date(doc.createdAt).toLocaleDateString()} for {doc.companyProfile.companyName}
-                  </p>
+                  <p className="font-semibold text-secondary text-lg">{doc.title}</p>
+                  <div className="text-xs text-gray-500 mt-1 flex flex-wrap gap-2">
+                    <span>Generated: {new Date(doc.createdAt).toLocaleDateString()}</span>
+                    <span>•</span>
+                    <span>Company: {doc.companyProfile.companyName}</span>
+                    <span>•</span>
+                    <span className="capitalize">{doc.kind}</span>
+                  </div>
                 </div>
               </div>
               <button
                 onClick={() => onViewDocument(doc)}
-                className="px-3 py-1.5 text-sm font-semibold text-primary bg-white border border-primary rounded-md hover:bg-primary hover:text-white transition-colors"
+                className="w-full sm:w-auto px-4 py-2 text-sm font-semibold text-primary bg-white border border-primary rounded-md hover:bg-primary hover:text-white transition-colors whitespace-nowrap"
               >
                 View / Re-download
               </button>
@@ -213,7 +219,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartUpdate, onStartChecklist, 
             </p>
              <button
                 onClick={() => setIsHowToUseModalOpen(true)}
-                className="inline-flex items-center px-6 py-2 border border-transparent text-sm font-medium rounded-full shadow-sm text-white bg-primary hover:bg-opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary mb-12"
+                className="inline-flex items-center px-6 py-2 border border-transparent text-sm font-medium rounded-full shadow-sm text-white bg-primary hover:bg-opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary mb-8"
               >
                 <HelpIcon className="w-5 h-5 mr-2 -ml-1" />
                 How to Use This Tool
@@ -222,12 +228,20 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartUpdate, onStartChecklist, 
         
         <OnboardingReminderBanner />
         <PaygBanner />
-        <DocumentHistory />
+        
+        {/* Compliance Score Widget */}
+        {user && user.profile.companyName && (
+            <ComplianceScore 
+                profile={user.profile} 
+                documents={generatedDocuments} 
+                onGenerateSuggestion={onSelectItem} 
+            />
+        )}
 
-        <div className="flex flex-col md:flex-row justify-center border-b border-gray-200 mb-8 space-y-2 md:space-y-0">
+        <div className="flex flex-col md:flex-row justify-center border-b border-gray-200 mb-8 space-y-2 md:space-y-0 overflow-x-auto">
             <button
                 onClick={() => setActiveTab('policies')}
-                className={`flex items-center justify-center px-6 py-3 text-lg font-semibold border-b-2 transition-colors ${
+                className={`flex items-center justify-center px-6 py-3 text-lg font-semibold border-b-2 transition-colors whitespace-nowrap ${
                     activeTab === 'policies'
                     ? 'border-primary text-primary bg-gray-50 md:bg-transparent'
                     : 'border-transparent text-gray-500 hover:text-gray-700'
@@ -238,7 +252,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartUpdate, onStartChecklist, 
             </button>
             <button
                 onClick={() => setActiveTab('forms')}
-                className={`flex items-center justify-center px-6 py-3 text-lg font-semibold border-b-2 transition-colors ${
+                className={`flex items-center justify-center px-6 py-3 text-lg font-semibold border-b-2 transition-colors whitespace-nowrap ${
                     activeTab === 'forms'
                     ? 'border-primary text-primary bg-gray-50 md:bg-transparent'
                     : 'border-transparent text-gray-500 hover:text-gray-700'
@@ -249,7 +263,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartUpdate, onStartChecklist, 
             </button>
             <button
                 onClick={() => setActiveTab('updater')}
-                className={`flex items-center justify-center px-6 py-3 text-lg font-semibold border-b-2 transition-colors ${
+                className={`flex items-center justify-center px-6 py-3 text-lg font-semibold border-b-2 transition-colors whitespace-nowrap ${
                     activeTab === 'updater'
                     ? 'border-primary text-primary bg-gray-50 md:bg-transparent'
                     : 'border-transparent text-gray-500 hover:text-gray-700'
@@ -258,14 +272,31 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartUpdate, onStartChecklist, 
                 <UpdateIcon className="w-6 h-6 mr-2" />
                 Update Existing Policy
             </button>
+            <button
+                onClick={() => setActiveTab('documents')}
+                className={`flex items-center justify-center px-6 py-3 text-lg font-semibold border-b-2 transition-colors whitespace-nowrap ${
+                    activeTab === 'documents'
+                    ? 'border-primary text-primary bg-gray-50 md:bg-transparent'
+                    : 'border-transparent text-gray-500 hover:text-gray-700'
+                }`}
+            >
+                <FileIcon className="w-6 h-6 mr-2" />
+                My Documents
+            </button>
         </div>
 
         <div>
-            {activeTab === 'policies' && <PolicySelector onSelectPolicy={onSelectItem} />}
+            {/* Note: onSelect prop is now generic, handles both Policy and Form */}
+            {activeTab === 'policies' && <PolicySelector onSelect={onSelectItem} />}
             {activeTab === 'forms' && <FormSelector onSelectForm={onSelectItem} />}
             {activeTab === 'updater' && (
                 <div className="animate-fade-in">
                     <PolicyUpdater onBack={() => setActiveTab('policies')} />
+                </div>
+            )}
+            {activeTab === 'documents' && (
+                <div className="animate-fade-in">
+                    <DocumentHistory />
                 </div>
             )}
         </div>

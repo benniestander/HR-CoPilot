@@ -6,7 +6,7 @@ import GuidedQuestionnaire from './GuidedQuestionnaire';
 import PolicyPreview from './PolicyPreview';
 import { generatePolicyStream, generateFormStream } from '../services/geminiService';
 import type { Policy, Form, CompanyProfile, FormAnswers, GeneratedDocument, AppStatus, Source, PolicyType, FormType } from '../types';
-import { CheckIcon, LoadingIcon } from './Icons';
+import { CheckIcon, LoadingIcon, EditIcon } from './Icons';
 import { useDataContext } from '../contexts/DataContext';
 import { useAuthContext } from '../contexts/AuthContext';
 import { POLICIES, FORMS } from '../constants';
@@ -59,6 +59,7 @@ const GeneratorPage: React.FC<GeneratorPageProps> = ({ selectedItem, initialData
     const [finalizedDoc, setFinalizedDoc] = useState<GeneratedDocument | null>(initialData);
     const [isSaving, setIsSaving] = useState(false);
     const [isDeducting, setIsDeducting] = useState(false);
+    const [hasPaidSession, setHasPaidSession] = useState(false);
     
     const handleProfileSubmit = (profile: CompanyProfile) => {
         setCompanyProfile(profile);
@@ -69,7 +70,8 @@ const GeneratorPage: React.FC<GeneratorPageProps> = ({ selectedItem, initialData
         if (!selectedItem || !companyProfile || !user) return;
 
         // 1. Handle PAYG Credit Deduction BEFORE generation
-        if (user.plan === 'payg' && !initialData) {
+        // We check !hasPaidSession to ensure we don't charge again if they edit and regenerate in the same session.
+        if (user.plan === 'payg' && !initialData && !hasPaidSession) {
             setIsDeducting(true);
             let price = 0;
             if (selectedItem.kind === 'policy') {
@@ -85,6 +87,7 @@ const GeneratorPage: React.FC<GeneratorPageProps> = ({ selectedItem, initialData
                     // DataContext handles the toast for insufficient credit
                     return; 
                 }
+                setHasPaidSession(true); // Mark as paid for this session
             } else {
                 setIsDeducting(false);
             }
@@ -153,7 +156,7 @@ const GeneratorPage: React.FC<GeneratorPageProps> = ({ selectedItem, initialData
             setStatus('error');
             setErrorMessage(error.message || 'An unexpected error occurred. Please try again.');
         }
-    }, [selectedItem, companyProfile, questionAnswers, initialData, user, handleDeductCredit]);
+    }, [selectedItem, companyProfile, questionAnswers, initialData, user, handleDeductCredit, hasPaidSession]);
 
     const handleSaveDocument = async () => {
         if (finalizedDoc) {
@@ -219,14 +222,24 @@ const GeneratorPage: React.FC<GeneratorPageProps> = ({ selectedItem, initialData
                             loadingMessages={selectedItem.kind === 'policy' ? policyLoadingMessages : formLoadingMessages}
                         />
                         {status === 'success' && (
-                             <div className="mt-8 flex justify-between items-center bg-white p-6 rounded-lg shadow-md border border-gray-200">
-                                <button onClick={onBack} disabled={isSaving} className="text-sm font-semibold text-gray-600 hover:text-primary transition-colors disabled:opacity-50">
-                                    Cancel & Start Over
-                                </button>
+                             <div className="mt-8 flex flex-col sm:flex-row justify-between items-center bg-white p-6 rounded-lg shadow-md border border-gray-200 gap-4">
+                                <div className="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-4 w-full sm:w-auto">
+                                    <button onClick={onBack} disabled={isSaving} className="text-sm font-semibold text-gray-600 hover:text-red-600 transition-colors disabled:opacity-50 whitespace-nowrap">
+                                        Cancel & Start Over
+                                    </button>
+                                    <button 
+                                        onClick={() => setCurrentStep(2)} 
+                                        disabled={isSaving}
+                                        className="text-sm font-bold text-primary hover:underline flex items-center disabled:opacity-50 whitespace-nowrap"
+                                    >
+                                        <EditIcon className="w-4 h-4 mr-1" />
+                                        Edit Details & Regenerate
+                                    </button>
+                                </div>
                                 <button
                                     onClick={handleSaveDocument}
                                     disabled={isSaving}
-                                    className="bg-green-600 text-white font-bold py-3 px-6 rounded-md hover:bg-green-700 transition-colors flex items-center disabled:bg-gray-400 disabled:cursor-not-allowed"
+                                    className="w-full sm:w-auto bg-green-600 text-white font-bold py-3 px-6 rounded-md hover:bg-green-700 transition-colors flex items-center justify-center disabled:bg-gray-400 disabled:cursor-not-allowed"
                                 >
                                     {isSaving ? <><LoadingIcon className="animate-spin -ml-1 mr-2 h-5 w-5 text-white" /> Saving...</> : <><CheckIcon className="w-5 h-5 mr-2" /> Save Document</>}
                                 </button>
