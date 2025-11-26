@@ -14,7 +14,48 @@ import { createClient } from '@supabase/supabase-js';
 
    ==========================================================================
 
-   -- 1. Reset & Cleanup (Drop old policies to prevent conflicts)
+   -- 1. Create Tables (IF NOT EXISTS) to ensure targets for policy drops exist
+   CREATE TABLE IF NOT EXISTS coupons (
+     id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+     code text UNIQUE NOT NULL,
+     discount_type text NOT NULL CHECK (discount_type IN ('percentage', 'fixed')),
+     discount_value int NOT NULL,
+     max_uses int,
+     used_count int DEFAULT 0,
+     expiry_date timestamptz,
+     active boolean DEFAULT true,
+     applicable_to text, -- 'all', 'plan:pro', 'plan:payg'
+     created_at timestamptz DEFAULT now()
+   );
+   
+   CREATE TABLE IF NOT EXISTS policy_drafts (
+     id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+     user_id uuid REFERENCES auth.users(id) NOT NULL,
+     original_doc_id text,
+     original_doc_title text,
+     original_content text,
+     update_result jsonb,
+     selected_indices jsonb,
+     manual_instructions text,
+     updated_at timestamptz DEFAULT now(),
+     created_at timestamptz DEFAULT now()
+   );
+
+   -- REPAIR: Ensure columns exist if table was created by older script
+   ALTER TABLE coupons ADD COLUMN IF NOT EXISTS active boolean DEFAULT true;
+   ALTER TABLE coupons ADD COLUMN IF NOT EXISTS applicable_to text;
+
+   -- 2. Enable RLS on All Tables
+   ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
+   ALTER TABLE generated_documents ENABLE ROW LEVEL SECURITY;
+   ALTER TABLE transactions ENABLE ROW LEVEL SECURITY;
+   ALTER TABLE user_files ENABLE ROW LEVEL SECURITY;
+   ALTER TABLE admin_action_logs ENABLE ROW LEVEL SECURITY;
+   ALTER TABLE admin_notifications ENABLE ROW LEVEL SECURITY;
+   ALTER TABLE coupons ENABLE ROW LEVEL SECURITY;
+   ALTER TABLE policy_drafts ENABLE ROW LEVEL SECURITY;
+
+   -- 3. Cleanup Old Policies (Now safe because tables definitely exist)
    DROP POLICY IF EXISTS "Users can read own profile" ON profiles;
    DROP POLICY IF EXISTS "Users can update own profile" ON profiles;
    DROP POLICY IF EXISTS "Users can insert own profile" ON profiles;
@@ -43,21 +84,20 @@ import { createClient } from '@supabase/supabase-js';
    DROP POLICY IF EXISTS "Admins can update notifications" ON admin_notifications;
    DROP POLICY IF EXISTS "Anyone can create notifications" ON admin_notifications;
 
-   -- Coupon Policies
    DROP POLICY IF EXISTS "Admins can read coupons" ON coupons;
    DROP POLICY IF EXISTS "Admins can insert coupons" ON coupons;
    DROP POLICY IF EXISTS "Admins can update coupons" ON coupons;
    DROP POLICY IF EXISTS "Admins can delete coupons" ON coupons;
    DROP POLICY IF EXISTS "Anyone can read coupons" ON coupons;
 
-   -- Draft Policies
    DROP POLICY IF EXISTS "Users can manage own drafts" ON policy_drafts;
    
+   -- 4. Functions
    DROP FUNCTION IF EXISTS is_admin() CASCADE;
    DROP FUNCTION IF EXISTS increment_balance(uuid, int) CASCADE;
    DROP FUNCTION IF EXISTS increment_coupon_uses(text) CASCADE;
 
-   -- 2. Create Secure Admin Check Function
+   -- Create Secure Admin Check Function
    CREATE OR REPLACE FUNCTION is_admin()
    RETURNS boolean
    LANGUAGE sql
@@ -69,7 +109,7 @@ import { createClient } from '@supabase/supabase-js';
      );
    $$;
 
-   -- 3. Create Atomic Balance Update Function (Prevents Race Conditions)
+   -- Create Atomic Balance Update Function (Prevents Race Conditions)
    CREATE OR REPLACE FUNCTION increment_balance(user_id uuid, amount int)
    RETURNS void
    LANGUAGE plpgsql
@@ -82,7 +122,7 @@ import { createClient } from '@supabase/supabase-js';
    END;
    $$;
 
-   -- 4. Create Coupon Increment Function (Allows usage tracking without write access)
+   -- Create Coupon Increment Function
    CREATE OR REPLACE FUNCTION increment_coupon_uses(coupon_code text)
    RETURNS void
    LANGUAGE plpgsql
@@ -102,75 +142,34 @@ import { createClient } from '@supabase/supabase-js';
    GRANT EXECUTE ON FUNCTION increment_coupon_uses TO authenticated;
    GRANT EXECUTE ON FUNCTION increment_coupon_uses TO service_role;
 
-   -- 5. Enable RLS on All Tables
-   ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
-   ALTER TABLE generated_documents ENABLE ROW LEVEL SECURITY;
-   ALTER TABLE transactions ENABLE ROW LEVEL SECURITY;
-   ALTER TABLE user_files ENABLE ROW LEVEL SECURITY;
-   ALTER TABLE admin_action_logs ENABLE ROW LEVEL SECURITY;
-   ALTER TABLE admin_notifications ENABLE ROW LEVEL SECURITY;
-   
-   -- Create Coupons Table if not exists
-   CREATE TABLE IF NOT EXISTS coupons (
-     id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
-     code text UNIQUE NOT NULL,
-     discount_type text NOT NULL CHECK (discount_type IN ('percentage', 'fixed')),
-     discount_value int NOT NULL,
-     max_uses int,
-     used_count int DEFAULT 0,
-     expiry_date timestamptz,
-     active boolean DEFAULT true,
-     applicable_to text, -- 'all', 'plan:pro', 'plan:payg'
-     created_at timestamptz DEFAULT now()
-   );
-   
-   -- Create Policy Drafts Table
-   CREATE TABLE IF NOT EXISTS policy_drafts (
-     id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
-     user_id uuid REFERENCES auth.users(id) NOT NULL,
-     original_doc_id text,
-     original_doc_title text,
-     original_content text,
-     update_result jsonb,
-     selected_indices jsonb,
-     manual_instructions text,
-     updated_at timestamptz DEFAULT now(),
-     created_at timestamptz DEFAULT now()
-   );
-   
-   -- REPAIR: Ensure columns exist if table was created by older script
-   ALTER TABLE coupons ADD COLUMN IF NOT EXISTS active boolean DEFAULT true;
-   ALTER TABLE coupons ADD COLUMN IF NOT EXISTS applicable_to text;
+   -- 5. Create Policies
 
-   ALTER TABLE coupons ENABLE ROW LEVEL SECURITY;
-   ALTER TABLE policy_drafts ENABLE ROW LEVEL SECURITY;
-
-   -- 6. PROFILES Policies
+   -- PROFILES
    CREATE POLICY "Users can read own profile" ON profiles FOR SELECT USING (auth.uid() = id);
    CREATE POLICY "Users can update own profile" ON profiles FOR UPDATE USING (auth.uid() = id);
    CREATE POLICY "Users can insert own profile" ON profiles FOR INSERT WITH CHECK (auth.uid() = id);
    CREATE POLICY "Admins can read all profiles" ON profiles FOR SELECT USING (is_admin());
    CREATE POLICY "Admins can update all profiles" ON profiles FOR UPDATE USING (is_admin());
 
-   -- 7. GENERATED DOCUMENTS Policies
+   -- GENERATED DOCUMENTS
    CREATE POLICY "Users can read own documents" ON generated_documents FOR SELECT USING (auth.uid() = user_id);
    CREATE POLICY "Users can create documents" ON generated_documents FOR INSERT WITH CHECK (auth.uid() = user_id);
    CREATE POLICY "Users can update own documents" ON generated_documents FOR UPDATE USING (auth.uid() = user_id);
    CREATE POLICY "Admins can read all documents" ON generated_documents FOR SELECT USING (is_admin());
 
-   -- 8. TRANSACTIONS Policies
+   -- TRANSACTIONS
    CREATE POLICY "Users can read own transactions" ON transactions FOR SELECT USING (auth.uid() = user_id);
    CREATE POLICY "Admins can read all transactions" ON transactions FOR SELECT USING (is_admin());
    CREATE POLICY "Admins can create transactions" ON transactions FOR INSERT WITH CHECK (is_admin());
    CREATE POLICY "Users can create transactions (Legacy)" ON transactions FOR INSERT WITH CHECK (auth.uid() = user_id); 
 
-   -- 9. USER FILES Policies
+   -- USER FILES
    CREATE POLICY "Users can read own files" ON user_files FOR SELECT USING (auth.uid() = user_id);
    CREATE POLICY "Users can upload own files" ON user_files FOR INSERT WITH CHECK (auth.uid() = user_id);
    CREATE POLICY "Users can delete own files" ON user_files FOR DELETE USING (auth.uid() = user_id);
    CREATE POLICY "Admins can read all files" ON user_files FOR SELECT USING (is_admin());
 
-   -- 10. ADMIN LOGS & NOTIFICATIONS Policies
+   -- ADMIN LOGS & NOTIFICATIONS
    CREATE POLICY "Admins can read logs" ON admin_action_logs FOR SELECT USING (is_admin());
    CREATE POLICY "Admins can create logs" ON admin_action_logs FOR INSERT WITH CHECK (is_admin());
    
@@ -178,14 +177,14 @@ import { createClient } from '@supabase/supabase-js';
    CREATE POLICY "Admins can update notifications" ON admin_notifications FOR UPDATE USING (is_admin());
    CREATE POLICY "Anyone can create notifications" ON admin_notifications FOR INSERT WITH CHECK (auth.role() = 'authenticated');
 
-   -- 11. COUPON Policies
+   -- COUPONS
    CREATE POLICY "Admins can read coupons" ON coupons FOR SELECT USING (is_admin());
    CREATE POLICY "Admins can insert coupons" ON coupons FOR INSERT WITH CHECK (is_admin());
    CREATE POLICY "Admins can update coupons" ON coupons FOR UPDATE USING (is_admin());
    CREATE POLICY "Admins can delete coupons" ON coupons FOR DELETE USING (is_admin());
    CREATE POLICY "Anyone can read coupons" ON coupons FOR SELECT USING (true);
    
-   -- 12. DRAFT Policies
+   -- DRAFTS
    CREATE POLICY "Users can manage own drafts" ON policy_drafts FOR ALL USING (auth.uid() = user_id);
    
    -- Force Schema Cache Reload
