@@ -729,17 +729,23 @@ const PolicyUpdater: React.FC<PolicyUpdaterProps> = ({ onBack }) => {
                                                 className="h-5 w-5 text-primary focus:ring-primary border-gray-300 rounded"
                                             />
                                         </div>
-                                        <div className="flex-1">
-                                            <h4 className="font-bold text-secondary text-sm">{change.changeDescription}</h4>
-                                            <p className="text-gray-700 mt-1 text-xs"><strong className="font-semibold">Reason:</strong> {change.reason}</p>
+                                        <div className="flex-1 min-w-0">
+                                            <h4 className="font-bold text-secondary text-sm break-words">{change.changeDescription}</h4>
+                                            <p className="text-gray-700 mt-1 text-xs break-words"><strong className="font-semibold">Reason:</strong> {change.reason}</p>
                                             <div className="mt-2 text-xs">
                                                 {change.originalText && (
                                                     <div className="mb-1">
-                                                        <span className="text-red-600 font-semibold strike-through">Original:</span> <span className="text-gray-500 line-through truncate block max-w-full">{change.originalText.substring(0, 100)}{change.originalText.length > 100 ? '...' : ''}</span>
+                                                        <span className="text-red-600 font-semibold strike-through">Original:</span> 
+                                                        <span className="text-gray-500 line-through block break-words whitespace-pre-wrap">
+                                                            {change.originalText}
+                                                        </span>
                                                     </div>
                                                 )}
                                                 <div>
-                                                    <span className="text-green-600 font-semibold">New:</span> <span className="text-gray-800 block">{change.updatedText.substring(0, 100)}{change.updatedText.length > 100 ? '...' : ''}</span>
+                                                    <span className="text-green-600 font-semibold">New:</span> 
+                                                    <span className="text-gray-800 block break-words whitespace-pre-wrap">
+                                                        {change.updatedText}
+                                                    </span>
                                                 </div>
                                             </div>
                                         </div>
