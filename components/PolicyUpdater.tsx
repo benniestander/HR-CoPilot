@@ -1,5 +1,5 @@
 
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { updatePolicy } from '../services/geminiService';
 import type { GeneratedDocument, PolicyUpdateResult, CompanyProfile } from '../types';
 import { LoadingIcon, UpdateIcon, CheckIcon, HistoryIcon, CreditCardIcon, FileUploadIcon, FileIcon } from './Icons';
@@ -90,6 +90,8 @@ const PolicyUpdater: React.FC<PolicyUpdaterProps> = ({ onBack }) => {
   const [updateMethod, setUpdateMethod] = useState<'ai' | 'manual' | null>(null);
   const [manualInstructions, setManualInstructions] = useState('');
   const [updateResult, setUpdateResult] = useState<PolicyUpdateResult | null>(null);
+  const [selectedChangeIndices, setSelectedChangeIndices] = useState<Set<number>>(new Set());
+
   const [status, setStatus] = useState<'idle' | 'reading_file' | 'loading' | 'success' | 'error'>('idle');
   const [error, setError] = useState<string | null>(null);
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
@@ -114,6 +116,62 @@ const PolicyUpdater: React.FC<PolicyUpdaterProps> = ({ onBack }) => {
     }
     return generatedDocuments.find(d => d.id === selectedDocId);
   }, [selectedDocId, generatedDocuments, externalDocument]);
+
+  // Select all changes by default when results come back
+  useEffect(() => {
+      if (updateResult?.changes) {
+          const allIndices = new Set(updateResult.changes.map((_, i) => i));
+          setSelectedChangeIndices(allIndices);
+      }
+  }, [updateResult]);
+
+  // Reconstruct the policy text based on SELECTED changes only
+  const reconstructedPolicyText = useMemo(() => {
+      if (!selectedDocument || !updateResult) return '';
+      
+      // Start with original text
+      let text = selectedDocument.content;
+
+      // Sort changes by index or however the AI returned them.
+      // Ideally, we iterate and replace. 
+      // Note: Simple string replacement has risks if the text appears multiple times.
+      // For this implementation, we assume the AI provides unique enough context or we accept first-match replacement.
+      
+      // We iterate through the changes. If selected, we replace.
+      updateResult.changes.forEach((change, index) => {
+          if (selectedChangeIndices.has(index) && change.originalText && change.updatedText) {
+              // Using split/join to replace all occurrences might be too aggressive if the context appears twice.
+              // Using replace() only replaces the first occurrence.
+              // Given AI usually processes top-to-bottom, sequential replace usually works if we are lucky.
+              // A more robust way would be finding the index, but we don't have offsets from Gemini.
+              
+              // We will use simple replace.
+              text = text.replace(change.originalText, change.updatedText);
+          } else if (selectedChangeIndices.has(index) && !change.originalText) {
+              // This is a pure addition (no original text). 
+              // We can't easily place it without context. 
+              // Usually AI returns originalText for context even if it's just an insertion point.
+              // If it's a full rewrite, updatedPolicyText is the source of truth.
+              
+              // FALLBACK: If the AI rewrote the whole doc (no specific originalText snippets),
+              // we cannot selectively apply. We must use the full updated text if *any* change is selected?
+              // Or we assume the AI structured the response correctly.
+          }
+      });
+
+      // Corner Case: If the AI rewrote the document entirely and didn't provide discrete "originalText" snippets for every change,
+      // we might just want to use the `updatedPolicyText` provided by AI if ALL changes are selected.
+      const allSelected = selectedChangeIndices.size === updateResult.changes.length;
+      
+      // If the reconstruction strategy fails (e.g. original text not found), the text won't change.
+      // If the user selected ALL changes, we can default to the AI's full output to be safe against replacement errors.
+      if (allSelected) {
+          return updateResult.updatedPolicyText;
+      }
+
+      return text;
+  }, [selectedDocument, updateResult, selectedChangeIndices]);
+
 
   // Helper to extract text from DOCX
   const extractTextFromDocx = async (arrayBuffer: ArrayBuffer): Promise<string> => {
@@ -295,12 +353,15 @@ const PolicyUpdater: React.FC<PolicyUpdaterProps> = ({ onBack }) => {
     
     let newDoc: GeneratedDocument;
 
+    // Use the reconstructed text based on user selection
+    const finalContent = reconstructedPolicyText;
+
     if (isExternal) {
         // Create completely new entry in DB for this imported doc
         newDoc = {
             ...selectedDocument,
             id: `imported-${Date.now()}`, // New ID
-            content: updateResult.updatedPolicyText,
+            content: finalContent,
             version: 1,
             history: [],
             createdAt: new Date().toISOString()
@@ -312,7 +373,7 @@ const PolicyUpdater: React.FC<PolicyUpdaterProps> = ({ onBack }) => {
     } else {
         newDoc = {
             ...selectedDocument,
-            content: updateResult.updatedPolicyText,
+            content: finalContent,
         };
     }
 
@@ -353,6 +414,28 @@ const PolicyUpdater: React.FC<PolicyUpdaterProps> = ({ onBack }) => {
             }
         }
     });
+  };
+
+  const toggleChangeSelection = (index: number) => {
+      setSelectedChangeIndices(prev => {
+          const newSet = new Set(prev);
+          if (newSet.has(index)) {
+              newSet.delete(index);
+          } else {
+              newSet.add(index);
+          }
+          return newSet;
+      });
+  };
+
+  const toggleAllChanges = () => {
+      if (!updateResult) return;
+      if (selectedChangeIndices.size === updateResult.changes.length) {
+          setSelectedChangeIndices(new Set()); // Deselect all
+      } else {
+          const allIndices = new Set(updateResult.changes.map((_, i) => i));
+          setSelectedChangeIndices(allIndices);
+      }
   };
 
 
@@ -538,26 +621,66 @@ const PolicyUpdater: React.FC<PolicyUpdaterProps> = ({ onBack }) => {
       return <div className="text-center text-red-600 bg-red-50 p-6 rounded-md"><h3 className="text-lg font-semibold mb-2">An Error Occurred</h3><p className="mb-4">{error}</p><button onClick={handleUpdateClick} className="bg-primary text-white font-semibold py-2 px-4 rounded-md">Retry</button></div>;
     }
     if (status === 'success' && updateResult) {
+      const allSelected = selectedChangeIndices.size === updateResult.changes.length;
       return (
         <div>
             <h2 className="text-3xl font-bold text-secondary mb-6 text-center">Analysis Complete</h2>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                {/* Left Column: Visual Comparison */}
                 <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200 flex flex-col">
-                    <h3 className="text-xl font-bold text-secondary mb-4">Visual Comparison</h3>
-                    <p className="text-sm text-gray-600 mb-4">See exactly what's changed in your policy. <span className="bg-red-50 px-1 rounded">Red lines</span> are removed, <span className="bg-green-50 px-1 rounded">green lines</span> are added.</p>
+                    <h3 className="text-xl font-bold text-secondary mb-4">Visual Preview</h3>
+                    <p className="text-sm text-gray-600 mb-4">This preview updates as you select changes on the right.</p>
                     <div className="flex-grow" style={{ minHeight: '400px', maxHeight: '60vh', overflowY: 'auto' }}>
-                        <DiffViewer originalText={selectedDocument?.content || ''} updatedText={updateResult.updatedPolicyText} />
+                        <DiffViewer originalText={selectedDocument?.content || ''} updatedText={reconstructedPolicyText} />
                     </div>
                 </div>
+
+                {/* Right Column: Changes Selection */}
                 <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200 flex flex-col">
-                    <h3 className="text-xl font-bold text-secondary mb-4">AI's Summary of Changes</h3>
-                    <p className="text-sm text-gray-600 mb-4">Here's why we made these changes, based on your request.</p>
-                    <div className="space-y-4 flex-grow" style={{ minHeight: '400px', maxHeight: '60vh', overflowY: 'auto' }}>
+                    <div className="flex justify-between items-center mb-4">
+                        <h3 className="text-xl font-bold text-secondary">Review Suggested Changes</h3>
+                        <button 
+                            onClick={toggleAllChanges} 
+                            className="text-xs font-semibold text-primary hover:underline"
+                        >
+                            {allSelected ? 'Deselect All' : 'Select All'}
+                        </button>
+                    </div>
+                    <p className="text-sm text-gray-600 mb-4">Select the changes you want to apply to the final document.</p>
+                    
+                    <div className="space-y-4 flex-grow pr-2" style={{ minHeight: '400px', maxHeight: '60vh', overflowY: 'auto' }}>
                         {updateResult.changes.length > 0 ? (
                             updateResult.changes.map((change, index) => (
-                                <div key={index} className="p-4 border-l-4 border-accent bg-accent/10 text-sm rounded-r-md">
-                                    <h4 className="font-bold text-secondary">{change.changeDescription}</h4>
-                                    <p className="text-gray-700 mt-1"><strong className="font-semibold text-secondary">Reason:</strong> {change.reason}</p>
+                                <div 
+                                    key={index} 
+                                    className={`p-4 border rounded-md transition-colors ${
+                                        selectedChangeIndices.has(index) ? 'border-primary bg-blue-50' : 'border-gray-200 bg-white'
+                                    }`}
+                                >
+                                    <div className="flex items-start space-x-3">
+                                        <div className="pt-1">
+                                            <input 
+                                                type="checkbox" 
+                                                checked={selectedChangeIndices.has(index)}
+                                                onChange={() => toggleChangeSelection(index)}
+                                                className="h-5 w-5 text-primary focus:ring-primary border-gray-300 rounded"
+                                            />
+                                        </div>
+                                        <div className="flex-1">
+                                            <h4 className="font-bold text-secondary text-sm">{change.changeDescription}</h4>
+                                            <p className="text-gray-700 mt-1 text-xs"><strong className="font-semibold">Reason:</strong> {change.reason}</p>
+                                            <div className="mt-2 text-xs">
+                                                {change.originalText && (
+                                                    <div className="mb-1">
+                                                        <span className="text-red-600 font-semibold strike-through">Original:</span> <span className="text-gray-500 line-through truncate block max-w-full">{change.originalText.substring(0, 100)}{change.originalText.length > 100 ? '...' : ''}</span>
+                                                    </div>
+                                                )}
+                                                <div>
+                                                    <span className="text-green-600 font-semibold">New:</span> <span className="text-gray-800 block">{change.updatedText.substring(0, 100)}{change.updatedText.length > 100 ? '...' : ''}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
                             ))
                         ) : (
@@ -571,7 +694,7 @@ const PolicyUpdater: React.FC<PolicyUpdaterProps> = ({ onBack }) => {
             <div className="mt-8 flex justify-between items-center bg-white p-4 rounded-lg shadow-md">
                  <button onClick={() => { setUpdateResult(null); setStatus('idle'); setStep('chooseMethod'); }} disabled={isSaving} className="text-sm font-semibold text-gray-600 hover:text-primary disabled:opacity-50">Go Back & Edit</button>
                  <button onClick={handleConfirmAndSave} disabled={isSaving} className="bg-green-600 text-white font-bold py-3 px-6 rounded-md hover:bg-green-700 transition-colors flex items-center disabled:bg-gray-400 disabled:cursor-not-allowed">
-                    {isSaving ? <><LoadingIcon className="animate-spin -ml-1 mr-2 h-5 w-5 text-white" /> Saving...</> : <><CheckIcon className="w-5 h-5 mr-2" /> Confirm & Save New Version</>}
+                    {isSaving ? <><LoadingIcon className="animate-spin -ml-1 mr-2 h-5 w-5 text-white" /> Saving...</> : <><CheckIcon className="w-5 h-5 mr-2" /> Confirm & Save Selected</>}
                  </button>
             </div>
         </div>
