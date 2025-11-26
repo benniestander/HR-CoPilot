@@ -1,5 +1,5 @@
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import Stepper from './Stepper';
 import CompanyProfileSetup from './CompanyProfileSetup';
 import GuidedQuestionnaire from './GuidedQuestionnaire';
@@ -9,13 +9,14 @@ import type { Policy, Form, CompanyProfile, FormAnswers, GeneratedDocument, AppS
 import { CheckIcon, LoadingIcon, EditIcon } from './Icons';
 import { useDataContext } from '../contexts/DataContext';
 import { useAuthContext } from '../contexts/AuthContext';
+import { useUIContext } from '../contexts/UIContext';
 import { POLICIES, FORMS } from '../constants';
 
 interface GeneratorPageProps {
     selectedItem: Policy | Form;
     initialData: GeneratedDocument | null;
     userProfile: CompanyProfile;
-    onDocumentGenerated: (doc: GeneratedDocument, originalId?: string) => Promise<void>; // Updated to Promise
+    onDocumentGenerated: (doc: GeneratedDocument, originalId?: string) => Promise<void>;
     onBack: () => void;
 }
 
@@ -37,6 +38,7 @@ const formLoadingMessages = [
 const GeneratorPage: React.FC<GeneratorPageProps> = ({ selectedItem, initialData, userProfile, onDocumentGenerated, onBack }) => {
     const { user } = useAuthContext();
     const { handleDeductCredit } = useDataContext();
+    const { isPrePaid, setIsPrePaid } = useUIContext();
     
     const isPolicy = selectedItem.kind === 'policy';
     const isProfileSufficient = userProfile && userProfile.companyName && (!isPolicy || userProfile.industry);
@@ -59,7 +61,16 @@ const GeneratorPage: React.FC<GeneratorPageProps> = ({ selectedItem, initialData
     const [finalizedDoc, setFinalizedDoc] = useState<GeneratedDocument | null>(initialData);
     const [isSaving, setIsSaving] = useState(false);
     const [isDeducting, setIsDeducting] = useState(false);
-    const [hasPaidSession, setHasPaidSession] = useState(false);
+    
+    // Initialize hasPaidSession with true if we came from Dashboard with isPrePaid flag
+    const [hasPaidSession, setHasPaidSession] = useState(isPrePaid);
+
+    // Reset global pre-paid flag so if they navigate away and back, they don't skip payment next time
+    useEffect(() => {
+        if (isPrePaid) {
+            setIsPrePaid(false); 
+        }
+    }, []);
     
     const handleProfileSubmit = (profile: CompanyProfile) => {
         setCompanyProfile(profile);
@@ -69,8 +80,8 @@ const GeneratorPage: React.FC<GeneratorPageProps> = ({ selectedItem, initialData
     const handleGenerate = useCallback(async () => {
         if (!selectedItem || !companyProfile || !user) return;
 
-        // 1. Handle PAYG Credit Deduction BEFORE generation
-        // We check !hasPaidSession to ensure we don't charge again if they edit and regenerate in the same session.
+        // 1. Handle PAYG Credit Deduction (Fallback Logic)
+        // If NOT prepaid in Dashboard (e.g., direct link or edge case) and not previously paid in session:
         if (user.plan === 'payg' && !initialData && !hasPaidSession) {
             setIsDeducting(true);
             let price = 0;
@@ -84,10 +95,9 @@ const GeneratorPage: React.FC<GeneratorPageProps> = ({ selectedItem, initialData
                 const success = await handleDeductCredit(price, `Generated: ${selectedItem.title}`);
                 setIsDeducting(false);
                 if (!success) {
-                    // DataContext handles the toast for insufficient credit
                     return; 
                 }
-                setHasPaidSession(true); // Mark as paid for this session
+                setHasPaidSession(true); 
             } else {
                 setIsDeducting(false);
             }
@@ -147,7 +157,7 @@ const GeneratorPage: React.FC<GeneratorPageProps> = ({ selectedItem, initialData
                 questionAnswers,
                 outputFormat: selectedItem.kind === 'form' ? selectedItem.outputFormat : 'word',
                 sources: finalSources,
-                version: initialData?.version || 0 // Version is handled by parent
+                version: initialData?.version || 0 
             };
             setFinalizedDoc(newDoc);
 
@@ -165,7 +175,6 @@ const GeneratorPage: React.FC<GeneratorPageProps> = ({ selectedItem, initialData
                 await onDocumentGenerated(finalizedDoc, initialData?.id);
             } catch (error) {
                 console.error("Error saving document:", error);
-                // Error handled by parent or UI context if propagated, but safe to catch here
             } finally {
                 setIsSaving(false);
             }
@@ -205,7 +214,7 @@ const GeneratorPage: React.FC<GeneratorPageProps> = ({ selectedItem, initialData
                     />
                 );
             case 3:
-                 if (!companyProfile) { // Should not happen, but as a fallback
+                 if (!companyProfile) { 
                     setCurrentStep(1);
                     return null;
                 }

@@ -29,9 +29,9 @@ const Dashboard: React.FC<DashboardProps> = ({
   onGoToProfileSetup
 }) => {
   const [activeTab, setActiveTab] = useState<'policies' | 'forms' | 'documents'>('policies');
-  const { setSelectedItem, navigateTo, setDocumentToView, setToastMessage } = useUIContext();
+  const { setSelectedItem, navigateTo, setDocumentToView, setToastMessage, setIsPrePaid } = useUIContext();
   const { user } = useAuthContext();
-  const { generatedDocuments } = useDataContext();
+  const { generatedDocuments, handleDeductCredit } = useDataContext();
   const { showConfirmationModal, hideConfirmationModal } = useModalContext();
 
   const handleSelect = (item: Policy | Form) => {
@@ -56,6 +56,7 @@ const Dashboard: React.FC<DashboardProps> = ({
         
         setSelectedItem(item);
         setDocumentToView(null);
+        setIsPrePaid(false); // Not relevant for Pro, but good hygiene
         navigateTo('generator');
         return;
     }
@@ -87,7 +88,7 @@ const Dashboard: React.FC<DashboardProps> = ({
             return;
         }
 
-        // Confirm Cost
+        // Confirm Cost AND Deduct immediately
         showConfirmationModal({
             title: "Confirm Generation",
             message: (
@@ -96,16 +97,25 @@ const Dashboard: React.FC<DashboardProps> = ({
                         Generating a <strong>{item.title}</strong> costs <strong className="text-secondary">R{(price / 100).toFixed(2)}</strong>.
                     </p>
                     <p className="text-sm text-gray-600">
-                        This amount will be deducted from your credit balance when you proceed to generate the document.
+                        This amount will be deducted from your credit balance immediately.
                     </p>
                 </div>
             ),
-            confirmText: "Continue",
-            onConfirm: () => {
-                hideConfirmationModal();
-                setSelectedItem(item);
-                setDocumentToView(null);
-                navigateTo('generator');
+            confirmText: "Confirm & Generate",
+            onConfirm: async () => {
+                // Execute deduction logic HERE
+                const success = await handleDeductCredit(price, `Generated: ${item.title}`);
+                
+                if (success) {
+                    hideConfirmationModal();
+                    setSelectedItem(item);
+                    setDocumentToView(null);
+                    setIsPrePaid(true); // Flag that payment was collected
+                    navigateTo('generator');
+                } else {
+                    // handleDeductCredit shows the toast error
+                    hideConfirmationModal();
+                }
             },
             cancelText: "Cancel"
         });
@@ -124,6 +134,7 @@ const Dashboard: React.FC<DashboardProps> = ({
       if (item) {
           setSelectedItem(item);
           setDocumentToView(doc);
+          setIsPrePaid(false); // Viewing existing doc, no payment needed
           navigateTo('generator'); 
       } else {
           console.error(`Definition not found for document type: ${doc.type}`);
@@ -139,7 +150,13 @@ const Dashboard: React.FC<DashboardProps> = ({
                 <h1 className="text-3xl font-bold text-secondary">
                 Welcome back, {user?.name ? user.name.split(' ')[0] : 'HR Hero'}!
                 </h1>
-                {user?.plan === 'payg' && (
+                {user?.plan === 'payg' && user.creditBalance < 7500 && (
+                    <p className="text-sm text-gray-500 mt-1">
+                        <span className="text-amber-600 font-semibold mr-2">Low Balance:</span>
+                        Credit Balance: <span className="font-bold text-green-600">R{(Number(user.creditBalance || 0)/100).toFixed(2)}</span>
+                    </p>
+                )}
+                {user?.plan === 'payg' && user.creditBalance >= 7500 && (
                     <p className="text-sm text-gray-500 mt-1">
                         Credit Balance: <span className="font-bold text-green-600">R{(Number(user.creditBalance || 0)/100).toFixed(2)}</span>
                     </p>

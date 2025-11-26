@@ -10,12 +10,15 @@ interface UIContextType {
     toastMessage: string | null;
     isNotificationPanelOpen: boolean;
     showOnboardingWalkthrough: boolean;
+    isPrePaid: boolean; // New state to track if session was paid in Dashboard
     navigateTo: (view: View, params?: Record<string, string>) => void;
     setSelectedItem: React.Dispatch<React.SetStateAction<Policy | Form | null>>;
     setDocumentToView: React.Dispatch<React.SetStateAction<GeneratedDocument | null>>;
     setToastMessage: React.Dispatch<React.SetStateAction<string | null>>;
     setNotificationPanelOpen: React.Dispatch<React.SetStateAction<boolean>>;
     setShowOnboardingWalkthrough: React.Dispatch<React.SetStateAction<boolean>>;
+    setIsPrePaid: React.Dispatch<React.SetStateAction<boolean>>;
+    setCurrentView: (view: View) => void; // Compatibility
 }
 
 const UIContext = createContext<UIContextType | undefined>(undefined);
@@ -32,6 +35,7 @@ export const UIProvider: React.FC<{ children: React.ReactNode }> = ({ children }
     const [toastMessage, setToastMessage] = useState<string | null>(null);
     const [isNotificationPanelOpen, setNotificationPanelOpen] = useState(false);
     const [showOnboardingWalkthrough, setShowOnboardingWalkthrough] = useState(false);
+    const [isPrePaid, setIsPrePaid] = useState(false);
 
     useEffect(() => {
         const handleHashChange = () => {
@@ -68,7 +72,8 @@ export const UIProvider: React.FC<{ children: React.ReactNode }> = ({ children }
         setNotificationPanelOpen,
         showOnboardingWalkthrough,
         setShowOnboardingWalkthrough,
-        // Deprecated, but kept for compatibility during refactor
+        isPrePaid,
+        setIsPrePaid,
         setCurrentView: (view: View) => navigateTo(view),
     };
 
