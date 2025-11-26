@@ -444,7 +444,11 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
                             ))}
                         </ul>
                     ) : (
-                        <p className="text-sm text-gray-500 text-center py-4">No transactions yet.</p>
+                        <EmptyState
+                            title="No transactions yet"
+                            description="Your top-ups and document purchases will appear here."
+                            icon={CreditCardIcon}
+                        />
                     )}
                 </div>
             )}
