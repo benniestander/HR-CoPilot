@@ -1,6 +1,6 @@
 
 import { supabase } from './supabase';
-import type { User, GeneratedDocument, Transaction, AdminActionLog, AdminNotification, UserFile, CompanyProfile, Coupon } from '../types';
+import type { User, GeneratedDocument, Transaction, AdminActionLog, AdminNotification, UserFile, CompanyProfile, Coupon, PolicyDraft } from '../types';
 
 // --- Helpers for Type Mapping (Snake Case <-> Camel Case) ---
 
@@ -63,6 +63,18 @@ const mapCoupon = (c: any): Coupon => ({
     active: c.active,
     applicableTo: c.applicable_to || 'all',
     createdAt: c.created_at
+});
+
+const mapDraft = (d: any): PolicyDraft => ({
+    id: d.id,
+    originalDocId: d.original_doc_id,
+    originalDocTitle: d.original_doc_title,
+    originalContent: d.original_content,
+    updateResult: d.update_result,
+    selectedIndices: d.selected_indices || [],
+    manualInstructions: d.manual_instructions,
+    createdAt: d.created_at,
+    updatedAt: d.updated_at
 });
 
 // --- User Profile Functions ---
@@ -232,6 +244,41 @@ export const saveGeneratedDocument = async (uid: string, docData: GeneratedDocum
     };
 
     const { error } = await supabase.from('generated_documents').upsert(dataToSave);
+    if (error) throw error;
+};
+
+// --- Draft Functions ---
+
+export const savePolicyDraft = async (uid: string, draft: Omit<PolicyDraft, 'id' | 'createdAt' | 'updatedAt'> & { id?: string }): Promise<void> => {
+    const data = {
+        id: draft.id,
+        user_id: uid,
+        original_doc_id: draft.originalDocId,
+        original_doc_title: draft.originalDocTitle,
+        original_content: draft.originalContent,
+        update_result: draft.updateResult,
+        selected_indices: draft.selectedIndices,
+        manual_instructions: draft.manualInstructions,
+        updated_at: new Date().toISOString()
+    };
+
+    const { error } = await supabase.from('policy_drafts').upsert(data);
+    if (error) throw error;
+};
+
+export const getPolicyDrafts = async (uid: string): Promise<PolicyDraft[]> => {
+    const { data, error } = await supabase
+        .from('policy_drafts')
+        .select('*')
+        .eq('user_id', uid)
+        .order('updated_at', { ascending: false });
+
+    if (error) return [];
+    return data.map(mapDraft);
+};
+
+export const deletePolicyDraft = async (id: string): Promise<void> => {
+    const { error } = await supabase.from('policy_drafts').delete().eq('id', id);
     if (error) throw error;
 };
 

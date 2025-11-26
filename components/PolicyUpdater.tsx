@@ -1,8 +1,8 @@
 
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { updatePolicy } from '../services/geminiService';
-import type { GeneratedDocument, PolicyUpdateResult, CompanyProfile } from '../types';
-import { LoadingIcon, UpdateIcon, CheckIcon, HistoryIcon, CreditCardIcon, FileUploadIcon, FileIcon } from './Icons';
+import type { GeneratedDocument, PolicyUpdateResult, CompanyProfile, PolicyDraft } from '../types';
+import { LoadingIcon, UpdateIcon, CheckIcon, HistoryIcon, CreditCardIcon, FileUploadIcon, FileIcon, EditIcon } from './Icons';
 import ConfirmationModal from './ConfirmationModal';
 import { useDataContext } from '../contexts/DataContext';
 import { useUIContext } from '../contexts/UIContext';
@@ -79,7 +79,7 @@ type HistoryItem = { version: number; createdAt: string; content: string };
 
 const PolicyUpdater: React.FC<PolicyUpdaterProps> = ({ onBack }) => {
   const { user } = useAuthContext();
-  const { generatedDocuments, handleDocumentGenerated, handleDeductCredit } = useDataContext();
+  const { generatedDocuments, handleDocumentGenerated, handleDeductCredit, policyDrafts, handleSaveDraft, handleDeleteDraft } = useDataContext();
   const { setToastMessage, navigateTo } = useUIContext();
   const [step, setStep] = useState<'select' | 'chooseMethod' | 'review'>('select');
   
@@ -97,6 +97,7 @@ const PolicyUpdater: React.FC<PolicyUpdaterProps> = ({ onBack }) => {
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
   const [selectedHistoryItem, setSelectedHistoryItem] = useState<HistoryItem | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [currentDraftId, setCurrentDraftId] = useState<string | undefined>(undefined);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -120,8 +121,11 @@ const PolicyUpdater: React.FC<PolicyUpdaterProps> = ({ onBack }) => {
   // Select all changes by default when results come back
   useEffect(() => {
       if (updateResult?.changes) {
-          const allIndices = new Set(updateResult.changes.map((_, i) => i));
-          setSelectedChangeIndices(allIndices);
+          // Only select all if not already set (e.g. loaded from draft)
+          if (selectedChangeIndices.size === 0) {
+              const allIndices = new Set(updateResult.changes.map((_, i) => i));
+              setSelectedChangeIndices(allIndices);
+          }
       }
   }, [updateResult]);
 
@@ -132,39 +136,14 @@ const PolicyUpdater: React.FC<PolicyUpdaterProps> = ({ onBack }) => {
       // Start with original text
       let text = selectedDocument.content;
 
-      // Sort changes by index or however the AI returned them.
-      // Ideally, we iterate and replace. 
-      // Note: Simple string replacement has risks if the text appears multiple times.
-      // For this implementation, we assume the AI provides unique enough context or we accept first-match replacement.
-      
-      // We iterate through the changes. If selected, we replace.
+      // Iterate through changes. If selected, replace.
       updateResult.changes.forEach((change, index) => {
           if (selectedChangeIndices.has(index) && change.originalText && change.updatedText) {
-              // Using split/join to replace all occurrences might be too aggressive if the context appears twice.
-              // Using replace() only replaces the first occurrence.
-              // Given AI usually processes top-to-bottom, sequential replace usually works if we are lucky.
-              // A more robust way would be finding the index, but we don't have offsets from Gemini.
-              
-              // We will use simple replace.
               text = text.replace(change.originalText, change.updatedText);
-          } else if (selectedChangeIndices.has(index) && !change.originalText) {
-              // This is a pure addition (no original text). 
-              // We can't easily place it without context. 
-              // Usually AI returns originalText for context even if it's just an insertion point.
-              // If it's a full rewrite, updatedPolicyText is the source of truth.
-              
-              // FALLBACK: If the AI rewrote the whole doc (no specific originalText snippets),
-              // we cannot selectively apply. We must use the full updated text if *any* change is selected?
-              // Or we assume the AI structured the response correctly.
           }
       });
 
-      // Corner Case: If the AI rewrote the document entirely and didn't provide discrete "originalText" snippets for every change,
-      // we might just want to use the `updatedPolicyText` provided by AI if ALL changes are selected.
       const allSelected = selectedChangeIndices.size === updateResult.changes.length;
-      
-      // If the reconstruction strategy fails (e.g. original text not found), the text won't change.
-      // If the user selected ALL changes, we can default to the AI's full output to be safe against replacement errors.
       if (allSelected) {
           return updateResult.updatedPolicyText;
       }
@@ -242,6 +221,7 @@ const PolicyUpdater: React.FC<PolicyUpdaterProps> = ({ onBack }) => {
 
           setExternalDocument(tempDoc);
           setSelectedDocId(tempDoc.id);
+          setCurrentDraftId(undefined); // Reset draft ID as this is new
           setStep('chooseMethod');
           setStatus('idle');
 
@@ -286,6 +266,12 @@ const PolicyUpdater: React.FC<PolicyUpdaterProps> = ({ onBack }) => {
 
     const isExternal = selectedDocument.id.startsWith('external-');
     const cost = isExternal ? EXTERNAL_UPDATE_COST_CENTS : INTERNAL_UPDATE_COST_CENTS;
+
+    // If resuming a draft, assume paid or free update (drafts are saved updates)
+    if (currentDraftId) {
+        executeUpdate();
+        return;
+    }
 
     // Check PAYG Logic
     if (user?.plan === 'payg') {
@@ -341,32 +327,45 @@ const PolicyUpdater: React.FC<PolicyUpdaterProps> = ({ onBack }) => {
     }
   };
   
+  const handleSaveDraftClick = async () => {
+      if (!selectedDocument || !updateResult) return;
+      
+      setIsSaving(true);
+      try {
+          await handleSaveDraft({
+              id: currentDraftId, // Update existing if present
+              originalDocId: selectedDocument.id,
+              originalDocTitle: selectedDocument.title,
+              originalContent: selectedDocument.content,
+              updateResult: updateResult,
+              selectedIndices: Array.from(selectedChangeIndices),
+              manualInstructions: manualInstructions || undefined
+          });
+          // If it was a new draft, user might continue editing, so we rely on context refetch for ID
+          // but for simplicity we just say 'Draft saved'
+      } finally {
+          setIsSaving(false);
+      }
+  };
+
   const handleConfirmAndSave = async () => {
     if (!updateResult || !selectedDocument) return;
 
     setIsSaving(true);
     
-    // For external documents, we need to "import" them as new generated documents
-    // For internal documents, we just update the version
-    
     const isExternal = selectedDocument.id.startsWith('external-');
-    
     let newDoc: GeneratedDocument;
-
-    // Use the reconstructed text based on user selection
     const finalContent = reconstructedPolicyText;
 
     if (isExternal) {
-        // Create completely new entry in DB for this imported doc
         newDoc = {
             ...selectedDocument,
-            id: `imported-${Date.now()}`, // New ID
+            id: `imported-${Date.now()}`,
             content: finalContent,
             version: 1,
             history: [],
             createdAt: new Date().toISOString()
         };
-        // Try to extract company name if we can, otherwise keep generic
         if (user?.profile?.companyName) {
             newDoc.companyProfile = user.profile;
         }
@@ -378,14 +377,48 @@ const PolicyUpdater: React.FC<PolicyUpdaterProps> = ({ onBack }) => {
     }
 
     try {
-        // For external, handleDocumentGenerated will see no "originalId" and create new.
-        // For internal, we pass the ID to trigger update logic.
         await handleDocumentGenerated(newDoc, isExternal ? undefined : selectedDocument.id);
+        // If we successfully saved the final doc, delete the draft
+        if (currentDraftId) {
+            await handleDeleteDraft(currentDraftId);
+        }
     } catch (error: any) {
         setToastMessage(`Failed to save update: ${error.message}`);
     } finally {
         setIsSaving(false);
     }
+  };
+
+  const handleResumeDraft = (draft: PolicyDraft) => {
+      // Reconstruct the document object
+      const doc: GeneratedDocument = {
+          id: draft.originalDocId,
+          title: draft.originalDocTitle,
+          kind: 'policy',
+          type: 'master', // Fallback
+          content: draft.originalContent,
+          createdAt: draft.createdAt,
+          companyProfile: { companyName: 'Draft Document', industry: 'Unknown' },
+          questionAnswers: {},
+          version: 1,
+          history: [],
+          outputFormat: 'word'
+      };
+
+      // If external, we need to set external doc state
+      if (draft.originalDocId.startsWith('external-')) {
+          setExternalDocument(doc);
+      }
+
+      setSelectedDocId(draft.originalDocId);
+      setUpdateResult(draft.updateResult);
+      setManualInstructions(draft.manualInstructions || '');
+      setSelectedChangeIndices(new Set(draft.selectedIndices));
+      setCurrentDraftId(draft.id);
+      
+      setUpdateMethod(draft.manualInstructions ? 'manual' : 'ai');
+      setStatus('success');
+      setStep('review');
   };
 
   const handleViewHistoryItem = (item: HistoryItem) => {
@@ -404,7 +437,7 @@ const PolicyUpdater: React.FC<PolicyUpdaterProps> = ({ onBack }) => {
                 ...selectedDocument,
                 content: historyItem.content,
             };
-            setIsSaving(true); // Reusing isSaving for revert loading state if needed
+            setIsSaving(true); 
             try {
                 await handleDocumentGenerated(revertedDoc, selectedDocument.id);
                 setIsHistoryModalOpen(false);
@@ -459,7 +492,7 @@ const PolicyUpdater: React.FC<PolicyUpdaterProps> = ({ onBack }) => {
                     <select
                         id="document-select"
                         value={selectedDocId.startsWith('external-') ? '' : selectedDocId}
-                        onChange={(e) => setSelectedDocId(e.target.value)}
+                        onChange={(e) => { setSelectedDocId(e.target.value); setCurrentDraftId(undefined); }}
                         className="block w-full pl-3 pr-10 py-3 text-base border-gray-300 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm rounded-md bg-white"
                     >
                         <option value="" disabled>Choose a document...</option>
@@ -523,6 +556,36 @@ const PolicyUpdater: React.FC<PolicyUpdaterProps> = ({ onBack }) => {
               )}
           </div>
       </div>
+
+      {/* Drafts Section */}
+      {policyDrafts.length > 0 && (
+          <div className="mt-8 border-t pt-8">
+              <h3 className="text-xl font-bold text-secondary mb-4 flex items-center">
+                  <EditIcon className="w-6 h-6 mr-2 text-amber-500" />
+                  In Progress Updates (Drafts)
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {policyDrafts.map(draft => (
+                      <div 
+                          key={draft.id}
+                          onClick={() => handleResumeDraft(draft)}
+                          className="p-4 bg-amber-50 border border-amber-200 rounded-lg cursor-pointer hover:bg-amber-100 transition-colors"
+                      >
+                          <div className="flex justify-between items-start">
+                              <h4 className="font-bold text-secondary">{draft.originalDocTitle}</h4>
+                              <span className="text-xs bg-amber-200 text-amber-800 px-2 py-1 rounded-full">Draft</span>
+                          </div>
+                          <p className="text-sm text-gray-600 mt-2 line-clamp-2">
+                              {draft.manualInstructions ? `Manual Instruction: ${draft.manualInstructions}` : 'AI Compliance Review'}
+                          </p>
+                          <p className="text-xs text-gray-500 mt-2">
+                              Last updated: {new Date(draft.updatedAt || draft.createdAt).toLocaleString()}
+                          </p>
+                      </div>
+                  ))}
+              </div>
+          </div>
+      )}
     </div>
   );
 
@@ -693,9 +756,22 @@ const PolicyUpdater: React.FC<PolicyUpdaterProps> = ({ onBack }) => {
             </div>
             <div className="mt-8 flex justify-between items-center bg-white p-4 rounded-lg shadow-md">
                  <button onClick={() => { setUpdateResult(null); setStatus('idle'); setStep('chooseMethod'); }} disabled={isSaving} className="text-sm font-semibold text-gray-600 hover:text-primary disabled:opacity-50">Go Back & Edit</button>
-                 <button onClick={handleConfirmAndSave} disabled={isSaving} className="bg-green-600 text-white font-bold py-3 px-6 rounded-md hover:bg-green-700 transition-colors flex items-center disabled:bg-gray-400 disabled:cursor-not-allowed">
-                    {isSaving ? <><LoadingIcon className="animate-spin -ml-1 mr-2 h-5 w-5 text-white" /> Saving...</> : <><CheckIcon className="w-5 h-5 mr-2" /> Confirm & Save Selected</>}
-                 </button>
+                 <div className="flex space-x-4">
+                     <button 
+                        onClick={handleSaveDraftClick} 
+                        disabled={isSaving} 
+                        className="bg-amber-500 text-white font-bold py-3 px-6 rounded-md hover:bg-amber-600 transition-colors flex items-center disabled:bg-gray-400 disabled:cursor-not-allowed"
+                     >
+                        {isSaving ? <><LoadingIcon className="animate-spin -ml-1 mr-2 h-5 w-5 text-white" /> Saving...</> : 'Save as Draft'}
+                     </button>
+                     <button 
+                        onClick={handleConfirmAndSave} 
+                        disabled={isSaving} 
+                        className="bg-green-600 text-white font-bold py-3 px-6 rounded-md hover:bg-green-700 transition-colors flex items-center disabled:bg-gray-400 disabled:cursor-not-allowed"
+                     >
+                        {isSaving ? <><LoadingIcon className="animate-spin -ml-1 mr-2 h-5 w-5 text-white" /> Saving...</> : <><CheckIcon className="w-5 h-5 mr-2" /> Confirm & Save Selected</>}
+                     </button>
+                 </div>
             </div>
         </div>
       );

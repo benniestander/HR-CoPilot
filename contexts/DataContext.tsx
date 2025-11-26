@@ -1,5 +1,6 @@
+
 import React, { createContext, useContext, useState, useEffect, useMemo, useCallback } from 'react';
-import type { GeneratedDocument, CompanyProfile, User, Transaction, AdminActionLog, AdminNotification, UserFile, Coupon } from '../types';
+import type { GeneratedDocument, CompanyProfile, User, Transaction, AdminActionLog, AdminNotification, UserFile, Coupon, PolicyDraft } from '../types';
 import {
     updateUser,
     getGeneratedDocuments,
@@ -26,7 +27,10 @@ import {
     createCoupon,
     getCoupons,
     deactivateCoupon,
-    validateCoupon
+    validateCoupon,
+    savePolicyDraft,
+    getPolicyDrafts,
+    deletePolicyDraft
 } from '../services/dbService';
 import { useAuthContext } from './AuthContext';
 import { useUIContext } from './UIContext';
@@ -47,6 +51,7 @@ export interface PageInfo {
 interface DataContextType {
     generatedDocuments: GeneratedDocument[];
     userFiles: UserFile[];
+    policyDrafts: PolicyDraft[];
     
     // Paginated Admin Data
     paginatedUsers: { data: User[]; pageInfo: PageInfo };
@@ -97,6 +102,8 @@ interface DataContextType {
     handleTopUpSuccess: (amountInCents: number) => Promise<void>;
     handleDeductCredit: (amountInCents: number, description: string) => Promise<boolean>;
     handleDocumentGenerated: (doc: GeneratedDocument, originalId?: string) => Promise<void>;
+    handleSaveDraft: (draft: Omit<PolicyDraft, 'id' | 'createdAt' | 'updatedAt'> & { id?: string }) => Promise<void>;
+    handleDeleteDraft: (id: string) => Promise<void>;
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
@@ -109,6 +116,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // User data
     const [generatedDocuments, setGeneratedDocuments] = useState<GeneratedDocument[]>([]);
     const [userFiles, setUserFiles] = useState<UserFile[]>([]);
+    const [policyDrafts, setPolicyDrafts] = useState<PolicyDraft[]>([]);
     const [isLoadingUserDocs, setIsLoadingUserDocs] = useState(true);
     const [isLoadingUserFiles, setIsLoadingUserFiles] = useState(true);
 
@@ -208,10 +216,13 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
                     setUserFiles(files);
                     setIsLoadingUserFiles(false);
                 });
+
+                getPolicyDrafts(user.uid).then(setPolicyDrafts);
             }
         } else {
             setGeneratedDocuments([]);
             setUserFiles([]);
+            setPolicyDrafts([]);
             setPaginatedUsers([]);
             setPaginatedDocuments([]);
             setPaginatedLogs([]);
@@ -457,9 +468,32 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         navigateTo('dashboard');
     };
 
+    const handleSaveDraft = async (draft: Omit<PolicyDraft, 'id' | 'createdAt' | 'updatedAt'> & { id?: string }) => {
+        if (!user) return;
+        try {
+            await savePolicyDraft(user.uid, draft);
+            const updatedDrafts = await getPolicyDrafts(user.uid);
+            setPolicyDrafts(updatedDrafts);
+            setToastMessage("Draft saved successfully!");
+        } catch (error: any) {
+            setToastMessage(`Failed to save draft: ${error.message}`);
+        }
+    };
+
+    const handleDeleteDraft = async (id: string) => {
+        if (!user) return;
+        try {
+            await deletePolicyDraft(id);
+            setPolicyDrafts(prev => prev.filter(d => d.id !== id));
+        } catch (error: any) {
+            console.error("Failed to delete draft:", error);
+        }
+    };
+
     const value: DataContextType = {
         generatedDocuments,
         userFiles,
+        policyDrafts,
         paginatedUsers: { data: paginatedUsers, pageInfo: { pageIndex: userPageIndex, pageSize: PAGE_SIZE, hasNextPage: userHasNextPage, dataLength: paginatedUsers.length } },
         handleNextUsers,
         handlePrevUsers,
@@ -492,6 +526,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         handleTopUpSuccess,
         handleDeductCredit,
         handleDocumentGenerated,
+        handleSaveDraft,
+        handleDeleteDraft,
     };
 
     return <DataContext.Provider value={value}>{children}</DataContext.Provider>;

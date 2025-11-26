@@ -49,6 +49,9 @@ import { createClient } from '@supabase/supabase-js';
    DROP POLICY IF EXISTS "Admins can update coupons" ON coupons;
    DROP POLICY IF EXISTS "Admins can delete coupons" ON coupons;
    DROP POLICY IF EXISTS "Anyone can read coupons" ON coupons;
+
+   -- Draft Policies
+   DROP POLICY IF EXISTS "Users can manage own drafts" ON policy_drafts;
    
    DROP FUNCTION IF EXISTS is_admin() CASCADE;
    DROP FUNCTION IF EXISTS increment_balance(uuid, int) CASCADE;
@@ -121,11 +124,26 @@ import { createClient } from '@supabase/supabase-js';
      created_at timestamptz DEFAULT now()
    );
    
+   -- Create Policy Drafts Table
+   CREATE TABLE IF NOT EXISTS policy_drafts (
+     id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+     user_id uuid REFERENCES auth.users(id) NOT NULL,
+     original_doc_id text,
+     original_doc_title text,
+     original_content text,
+     update_result jsonb,
+     selected_indices jsonb,
+     manual_instructions text,
+     updated_at timestamptz DEFAULT now(),
+     created_at timestamptz DEFAULT now()
+   );
+   
    -- REPAIR: Ensure columns exist if table was created by older script
    ALTER TABLE coupons ADD COLUMN IF NOT EXISTS active boolean DEFAULT true;
    ALTER TABLE coupons ADD COLUMN IF NOT EXISTS applicable_to text;
 
    ALTER TABLE coupons ENABLE ROW LEVEL SECURITY;
+   ALTER TABLE policy_drafts ENABLE ROW LEVEL SECURITY;
 
    -- 6. PROFILES Policies
    CREATE POLICY "Users can read own profile" ON profiles FOR SELECT USING (auth.uid() = id);
@@ -161,13 +179,14 @@ import { createClient } from '@supabase/supabase-js';
    CREATE POLICY "Anyone can create notifications" ON admin_notifications FOR INSERT WITH CHECK (auth.role() = 'authenticated');
 
    -- 11. COUPON Policies
-   -- Admins can do everything
    CREATE POLICY "Admins can read coupons" ON coupons FOR SELECT USING (is_admin());
    CREATE POLICY "Admins can insert coupons" ON coupons FOR INSERT WITH CHECK (is_admin());
    CREATE POLICY "Admins can update coupons" ON coupons FOR UPDATE USING (is_admin());
    CREATE POLICY "Admins can delete coupons" ON coupons FOR DELETE USING (is_admin());
-   -- Users can only Read (to validate)
    CREATE POLICY "Anyone can read coupons" ON coupons FOR SELECT USING (true);
+   
+   -- 12. DRAFT Policies
+   CREATE POLICY "Users can manage own drafts" ON policy_drafts FOR ALL USING (auth.uid() = user_id);
    
    -- Force Schema Cache Reload
    NOTIFY pgrst, 'reload config';
@@ -178,7 +197,8 @@ import { createClient } from '@supabase/supabase-js';
 // CONFIGURATION
 // ------------------------------------------------------------------
 
-const SUPABASE_URL = "https://cljhzqmssrgynlpgpogi.supabase.co"; 
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsamh6cW1zc3JneW5scGdwb2dpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM2Mzg4NTksImV4cCI6MjA3OTIxNDg1OX0.Qj91RwqFJhvnFpT9g4b69pVoVMPb1z4pLX5a9nJmzTk";
+// Using Vite env var for secure configuration (fallback to placeholder if needed for local dev without env)
+const SUPABASE_URL = (import.meta as any).env?.VITE_SUPABASE_URL || "https://cljhzqmssrgynlpgpogi.supabase.co"; 
+const SUPABASE_ANON_KEY = (import.meta as any).env?.VITE_SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsamh6cW1zc3JneW5scGdwb2dpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM2Mzg4NTksImV4cCI6MjA3OTIxNDg1OX0.Qj91RwqFJhvnFpT9g4b69pVoVMPb1z4pLX5a9nJmzTk";
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);

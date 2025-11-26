@@ -244,7 +244,18 @@ export interface PolicyUpdateResult {
   changes: PolicyUpdateChange[];
 }
 
-// Types for the Compliance Checklist feature
+export interface PolicyDraft {
+  id: string;
+  originalDocId: string;
+  originalDocTitle: string;
+  originalContent: string;
+  updateResult: PolicyUpdateResult;
+  selectedIndices: number[];
+  manualInstructions?: string;
+  updatedAt: string;
+  createdAt: string;
+}
+
 export interface ComplianceChecklistItem {
   name: string;
   reason: string;
