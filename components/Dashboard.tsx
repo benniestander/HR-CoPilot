@@ -9,7 +9,9 @@ import { MasterPolicyIcon, FormsIcon, ComplianceIcon, UpdateIcon, FileIcon } fro
 import { useUIContext } from '../contexts/UIContext';
 import { useAuthContext } from '../contexts/AuthContext';
 import { useDataContext } from '../contexts/DataContext';
-import type { Policy, Form } from '../types';
+import { useModalContext } from '../contexts/ModalContext';
+import { POLICIES, FORMS } from '../constants';
+import type { Policy, Form, GeneratedDocument, PolicyType, FormType } from '../types';
 
 interface DashboardProps {
   onStartUpdate: () => void;
@@ -24,21 +26,109 @@ const Dashboard: React.FC<DashboardProps> = ({
   onStartChecklist,
   showOnboardingWalkthrough,
   onCloseWalkthrough,
+  onGoToProfileSetup
 }) => {
   const [activeTab, setActiveTab] = useState<'policies' | 'forms' | 'documents'>('policies');
-  const { setSelectedItem, navigateTo, setDocumentToView } = useUIContext();
+  const { setSelectedItem, navigateTo, setDocumentToView, setToastMessage } = useUIContext();
   const { user } = useAuthContext();
   const { generatedDocuments } = useDataContext();
+  const { showConfirmationModal, hideConfirmationModal } = useModalContext();
 
   const handleSelect = (item: Policy | Form) => {
-    setSelectedItem(item);
-    setDocumentToView(null);
-    navigateTo('generator');
+    if (!user) return;
+
+    // 1. Pro User Profile Check
+    if (user.plan === 'pro') {
+        // Ensure basic profile data exists before generating
+        if (!user.profile.companyName || (item.kind === 'policy' && !user.profile.industry)) {
+             showConfirmationModal({
+                title: "Complete Your Profile",
+                message: "To generate documents with your Pro plan, please complete your company profile details first.",
+                confirmText: "Go to Profile Setup",
+                onConfirm: () => {
+                    hideConfirmationModal();
+                    onGoToProfileSetup();
+                },
+                cancelText: "Cancel"
+            });
+            return;
+        }
+        
+        setSelectedItem(item);
+        setDocumentToView(null);
+        navigateTo('generator');
+        return;
+    }
+
+    // 2. PAYG Checks
+    if (user.plan === 'payg') {
+        const price = item.price;
+        const balance = user.creditBalance || 0;
+
+        if (balance < price) {
+             showConfirmationModal({
+                title: "Insufficient Credit",
+                message: (
+                    <div className="text-center">
+                        <p className="text-red-600 font-semibold mb-2">You do not have enough credit.</p>
+                        <p className="mb-4">
+                            This document costs <strong className="text-secondary">R{(price / 100).toFixed(2)}</strong>, but you only have <strong>R{(balance / 100).toFixed(2)}</strong> available.
+                        </p>
+                        <p className="text-sm text-gray-600">Please top up to continue.</p>
+                    </div>
+                ),
+                confirmText: "Top Up Now",
+                onConfirm: () => {
+                    hideConfirmationModal();
+                    navigateTo('topup');
+                },
+                cancelText: "Cancel"
+            });
+            return;
+        }
+
+        // Confirm Cost
+        showConfirmationModal({
+            title: "Confirm Generation",
+            message: (
+                <div className="text-center">
+                    <p className="mb-4">
+                        Generating a <strong>{item.title}</strong> costs <strong className="text-secondary">R{(price / 100).toFixed(2)}</strong>.
+                    </p>
+                    <p className="text-sm text-gray-600">
+                        This amount will be deducted from your credit balance when you proceed to generate the document.
+                    </p>
+                </div>
+            ),
+            confirmText: "Continue",
+            onConfirm: () => {
+                hideConfirmationModal();
+                setSelectedItem(item);
+                setDocumentToView(null);
+                navigateTo('generator');
+            },
+            cancelText: "Cancel"
+        });
+    }
   };
 
-  const handleViewDocument = (doc: any) => {
-      setDocumentToView(doc);
-      navigateTo('generator'); // Generator handles resuming from initialData
+  const handleViewDocument = (doc: GeneratedDocument) => {
+      let item: Policy | Form | undefined;
+      
+      if (doc.kind === 'policy') {
+          item = POLICIES[doc.type as PolicyType];
+      } else {
+          item = FORMS[doc.type as FormType];
+      }
+
+      if (item) {
+          setSelectedItem(item);
+          setDocumentToView(doc);
+          navigateTo('generator'); 
+      } else {
+          console.error(`Definition not found for document type: ${doc.type}`);
+          setToastMessage("Error: Could not load document definition.");
+      }
   };
 
   return (
