@@ -1,6 +1,6 @@
+
 import React, { useState, useMemo } from 'react';
 import { generateComplianceChecklist } from '../services/geminiService';
-// FIX: Import CompanyProfile type.
 import type { ComplianceChecklistResult, Policy, Form, GeneratedDocument, CompanyProfile } from '../types';
 import { LoadingIcon, DownloadIcon, ComplianceIcon, MasterPolicyIcon, FormsIcon, CheckIcon } from './Icons';
 import { POLICIES, FORMS } from '../constants';
@@ -8,11 +8,19 @@ import { useAuthContext } from '../contexts/AuthContext';
 import { useDataContext } from '../contexts/DataContext';
 import { useUIContext } from '../contexts/UIContext';
 import { PolicyType, FormType } from '../types';
+import SemanticLoader from './SemanticLoader';
 
 interface ComplianceChecklistProps {
   userProfile: CompanyProfile;
   onBack: () => void;
 }
+
+const checklistMessages = [
+    "Analyzing your business profile...",
+    "Identifying mandatory compliance requirements...",
+    "Selecting recommended best practices...",
+    "Compiling your personalized action plan..."
+];
 
 const ComplianceChecklist: React.FC<ComplianceChecklistProps> = ({ userProfile, onBack }) => {
   const { generatedDocuments } = useDataContext();
@@ -172,11 +180,7 @@ const ComplianceChecklist: React.FC<ComplianceChecklistProps> = ({ userProfile, 
       <div className="bg-white p-8 rounded-lg shadow-md border border-gray-200">
         <div className="text-center">
           {status === 'loading' ? (
-            <>
-              <LoadingIcon className="w-12 h-12 animate-spin mx-auto mb-4 text-primary" />
-              <h2 className="text-2xl font-bold text-secondary">Generating Your Personalized Checklist...</h2>
-              <p className="text-gray-600 mt-2">Analyzing your company profile to recommend the best documents for you.</p>
-            </>
+            <SemanticLoader messages={checklistMessages} />
           ) : (
             <>
               <ComplianceIcon className="w-12 h-12 text-primary mx-auto mb-4" />
@@ -186,15 +190,16 @@ const ComplianceChecklist: React.FC<ComplianceChecklistProps> = ({ userProfile, 
           )}
         </div>
 
-        <div className="mt-6 flex justify-center">
-            <button
-            onClick={handleGenerate}
-            disabled={status === 'loading'}
-            className="w-full max-w-xs bg-primary text-white font-bold py-3 px-4 rounded-md hover:bg-opacity-90 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center"
-            >
-            {status === 'loading' ? (<><LoadingIcon className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" />Generating...</>) : ('Generate My Checklist')}
-            </button>
-        </div>
+        {status !== 'loading' && (
+            <div className="mt-6 flex justify-center">
+                <button
+                onClick={handleGenerate}
+                className="w-full max-w-xs bg-primary text-white font-bold py-3 px-4 rounded-md hover:bg-opacity-90 flex items-center justify-center"
+                >
+                Generate My Checklist
+                </button>
+            </div>
+        )}
 
         {status === 'error' && <p className="mt-4 text-center text-sm text-red-600 bg-red-50 p-3 rounded-md">{error}</p>}
       </div>

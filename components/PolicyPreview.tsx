@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { LoadingIcon, CopyIcon, DownloadIcon, CheckIcon, WordIcon, TxtIcon } from './Icons';
+import SemanticLoader from './SemanticLoader';
 import type { AppStatus, Source } from '../types';
 import { marked } from 'marked';
 import DOMPurify from 'dompurify'; // Ensure this is available via importmap
@@ -13,6 +14,7 @@ interface PolicyPreviewProps {
   outputFormat?: 'word' | 'excel';
   sources: Source[];
   errorMessage?: string | null;
+  loadingMessages?: string[];
 }
 
 const WORD_DOCUMENT_STYLES = `
@@ -48,7 +50,7 @@ const SourcesUsed: React.FC<{ sources: Source[] }> = ({ sources }) => {
   );
 };
 
-const PolicyPreview: React.FC<PolicyPreviewProps> = ({ policyText, status, onRetry, isForm, outputFormat, sources, errorMessage }) => {
+const PolicyPreview: React.FC<PolicyPreviewProps> = ({ policyText, status, onRetry, isForm, outputFormat, sources, errorMessage, loadingMessages }) => {
   const [copied, setCopied] = useState(false);
   const [isDownloadMenuOpen, setDownloadMenuOpen] = useState(false);
 
@@ -127,6 +129,9 @@ const PolicyPreview: React.FC<PolicyPreviewProps> = ({ policyText, status, onRet
       case 'idle':
         return <div className="text-center text-gray-500"><h3 className="text-lg font-semibold">Your finalized document will appear here.</h3><p>Complete the previous steps to generate your document.</p></div>;
       case 'loading':
+        if (loadingMessages && loadingMessages.length > 0) {
+            return <SemanticLoader messages={loadingMessages} />;
+        }
         return <div className="text-center text-gray-500"><LoadingIcon className="w-12 h-12 animate-spin mx-auto mb-4 text-primary" /><h3 className="text-lg font-semibold">Generating your document...</h3><p>This may take a moment.</p></div>;
       case 'error':
         return <div className="text-center text-red-600 bg-red-50 p-6 rounded-md"><h3 className="text-lg font-semibold mb-2">An Error Occurred</h3><p className="mb-4">{errorMessage || "Couldn't generate document. Please try again."}</p><button onClick={onRetry} className="bg-primary text-white font-semibold py-2 px-4 rounded-md">Retry</button></div>;
@@ -184,7 +189,7 @@ const PolicyPreview: React.FC<PolicyPreviewProps> = ({ policyText, status, onRet
   };
 
   return (
-    <div className="bg-white p-8 rounded-lg shadow-md border border-gray-200 relative flex flex-col h-full">
+    <div className={`bg-white p-8 rounded-lg shadow-md border border-gray-200 relative flex flex-col ${status === 'loading' ? 'h-auto' : 'h-full'}`}>
       {renderActionButtons()}
       <div className="h-full flex-grow flex items-center justify-center">
         <div className="w-full h-full">

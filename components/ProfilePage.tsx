@@ -6,6 +6,7 @@ import { INDUSTRIES, POLICIES, FORMS } from '../constants';
 import { useAuthContext } from '../contexts/AuthContext';
 import { useDataContext } from '../contexts/DataContext';
 import { useUIContext } from '../contexts/UIContext';
+import EmptyState from './EmptyState';
 
 interface ProfilePageProps {
   onBack: () => void;
@@ -205,7 +206,7 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
     return date.toLocaleString('en-ZA', { year: 'numeric', month: 'long', day: 'numeric' });
   };
   
-  const DocumentHistorySection: React.FC<{ title: string; documents: GeneratedDocument[]; icon: React.FC<{className?: string;}>, isLoading: boolean }> = ({ title, documents, icon: Icon, isLoading }) => (
+  const DocumentHistorySection: React.FC<{ title: string; documents: GeneratedDocument[]; icon: React.FC<{className?: string;}>, isLoading: boolean, type: 'policy' | 'form' }> = ({ title, documents, icon: Icon, isLoading, type }) => (
     <div className="p-6 border border-gray-200 rounded-lg">
       <div className="flex items-center mb-4">
         <Icon className="w-6 h-6 text-primary mr-3" />
@@ -235,7 +236,13 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
           ))}
         </ul>
       ) : (
-        <p className="text-sm text-gray-500 text-center py-4">No {title.toLowerCase()} have been generated yet.</p>
+        <EmptyState 
+            title={`No ${title.toLowerCase()} yet`}
+            description={`Generate your first ${type} to see it listed here.`}
+            icon={Icon}
+            actionLabel={`Create ${type === 'policy' ? 'Policy' : 'Form'}`}
+            onAction={() => navigateTo('dashboard')} 
+        />
       )}
     </div>
   );
@@ -486,13 +493,17 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
                             ))}
                         </ul>
                     ) : (
-                        <p className="text-sm text-gray-500 text-center py-4">No files uploaded yet.</p>
+                        <EmptyState
+                            title="No files uploaded"
+                            description="Upload your existing HR documents here for safe keeping."
+                            icon={FileUploadIcon}
+                        />
                     )}
                 </div>
             </div>
 
-            <DocumentHistorySection title="Policies Generated" documents={generatedPolicies} icon={MasterPolicyIcon} isLoading={isLoadingUserDocs} />
-            <DocumentHistorySection title="Forms Generated" documents={generatedForms} icon={FormsIcon} isLoading={isLoadingUserDocs} />
+            <DocumentHistorySection title="Policies Generated" documents={generatedPolicies} icon={MasterPolicyIcon} isLoading={isLoadingUserDocs} type="policy" />
+            <DocumentHistorySection title="Forms Generated" documents={generatedForms} icon={FormsIcon} isLoading={isLoadingUserDocs} type="form" />
         </div>
 
         <div className="mt-8 pt-8 border-t border-gray-200">

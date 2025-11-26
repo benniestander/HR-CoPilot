@@ -8,6 +8,7 @@ import { MasterPolicyIcon, FormsIcon, HelpIcon, UpdateIcon, ComplianceIcon, Word
 import HowToUseModal from './HowToUseModal';
 import OnboardingWalkthrough from './OnboardingWalkthrough';
 import ConfirmationModal from './ConfirmationModal';
+import EmptyState from './EmptyState';
 import { useAuthContext } from '../contexts/AuthContext';
 import { useDataContext } from '../contexts/DataContext';
 import { useUIContext } from '../contexts/UIContext';
@@ -159,7 +160,17 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartUpdate, onStartChecklist, 
     }
 
     if (generatedDocuments.length === 0) {
-      return null;
+      return (
+        <div className="mb-12">
+            <EmptyState 
+                title="No documents yet" 
+                description="You haven't generated any HR policies or forms yet. Get started by selecting a template below."
+                icon={MasterPolicyIcon}
+                actionLabel="Browse Policies"
+                onAction={() => setActiveTab('policies')}
+            />
+        </div>
+      );
     }
 
     return (

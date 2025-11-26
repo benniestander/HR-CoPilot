@@ -5,13 +5,13 @@ import type { PolicyType, FormType, FormAnswers, PolicyUpdateResult, ComplianceC
 
 // Helper function to lazily initialize the AI client.
 const getAi = () => {
-  // Adhering to strict guidelines to use process.env.API_KEY.
-  // Vite or other bundlers should replace this at build time or polyfill it.
-  const apiKey = process.env.API_KEY;
+  // Safe access to process.env to prevent "ReferenceError: process is not defined" in Vite
+  // while adhering to strict guidelines to prioritize process.env.API_KEY.
+  // We also fallback to import.meta.env.VITE_GEMINI_API_KEY for Vite environments that use that convention.
+  const apiKey = (typeof process !== 'undefined' && process.env ? process.env.API_KEY : undefined) || (import.meta as any).env?.VITE_GEMINI_API_KEY;
 
   if (!apiKey) {
     // Fallback for demo purposes if env vars are missing in specific sandboxes
-    // In production, this should throw.
     console.warn("API_KEY not found in environment variables.");
   }
   

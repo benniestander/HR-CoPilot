@@ -2,8 +2,9 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { updatePolicy } from '../services/geminiService';
 import type { GeneratedDocument, PolicyUpdateResult, CompanyProfile, PolicyDraft } from '../types';
-import { LoadingIcon, UpdateIcon, CheckIcon, HistoryIcon, CreditCardIcon, FileUploadIcon, FileIcon, EditIcon } from './Icons';
+import { LoadingIcon, UpdateIcon, CheckIcon, HistoryIcon, CreditCardIcon, FileUploadIcon, FileIcon, EditIcon, InfoIcon } from './Icons';
 import ConfirmationModal from './ConfirmationModal';
+import SemanticLoader from './SemanticLoader';
 import { useDataContext } from '../contexts/DataContext';
 import { useUIContext } from '../contexts/UIContext';
 import { useAuthContext } from '../contexts/AuthContext';
@@ -41,7 +42,7 @@ const DiffViewer: React.FC<{ originalText: string; updatedText: string }> = ({ o
     const diff = createDiff(originalText, updatedText);
 
     return (
-        <div className="font-mono text-sm border border-gray-200 rounded-md bg-white p-2 whitespace-pre-wrap break-words overflow-x-auto">
+        <div className="font-mono text-sm border border-gray-200 rounded-md bg-white p-4 whitespace-pre-wrap break-words overflow-x-auto h-full">
             {diff.map((item, index) => {
                 let lineClass = 'flex w-full px-2 py-0.5';
                 let symbol = '';
@@ -70,12 +71,19 @@ const DiffViewer: React.FC<{ originalText: string; updatedText: string }> = ({ o
     );
 };
 
-
 interface PolicyUpdaterProps {
   onBack: () => void;
 }
 
 type HistoryItem = { version: number; createdAt: string; content: string };
+
+const analysisMessages = [
+    "Reading document content...",
+    "Comparing against latest South African Labour Law...",
+    "Identifying non-compliant sections...",
+    "Generating improvement suggestions...",
+    "Drafting explanation of changes..."
+];
 
 const PolicyUpdater: React.FC<PolicyUpdaterProps> = ({ onBack }) => {
   const { user } = useAuthContext();
@@ -83,7 +91,6 @@ const PolicyUpdater: React.FC<PolicyUpdaterProps> = ({ onBack }) => {
   const { setToastMessage, navigateTo } = useUIContext();
   const [step, setStep] = useState<'select' | 'chooseMethod' | 'review'>('select');
   
-  // selection state
   const [selectedDocId, setSelectedDocId] = useState('');
   const [externalDocument, setExternalDocument] = useState<GeneratedDocument | null>(null);
   
@@ -98,10 +105,10 @@ const PolicyUpdater: React.FC<PolicyUpdaterProps> = ({ onBack }) => {
   const [selectedHistoryItem, setSelectedHistoryItem] = useState<HistoryItem | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [currentDraftId, setCurrentDraftId] = useState<string | undefined>(undefined);
+  const [showFullPreview, setShowFullPreview] = useState(false);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // State for Confirmations (Revert & Payment)
   const [confirmation, setConfirmation] = useState<{
       title: string;
       message: React.ReactNode;
@@ -110,7 +117,6 @@ const PolicyUpdater: React.FC<PolicyUpdaterProps> = ({ onBack }) => {
       onConfirm: () => void;
     } | null>(null);
 
-  // Determine which document object to use (Internal or External)
   const selectedDocument = useMemo(() => {
     if (selectedDocId.startsWith('external-')) {
         return externalDocument;
@@ -118,10 +124,8 @@ const PolicyUpdater: React.FC<PolicyUpdaterProps> = ({ onBack }) => {
     return generatedDocuments.find(d => d.id === selectedDocId);
   }, [selectedDocId, generatedDocuments, externalDocument]);
 
-  // Select all changes by default when results come back
   useEffect(() => {
       if (updateResult?.changes) {
-          // Only select all if not already set (e.g. loaded from draft)
           if (selectedChangeIndices.size === 0) {
               const allIndices = new Set(updateResult.changes.map((_, i) => i));
               setSelectedChangeIndices(allIndices);
@@ -129,49 +133,35 @@ const PolicyUpdater: React.FC<PolicyUpdaterProps> = ({ onBack }) => {
       }
   }, [updateResult]);
 
-  // Reconstruct the policy text based on SELECTED changes only
   const reconstructedPolicyText = useMemo(() => {
       if (!selectedDocument || !updateResult) return '';
-      
-      // Start with original text
       let text = selectedDocument.content;
-
-      // Iterate through changes. If selected, replace.
       updateResult.changes.forEach((change, index) => {
           if (selectedChangeIndices.has(index) && change.originalText && change.updatedText) {
               text = text.replace(change.originalText, change.updatedText);
           }
       });
-
       const allSelected = selectedChangeIndices.size === updateResult.changes.length;
       if (allSelected) {
           return updateResult.updatedPolicyText;
       }
-
       return text;
   }, [selectedDocument, updateResult, selectedChangeIndices]);
 
-
-  // Helper to extract text from DOCX
   const extractTextFromDocx = async (arrayBuffer: ArrayBuffer): Promise<string> => {
       const result = await mammoth.extractRawText({ arrayBuffer });
       return result.value;
   };
 
-  // Helper to extract text from PDF
   const extractTextFromPdf = async (arrayBuffer: ArrayBuffer): Promise<string> => {
       const pdfJs: any = pdfjsLib;
-      // Handle potential default export from CDN
       const getDocument = pdfJs.getDocument || pdfJs.default?.getDocument;
-      
       if (!getDocument) {
           throw new Error("PDF.js library not loaded correctly.");
       }
-
       const loadingTask = getDocument({ data: arrayBuffer });
       const pdf = await loadingTask.promise;
       let fullText = '';
-      
       for (let i = 1; i <= pdf.numPages; i++) {
           const page = await pdf.getPage(i);
           const textContent = await page.getTextContent();
@@ -204,12 +194,11 @@ const PolicyUpdater: React.FC<PolicyUpdaterProps> = ({ onBack }) => {
               throw new Error('Could not extract text from the file. It might be empty or an image-based PDF.');
           }
 
-          // Create a temporary "GeneratedDocument" structure
           const tempDoc: GeneratedDocument = {
               id: `external-${Date.now()}`,
-              title: file.name.replace(/\.[^/.]+$/, ""), // Remove extension
+              title: file.name.replace(/\.[^/.]+$/, ""),
               kind: 'policy',
-              type: 'master', // Defaulting type since we don't know
+              type: 'master',
               content: extractedText,
               createdAt: new Date().toISOString(),
               companyProfile: { companyName: 'External Document', industry: 'Unknown' },
@@ -221,7 +210,7 @@ const PolicyUpdater: React.FC<PolicyUpdaterProps> = ({ onBack }) => {
 
           setExternalDocument(tempDoc);
           setSelectedDocId(tempDoc.id);
-          setCurrentDraftId(undefined); // Reset draft ID as this is new
+          setCurrentDraftId(undefined);
           setStep('chooseMethod');
           setStatus('idle');
 
@@ -231,17 +220,13 @@ const PolicyUpdater: React.FC<PolicyUpdaterProps> = ({ onBack }) => {
           setStatus('error');
           setToastMessage(`Error reading file: ${err.message}`);
       } finally {
-          // Reset input so same file can be selected again if needed
           if (fileInputRef.current) fileInputRef.current.value = '';
       }
   };
 
   const executeUpdate = async () => {
     if (!selectedDocument || !updateMethod) return;
-    
-    // Close any open modals
     setConfirmation(null);
-
     setStatus('loading');
     setError(null);
     setUpdateResult(null);
@@ -267,16 +252,13 @@ const PolicyUpdater: React.FC<PolicyUpdaterProps> = ({ onBack }) => {
     const isExternal = selectedDocument.id.startsWith('external-');
     const cost = isExternal ? EXTERNAL_UPDATE_COST_CENTS : INTERNAL_UPDATE_COST_CENTS;
 
-    // If resuming a draft, assume paid or free update (drafts are saved updates)
     if (currentDraftId) {
         executeUpdate();
         return;
     }
 
-    // Check PAYG Logic
     if (user?.plan === 'payg') {
         const balance = Number(user.creditBalance || 0);
-        
         if (balance < cost) {
             setConfirmation({
                 title: "Insufficient Credit",
@@ -312,28 +294,25 @@ const PolicyUpdater: React.FC<PolicyUpdaterProps> = ({ onBack }) => {
             ),
             confirmText: "Confirm & Update",
             onConfirm: async () => {
-                // Deduct credit first
                 const success = await handleDeductCredit(cost, `AI Policy Update: ${selectedDocument.title}`);
                 if (success) {
                     executeUpdate();
                 } else {
-                    setConfirmation(null); // Close modal if deduction failed (toast handled in context)
+                    setConfirmation(null);
                 }
             }
         });
     } else {
-        // Pro users go straight through
         executeUpdate();
     }
   };
   
   const handleSaveDraftClick = async () => {
       if (!selectedDocument || !updateResult) return;
-      
       setIsSaving(true);
       try {
           await handleSaveDraft({
-              id: currentDraftId, // Update existing if present
+              id: currentDraftId,
               originalDocId: selectedDocument.id,
               originalDocTitle: selectedDocument.title,
               originalContent: selectedDocument.content,
@@ -341,8 +320,6 @@ const PolicyUpdater: React.FC<PolicyUpdaterProps> = ({ onBack }) => {
               selectedIndices: Array.from(selectedChangeIndices),
               manualInstructions: manualInstructions || undefined
           });
-          // If it was a new draft, user might continue editing, so we rely on context refetch for ID
-          // but for simplicity we just say 'Draft saved'
       } finally {
           setIsSaving(false);
       }
@@ -350,9 +327,7 @@ const PolicyUpdater: React.FC<PolicyUpdaterProps> = ({ onBack }) => {
 
   const handleConfirmAndSave = async () => {
     if (!updateResult || !selectedDocument) return;
-
     setIsSaving(true);
-    
     const isExternal = selectedDocument.id.startsWith('external-');
     let newDoc: GeneratedDocument;
     const finalContent = reconstructedPolicyText;
@@ -378,7 +353,6 @@ const PolicyUpdater: React.FC<PolicyUpdaterProps> = ({ onBack }) => {
 
     try {
         await handleDocumentGenerated(newDoc, isExternal ? undefined : selectedDocument.id);
-        // If we successfully saved the final doc, delete the draft
         if (currentDraftId) {
             await handleDeleteDraft(currentDraftId);
         }
@@ -390,12 +364,11 @@ const PolicyUpdater: React.FC<PolicyUpdaterProps> = ({ onBack }) => {
   };
 
   const handleResumeDraft = (draft: PolicyDraft) => {
-      // Reconstruct the document object
       const doc: GeneratedDocument = {
           id: draft.originalDocId,
           title: draft.originalDocTitle,
           kind: 'policy',
-          type: 'master', // Fallback
+          type: 'master',
           content: draft.originalContent,
           createdAt: draft.createdAt,
           companyProfile: { companyName: 'Draft Document', industry: 'Unknown' },
@@ -405,7 +378,6 @@ const PolicyUpdater: React.FC<PolicyUpdaterProps> = ({ onBack }) => {
           outputFormat: 'word'
       };
 
-      // If external, we need to set external doc state
       if (draft.originalDocId.startsWith('external-')) {
           setExternalDocument(doc);
       }
@@ -428,7 +400,6 @@ const PolicyUpdater: React.FC<PolicyUpdaterProps> = ({ onBack }) => {
 
   const handleRevertToVersion = (historyItem: HistoryItem) => {
     if (!selectedDocument) return;
-    
     setConfirmation({
         title: "Revert to Previous Version",
         message: `Are you sure you want to revert to Version ${historyItem.version}? Your current version (${selectedDocument.version}) will be archived, and this content will become the new latest version.`,
@@ -464,14 +435,14 @@ const PolicyUpdater: React.FC<PolicyUpdaterProps> = ({ onBack }) => {
   const toggleAllChanges = () => {
       if (!updateResult) return;
       if (selectedChangeIndices.size === updateResult.changes.length) {
-          setSelectedChangeIndices(new Set()); // Deselect all
+          setSelectedChangeIndices(new Set());
       } else {
           const allIndices = new Set(updateResult.changes.map((_, i) => i));
           setSelectedChangeIndices(allIndices);
       }
   };
 
-
+  // ... (Render functions) ...
   const renderSelectStep = () => (
     <div className="bg-white p-8 rounded-lg shadow-md border border-gray-200">
       <div className="text-center">
@@ -480,7 +451,6 @@ const PolicyUpdater: React.FC<PolicyUpdaterProps> = ({ onBack }) => {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
-          {/* Option 1: Existing App Documents */}
           <div className="border border-gray-200 rounded-lg p-6 bg-gray-50">
               <h3 className="text-lg font-bold text-secondary mb-4 flex items-center">
                   <HistoryIcon className="w-5 h-5 mr-2 text-primary" />
@@ -515,7 +485,6 @@ const PolicyUpdater: React.FC<PolicyUpdaterProps> = ({ onBack }) => {
               )}
           </div>
 
-          {/* Option 2: Upload External */}
           <div className="border border-gray-200 rounded-lg p-6 bg-blue-50">
               <h3 className="text-lg font-bold text-secondary mb-4 flex items-center">
                   <FileUploadIcon className="w-5 h-5 mr-2 text-primary" />
@@ -525,7 +494,6 @@ const PolicyUpdater: React.FC<PolicyUpdaterProps> = ({ onBack }) => {
                   Upload an existing policy (PDF or Word) created by a lawyer or consultant. We will scan it for compliance.
               </p>
               
-              {/* Hidden File Input */}
               <input 
                   type="file" 
                   ref={fileInputRef}
@@ -557,7 +525,6 @@ const PolicyUpdater: React.FC<PolicyUpdaterProps> = ({ onBack }) => {
           </div>
       </div>
 
-      {/* Drafts Section */}
       {policyDrafts.length > 0 && (
           <div className="mt-8 border-t pt-8">
               <h3 className="text-xl font-bold text-secondary mb-4 flex items-center">
@@ -595,7 +562,6 @@ const PolicyUpdater: React.FC<PolicyUpdaterProps> = ({ onBack }) => {
       <p className="text-gray-600 mb-6">How would you like to update this document?</p>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* AI Review Card */}
         <div 
           className={`p-6 border-2 rounded-lg cursor-pointer transition-all ${updateMethod === 'ai' ? 'border-primary bg-primary/5' : 'border-gray-300 hover:border-primary/50'}`}
           onClick={() => setUpdateMethod('ai')}
@@ -604,7 +570,6 @@ const PolicyUpdater: React.FC<PolicyUpdaterProps> = ({ onBack }) => {
           <p className="text-sm text-gray-600 mt-2">Let our AI analyze your entire document for compliance with the latest South African labour laws and suggest improvements.</p>
         </div>
 
-        {/* Manual Input Card */}
         <div 
           className={`p-6 border-2 rounded-lg transition-all ${updateMethod === 'manual' ? 'border-primary bg-primary/5' : 'border-gray-300 hover:border-primary/50'}`}
         >
@@ -624,7 +589,6 @@ const PolicyUpdater: React.FC<PolicyUpdaterProps> = ({ onBack }) => {
         </div>
       </div>
       
-      {/* PAYG Pricing Notice */}
       {user?.plan === 'payg' && (
           <div className="mt-6 p-3 bg-blue-50 border border-blue-200 rounded-md flex items-center justify-center text-sm text-blue-800">
               <CreditCardIcon className="w-5 h-5 mr-2" />
@@ -634,7 +598,6 @@ const PolicyUpdater: React.FC<PolicyUpdaterProps> = ({ onBack }) => {
           </div>
       )}
         
-      {/* Version History Section (Only for internal documents) */}
       {selectedDocument?.history && selectedDocument.history.length > 0 && !selectedDocument.id.startsWith('external-') && (
         <div className="mt-8 pt-6 border-t border-gray-200">
           <h3 className="text-xl font-bold text-secondary mb-4 flex items-center">
@@ -678,7 +641,11 @@ const PolicyUpdater: React.FC<PolicyUpdaterProps> = ({ onBack }) => {
   
   const renderReviewStep = () => {
     if (status === 'loading') {
-      return <div className="text-center p-12 bg-white rounded-lg shadow-md"><LoadingIcon className="w-12 h-12 animate-spin mx-auto mb-4 text-primary" /><h3 className="text-lg font-semibold">Analyzing your document...</h3></div>;
+      return (
+        <div className="bg-white p-8 rounded-lg shadow-md border border-gray-200">
+            <SemanticLoader messages={analysisMessages} />
+        </div>
+      );
     }
     if (status === 'error') {
       return <div className="text-center text-red-600 bg-red-50 p-6 rounded-md"><h3 className="text-lg font-semibold mb-2">An Error Occurred</h3><p className="mb-4">{error}</p><button onClick={handleUpdateClick} className="bg-primary text-white font-semibold py-2 px-4 rounded-md">Retry</button></div>;
@@ -687,80 +654,102 @@ const PolicyUpdater: React.FC<PolicyUpdaterProps> = ({ onBack }) => {
       const allSelected = selectedChangeIndices.size === updateResult.changes.length;
       return (
         <div>
-            <h2 className="text-3xl font-bold text-secondary mb-6 text-center">Analysis Complete</h2>
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                {/* Left Column: Visual Comparison */}
-                <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200 flex flex-col">
-                    <h3 className="text-xl font-bold text-secondary mb-4">Visual Preview</h3>
-                    <p className="text-sm text-gray-600 mb-4">This preview updates as you select changes on the right.</p>
-                    <div className="flex-grow" style={{ minHeight: '400px', maxHeight: '60vh', overflowY: 'auto' }}>
-                        <DiffViewer originalText={selectedDocument?.content || ''} updatedText={reconstructedPolicyText} />
-                    </div>
-                </div>
+            <div className="text-center mb-8">
+                <h2 className="text-3xl font-bold text-secondary">Compliance Review Complete</h2>
+                <p className="text-gray-600 mt-2 max-w-2xl mx-auto">
+                    Our AI has analyzed your policy against current South African labour laws. Review the recommended changes below.
+                </p>
+            </div>
 
-                {/* Right Column: Changes Selection */}
-                <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200 flex flex-col">
-                    <div className="flex justify-between items-center mb-4">
-                        <h3 className="text-xl font-bold text-secondary">Review Suggested Changes</h3>
-                        <button 
-                            onClick={toggleAllChanges} 
-                            className="text-xs font-semibold text-primary hover:underline"
-                        >
-                            {allSelected ? 'Deselect All' : 'Select All'}
-                        </button>
-                    </div>
-                    <p className="text-sm text-gray-600 mb-4">Select the changes you want to apply to the final document.</p>
-                    
-                    <div className="space-y-4 flex-grow pr-2" style={{ minHeight: '400px', maxHeight: '60vh', overflowY: 'auto' }}>
-                        {updateResult.changes.length > 0 ? (
-                            updateResult.changes.map((change, index) => (
-                                <div 
-                                    key={index} 
-                                    className={`p-4 border rounded-md transition-colors ${
-                                        selectedChangeIndices.has(index) ? 'border-primary bg-blue-50' : 'border-gray-200 bg-white'
-                                    }`}
-                                >
-                                    <div className="flex items-start space-x-3">
-                                        <div className="pt-1">
-                                            <input 
-                                                type="checkbox" 
-                                                checked={selectedChangeIndices.has(index)}
-                                                onChange={() => toggleChangeSelection(index)}
-                                                className="h-5 w-5 text-primary focus:ring-primary border-gray-300 rounded"
-                                            />
-                                        </div>
-                                        <div className="flex-1 min-w-0">
-                                            <h4 className="font-bold text-secondary text-sm break-words">{change.changeDescription}</h4>
-                                            <p className="text-gray-700 mt-1 text-xs break-words"><strong className="font-semibold">Reason:</strong> {change.reason}</p>
-                                            <div className="mt-2 text-xs">
-                                                {change.originalText && (
-                                                    <div className="mb-1">
-                                                        <span className="text-red-600 font-semibold strike-through">Original:</span> 
-                                                        <span className="text-gray-500 line-through block break-words whitespace-pre-wrap">
-                                                            {change.originalText}
-                                                        </span>
-                                                    </div>
-                                                )}
-                                                <div>
-                                                    <span className="text-green-600 font-semibold">New:</span> 
-                                                    <span className="text-gray-800 block break-words whitespace-pre-wrap">
-                                                        {change.updatedText}
-                                                    </span>
-                                                </div>
-                                            </div>
+            <div className="flex flex-col sm:flex-row justify-between items-center mb-6">
+                <button 
+                    onClick={() => setShowFullPreview(!showFullPreview)} 
+                    className="flex items-center text-primary font-semibold hover:underline bg-white px-4 py-2 rounded-md border border-primary/30 hover:bg-primary/5 transition-colors mb-4 sm:mb-0"
+                >
+                    {showFullPreview ? 'Hide Document Preview' : 'View Full Document Preview'}
+                </button>
+                <button 
+                    onClick={toggleAllChanges} 
+                    className="text-sm font-semibold text-primary hover:underline"
+                >
+                    {allSelected ? 'Deselect All' : 'Select All Changes'}
+                </button>
+            </div>
+
+            {showFullPreview && (
+                <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-inner mb-8 h-[500px]">
+                     <DiffViewer originalText={selectedDocument?.content || ''} updatedText={reconstructedPolicyText} />
+                </div>
+            )}
+
+            <div className="space-y-6 max-w-4xl mx-auto">
+                {updateResult.changes.length > 0 ? (
+                    updateResult.changes.map((change, index) => {
+                        const isSelected = selectedChangeIndices.has(index);
+                        return (
+                            <div 
+                                key={index} 
+                                className={`border rounded-lg p-6 transition-all duration-200 ${
+                                    isSelected ? 'border-primary bg-white shadow-md ring-1 ring-primary/20' : 'border-gray-200 bg-gray-50 opacity-80'
+                                }`}
+                            >
+                                <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-4 gap-4">
+                                    <div className="flex-1">
+                                        <h3 className="text-lg font-bold text-secondary">{change.changeDescription}</h3>
+                                        <div className="mt-2 inline-flex items-start text-sm text-blue-800 bg-blue-50 p-2 rounded-md border border-blue-100">
+                                            <InfoIcon className="w-4 h-4 mr-2 mt-0.5 flex-shrink-0 text-blue-600" />
+                                            <span>{change.reason}</span>
                                         </div>
                                     </div>
+                                    
+                                    <div className="flex-shrink-0">
+                                         <label className="flex items-center cursor-pointer select-none">
+                                            <div className="relative">
+                                                <input 
+                                                    type="checkbox" 
+                                                    className="sr-only" 
+                                                    checked={isSelected} 
+                                                    onChange={() => toggleChangeSelection(index)} 
+                                                />
+                                                <div className={`block w-14 h-8 rounded-full transition-colors shadow-inner ${isSelected ? 'bg-primary' : 'bg-gray-300'}`}></div>
+                                                <div className={`dot absolute left-1 top-1 bg-white w-6 h-6 rounded-full shadow transition-transform ${isSelected ? 'transform translate-x-6' : ''}`}></div>
+                                            </div>
+                                            <div className={`ml-3 text-sm font-bold ${isSelected ? 'text-primary' : 'text-gray-500'}`}>
+                                                {isSelected ? 'APPROVED' : 'IGNORED'}
+                                            </div>
+                                        </label>
+                                    </div>
                                 </div>
-                            ))
-                        ) : (
-                            <div className="p-4 border rounded-md bg-green-50 border-green-200 text-center flex items-center justify-center h-full">
-                                <p className="text-green-800 font-semibold">No major changes were needed based on your request.</p>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm mt-4 border-t border-gray-100 pt-4">
+                                    {change.originalText && (
+                                        <div className="bg-red-50/50 p-3 rounded border border-red-100 min-w-0">
+                                            <p className="text-xs font-bold text-red-700 mb-2 uppercase tracking-wide flex items-center">
+                                                <span className="w-2 h-2 rounded-full bg-red-500 mr-2"></span> Original
+                                            </p>
+                                            <p className="text-gray-600 line-through decoration-red-300 whitespace-pre-wrap break-words">{change.originalText}</p>
+                                        </div>
+                                    )}
+                                    <div className={`bg-green-50/50 p-3 rounded border border-green-100 min-w-0 ${!change.originalText ? 'md:col-span-2' : ''}`}>
+                                        <p className="text-xs font-bold text-green-700 mb-2 uppercase tracking-wide flex items-center">
+                                            <span className="w-2 h-2 rounded-full bg-green-500 mr-2"></span> New Compliant Wording
+                                        </p>
+                                        <p className="text-gray-900 whitespace-pre-wrap break-words">{change.updatedText}</p>
+                                    </div>
+                                </div>
                             </div>
-                        )}
+                        );
+                    })
+                ) : (
+                    <div className="p-8 border rounded-md bg-green-50 border-green-200 text-center">
+                        <CheckIcon className="w-12 h-12 text-green-500 mx-auto mb-4" />
+                        <h3 className="text-xl font-bold text-green-800">Good News!</h3>
+                        <p className="text-green-700 mt-2">No major compliance issues were found based on your request.</p>
                     </div>
-                </div>
+                )}
             </div>
-            <div className="mt-8 flex justify-between items-center bg-white p-4 rounded-lg shadow-md">
+
+            <div className="mt-12 flex justify-between items-center bg-white p-6 rounded-lg shadow-md border border-gray-200 sticky bottom-4 z-10">
                  <button onClick={() => { setUpdateResult(null); setStatus('idle'); setStep('chooseMethod'); }} disabled={isSaving} className="text-sm font-semibold text-gray-600 hover:text-primary disabled:opacity-50">Go Back & Edit</button>
                  <div className="flex space-x-4">
                      <button 
@@ -773,9 +762,9 @@ const PolicyUpdater: React.FC<PolicyUpdaterProps> = ({ onBack }) => {
                      <button 
                         onClick={handleConfirmAndSave} 
                         disabled={isSaving} 
-                        className="bg-green-600 text-white font-bold py-3 px-6 rounded-md hover:bg-green-700 transition-colors flex items-center disabled:bg-gray-400 disabled:cursor-not-allowed"
+                        className="bg-green-600 text-white font-bold py-3 px-6 rounded-md hover:bg-green-700 transition-colors flex items-center disabled:bg-gray-400 disabled:cursor-not-allowed shadow-lg transform hover:-translate-y-0.5 active:translate-y-0"
                      >
-                        {isSaving ? <><LoadingIcon className="animate-spin -ml-1 mr-2 h-5 w-5 text-white" /> Saving...</> : <><CheckIcon className="w-5 h-5 mr-2" /> Confirm & Save Selected</>}
+                        {isSaving ? <><LoadingIcon className="animate-spin -ml-1 mr-2 h-5 w-5 text-white" /> Saving...</> : <><CheckIcon className="w-5 h-5 mr-2" /> Confirm & Save Changes</>}
                      </button>
                  </div>
             </div>

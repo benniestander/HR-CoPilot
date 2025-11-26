@@ -5,6 +5,7 @@ import rehypeSanitize from 'rehype-sanitize';
 import { LoadingIcon } from './Icons';
 import type { AppStatus } from '../types';
 import { useFocusTrap } from '../hooks/useFocusTrap';
+import SemanticLoader from './SemanticLoader';
 
 interface ExplainPolicyModalProps {
   isOpen: boolean;
@@ -13,6 +14,12 @@ interface ExplainPolicyModalProps {
   status: AppStatus;
   itemType: 'policy' | 'form';
 }
+
+const explainMessages = [
+    "Analyzing document context...",
+    "Simplifying legal jargon...",
+    "Drafting clear explanation..."
+];
 
 const ExplainPolicyModal: React.FC<ExplainPolicyModalProps> = ({ isOpen, onClose, explanationText, status, itemType }) => {
   const modalRef = useFocusTrap<HTMLDivElement>(isOpen, onClose);
@@ -23,10 +30,8 @@ const ExplainPolicyModal: React.FC<ExplainPolicyModalProps> = ({ isOpen, onClose
     switch (status) {
       case 'loading':
         return (
-          <div className="text-center text-gray-500 py-10">
-            <LoadingIcon className="w-10 h-10 animate-spin mx-auto mb-4 text-primary" />
-            <h3 className="text-lg font-semibold">HR CoPilot is analyzing the document...</h3>
-            <p>Crafting a simple explanation for you.</p>
+          <div className="py-8">
+            <SemanticLoader messages={explainMessages} interval={1500} />
           </div>
         );
       case 'error':

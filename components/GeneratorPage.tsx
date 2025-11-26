@@ -1,3 +1,4 @@
+
 import React, { useState, useCallback } from 'react';
 import Stepper from './Stepper';
 import CompanyProfileSetup from './CompanyProfileSetup';
@@ -17,6 +18,21 @@ interface GeneratorPageProps {
     onDocumentGenerated: (doc: GeneratedDocument, originalId?: string) => Promise<void>; // Updated to Promise
     onBack: () => void;
 }
+
+const policyLoadingMessages = [
+    "Analyzing your company profile...",
+    "Consulting the Basic Conditions of Employment Act...",
+    "Reviewing specific industry regulations...",
+    "Drafting compliant legal clauses...",
+    "Finalizing formatting and structure..."
+];
+
+const formLoadingMessages = [
+    "Loading standard HR template...",
+    "Applying your customization details...",
+    "Ensuring legal compliance...",
+    "Formatting for professional use..."
+];
 
 const GeneratorPage: React.FC<GeneratorPageProps> = ({ selectedItem, initialData, userProfile, onDocumentGenerated, onBack }) => {
     const { user } = useAuthContext();
@@ -200,6 +216,7 @@ const GeneratorPage: React.FC<GeneratorPageProps> = ({ selectedItem, initialData
                             outputFormat={selectedItem.kind === 'form' ? selectedItem.outputFormat : 'word'}
                             sources={sources}
                             errorMessage={errorMessage}
+                            loadingMessages={selectedItem.kind === 'policy' ? policyLoadingMessages : formLoadingMessages}
                         />
                         {status === 'success' && (
                              <div className="mt-8 flex justify-between items-center bg-white p-6 rounded-lg shadow-md border border-gray-200">

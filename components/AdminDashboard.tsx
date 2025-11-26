@@ -119,34 +119,57 @@ const UserList: React.FC<{ users: User[], pageInfo: PageInfo, onNext: () => void
                     <LoadingIcon className="w-10 h-10 animate-spin text-primary" />
                 </div>
             ) : (
-            <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
-                        <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Plan</th>
-                        <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                        {filteredUsers.map(user => (
-                        <tr key={user.uid}>
-                            <td className="px-6 py-4 whitespace-nowrap">{user.name || 'N/A'}</td>
-                            <td className="px-6 py-4 whitespace-nowrap">{user.email}</td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                            <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${user.plan === 'pro' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
-                                {user.plan}
-                            </span>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                            <button onClick={() => onViewUser(user)} className="text-primary hover:text-primary-dark">View Details</button>
-                            </td>
-                        </tr>
-                        ))}
-                    </tbody>
-                </table>
-            </div>
+            <>
+                {/* Desktop View */}
+                <div className="hidden md:block overflow-x-auto">
+                    <table className="min-w-full divide-y divide-gray-200">
+                        <thead className="bg-gray-50">
+                            <tr>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Plan</th>
+                            <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody className="bg-white divide-y divide-gray-200">
+                            {filteredUsers.map(user => (
+                            <tr key={user.uid}>
+                                <td className="px-6 py-4 whitespace-nowrap">{user.name || 'N/A'}</td>
+                                <td className="px-6 py-4 whitespace-nowrap">{user.email}</td>
+                                <td className="px-6 py-4 whitespace-nowrap">
+                                <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${user.plan === 'pro' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
+                                    {user.plan}
+                                </span>
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                <button onClick={() => onViewUser(user)} className="text-primary hover:text-primary-dark">View Details</button>
+                                </td>
+                            </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+
+                {/* Mobile Card View */}
+                <div className="md:hidden space-y-4">
+                    {filteredUsers.map(user => (
+                        <div key={user.uid} className="bg-white p-4 rounded-lg shadow border border-gray-200">
+                            <div className="flex justify-between items-start mb-2">
+                                <div>
+                                    <h3 className="font-bold text-secondary">{user.name || 'N/A'}</h3>
+                                    <p className="text-sm text-gray-500">{user.email}</p>
+                                </div>
+                                <span className={`px-2 py-1 text-xs font-semibold rounded-full ${user.plan === 'pro' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
+                                    {user.plan}
+                                </span>
+                            </div>
+                            <div className="flex justify-end mt-3 border-t pt-2">
+                                <button onClick={() => onViewUser(user)} className="text-sm font-medium text-primary">View Details</button>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </>
             )}
             <PaginationControls pageInfo={pageInfo} onNext={onNext} onPrev={onPrev} isLoading={isLoading} />
         </div>
@@ -166,26 +189,44 @@ const DocumentAnalytics: React.FC<{ documents: GeneratedDocument[], pageInfo: Pa
             <LoadingIcon className="w-10 h-10 animate-spin text-primary" />
         </div>
       ) : (
-      <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Document Title</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Company</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
+      <>
+        {/* Desktop View */}
+        <div className="hidden md:block overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+                <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Document Title</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Company</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+                {documents.map(doc => (
+                <tr key={doc.id}>
+                    <td className="px-6 py-4 whitespace-nowrap">{doc.title}</td>
+                    <td className="px-6 py-4 whitespace-nowrap">{doc.companyProfile.companyName}</td>
+                    <td className="px-6 py-4 whitespace-nowrap">{new Date(doc.createdAt).toLocaleDateString()}</td>
+                </tr>
+                ))}
+            </tbody>
+            </table>
+        </div>
+
+        {/* Mobile Card View */}
+        <div className="md:hidden space-y-4">
             {documents.map(doc => (
-              <tr key={doc.id}>
-                <td className="px-6 py-4 whitespace-nowrap">{doc.title}</td>
-                <td className="px-6 py-4 whitespace-nowrap">{doc.companyProfile.companyName}</td>
-                <td className="px-6 py-4 whitespace-nowrap">{new Date(doc.createdAt).toLocaleDateString()}</td>
-              </tr>
+                <div key={doc.id} className="bg-white p-4 rounded-lg shadow border border-gray-200">
+                    <h3 className="font-bold text-secondary mb-1">{doc.title}</h3>
+                    <div className="text-sm text-gray-600 mb-1">
+                        <span className="font-medium">Company:</span> {doc.companyProfile.companyName}
+                    </div>
+                    <div className="text-xs text-gray-500">
+                        Generated on {new Date(doc.createdAt).toLocaleDateString()}
+                    </div>
+                </div>
             ))}
-          </tbody>
-        </table>
-      </div>
+        </div>
+      </>
       )}
       <PaginationControls pageInfo={pageInfo} onNext={onNext} onPrev={onPrev} isLoading={isLoading} />
     </div>
@@ -206,28 +247,51 @@ const TransactionLog: React.FC<{ transactions: Transaction[], usersPageInfo: Pag
             <LoadingIcon className="w-10 h-10 animate-spin text-primary" />
         </div>
       ) : (
-      <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
-              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
+      <>
+        {/* Desktop View */}
+        <div className="hidden md:block overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+                <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
+                </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+                {transactions.map((tx, index) => (
+                <tr key={tx.id || index}>
+                    <td className="px-6 py-4 whitespace-nowrap">{new Date(tx.date).toLocaleString()}</td>
+                    <td className="px-6 py-4 whitespace-nowrap">{tx.userEmail}</td>
+                    <td className="px-6 py-4 whitespace-nowrap">{tx.description}</td>
+                    <td className={`px-6 py-4 whitespace-nowrap text-right font-semibold ${Number(tx.amount) > 0 ? 'text-green-600' : 'text-red-600'}`}>R{(Number(tx.amount) / 100).toFixed(2)}</td>
+                </tr>
+                ))}
+            </tbody>
+            </table>
+        </div>
+
+        {/* Mobile Card View */}
+        <div className="md:hidden space-y-4">
             {transactions.map((tx, index) => (
-              <tr key={tx.id || index}>
-                <td className="px-6 py-4 whitespace-nowrap">{new Date(tx.date).toLocaleString()}</td>
-                <td className="px-6 py-4 whitespace-nowrap">{tx.userEmail}</td>
-                <td className="px-6 py-4 whitespace-nowrap">{tx.description}</td>
-                <td className={`px-6 py-4 whitespace-nowrap text-right font-semibold ${Number(tx.amount) > 0 ? 'text-green-600' : 'text-red-600'}`}>R{(Number(tx.amount) / 100).toFixed(2)}</td>
-              </tr>
+                <div key={tx.id || index} className="bg-white p-4 rounded-lg shadow border border-gray-200">
+                    <div className="flex justify-between items-start mb-2">
+                        <div className="flex-1">
+                            <p className="font-bold text-gray-800 text-sm">{tx.description}</p>
+                            <p className="text-xs text-gray-500">{tx.userEmail}</p>
+                        </div>
+                        <span className={`font-semibold text-sm ${Number(tx.amount) > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                            R{(Number(tx.amount) / 100).toFixed(2)}
+                        </span>
+                    </div>
+                    <div className="text-xs text-gray-400 text-right">
+                        {new Date(tx.date).toLocaleString()}
+                    </div>
+                </div>
             ))}
-          </tbody>
-        </table>
-      </div>
+        </div>
+      </>
       )}
       <PaginationControls pageInfo={usersPageInfo} onNext={onNext} onPrev={onPrev} isLoading={isLoading} />
     </div>
@@ -242,28 +306,49 @@ const ActivityLog: React.FC<{ logs: AdminActionLog[], pageInfo: PageInfo, onNext
             <LoadingIcon className="w-10 h-10 animate-spin text-primary" />
         </div>
       ) : (
-      <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Timestamp</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Admin</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Target User</th>
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
+      <>
+        {/* Desktop View */}
+        <div className="hidden md:block overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+                <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Timestamp</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Admin</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Target User</th>
+                </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+                {logs.map(log => (
+                <tr key={log.id}>
+                    <td className="px-6 py-4 whitespace-nowrap">{new Date(log.timestamp).toLocaleString()}</td>
+                    <td className="px-6 py-4 whitespace-nowrap">{log.adminEmail}</td>
+                    <td className="px-6 py-4 whitespace-nowrap">{log.action}</td>
+                    <td className="px-6 py-4 whitespace-nowrap">{log.targetUserEmail}</td>
+                </tr>
+                ))}
+            </tbody>
+            </table>
+        </div>
+
+        {/* Mobile Card View */}
+        <div className="md:hidden space-y-4">
             {logs.map(log => (
-              <tr key={log.id}>
-                <td className="px-6 py-4 whitespace-nowrap">{new Date(log.timestamp).toLocaleString()}</td>
-                <td className="px-6 py-4 whitespace-nowrap">{log.adminEmail}</td>
-                <td className="px-6 py-4 whitespace-nowrap">{log.action}</td>
-                <td className="px-6 py-4 whitespace-nowrap">{log.targetUserEmail}</td>
-              </tr>
+                <div key={log.id} className="bg-white p-4 rounded-lg shadow border border-gray-200">
+                    <div className="mb-2">
+                        <span className="font-bold text-secondary block">{log.action}</span>
+                        <span className="text-xs text-gray-500">{new Date(log.timestamp).toLocaleString()}</span>
+                    </div>
+                    <div className="text-sm text-gray-700">
+                        <span className="font-semibold">By:</span> {log.adminEmail}
+                    </div>
+                    <div className="text-sm text-gray-700">
+                        <span className="font-semibold">To:</span> {log.targetUserEmail}
+                    </div>
+                </div>
             ))}
-          </tbody>
-        </table>
-      </div>
+        </div>
+      </>
       )}
       <PaginationControls pageInfo={pageInfo} onNext={onNext} onPrev={onPrev} isLoading={isLoading} />
     </div>
@@ -342,7 +427,9 @@ const CouponManager: React.FC<{ coupons: Coupon[], adminActions: any }> = ({ cou
 
             <div>
                 <h3 className="text-lg font-bold text-secondary mb-4">Active Coupons</h3>
-                <div className="overflow-x-auto">
+                
+                {/* Desktop View */}
+                <div className="hidden md:block overflow-x-auto">
                     <table className="min-w-full divide-y divide-gray-200">
                         <thead className="bg-gray-50">
                             <tr>
@@ -379,6 +466,41 @@ const CouponManager: React.FC<{ coupons: Coupon[], adminActions: any }> = ({ cou
                             ))}
                         </tbody>
                     </table>
+                </div>
+
+                {/* Mobile Card View */}
+                <div className="md:hidden space-y-4">
+                    {coupons.map(c => (
+                        <div key={c.id} className="bg-white p-4 rounded-lg shadow border border-gray-200 relative">
+                            <div className="flex justify-between items-center mb-2">
+                                <span className="font-bold text-lg text-primary">{c.code}</span>
+                                <span className={`text-sm font-semibold ${c.active ? 'text-green-600' : 'text-red-600'}`}>
+                                    {c.active ? 'Active' : 'Inactive'}
+                                </span>
+                            </div>
+                            <div className="grid grid-cols-2 gap-2 text-sm mb-3">
+                                <div>
+                                    <p className="text-gray-500 text-xs">Discount</p>
+                                    <p>{c.discountType === 'fixed' ? `R${(c.discountValue / 100).toFixed(2)}` : `${c.discountValue}%`}</p>
+                                </div>
+                                <div>
+                                    <p className="text-gray-500 text-xs">Target</p>
+                                    <p className="capitalize">{c.applicableTo.replace('plan:', '')}</p>
+                                </div>
+                                <div>
+                                    <p className="text-gray-500 text-xs">Usage</p>
+                                    <p>{c.usedCount} {c.maxUses ? `/ ${c.maxUses}` : ''}</p>
+                                </div>
+                            </div>
+                            {c.active && (
+                                <div className="text-right border-t pt-2">
+                                    <button onClick={() => handleDeactivate(c.id)} className="text-red-600 text-sm font-medium hover:underline">
+                                        Deactivate
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                    ))}
                 </div>
             </div>
         </div>
