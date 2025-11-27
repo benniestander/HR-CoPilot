@@ -20,7 +20,7 @@ const PlanSelectionPage: React.FC<PlanSelectionPageProps> = ({
     const [selectedPlan, setSelectedPlan] = useState<'pro' | 'payg'>('pro');
     const [isMobile, setIsMobile] = useState(false);
     
-    // Unified Form State
+    // Unified Form State - Removed Confirm Password
     const [formData, setFormData] = useState({ name: '', email: '', password: '', contactNumber: '' });
     const [errors, setErrors] = useState({ name: '', email: '', password: '', contactNumber: '' });
     const [showPassword, setShowPassword] = useState(false);
@@ -46,10 +46,10 @@ const PlanSelectionPage: React.FC<PlanSelectionPageProps> = ({
     ];
     
     const paygFeatures = [
-        'Pay per document (R50 - R150)',
+        'Pay per document',
         'Access to all templates',
         'Secure download (Word/Excel)',
-        'Basic AI generation',
+        'Basic Ingcweti AI generation',
     ];
 
     const validateField = (name: string, value: string) => {
@@ -182,14 +182,17 @@ const PlanSelectionPage: React.FC<PlanSelectionPageProps> = ({
 
                     {/* Price Hero */}
                     <div className="text-center mb-4">
-                        <div className="inline-flex items-baseline">
-                            <span className="text-4xl font-bold text-secondary">
-                                {selectedPlan === 'pro' ? 'R747' : 'R50+'}
-                            </span>
-                            <span className="text-gray-500 ml-1">
-                                {selectedPlan === 'pro' ? '/ year' : '/ doc'}
-                            </span>
-                        </div>
+                        {selectedPlan === 'pro' ? (
+                            <div className="inline-flex items-baseline">
+                                <span className="text-4xl font-bold text-secondary">R747</span>
+                                <span className="text-gray-500 ml-1">/ year</span>
+                            </div>
+                        ) : (
+                            <div className="inline-flex items-baseline">
+                                <span className="text-2xl font-bold text-secondary">From R35-00</span>
+                                <span className="text-gray-500 ml-1">/ document</span>
+                            </div>
+                        )}
                         {selectedPlan === 'pro' && (
                             <p className="text-green-600 text-xs font-bold mt-1 bg-green-100 inline-block px-2 py-0.5 rounded-full">
                                 SAVE 20%
@@ -260,7 +263,7 @@ const PlanSelectionPage: React.FC<PlanSelectionPageProps> = ({
                                 disabled={loading !== 'none'}
                                 className="w-full bg-primary text-white font-bold py-3.5 rounded-xl shadow-lg active:scale-[0.98] transition-transform flex justify-center items-center"
                             >
-                                {loading === 'email' ? 'Creating Account...' : `Sign Up for ${selectedPlan === 'pro' ? 'Pro' : 'Free'}`}
+                                {loading === 'email' ? 'Creating Account...' : 'Sign Up Now'}
                             </button>
                         </div>
                     </form>
@@ -373,8 +376,8 @@ const PlanSelectionPage: React.FC<PlanSelectionPageProps> = ({
                             <div>
                                 <h3 className={`font-bold ${selectedPlan === 'payg' ? 'text-secondary' : 'text-gray-500'}`}>Pay-As-You-Go</h3>
                                 <div className="mt-2">
-                                    <span className="text-2xl font-bold text-secondary">R50+</span>
-                                    <span className="text-xs text-gray-500"> / doc</span>
+                                    <span className="text-xl font-bold text-secondary">From R35-00</span>
+                                    <span className="text-xs text-gray-500"> / document</span>
                                 </div>
                             </div>
                             <div className="mt-3 pt-3 border-t border-gray-100">
@@ -435,7 +438,7 @@ const PlanSelectionPage: React.FC<PlanSelectionPageProps> = ({
                                 disabled={loading !== 'none'}
                                 className="w-full bg-primary text-white font-bold py-4 rounded-lg shadow-lg hover:bg-secondary hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200 disabled:bg-gray-300 disabled:shadow-none disabled:transform-none mt-4"
                             >
-                                {loading === 'email' ? 'Creating Account...' : `Sign Up for ${selectedPlan === 'pro' ? 'Pro' : 'Free'}`}
+                                {loading === 'email' ? 'Creating Account...' : 'Sign Up Now'}
                             </button>
                         </form>
 
