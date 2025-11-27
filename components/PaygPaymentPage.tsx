@@ -117,7 +117,7 @@ const PaygPaymentPage: React.FC<PaygPaymentPageProps> = ({ onTopUpSuccess, onCan
     setApiError(null);
 
     const result = await processPayment({
-        amountInCents: Math.round(finalAmount),
+        amountInCents: Math.round(finalAmount), // THIS IS WHAT IS CHARGED
         name: `Credit Top-Up R${(finalAmount / 100).toFixed(2)}`,
         description: 'Credit for HR CoPilot',
         customer: {
@@ -128,45 +128,16 @@ const PaygPaymentPage: React.FC<PaygPaymentPageProps> = ({ onTopUpSuccess, onCan
         metadata: {
             userId: user.uid,
             type: 'topup',
-            couponCode: appliedCouponCode || undefined
+            couponCode: appliedCouponCode || undefined,
+            creditAmount: baseAmount || undefined // THIS IS WHAT IS CREDITED (Full value even if discounted)
         }
     });
 
     setIsLoading(false);
 
     if (result.success) {
-        // Pass the CREDITED amount (baseAmount) not the PAID amount (finalAmount)
-        // The user gets full credit even if they paid less due to a coupon.
-        // Wait, usually coupons for top-ups mean "Pay less get same" OR "Pay same get extra".
-        // Here we implemented "Pay less get same".
-        // So if I select R100 topup, apply 50% off, I pay R50, but I should get R100 credit?
-        // Yes, that makes sense for a "discount".
-        // However, the Edge Function uses `amountInCents` passed to it to update the balance.
-        // If I send R50 (paid), the Edge function adds R50.
-        // If we want "Pay R50 get R100", the Edge Function logic needs to know the "value" vs "cost".
-        // The current Edge Function uses `amountInCents` for BOTH charge AND credit update.
-        // To support "Pay Less Get Full Value", we'd need to change Edge Function logic or accept that top-up coupons give you extra credit?
-        // Let's assume for now: If you pay R50 for R100 credit, we need to tell the backend to add R100.
-        // But we can't trust the frontend to say "Add R100" if we only charged R50.
-        // The safe way: The backend calculates the credit based on payment.
-        // If we want to support discounts on top-ups, the backend needs to know "This R50 payment is actually worth R100 credit because of coupon X".
-        // Since we are relying on a simple "Charge amount = Credit amount" in the Edge Function currently, 
-        // coupons for top-ups essentially act as "You pay less, you get less credit" which is pointless.
-        // OR, we change the logic to "Bonus Credit".
-        // Let's stick to the simple path:
-        // If the user applies a coupon to a subscription (fixed product), paying less is fine.
-        // If the user applies a coupon to a top-up (variable currency), it's tricky.
-        // MAYBE disable coupons for PAYG for now or just assume standard behavior.
-        // Actually, let's stick to standard behavior: Charge Amount = Credit Amount. 
-        // If they use a coupon, they pay less AND get less credit? No, that's bad UX.
-        // Okay, for PAYG, a coupon usually means "Get Extra Credit".
-        // BUT, the code I wrote for `SubscriptionPage` logic was "Discount".
-        // Let's keep it consistent. If I select R100, and get 20% off, I pay R80.
-        // Ideally I should still get R100 credit.
-        // To fix this in "World Class" app, the Edge Function needs to handle this.
-        // I will update the Edge Function comment in `paymentService` to use `metadata.originalAmount` if present for the credit update, while charging `amountInCents`.
-        
-        onTopUpSuccess(baseAmount); // Optimistic update for UI (though DataContext refetches)
+        // Optimistic update for UI (baseAmount is what user expects to see added)
+        onTopUpSuccess(baseAmount); 
     } else if (result.error && result.error !== "User cancelled") {
         setApiError(`Payment failed: ${result.error}`);
     }

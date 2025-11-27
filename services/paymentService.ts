@@ -25,9 +25,6 @@ export const YOCO_PUBLIC_KEY = (import.meta as any).env?.VITE_YOCO_PUBLIC_KEY ||
 
    --- EDGE FUNCTION CODE START (Copy ONLY this block into index.ts) ---
    
-   // DO NOT IMPORT FROM LOCAL FILES (e.g. './supabase'). 
-   // EDGE FUNCTIONS RUN IN DENO AND NEED URL IMPORTS.
-   
    import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
    import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
@@ -41,6 +38,7 @@ export const YOCO_PUBLIC_KEY = (import.meta as any).env?.VITE_YOCO_PUBLIC_KEY ||
    const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 
    serve(async (req) => {
+     // Handle CORS preflight request
      if (req.method === 'OPTIONS') {
        return new Response('ok', { headers: corsHeaders })
      }
@@ -48,11 +46,17 @@ export const YOCO_PUBLIC_KEY = (import.meta as any).env?.VITE_YOCO_PUBLIC_KEY ||
      try {
        const { token, amountInCents, currency, description, metadata } = await req.json()
        
+       // Server-side Configuration Check
        if (!YOCO_SECRET_KEY || !SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
-         throw new Error("Missing environment variables (YOCO_SECRET_KEY, SUPABASE_URL, or SUPABASE_SERVICE_ROLE_KEY).")
+         console.error("Missing Environment Variables on Server");
+         return new Response(
+           JSON.stringify({ error: "Server configuration error (Missing Secrets)." }), 
+           { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+         )
        }
 
        // 1. Charge the card via Yoco API
+       // We charge exactly what was passed in `amountInCents` (the discounted price if applicable)
        const response = await fetch('https://online.yoco.com/v1/charges/', {
          method: 'POST',
          headers: {
@@ -62,7 +66,8 @@ export const YOCO_PUBLIC_KEY = (import.meta as any).env?.VITE_YOCO_PUBLIC_KEY ||
          body: JSON.stringify({
            token,
            amountInCents,
-           currency: currency || 'ZAR'
+           currency: currency || 'ZAR',
+           metadata: metadata // Pass metadata to Yoco for reconciliation in their dashboard
          })
        })
 
@@ -82,12 +87,17 @@ export const YOCO_PUBLIC_KEY = (import.meta as any).env?.VITE_YOCO_PUBLIC_KEY ||
          const userId = metadata?.userId;
          const type = metadata?.type; // 'subscription' | 'topup'
          const couponCode = metadata?.couponCode;
+         
+         // LOGIC FIX: Use creditAmount if provided (for top-ups with coupons), otherwise use charged amount
+         // If I pay R50 for R100 credit, amountInCents is 5000, but creditAmount is 10000.
+         const creditValue = metadata?.creditAmount ? Number(metadata.creditAmount) : amountInCents;
 
          if (userId && type) {
-            // Determine transaction amount (Cost is negative, Credit is positive)
-            // Note: In this system, Subscription is a COST (-74700) but we just log it as paid revenue.
-            // TopUp is CREDIT (+50000).
-            const txAmount = type === 'subscription' ? -amountInCents : amountInCents;
+            // Determine transaction log amount (Cost is negative, Credit is positive)
+            // Subscription: We log the COST (what they paid or full value? Usually what they paid is better for revenue tracking)
+            // TopUp: We log the CREDIT they received.
+            
+            const txAmount = type === 'subscription' ? -amountInCents : creditValue;
             
             // Insert Transaction Record
             await supabaseAdmin.from('transactions').insert({
@@ -100,9 +110,10 @@ export const YOCO_PUBLIC_KEY = (import.meta as any).env?.VITE_YOCO_PUBLIC_KEY ||
             // Update User Profile
             if (type === 'topup') {
                 // USE ATOMIC UPDATE VIA RPC to prevent race conditions
+                // We add the CREDIT VALUE (e.g. 10000), not just what they paid
                 await supabaseAdmin.rpc('increment_balance', { 
                     user_id: userId, 
-                    amount: amountInCents 
+                    amount: creditValue 
                 });
             } else if (type === 'subscription') {
                 // Enable Pro Plan
@@ -151,74 +162,113 @@ interface PaymentDetails {
     userId?: string;
     type?: 'subscription' | 'topup';
     couponCode?: string;
+    creditAmount?: number; // The actual value to credit the user (differs from amountInCents if discount applied)
   };
 }
 
-export const processPayment = async (details: PaymentDetails): Promise<{ success: boolean; id?: string; error?: string }> => {
-  return new Promise((resolve) => {
-    if (!window.YocoSDK) {
-      resolve({ success: false, error: "Payment gateway not loaded. Please check your internet connection." });
+// Helper to ensure SDK is loaded
+const loadYocoSdk = (): Promise<any> => {
+  return new Promise((resolve, reject) => {
+    if (window.YocoSDK) {
+      resolve(window.YocoSDK);
       return;
     }
 
-    const yoco = new window.YocoSDK({
-      publicKey: YOCO_PUBLIC_KEY,
-    });
-
-    yoco.showPopup({
-      amountInCents: details.amountInCents,
-      currency: details.currency || 'ZAR',
-      name: details.name,
-      description: details.description || 'HR CoPilot Purchase',
-      customer: details.customer,
-      callback: async (result: any) => {
-        if (result.error) {
-          if (result.error.message === "User closed popup") {
-             resolve({ success: false, error: "User cancelled" }); 
-          } else {
-             resolve({ success: false, error: result.error.message });
-          }
-        } else {
-          // ============================================================
-          // SECURE BACKEND VERIFICATION
-          // ============================================================
-          try {
-            // We send the token + metadata to our backend. 
-            const { data, error } = await supabase.functions.invoke('process-payment', {
-                body: { 
-                    token: result.id, 
-                    amountInCents: details.amountInCents,
-                    currency: 'ZAR',
-                    description: details.description,
-                    metadata: details.metadata
-                }
-            });
-
-            if (error) {
-                console.error("Edge Function Error:", error);
-                // Often this error is a CORS issue if the function isn't set up right
-                resolve({ success: false, error: "Payment verification failed (Server Error). Please contact support." });
-                return;
+    // Check if script tag exists
+    const existingScript = document.querySelector('script[src="https://js.yoco.com/sdk/v1/yoco-sdk-web.js"]');
+    
+    if (!existingScript) {
+        // If script is missing entirely, inject it
+        const script = document.createElement('script');
+        script.src = 'https://js.yoco.com/sdk/v1/yoco-sdk-web.js';
+        script.onload = () => resolve(window.YocoSDK);
+        script.onerror = () => reject(new Error("Failed to load Yoco SDK"));
+        document.head.appendChild(script);
+    } else {
+        // Script exists but might not be ready. Poll for it.
+        let retries = 0;
+        const interval = setInterval(() => {
+            if (window.YocoSDK) {
+                clearInterval(interval);
+                resolve(window.YocoSDK);
             }
-
-            if (data && data.error) {
-                resolve({ success: false, error: data.error });
-                return;
+            retries++;
+            if (retries > 20) { // 10 seconds
+                clearInterval(interval);
+                reject(new Error("Yoco SDK failed to initialize in time."));
             }
-
-            if (data && data.success) {
-                console.log("Payment Verified & Charged:", data.id);
-                resolve({ success: true, id: data.id });
-            } else {
-                resolve({ success: false, error: "Unknown payment state." });
-            }
-
-          } catch (err: any) {
-             console.error("Payment Exception:", err);
-             resolve({ success: false, error: "Network error verifying payment. Please check your connection." });
-          }
-        }
-      },
-    });
+        }, 500);
+    }
   });
+};
+
+export const processPayment = async (details: PaymentDetails): Promise<{ success: boolean; id?: string; error?: string }> => {
+  try {
+    // Ensure SDK is loaded before proceeding
+    const YocoSDK = await loadYocoSdk();
+
+    return new Promise((resolve) => {
+        const yoco = new YocoSDK({
+        publicKey: YOCO_PUBLIC_KEY,
+        });
+
+        yoco.showPopup({
+        amountInCents: details.amountInCents,
+        currency: details.currency || 'ZAR',
+        name: details.name,
+        description: details.description || 'HR CoPilot Purchase',
+        customer: details.customer,
+        callback: async (result: any) => {
+            if (result.error) {
+            if (result.error.message === "User closed popup") {
+                resolve({ success: false, error: "User cancelled" }); 
+            } else {
+                resolve({ success: false, error: result.error.message });
+            }
+            } else {
+            // ============================================================
+            // SECURE BACKEND VERIFICATION
+            // ============================================================
+            try {
+                // We send the token + metadata to our backend. 
+                const { data, error } = await supabase.functions.invoke('process-payment', {
+                    body: { 
+                        token: result.id, 
+                        amountInCents: details.amountInCents,
+                        currency: 'ZAR',
+                        description: details.description,
+                        metadata: details.metadata
+                    }
+                });
+
+                if (error) {
+                    console.error("Edge Function Error:", error);
+                    resolve({ success: false, error: "Payment verification failed (Server Error). Please contact support." });
+                    return;
+                }
+
+                if (data && data.error) {
+                    resolve({ success: false, error: data.error });
+                    return;
+                }
+
+                if (data && data.success) {
+                    console.log("Payment Verified & Charged:", data.id);
+                    resolve({ success: true, id: data.id });
+                } else {
+                    resolve({ success: false, error: "Unknown payment state." });
+                }
+
+            } catch (err: any) {
+                console.error("Payment Exception:", err);
+                resolve({ success: false, error: "Network error verifying payment. Please check your connection." });
+            }
+            }
+        },
+        });
+    });
+  } catch (e: any) {
+      console.error("SDK Load Error:", e);
+      return { success: false, error: "Could not load payment gateway. Please check your connection and try again." };
+  }
 };
