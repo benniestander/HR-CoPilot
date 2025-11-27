@@ -74,6 +74,10 @@ const AdminUserDetailModal: React.FC<AdminUserDetailModalProps> = ({ isOpen, onC
   useEffect(() => {
       if (isOpen) {
           fetchUserData();
+      } else {
+          // Clean up to prevent stale data when re-opening
+          setFullUser(null);
+          setDocuments([]);
       }
   }, [isOpen, user.uid]);
 

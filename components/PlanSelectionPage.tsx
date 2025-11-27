@@ -37,19 +37,19 @@ const PlanSelectionPage: React.FC<PlanSelectionPageProps> = ({
     }, []);
 
     const proFeatures = [
-        'Unlimited HR Policy Generation',
+        'Generate unlimited policies & contracts',
         'Unlimited HR Form Generation',
-        'Ingcweti AI-Powered Policy Updates',
-        'Compliance Roadmap Checklists',
-        'Secure Document History',
-        'Priority Support',
+        'Automated policy updates when laws change',
+        'Personalized Compliance Roadmap',
+        'Secure digital document vault',
+        'Priority support for critical issues',
     ];
     
     const paygFeatures = [
-        'Pay per document',
-        'Access to all templates',
-        'Secure download (Word/Excel)',
-        'Basic Ingcweti AI generation',
+        'No monthly fees - pay per document',
+        'Instant access to all compliant templates',
+        'Download editable Word/Excel files instantly',
+        'Basic AI customization for your business',
     ];
 
     const validateField = (name: string, value: string) => {

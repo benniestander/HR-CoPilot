@@ -1,82 +1,9 @@
+import { GoogleGenAI, GenerateContentResponse } from "@google/genai";
+import type { FormAnswers, PolicyUpdateResult } from '../types';
 
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
-import { GoogleGenAI, GenerateContentResponse, Type } from "@google/genai";
-import { POLICIES, FORM_BASE_TEMPLATES, FORMS, FORM_ENRICHMENT_PROMPTS } from '../constants';
-import type { PolicyType, FormType, FormAnswers, PolicyUpdateResult, ComplianceChecklistResult, CompanyProfile } from '../types';
-
-// Helper function to lazily initialize the AI client.
-const getAi = () => {
-  // Safe access to process.env to prevent "ReferenceError: process is not defined" in Vite
-  // while adhering to strict guidelines to prioritize process.env.API_KEY.
-  // We also fallback to import.meta.env.VITE_GEMINI_API_KEY for Vite environments that use that convention.
-  const apiKey = (typeof process !== 'undefined' && process.env ? process.env.API_KEY : undefined) || (import.meta as any).env?.VITE_GEMINI_API_KEY;
-
-  if (!apiKey) {
-    // Fallback for demo purposes if env vars are missing in specific sandboxes
-    console.warn("API_KEY not found in environment variables.");
-  }
-  
-  return new GoogleGenAI({ apiKey: apiKey || 'dummy_key_to_prevent_crash' });
-};
-
-// Helper for exponential backoff retry logic
-async function retryOperation<T>(operation: () => Promise<T>, retries = 3, initialDelay = 2000): Promise<T> {
-  try {
-    return await operation();
-  } catch (error: any) {
-    const isRateLimit = 
-      error?.status === 429 || 
-      error?.message?.includes('429') || 
-      error?.message?.toLowerCase().includes('rate exceeded') ||
-      error?.message?.toLowerCase().includes('quota') ||
-      error?.message?.toLowerCase().includes('resource_exhausted');
-
-    if (isRateLimit && retries > 0) {
-      console.warn(`Gemini API Rate Limit hit. Retrying in ${initialDelay}ms... (Attempts left: ${retries})`);
-      await new Promise(resolve => setTimeout(resolve, initialDelay));
-      return retryOperation(operation, retries - 1, initialDelay * 2);
-    }
-    throw error;
-  }
-}
-
-const INDUSTRY_SPECIFIC_PROMPTS: Record<string, Partial<Record<PolicyType, string>>> = {
-  'Construction': {
-    'health-and-safety': "Incorporate specific clauses relating to the Construction Regulations of the OHS Act. This must include Personal Protective Equipment (PPE) requirements, site safety inductions, and mandatory incident reporting procedures.",
-    'working-hours': "Address project-based work schedules, the management of overtime during critical project phases, and adherence to the Sectoral Determination for the building industry.",
-    'coida': "Emphasize the high-risk nature of the industry and the critical importance of immediate reporting of any Injury on Duty (IOD) to facilitate COIDA claims.",
-    'alcohol-drug': "Include a strict zero-tolerance policy, especially regarding the operation of heavy machinery and working at heights. Mention the company's right to conduct lawful testing."
-  },
-  'Manufacturing': {
-    'health-and-safety': "Focus on machine guarding, lockout-tagout procedures, handling of hazardous materials (if applicable), and the specific PPE required for a factory environment.",
-    'working-hours': "Detail rules for shift work, including night shifts and rotating schedules, ensuring full compliance with BCEA regulations for such arrangements.",
-    'alcohol-drug': "Implement a zero-tolerance policy for employees operating machinery and mention the right to conduct testing where lawful and appropriate to ensure safety.",
-    'company-property': "Add clauses related to the proper use and maintenance of factory machinery and tools."
-  },
-  'Hospitality': {
-    'working-hours': "Address irregular hours, work on weekends and public holidays, and split shifts, ensuring payment rates align with the relevant Sectoral Determination.",
-    'dress-code': "Be specific about uniform standards, personal hygiene (especially for food and beverage staff), and maintaining a professional appearance when interacting with guests.",
-    'leave': "Clarify how leave is calculated and managed for employees who do not work a standard Monday-to-Friday week.",
-    'employee-conduct': "Include clauses on professional interaction with guests, handling of customer complaints, and the importance of maintaining the establishment's reputation."
-  },
-  'Technology': {
-    'remote-hybrid-work': "Provide detailed expectations for remote work, covering data security protocols, availability during core hours, and the proper use and care of company-issued equipment.",
-    'confidentiality': "Strengthen clauses on protecting intellectual property, source code, client data, and proprietary information. Clearly state the consequences of data breaches.",
-    'it-cybersecurity': "Elaborate on password policies, two-factor authentication (2FA), acceptable use of company networks, and the protocol for reporting suspected phishing or security threats.",
-    'byod': "Detail the mandatory security requirements for personal devices connecting to the company network, such as encryption, antivirus software, and mobile device management (MDM) if applicable."
-  },
-  'Retail': {
-    'working-hours': "Cover variable work hours based on store needs, including weekends, public holidays, and extended hours during peak seasons, aligning with the retail Sectoral Determination.",
-    'employee-conduct': "Incorporate clauses on customer service excellence, cash handling procedures, point-of-sale (POS) usage, and policies regarding staff purchases and discounts.",
-    'security': "Address procedures for managing shoplifting, internal theft, handling of cash floats, and end-of-day closing and security protocols.",
-    'dress-code': "Define the dress code or uniform requirements clearly to ensure a professional and consistent brand image for customer-facing staff."
-  },
-  'Agriculture': {
-    'health-and-safety': "Focus on safety protocols for operating farm machinery (e.g., tractors), handling pesticides and chemicals, and managing risks associated with livestock and extreme weather.",
-    'working-hours': "Address the nature of seasonal work, piece-work systems (if used), and the legal requirements for any on-site accommodation provided to farmworkers, referencing the relevant Sectoral Determination.",
-    'leave': "Explain how leave entitlement and calculation differs for seasonal workers compared to permanent staff.",
-    'coida': "Highlight the importance of reporting all farm-related injuries, from minor cuts to major incidents, to ensure proper COIDA compliance."
-  },
+const INDUSTRY_SPECIFIC_GUIDANCE: Record<string, Record<string, string>> = {
   'Professional Services': {
     'confidentiality': "Place a strong emphasis on client confidentiality, professional ethics, and the secure handling of sensitive client documents and data. Reference professional body codes of conduct where applicable.",
     'conflict-of-interest': "Include a detailed process for declaring and managing potential conflicts of interest, which is critical in consulting, legal, and financial advisory roles.",
@@ -86,483 +13,113 @@ const INDUSTRY_SPECIFIC_PROMPTS: Record<string, Partial<Record<PolicyType, strin
   }
 };
 
-
-export async function* generatePolicyStream(
-  policyType: PolicyType,
-  answers: FormAnswers
-): AsyncGenerator<GenerateContentResponse, void, undefined> {
-  const ai = getAi();
-  const policy = POLICIES[policyType];
-
-  if (!policy) {
-    throw new Error(`No policy data found for policy type: ${policyType}`);
-  }
+export const generatePolicyStream = async function* (type: string, answers: FormAnswers) {
+  const model = 'gemini-2.5-flash';
+  const industry = answers.industry || 'General';
+  const companyName = answers.companyName || 'the Company';
   
-  const policyTitle = policy.title;
-  const industry = answers.industry || 'general';
-  const companyVoice = answers.companyVoice || 'Formal & Corporate'; 
+  let specificGuidance = "";
+  if (INDUSTRY_SPECIFIC_GUIDANCE[industry] && INDUSTRY_SPECIFIC_GUIDANCE[industry][type]) {
+      specificGuidance = `\n\nIndustry Specific Instruction for ${industry}: ${INDUSTRY_SPECIFIC_GUIDANCE[industry][type]}`;
+  }
+
+  const prompt = `Generate a comprehensive HR Policy for "${type}".
+  Company Name: ${companyName}
+  Industry: ${industry}
+  Details: ${JSON.stringify(answers)}
+  ${specificGuidance}
   
-  const industryInstructions = INDUSTRY_SPECIFIC_PROMPTS[industry]?.[policyType] || '';
+  Ensure it complies with South African Labour Law (BCEA, LRA, EEA, POPIA).
+  Use a professional yet accessible tone.
+  Format with Markdown.`;
 
-  let companyContext = '';
-    if (answers.companySize) {
-        companyContext += `- Company Size: ${answers.companySize} employees\n`;
+  const response = await ai.models.generateContentStream({
+    model,
+    contents: prompt,
+    config: {
+        responseMimeType: 'text/plain',
     }
-    if (answers.summary) {
-    companyContext += `- Company Summary: ${answers.summary}\n`;
-    }
+  });
 
-  let userContext = '';
-  const policyQuestions = POLICIES[policyType].questions;
-
-  const specificAnswers = { ...answers };
-  delete specificAnswers.companyName;
-  delete specificAnswers.industry;
-  delete specificAnswers.companyVoice;
-  delete specificAnswers.address;
-  delete specificAnswers.summary;
-  delete specificAnswers.companyUrl;
-  delete specificAnswers.companySize;
-  delete specificAnswers.effectiveDate;
-  delete specificAnswers.reviewDate;
-
-
-  if (policyType === 'employee-handbook') {
-    const includedPolicies = specificAnswers.includedPolicies as Record<string, boolean> || {};
-    const selectedPolicyTitles = Object.entries(includedPolicies)
-        .filter(([, isSelected]) => isSelected)
-        .map(([policyId]) => {
-            const policyData = POLICIES[policyId as PolicyType];
-            return policyData ? policyData.title : policyId; 
-        });
-
-    if (selectedPolicyTitles.length > 0) {
-        userContext += `- The handbook must be a comprehensive document containing detailed sections for the following policies: **${selectedPolicyTitles.join(', ')}**.\n`;
-    } else {
-        userContext += '- The user has not selected any specific policies to include. Please generate a standard employee handbook structure including a welcome message and general code of conduct.\n';
-    }
-    delete specificAnswers.includedPolicies;
+  for await (const chunk of response) {
+    yield chunk;
   }
+};
 
-  for (const key in specificAnswers) {
-    if (Object.prototype.hasOwnProperty.call(specificAnswers, key)) {
-      const question = policyQuestions.find(q => q.id === key);
-      const answer = answers[key];
-      if (question && (answer !== null && answer !== undefined && answer !== '')) {
-          userContext += `- Regarding "${question.label}", the user specified: ${answer}\n`;
-      }
-    }
-  }
-
-  const systemInstruction = "You are an expert South African HR consultant and legal drafter specializing in creating compliant HR policies for small businesses. Your primary goal is to generate legally sound, comprehensive, and practical documents based on current South African labour law. When using Google Search for grounding, you MUST prioritize information from official South African government websites (e.g., those with a .gov.za domain, like the Department of Employment and Labour) and reputable South African legal publications or law firms. This is critical for accuracy and authority. You must generate the full policy in Markdown format. Ensure the final document is well-structured, professional, and ready for use.";
-
-  const handbookInstructions = policyType === 'employee-handbook'
-    ? "The handbook must be a cohesive, well-structured document, not just a list of separate policies. It should include an introduction, a welcome message from the CEO/MD, and then the detailed policy sections."
-    : "";
-
-  const fullPrompt = `
-Please generate a comprehensive **"${policyTitle}"** for a South African company.
-
-**Main Policy Content:**
-
-The policy is for a company named **"${answers.companyName}"**, which operates in the **"${industry}"** industry.
-
-The tone of the document must be "${companyVoice}". Adapt the language and phrasing to reflect this voice throughout the document.
-
-${companyContext ? `Here is some additional context about the company to inform the policy's content and tone:\n${companyContext}` : ''}
-
-${handbookInstructions}
-
-The policy must be fully compliant with current South African legislation. Focus your search on the latest versions and any recent amendments to key acts like the Basic Conditions of Employment Act (BCEA), the Labour Relations Act (LRA), the Employment Equity Act (EEA), and the Protection of Personal Information Act (POPIA), as applicable to the policy.
-
-When performing your search, use specific queries like "latest amendments to BCEA South Africa" or "standard employee handbook clauses South Africa". This will help ground the policy in the most current and authoritative information available.
-
-If an 'Effective Date' is provided in the footer but the 'Review Date' is 'Not Provided', you MUST set the 'Review Date' in the final document to be one year after the 'Effective Date'.
-
-${industryInstructions ? `**For a company in the "${industry}" industry, it is essential that you specifically address the following points:**\n- ${industryInstructions}\n` : ''}
-
-${userContext ? `**In addition, integrate the following specific details provided by the user:**\n${userContext}` : ''}
-
-Structure the final document with clear Markdown formatting, including a main title, numbered sections (e.g., "1. Introduction", "2. Scope"), and sub-sections as needed. The language must be professional South African English.
-
----
-
-**IMPORTANT: Document Footer**
-At the absolute end of the generated policy, after all other content and sections, you MUST add the following company details as a footer. This footer must be visually separated (e.g., with a horizontal rule) and be in a smaller font size, like a small script.
-
-Company Name: ${answers.companyName}
-Company Address: ${answers.address || 'Not Provided'}
-Company Website: ${answers.companyUrl || 'Not Provided'}
-Effective Date: ${answers.effectiveDate || 'Not Provided'}
-Review Date: ${answers.reviewDate || 'Not Provided'}
-`;
-  
-  try {
-    // Using retryOperation to handle potential 429 errors
-    const response = await retryOperation(() => ai.models.generateContentStream({
-      model: "gemini-2.5-flash",
-      contents: [{ role: "user", parts: [{ text: fullPrompt }] }],
-      config: {
-        systemInstruction: systemInstruction,
-        tools: [{googleSearch: {}}],
-      },
-    })) as unknown as AsyncIterable<GenerateContentResponse>;
-
-    for await (const chunk of response) {
-      yield chunk;
-    }
-  } catch (error) {
-    console.error("Error calling Gemini API:", error);
-    throw new Error("Failed to generate policy from Ingcweti AI. Service might be busy, please try again.");
-  }
-}
-
-export async function* generateFormStream(
-  formType: FormType,
-  answers: FormAnswers
-): AsyncGenerator<string, void, undefined> {
-  const ai = getAi();
-  const form = FORMS[formType];
-
-  if (!form) {
-    throw new Error(`No form definition found for form type: ${formType}`);
-  }
-
-  // Check if a base template exists. If not, we will use a dynamic prompt.
-  const baseTemplate = FORM_BASE_TEMPLATES[formType];
-  const outputFormat = form.outputFormat || 'word';
-  
-  const systemInstruction = "You are an expert South African HR consultant. Your task is to generate or refine a professional HR form. You must ensure the final output is a clean, professional, and user-friendly form suitable for a small business in South Africa. Your output must be in Markdown format.";
-
-  let fullPrompt = '';
-
-  if (baseTemplate) {
-      // 1. Static Template Approach (Preferred for speed/consistency if template exists)
-      let constructedPrompt = baseTemplate;
-      for (const key in answers) {
-        const value = (answers[key] !== null && answers[key] !== undefined && answers[key] !== '')
-          ? answers[key]
-          : '(Not specified)';
-        constructedPrompt = constructedPrompt.replace(
-          new RegExp(`\\[${key}\\]`, 'g'),
-          value
-        );
-      }
-
-      let formatInstruction = `For a document best used in Word, focus on clear headings, paragraphs, and standard document flow.`;
-      if (outputFormat === 'excel') {
-          formatInstruction = `Because this document is best used in Excel, ensure the primary output is a single, well-structured, and clean Markdown table that can be easily copied into a spreadsheet. Avoid complex text outside the table where possible.`;
-      }
-
-      const enrichmentPrompt = FORM_ENRICHMENT_PROMPTS[formType] || '';
-
-      const enrichmentInstruction = `
-    Based on the provided form text for a "${form.title}", please perform the following actions:
-    1.  Review the entire form for clarity, professionalism, and completeness.
-    2.  Add a brief, one-sentence instruction for the employee at the top of the form (e.g., "Please complete all sections and return to HR.").
-    3.  Ensure all fields intended for user input are clearly marked with a line of underscores, like this: \`_________________________\`.
-    4.  If there are sections for signatures, ensure there is a clear line for the signature and a separate line for the date.
-    5.  **Formatting Guidance:** ${formatInstruction}
-    6.  ${enrichmentPrompt ? `**Crucially, enhance the form by adding the following context-specific information. Integrate this naturally, for example, in a 'Notes for Employee' or 'Important Information' section to make the form more comprehensive and legally sound for a South African context:**\n*${enrichmentPrompt}*` : 'Your role is to refine and format the existing structure. Do not add new sections or fields beyond what is in the template.'}
-    7.  The final output must be only the complete, refined Markdown for the form.
-    `;
-      
-      fullPrompt = `${constructedPrompt}\n\n${enrichmentInstruction}`;
-
-  } else {
-      // 2. Dynamic Fallback Approach (For forms without a hardcoded template)
-      let answersContext = '';
-      for (const key in answers) {
-          if (key !== 'companyName' && answers[key]) {
-              answersContext += `- ${key}: ${answers[key]}\n`;
-          }
-      }
-
-      let formatInstruction = `Use standard professional formatting with clear headings and input fields.`;
-      if (outputFormat === 'excel') {
-          formatInstruction = `Create a structured Markdown table suitable for copying into Excel.`;
-      }
-
-      fullPrompt = `
-      Please generate a professional **"${form.title}"** for a South African company named **"${answers.companyName || 'The Company'}"**.
-
-      **Context & Details:**
-      ${answersContext ? `The user has provided the following specific details to include:\n${answersContext}` : 'No specific details provided, please use standard placeholders.'}
-
-      **Requirements:**
-      1.  The form must be compliant with South African labor practices.
-      2.  Description: ${form.description}
-      3.  Include all necessary fields for a standard ${form.title} (e.g., employee details, dates, signatures).
-      4.  Use lines (_________________________) for write-in fields.
-      5.  **Format:** ${formatInstruction}
-      
-      Output ONLY the markdown for the form.
-      `;
-  }
-
-  try {
-    // Using retryOperation to handle potential 429 errors
-    const response = await retryOperation(() => ai.models.generateContentStream({
-      model: "gemini-2.5-flash",
-      contents: [{ role: "user", parts: [{ text: fullPrompt }] }],
-      config: {
-        systemInstruction: systemInstruction,
-      },
-    })) as unknown as AsyncIterable<GenerateContentResponse>;
-
-    for await (const chunk of response) {
-      if (chunk.text) {
-        yield chunk.text;
-      }
-    }
-  } catch (error) {
-    console.error("Error calling Gemini API for form generation:", error);
-    throw new Error("Failed to generate form from Ingcweti AI. Service might be busy, please try again.");
-  }
-}
-
-
-export async function* explainPolicyTypeStream(
-  policyTitle: string
-): AsyncGenerator<string, void, undefined> {
-  const ai = getAi();
-  const systemInstruction = "You are a helpful AI assistant specializing in South African labour law. You explain HR policy concepts in simple, easy-to-understand terms for small business owners. Your output must be in Markdown format.";
-
-  const userPrompt = `
-Please explain what a "${policyTitle}" is in the context of a South African small business.
-Your response MUST be structured with a single main heading (H1) for the title, like "# Understanding Your ${policyTitle}", followed by sub-sections using H2 headings (like "## Purpose" or "## Key Elements").
-Describe its purpose, why it's important, and what key elements it typically includes under these H2 headings.
-Use simple, clear language suitable for someone who is not an HR expert. Use bullet points for clarity where appropriate.
-**Crucially, keep the entire explanation concise and under 250 words.** It should be a quick, easy-to-read summary.
-`;
-
-  try {
-    // Using retryOperation to handle potential 429 errors
-    const response = await retryOperation(() => ai.models.generateContentStream({
-      model: "gemini-2.5-flash",
-      contents: [{ role: "user", parts: [{ text: userPrompt }] }],
-      config: {
-        systemInstruction: systemInstruction,
-      },
-    })) as unknown as AsyncIterable<GenerateContentResponse>;
-
-    for await (const chunk of response) {
-      if (chunk.text) {
-        yield chunk.text;
-      }
-    }
-  } catch (error) {
-    console.error("Error calling Gemini API for explanation:", error);
-    throw new Error("Failed to generate explanation from Ingcweti AI. Please try again.");
-  }
-}
-
-export async function* explainFormTypeStream(
-  formTitle: string
-): AsyncGenerator<string, void, undefined> {
-  const ai = getAi();
-  const systemInstruction = "You are a helpful AI assistant specializing in South African HR administration. You explain the purpose of HR forms in simple, easy-to-understand terms for small business owners. Your output must be in Markdown format.";
-
-  const userPrompt = `
-Please explain the purpose of a "${formTitle}" for a South African small business.
-Your response MUST be structured with a single main heading (H1), like "# Understanding the ${formTitle}", followed by sub-sections using H2 headings (like "## What is it for?" or "## When to use it?").
-Describe its purpose and what key information it captures.
-Use simple, clear language suitable for someone who is not an HR expert. Use bullet points for clarity.
-**Crucially, keep the entire explanation concise and under 250 words.** It should be a quick, easy-to-read summary.
-`;
-
-  try {
-    // Using retryOperation to handle potential 429 errors
-    const response = await retryOperation(() => ai.models.generateContentStream({
-      model: "gemini-2.5-flash",
-      contents: [{ role: "user", parts: [{ text: userPrompt }] }],
-      config: {
-        systemInstruction: systemInstruction,
-      },
-    })) as unknown as AsyncIterable<GenerateContentResponse>;
-
-    for await (const chunk of response) {
-      if (chunk.text) {
-        yield chunk.text;
-      }
-    }
-  } catch (error) {
-    console.error("Error calling Gemini API for form explanation:", error);
-    throw new Error("Failed to generate explanation from Ingcweti AI. Please try again.");
-  }
-}
-
-export async function updatePolicy(
-  currentPolicyText: string,
-  instructions?: string
-): Promise<PolicyUpdateResult> {
-  const ai = getAi();
-  const systemInstruction = `You are an expert South African HR consultant and legal drafter specializing in reviewing and updating HR policies for small businesses to ensure compliance with the latest South African labour law. Your goal is to return a JSON object containing the updated policy and a detailed log of changes.
-- You MUST only update what is legally necessary, outdated, or specifically requested by the user.
-- You MUST preserve the original tone, structure, and wording as much as possible. Do not rewrite entire sections unless essential.
-- For each change, you MUST provide a concise reason, citing relevant legislation where possible, or referencing the user's instructions.
-- The output MUST be a valid JSON object matching the provided schema. Do not include any markdown formatting or introductory text outside of the JSON structure.`;
-  
-  const prompt = instructions
-    ? `Please update the following South African HR policy based *specifically* on these user instructions. Integrate the changes naturally and professionally, ensuring the rest of the policy remains coherent and legally sound. Provide an updated version of the policy and a list of changes made *in direct response to the instructions*.
-
-**User Instructions:**
----
-${instructions}
----
-
-**Current Policy Text:**
----
-${currentPolicyText}
----`
-    : `Please review the following South African HR policy. Identify any sections that are outdated or non-compliant with current labour laws. Provide an updated version of the policy and a list of all changes made.
-
-**Current Policy Text:**
----
-${currentPolicyText}
----
-`;
-
-  const responseSchema = {
-    type: Type.OBJECT,
-    properties: {
-      updatedPolicyText: {
-        type: Type.STRING,
-        description: 'The full, updated text of the policy in Markdown format.',
-      },
-      changes: {
-        type: Type.ARRAY,
-        description: 'An array of objects detailing each change made to the policy.',
-        items: {
-          type: Type.OBJECT,
-          properties: {
-            changeDescription: {
-              type: Type.STRING,
-              description: 'A brief summary of what was changed, e.g., "Updated leave days calculation".',
-            },
-            reason: {
-              type: Type.STRING,
-              description: 'The educational reason for the change, citing relevant SA legislation (e.g., "This aligns with the latest amendment to the BCEA regarding parental leave.").',
-            },
-            originalText: {
-              type: Type.STRING,
-              description: 'The original text snippet that was changed or removed. Omit if the change is a pure addition.',
-            },
-            updatedText: {
-              type: Type.STRING,
-              description: 'The new text snippet that was added or that replaced the original.',
-            },
-          },
-          required: ['changeDescription', 'reason', 'updatedText'],
-        },
-      },
-    },
-    required: ['updatedPolicyText', 'changes'],
-  };
-
-  try {
-    // Using retryOperation to handle potential 429 errors
-    const response = await retryOperation<GenerateContentResponse>(() => ai.models.generateContent({
-      model: "gemini-2.5-flash",
-      contents: [{ role: "user", parts: [{ text: prompt }] }],
-      config: {
-        systemInstruction: systemInstruction,
-        responseMimeType: "application/json",
-        responseSchema: responseSchema,
-      },
-    }));
+export const generateFormStream = async function* (type: string, answers: FormAnswers) {
+    const model = 'gemini-2.5-flash';
+    const prompt = `Generate a professional HR Form for "${type}".
+    Company Name: ${answers.companyName}
+    Details: ${JSON.stringify(answers)}
     
-    const jsonText = (response.text || '{}').trim();
-    return JSON.parse(jsonText) as PolicyUpdateResult;
+    Ensure it is ready to use and complies with South African standards.
+    Format with Markdown.`;
+  
+    const response = await ai.models.generateContentStream({
+      model,
+      contents: prompt,
+    });
+  
+    for await (const chunk of response) {
+        if (chunk.text) yield chunk.text;
+    }
+};
 
-  } catch (error) {
-    console.error("Error calling Gemini API for policy update:", error);
-    throw new Error("Failed to update policy from Ingcweti AI. Service might be busy, please try again.");
-  }
+export const updatePolicy = async (content: string, instructions?: string): Promise<PolicyUpdateResult> => {
+    const model = 'gemini-2.5-flash'; 
+    const prompt = `Analyze the following HR policy document against current South African Labour Law.
+    
+    Current Document Content:
+    ${content}
+    
+    User Instructions: ${instructions || "Ensure compliance and suggest improvements."}
+    
+    Return a JSON object with:
+    1. updatedPolicyText: The full text of the updated policy.
+    2. changes: An array of objects, each with:
+       - changeDescription: What was changed.
+       - reason: Why it was changed (referencing specific Acts if applicable).
+       - originalText: The snippet that was changed (optional).
+       - updatedText: The new snippet.
+    `;
+
+    const response = await ai.models.generateContent({
+        model,
+        contents: prompt,
+        config: {
+            responseMimeType: 'application/json'
+        }
+    });
+
+    const text = response.text;
+    if (!text) throw new Error("No response from AI");
+    return JSON.parse(text) as PolicyUpdateResult;
+};
+
+export const explainPolicyTypeStream = async function* (title: string) {
+    const model = 'gemini-2.5-flash';
+    const prompt = `Explain the purpose and key components of a "${title}" in the context of South African HR law. Keep it brief and informative for a business owner.`;
+    
+    const response = await ai.models.generateContentStream({
+        model,
+        contents: prompt
+    });
+
+    for await (const chunk of response) {
+        if (chunk.text) yield chunk.text;
+    }
 }
 
-export async function generateComplianceChecklist(
-  profile: CompanyProfile,
-): Promise<ComplianceChecklistResult> {
-  const ai = getAi();
-  const systemInstruction = `You are an expert South African HR consultant. Your task is to analyze a business profile and recommend a checklist of essential HR policies and forms for legal compliance in South Africa. You must provide clear, concise reasons for each recommendation, tailored to the business described. Your output must be a valid JSON object that adheres strictly to the provided schema.`;
+export const explainFormTypeStream = async function* (title: string) {
+    const model = 'gemini-2.5-flash';
+    const prompt = `Explain the purpose of a "${title}" form in South African HR management. Keep it brief.`;
+    
+    const response = await ai.models.generateContentStream({
+        model,
+        contents: prompt
+    });
 
-  const prompt = `
-Based on the following company profile, please generate a list of recommended HR policies and forms that are essential for a small business in South Africa.
-
-**Company Profile:**
----
-- Company Name: ${profile.companyName}
-- Industry: ${profile.industry}
-${profile.companySize ? `- Company Size: ${profile.companySize} employees\n` : ''}
-${profile.companyUrl ? `- Website: ${profile.companyUrl}\n` : ''}
-${profile.summary ? `- Summary: ${profile.summary}\n` : ''}
-${profile.address ? `- Address: ${profile.address}\n` : ''}
----
-
-For each recommended policy and form, provide a short, practical reason why it is important for this specific business. Focus on the most critical documents for legal compliance and good practice.
-`;
-
-  const responseSchema = {
-    type: Type.OBJECT,
-    properties: {
-      policies: {
-        type: Type.ARRAY,
-        description: 'A list of recommended HR policies.',
-        items: {
-          type: Type.OBJECT,
-          properties: {
-            name: {
-              type: Type.STRING,
-              description: 'The full name of the policy, e.g., "Disciplinary Code and Procedure".'
-            },
-            reason: {
-              type: Type.STRING,
-              description: 'A brief, tailored explanation of why this policy is recommended for this specific business.'
-            }
-          },
-          required: ['name', 'reason'],
-        },
-      },
-      forms: {
-        type: Type.ARRAY,
-        description: 'A list of recommended HR forms.',
-        items: {
-          type: Type.OBJECT,
-          properties: {
-            name: {
-              type: Type.STRING,
-              description: 'The full name of the form, e.g., "Leave Application Form".'
-            },
-            reason: {
-              type: Type.STRING,
-              description: 'A brief, tailored explanation of why this form is recommended for this specific business.'
-            }
-          },
-          required: ['name', 'reason'],
-        },
-      },
-    },
-    required: ['policies', 'forms'],
-  };
-  
-  try {
-    // Using retryOperation to handle potential 429 errors
-    const response = await retryOperation<GenerateContentResponse>(() => ai.models.generateContent({
-      model: "gemini-2.5-flash",
-      contents: [{ role: "user", parts: [{ text: prompt }] }],
-      config: {
-        systemInstruction: systemInstruction,
-        responseMimeType: "application/json",
-        responseSchema: responseSchema,
-      },
-    }));
-
-    const jsonText = (response.text || '{}').trim();
-    return JSON.parse(jsonText) as ComplianceChecklistResult;
-
-  } catch (error) {
-    console.error("Error calling Gemini API for compliance checklist:", error);
-    throw new Error("Failed to generate compliance checklist from Ingcweti AI. Service might be busy, please try again.");
-  }
+    for await (const chunk of response) {
+        if (chunk.text) yield chunk.text;
+    }
 }
