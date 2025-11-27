@@ -149,16 +149,40 @@ const PolicyUpdater: React.FC<PolicyUpdaterProps> = ({ onBack }) => {
   }, [selectedDocument, updateResult, selectedChangeIndices]);
 
   const extractTextFromDocx = async (arrayBuffer: ArrayBuffer): Promise<string> => {
-      const result = await mammoth.extractRawText({ arrayBuffer });
+      // Safe handle for mammoth import which might vary by environment/bundler
+      const mammothLib = (mammoth as any).default || mammoth;
+      if (!mammothLib || !mammothLib.extractRawText) {
+          throw new Error("Docx parser (mammoth) failed to load.");
+      }
+      const result = await mammothLib.extractRawText({ arrayBuffer });
       return result.value;
   };
 
+  const extractTextFromText = (file: File): Promise<string> => {
+      return new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = (e) => resolve(e.target?.result as string || '');
+          reader.onerror = (e) => reject(new Error("Failed to read text file"));
+          reader.readAsText(file);
+      });
+  };
+
   const extractTextFromPdf = async (arrayBuffer: ArrayBuffer): Promise<string> => {
+      // Safe access for pdfjs-dist which might be a default export or named export depending on CDN
       const pdfJs: any = pdfjsLib;
-      const getDocument = pdfJs.getDocument || pdfJs.default?.getDocument;
+      const lib = pdfJs.default || pdfJs;
+      
+      // Initialize worker if not set
+      if (lib.GlobalWorkerOptions && !lib.GlobalWorkerOptions.workerSrc) {
+          lib.GlobalWorkerOptions.workerSrc = 'https://esm.sh/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
+      }
+      
+      const getDocument = lib.getDocument;
+      
       if (!getDocument) {
           throw new Error("PDF.js library not loaded correctly.");
       }
+
       const loadingTask = getDocument({ data: arrayBuffer });
       const pdf = await loadingTask.promise;
       let fullText = '';
@@ -181,13 +205,25 @@ const PolicyUpdater: React.FC<PolicyUpdaterProps> = ({ onBack }) => {
       try {
           const arrayBuffer = await file.arrayBuffer();
           let extractedText = '';
+          const name = file.name.toLowerCase();
 
-          if (file.type === 'application/pdf') {
+          // Robust checking for file types using extension as fallback
+          const isPdf = file.type === 'application/pdf' || name.endsWith('.pdf');
+          const isDocx = file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' || name.endsWith('.docx');
+          const isMd = name.endsWith('.md');
+          const isTxt = name.endsWith('.txt');
+          const isLegacyDoc = name.endsWith('.doc') || name.endsWith('.rtf');
+
+          if (isPdf) {
               extractedText = await extractTextFromPdf(arrayBuffer);
-          } else if (file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
+          } else if (isDocx) {
               extractedText = await extractTextFromDocx(arrayBuffer);
+          } else if (isMd || isTxt) {
+              extractedText = await extractTextFromText(file);
+          } else if (isLegacyDoc) {
+              throw new Error(`The format "${name.split('.').pop()}" is not supported for browser-based analysis. Please save your document as a .docx or .pdf file and try again.`);
           } else {
-              throw new Error('Unsupported file format. Please upload a PDF or DOCX.');
+              throw new Error('Unsupported file format. Please upload a PDF, Word (.docx), or Markdown (.md) file.');
           }
 
           if (!extractedText.trim()) {
@@ -491,14 +527,14 @@ const PolicyUpdater: React.FC<PolicyUpdaterProps> = ({ onBack }) => {
                   External Policy
               </h3>
               <p className="text-sm text-gray-600 mb-4">
-                  Upload an existing policy (PDF or Word) created by a lawyer or consultant. We will scan it for compliance.
+                  Upload an existing policy (PDF, Word, or Text) created by a lawyer or consultant. We will scan it for compliance.
               </p>
               
               <input 
                   type="file" 
                   ref={fileInputRef}
                   className="hidden" 
-                  accept=".pdf,.docx" 
+                  accept=".pdf,.docx,.doc,.rtf,.md,.txt" 
                   onChange={handleFileUpload} 
               />
 
@@ -689,16 +725,16 @@ const PolicyUpdater: React.FC<PolicyUpdaterProps> = ({ onBack }) => {
                         return (
                             <div 
                                 key={index} 
-                                className={`border rounded-lg p-6 transition-all duration-200 ${
+                                className={`border rounded-lg p-6 transition-all duration-200 min-w-0 ${
                                     isSelected ? 'border-primary bg-white shadow-md ring-1 ring-primary/20' : 'border-gray-200 bg-gray-50 opacity-80'
                                 }`}
                             >
                                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-4 gap-4">
-                                    <div className="flex-1">
-                                        <h3 className="text-lg font-bold text-secondary">{change.changeDescription}</h3>
-                                        <div className="mt-2 inline-flex items-start text-sm text-blue-800 bg-blue-50 p-2 rounded-md border border-blue-100">
+                                    <div className="flex-1 min-w-0">
+                                        <h3 className="text-lg font-bold text-secondary break-words min-w-0 whitespace-pre-wrap">{change.changeDescription}</h3>
+                                        <div className="mt-2 inline-flex items-start text-sm text-blue-800 bg-blue-50 p-2 rounded-md border border-blue-100 max-w-full">
                                             <InfoIcon className="w-4 h-4 mr-2 mt-0.5 flex-shrink-0 text-blue-600" />
-                                            <span>{change.reason}</span>
+                                            <span className="break-words">{change.reason}</span>
                                         </div>
                                     </div>
                                     

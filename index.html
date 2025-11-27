@@ -49,19 +49,6 @@
   }
 }
 </script>
-<script type="module">
-    // Set worker source for PDF.js
-    import * as pdfjsModule from 'pdfjs-dist';
-    
-    // Handle different export structures (default vs named) from CDN
-    const pdfjs = pdfjsModule.default || pdfjsModule;
-    
-    if (pdfjs && pdfjs.GlobalWorkerOptions) {
-        pdfjs.GlobalWorkerOptions.workerSrc = 'https://esm.sh/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
-    } else {
-        console.warn('PDF.js GlobalWorkerOptions not found. PDF parsing might fail.');
-    }
-</script>
 </head>
   <body class="bg-light font-sans">
     <div id="root"></div>
