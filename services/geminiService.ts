@@ -220,47 +220,83 @@ export async function* generateFormStream(
   answers: FormAnswers
 ): AsyncGenerator<string, void, undefined> {
   const ai = getAi();
-  let baseTemplate = FORM_BASE_TEMPLATES[formType];
   const form = FORMS[formType];
 
-  if (!baseTemplate || !form) {
-    throw new Error(`No template or form data found for form type: ${formType}`);
+  if (!form) {
+    throw new Error(`No form definition found for form type: ${formType}`);
   }
 
+  // Check if a base template exists. If not, we will use a dynamic prompt.
+  const baseTemplate = FORM_BASE_TEMPLATES[formType];
   const outputFormat = form.outputFormat || 'word';
-
-  let constructedPrompt = baseTemplate;
-  for (const key in answers) {
-    const value = (answers[key] !== null && answers[key] !== undefined && answers[key] !== '')
-      ? answers[key]
-      : '(Not specified)';
-    constructedPrompt = constructedPrompt.replace(
-      new RegExp(`\\[${key}\\]`, 'g'),
-      value
-    );
-  }
   
-  const systemInstruction = "You are an expert South African HR consultant. Your task is to refine a given markdown HR form template. You must ensure the final output is a clean, professional, and user-friendly form suitable for a small business. Your output must be in Markdown format.";
+  const systemInstruction = "You are an expert South African HR consultant. Your task is to generate or refine a professional HR form. You must ensure the final output is a clean, professional, and user-friendly form suitable for a small business in South Africa. Your output must be in Markdown format.";
 
-  let formatInstruction = `For a document best used in Word, focus on clear headings, paragraphs, and standard document flow.`;
-  if (outputFormat === 'excel') {
-      formatInstruction = `Because this document is best used in Excel, ensure the primary output is a single, well-structured, and clean Markdown table that can be easily copied into a spreadsheet. Avoid complex text outside the table where possible.`;
+  let fullPrompt = '';
+
+  if (baseTemplate) {
+      // 1. Static Template Approach (Preferred for speed/consistency if template exists)
+      let constructedPrompt = baseTemplate;
+      for (const key in answers) {
+        const value = (answers[key] !== null && answers[key] !== undefined && answers[key] !== '')
+          ? answers[key]
+          : '(Not specified)';
+        constructedPrompt = constructedPrompt.replace(
+          new RegExp(`\\[${key}\\]`, 'g'),
+          value
+        );
+      }
+
+      let formatInstruction = `For a document best used in Word, focus on clear headings, paragraphs, and standard document flow.`;
+      if (outputFormat === 'excel') {
+          formatInstruction = `Because this document is best used in Excel, ensure the primary output is a single, well-structured, and clean Markdown table that can be easily copied into a spreadsheet. Avoid complex text outside the table where possible.`;
+      }
+
+      const enrichmentPrompt = FORM_ENRICHMENT_PROMPTS[formType] || '';
+
+      const enrichmentInstruction = `
+    Based on the provided form text for a "${form.title}", please perform the following actions:
+    1.  Review the entire form for clarity, professionalism, and completeness.
+    2.  Add a brief, one-sentence instruction for the employee at the top of the form (e.g., "Please complete all sections and return to HR.").
+    3.  Ensure all fields intended for user input are clearly marked with a line of underscores, like this: \`_________________________\`.
+    4.  If there are sections for signatures, ensure there is a clear line for the signature and a separate line for the date.
+    5.  **Formatting Guidance:** ${formatInstruction}
+    6.  ${enrichmentPrompt ? `**Crucially, enhance the form by adding the following context-specific information. Integrate this naturally, for example, in a 'Notes for Employee' or 'Important Information' section to make the form more comprehensive and legally sound for a South African context:**\n*${enrichmentPrompt}*` : 'Your role is to refine and format the existing structure. Do not add new sections or fields beyond what is in the template.'}
+    7.  The final output must be only the complete, refined Markdown for the form.
+    `;
+      
+      fullPrompt = `${constructedPrompt}\n\n${enrichmentInstruction}`;
+
+  } else {
+      // 2. Dynamic Fallback Approach (For forms without a hardcoded template)
+      let answersContext = '';
+      for (const key in answers) {
+          if (key !== 'companyName' && answers[key]) {
+              answersContext += `- ${key}: ${answers[key]}\n`;
+          }
+      }
+
+      let formatInstruction = `Use standard professional formatting with clear headings and input fields.`;
+      if (outputFormat === 'excel') {
+          formatInstruction = `Create a structured Markdown table suitable for copying into Excel.`;
+      }
+
+      fullPrompt = `
+      Please generate a professional **"${form.title}"** for a South African company named **"${answers.companyName || 'The Company'}"**.
+
+      **Context & Details:**
+      ${answersContext ? `The user has provided the following specific details to include:\n${answersContext}` : 'No specific details provided, please use standard placeholders.'}
+
+      **Requirements:**
+      1.  The form must be compliant with South African labor practices.
+      2.  Description: ${form.description}
+      3.  Include all necessary fields for a standard ${form.title} (e.g., employee details, dates, signatures).
+      4.  Use lines (_________________________) for write-in fields.
+      5.  **Format:** ${formatInstruction}
+      
+      Output ONLY the markdown for the form.
+      `;
   }
-
-  const enrichmentPrompt = FORM_ENRICHMENT_PROMPTS[formType] || '';
-
-  const enrichmentInstruction = `
-Based on the provided form text for a "${form.title}", please perform the following actions:
-1.  Review the entire form for clarity, professionalism, and completeness.
-2.  Add a brief, one-sentence instruction for the employee at the top of the form (e.g., "Please complete all sections and return to HR.").
-3.  Ensure all fields intended for user input are clearly marked with a line of underscores, like this: \`_________________________\`.
-4.  If there are sections for signatures, ensure there is a clear line for the signature and a separate line for the date.
-5.  **Formatting Guidance:** ${formatInstruction}
-6.  ${enrichmentPrompt ? `**Crucially, enhance the form by adding the following context-specific information. Integrate this naturally, for example, in a 'Notes for Employee' or 'Important Information' section to make the form more comprehensive and legally sound for a South African context:**\n*${enrichmentPrompt}*` : 'Your role is to refine and format the existing structure. Do not add new sections or fields beyond what is in the template.'}
-7.  The final output must be only the complete, refined Markdown for the form.
-`;
-  
-  const fullPrompt = `${constructedPrompt}\n\n${enrichmentInstruction}`;
 
   try {
     // Using retryOperation to handle potential 429 errors

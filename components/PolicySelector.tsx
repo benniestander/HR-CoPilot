@@ -17,7 +17,7 @@ const SCENARIO_MAP: Record<string, (PolicyType | FormType)[]> = {
     'dishonest': ['disciplinary', 'code-of-ethics'],
     
     'late': ['attendance-punctuality', 'verbal-warning', 'written-warning', 'disciplinary'],
-    'absent': ['attendance-punctuality', 'leave', 'abscondment-policy' as any], // Handle potential missing types gracefully
+    'absent': ['attendance-punctuality', 'leave'], // Removed invalid 'abscondment-policy'
     'punctual': ['attendance-punctuality'],
     
     'sick': ['leave', 'incapacity-inquiry-ill-health-notice', 'medical-report-template'],

@@ -92,7 +92,8 @@ export const getUserProfile = async (uid: string): Promise<User | null> => {
         .from('transactions')
         .select('*')
         .eq('user_id', uid)
-        .order('date', { ascending: false });
+        .order('date', { ascending: false })
+        .limit(50); // PERFORMANCE: Limit to latest 50 transactions
 
     return mapProfileToUser(profile, transactions || []);
 };
