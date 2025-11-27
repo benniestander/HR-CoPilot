@@ -139,7 +139,8 @@ export type FormType =
   | 'certificate-of-service'
   | 'termination-letter'
   | 'resignation-acceptance-letter'
-  | 'payroll-processing-checklist';
+  | 'payroll-processing-checklist'
+  | 'confidentiality-ip-agreement';
 
 export type InputType = 'text' | 'number' | 'textarea' | 'select' | 'checkbox' | 'date';
 

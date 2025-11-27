@@ -1,3 +1,4 @@
+
 import {
   ExpenseReimbursementIcon,
   MasterPolicyIcon,
@@ -273,6 +274,20 @@ export const FORMS: Record<string, Form> = {
   'poor-performance-meeting-minutes': { kind: 'form', type: 'poor-performance-meeting-minutes', title: 'Performance Minutes', description: 'Minutes for performance meeting.', icon: MeetingMinutesIcon, price: 1500, questions: commonQuestions, outputFormat: 'word' },
   'final-warning-hearing-held': { kind: 'form', type: 'final-warning-hearing-held', title: 'Final Warning (Hearing)', description: 'Outcome after hearing.', icon: FinalWrittenWarningIcon, price: 1500, questions: commonQuestions, outputFormat: 'word' },
   'incident-investigation-report': { kind: 'form', type: 'incident-investigation-report', title: 'Incident Investigation', description: 'Detailed investigation report.', icon: IncidentReportIcon, price: 2000, questions: commonQuestions, outputFormat: 'word' },
+  'confidentiality-ip-agreement': {
+    kind: 'form',
+    type: 'confidentiality-ip-agreement',
+    title: 'Confidentiality & IP Agreement',
+    description: 'Protect company secrets and intellectual property.',
+    icon: ConfidentialityIcon,
+    price: 2500,
+    questions: [
+      ...commonQuestions,
+      { id: 'includeNonCompete', label: 'Include Non-Compete Clause?', type: 'checkbox', tip: 'Restrict employees from working for competitors after leaving.' },
+      { id: 'includeNonSolicit', label: 'Include Non-Solicitation Clause?', type: 'checkbox', tip: 'Prevent poaching of clients or staff.' }
+    ],
+    outputFormat: 'word'
+  },
 };
 
 export const POLICY_CATEGORIES = [
