@@ -627,7 +627,8 @@ export const POLICIES: Record<PolicyType, Policy> = {
     questions: [
       ...commonQuestions,
       ...commonPolicyMetadataQuestions,
-      { id: 'reimbursementTimeframe', label: 'Typical timeframe for reimbursement (days)', type: 'number', placeholder: 'e.g., 14' }
+      { id: 'reimbursementTimeframe', label: 'Typical timeframe for reimbursement (days)', type: 'number', placeholder: 'e.g., 14' },
+      { id: 'receiptThreshold', label: 'Minimum amount requiring receipt (R)', type: 'number', placeholder: 'e.g., 50' }
     ],
   },
   // New Policies Added
