@@ -167,6 +167,24 @@ const PolicyUpdater: React.FC<PolicyUpdaterProps> = ({ onBack }) => {
       });
   };
 
+  const extractTextFromRtf = async (file: File): Promise<string> => {
+      const text = await extractTextFromText(file);
+      // Basic RTF Stripper
+      // 1. Remove groups with ignore flag
+      let clean = text.replace(/\{\\\*[\s\S]*?\}/g, "");
+      // 2. Replace \par with newline
+      clean = clean.replace(/\\par/g, "\n");
+      // 3. Remove other backslash commands
+      clean = clean.replace(/\\[a-z0-9]+/g, " ");
+      // 4. Remove braces
+      clean = clean.replace(/[{}]/g, "");
+      // 5. Try to decode hex characters (simple ascii extended)
+      clean = clean.replace(/\\'([0-9a-fA-F]{2})/g, (match, hex) => {
+          return String.fromCharCode(parseInt(hex, 16));
+      });
+      return clean.trim();
+  };
+
   const extractTextFromPdf = async (arrayBuffer: ArrayBuffer): Promise<string> => {
       // Safe access for pdfjs-dist which might be a default export or named export depending on CDN
       const pdfJs: any = pdfjsLib;
@@ -212,18 +230,35 @@ const PolicyUpdater: React.FC<PolicyUpdaterProps> = ({ onBack }) => {
           const isDocx = file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' || name.endsWith('.docx');
           const isMd = name.endsWith('.md');
           const isTxt = name.endsWith('.txt');
-          const isLegacyDoc = name.endsWith('.doc') || name.endsWith('.rtf');
+          const isRtf = file.type === 'application/rtf' || name.endsWith('.rtf');
+          const isDoc = name.endsWith('.doc');
 
           if (isPdf) {
               extractedText = await extractTextFromPdf(arrayBuffer);
           } else if (isDocx) {
               extractedText = await extractTextFromDocx(arrayBuffer);
+          } else if (isRtf) {
+              extractedText = await extractTextFromRtf(file);
           } else if (isMd || isTxt) {
               extractedText = await extractTextFromText(file);
-          } else if (isLegacyDoc) {
-              throw new Error(`The format "${name.split('.').pop()}" is not supported for browser-based analysis. Please save your document as a .docx or .pdf file and try again.`);
+          } else if (isDoc) {
+              // Try mammoth first (optimistic check for renamed docx)
+              try {
+                  extractedText = await extractTextFromDocx(arrayBuffer);
+              } catch (e) {
+                  console.warn("Mammoth failed on .doc, falling back to raw text extraction", e);
+                  // Fallback: Try to read as text and strip garbage
+                  // This is a 'best effort' for binary doc files in browser
+                  const rawText = await extractTextFromText(file);
+                  // Filter for printable characters and newlines to remove binary junk
+                  extractedText = rawText.replace(/[^\x20-\x7E\n\r\t]/g, '');
+                  if (extractedText.length < 50) {
+                       throw new Error(`This .doc file seems to be in an older binary format that cannot be read by the browser. Please open it in Word and save as .docx, then try again.`);
+                  }
+                  setToastMessage("Warning: Reading legacy .doc format. Some formatting may be lost.");
+              }
           } else {
-              throw new Error('Unsupported file format. Please upload a PDF, Word (.docx), or Markdown (.md) file.');
+              throw new Error('Unsupported file format. Please upload a PDF, Word (.docx/.doc), RTF, or Text file.');
           }
 
           if (!extractedText.trim()) {
