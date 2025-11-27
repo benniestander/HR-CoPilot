@@ -19,7 +19,6 @@ interface AuthContextType {
     onboardingSkipped: boolean;
     showOnboardingWalkthrough: boolean;
     handleStartAuthFlow: (flow: 'signup' | 'payg_signup', email: string, details: { password: string; name?: string; contactNumber?: string }) => Promise<void>;
-    handleStartGoogleAuthFlow: (flow: 'signup' | 'payg_signup') => Promise<void>;
     handleLogin: (email: string, password: string) => Promise<void>;
     handleForgotPassword: (email: string) => Promise<void>;
     handleLogout: () => void;
@@ -97,25 +96,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             throw error;
         }
     };
-
-    const handleStartGoogleAuthFlow = async (flow: AuthFlow) => {
-        try {
-            window.localStorage.setItem('authFlow', flow);
-            const { error } = await supabase.auth.signInWithOAuth({
-                provider: 'google',
-                options: {
-                    queryParams: {
-                        access_type: 'offline',
-                        prompt: 'consent',
-                    },
-                },
-            });
-            if (error) throw error;
-        } catch (error) {
-            console.error("Google Sign-in Error:", error);
-            throw error;
-        }
-    };
     
     const handleLogin = async (email: string, password: string) => {
         try {
@@ -167,7 +147,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         onboardingSkipped,
         showOnboardingWalkthrough,
         handleStartAuthFlow,
-        handleStartGoogleAuthFlow,
         handleLogin,
         handleForgotPassword,
         handleLogout,

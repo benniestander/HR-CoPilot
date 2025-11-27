@@ -50,7 +50,6 @@ const AppContent: React.FC = () => {
         handleGoToProfileSetup,
         isSubscribed,
         handleStartAuthFlow,
-        handleStartGoogleAuthFlow
     } = useAuthContext();
 
     const {
@@ -426,7 +425,6 @@ const AppContent: React.FC = () => {
                 <Suspense fallback={<FullPageLoader />}>
                     <PlanSelectionPage
                         onStartAuthFlow={handleStartAuthFlow}
-                        onStartGoogleAuthFlow={handleStartGoogleAuthFlow}
                         onShowLogin={() => setAuthPage('login')}
                         onShowPrivacyPolicy={() => showLegalModal('Privacy Policy', PRIVACY_POLICY_CONTENT)}
                         onShowTerms={() => showLegalModal('Terms of Use', TERMS_OF_USE_CONTENT)}

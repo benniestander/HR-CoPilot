@@ -1,10 +1,9 @@
 
 import React, { useState, useEffect } from 'react';
-import { CheckIcon, GoogleIcon, EyeIcon, EyeOffIcon, ShieldCheckIcon, StarIcon } from './Icons';
+import { CheckIcon, EyeIcon, EyeOffIcon, ShieldCheckIcon, StarIcon } from './Icons';
 
 interface PlanSelectionPageProps {
   onStartAuthFlow: (flow: 'signup' | 'payg_signup', email: string, details: { password: string, name?: string, contactNumber?: string }) => void;
-  onStartGoogleAuthFlow: (flow: 'signup' | 'payg_signup') => void;
   onShowLogin: () => void;
   onShowPrivacyPolicy: () => void;
   onShowTerms: () => void;
@@ -12,7 +11,6 @@ interface PlanSelectionPageProps {
 
 const PlanSelectionPage: React.FC<PlanSelectionPageProps> = ({ 
     onStartAuthFlow, 
-    onStartGoogleAuthFlow, 
     onShowLogin, 
     onShowPrivacyPolicy, 
     onShowTerms 
@@ -24,7 +22,7 @@ const PlanSelectionPage: React.FC<PlanSelectionPageProps> = ({
     const [formData, setFormData] = useState({ name: '', email: '', password: '', contactNumber: '' });
     const [errors, setErrors] = useState({ name: '', email: '', password: '', contactNumber: '' });
     const [showPassword, setShowPassword] = useState(false);
-    const [loading, setLoading] = useState<'none' | 'email' | 'google'>('none');
+    const [loading, setLoading] = useState<'none' | 'email'>('none');
     
     // Mobile Specific State
     const [showFeatures, setShowFeatures] = useState(false);
@@ -46,8 +44,8 @@ const PlanSelectionPage: React.FC<PlanSelectionPageProps> = ({
     ];
     
     const paygFeatures = [
-        'No monthly fees - pay per document',
-        'Instant access to all compliant templates',
+        'No monthly fees - pay only when you need a document',
+        'Instant access to our full library of compliant templates',
         'Download editable Word/Excel files instantly',
         'Basic AI customization for your business',
     ];
@@ -96,16 +94,6 @@ const PlanSelectionPage: React.FC<PlanSelectionPageProps> = ({
                 name: formData.name, 
                 contactNumber: selectedPlan === 'payg' ? formData.contactNumber : undefined 
             });
-        } catch (error) {
-            setLoading('none');
-        }
-    };
-
-    const handleGoogleSignUp = async () => {
-        setLoading('google');
-        const flow = selectedPlan === 'pro' ? 'signup' : 'payg_signup';
-        try {
-            await onStartGoogleAuthFlow(flow);
         } catch (error) {
             setLoading('none');
         }
@@ -214,22 +202,6 @@ const PlanSelectionPage: React.FC<PlanSelectionPageProps> = ({
                                 <FeaturesList />
                             </div>
                         )}
-                    </div>
-
-                    {/* Google Sign Up */}
-                    <button 
-                        onClick={handleGoogleSignUp}
-                        disabled={loading !== 'none'}
-                        className="w-full flex justify-center items-center py-3.5 bg-white border-2 border-gray-200 rounded-xl text-gray-700 font-bold mb-6 shadow-sm active:bg-gray-50"
-                    >
-                        {loading === 'google' ? <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-gray-600 mr-2"></div> : <GoogleIcon className="w-5 h-5 mr-3" />}
-                        Sign Up with Google
-                    </button>
-
-                    <div className="flex items-center mb-6">
-                        <div className="flex-1 border-t border-gray-300"></div>
-                        <span className="px-3 text-gray-400 text-sm">OR</span>
-                        <div className="flex-1 border-t border-gray-300"></div>
                     </div>
 
                     {/* Form */}
@@ -397,21 +369,6 @@ const PlanSelectionPage: React.FC<PlanSelectionPageProps> = ({
                         <div className="relative">
                             <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-gray-200"></div></div>
                             <div className="relative flex justify-center text-sm"><span className="px-2 bg-white text-gray-500">Create your account</span></div>
-                        </div>
-
-                        <button 
-                            onClick={handleGoogleSignUp}
-                            disabled={loading !== 'none'}
-                            className="w-full flex justify-center items-center py-3 bg-white border border-gray-300 rounded-lg text-gray-700 font-bold hover:bg-gray-50 transition-colors shadow-sm"
-                        >
-                            {loading === 'google' ? <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-gray-600 mr-2"></div> : <GoogleIcon className="w-5 h-5 mr-3" />}
-                            Sign Up with Google
-                        </button>
-
-                        <div className="relative flex py-2 items-center">
-                            <div className="flex-grow border-t border-gray-200"></div>
-                            <span className="flex-shrink mx-4 text-gray-400 text-xs uppercase">Or with email</span>
-                            <div className="flex-grow border-t border-gray-200"></div>
                         </div>
 
                         <form onSubmit={handleSubmit} className="space-y-4">
