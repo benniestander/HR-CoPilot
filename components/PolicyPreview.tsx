@@ -32,15 +32,6 @@ const WORD_DOCUMENT_STYLES = `
   .word-document-preview strong { color: #111827; }
 `;
 
-// HTML for the badge, styled with inline CSS for maximum compatibility with Word parsers
-const VERIFICATION_BADGE_HTML = `
-<div style="text-align: right; border-bottom: 2px solid #188693; padding-bottom: 12px; margin-bottom: 24px;">
-  <span style="background-color: #f0fdfa; color: #134e4a; border: 1px solid #ccfbf1; padding: 6px 12px; font-size: 9pt; font-weight: bold; border-radius: 4px; font-family: sans-serif; display: inline-block;">
-    <span style="color: #188693; font-size: 11pt;">&#10003;</span> VERIFIED COMPLIANT &bull; SA LABOUR LAW 2025
-  </span>
-</div>
-`;
-
 const SourcesUsed: React.FC<{ sources: Source[] }> = ({ sources }) => {
   if (sources.length === 0) return null;
   return (
@@ -84,8 +75,7 @@ const PolicyPreview: React.FC<PolicyPreviewProps> = ({ policyText, status, onRet
         const rawHtml = await marked.parse(policyText);
         // Sanitize the HTML to prevent XSS
         const cleanHtml = DOMPurify.sanitize(rawHtml);
-        // Prepend the verification badge
-        editorRef.current.innerHTML = VERIFICATION_BADGE_HTML + cleanHtml;
+        editorRef.current.innerHTML = cleanHtml;
       })();
     } else if (editorRef.current) {
       editorRef.current.innerHTML = '';
