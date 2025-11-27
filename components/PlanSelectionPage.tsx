@@ -1,6 +1,6 @@
 
-import React, { useState } from 'react';
-import { CheckIcon, GoogleIcon } from './Icons';
+import React, { useState, useEffect } from 'react';
+import { CheckIcon, GoogleIcon, EyeIcon, EyeOffIcon, ShieldCheckIcon, StarIcon } from './Icons';
 
 interface PlanSelectionPageProps {
   onStartAuthFlow: (flow: 'signup' | 'payg_signup', email: string, details: { password: string, name?: string, contactNumber?: string }) => void;
@@ -10,230 +10,442 @@ interface PlanSelectionPageProps {
   onShowTerms: () => void;
 }
 
-const PlanSelectionPage: React.FC<PlanSelectionPageProps> = ({ onStartAuthFlow, onStartGoogleAuthFlow, onShowLogin, onShowPrivacyPolicy, onShowTerms }) => {
+const PlanSelectionPage: React.FC<PlanSelectionPageProps> = ({ 
+    onStartAuthFlow, 
+    onStartGoogleAuthFlow, 
+    onShowLogin, 
+    onShowPrivacyPolicy, 
+    onShowTerms 
+}) => {
     const [selectedPlan, setSelectedPlan] = useState<'pro' | 'payg'>('pro');
+    const [isMobile, setIsMobile] = useState(false);
     
-    const [proData, setProData] = useState({ name: '', email: '', password: '', confirmPassword: '' });
-    const [paygData, setPaygData] = useState({ name: '', email: '', contactNumber: '', password: '', confirmPassword: '' });
+    // Unified Form State
+    const [formData, setFormData] = useState({ name: '', email: '', password: '', contactNumber: '' });
+    const [errors, setErrors] = useState({ name: '', email: '', password: '', contactNumber: '' });
+    const [showPassword, setShowPassword] = useState(false);
+    const [loading, setLoading] = useState<'none' | 'email' | 'google'>('none');
     
-    const [proErrors, setProErrors] = useState({ name: '', email: '', password: '', confirmPassword: '' });
-    const [paygErrors, setPaygErrors] = useState({ name: '', email: '', contactNumber: '', password: '', confirmPassword: '' });
+    // Mobile Specific State
+    const [showFeatures, setShowFeatures] = useState(false);
 
-    const [loading, setLoading] = useState<'none' | 'pro' | 'payg' | 'google_pro' | 'google_payg'>('none');
-    
+    useEffect(() => {
+        const checkMobile = () => setIsMobile(window.innerWidth < 1024);
+        checkMobile();
+        window.addEventListener('resize', checkMobile);
+        return () => window.removeEventListener('resize', checkMobile);
+    }, []);
+
     const proFeatures = [
         'Unlimited HR Policy Generation',
         'Unlimited HR Form Generation',
-        'Ingcweti AI-Powered Policy Updates & Analysis',
-        'Custom Ingcweti AI Compliance Checklists',
+        'Ingcweti AI-Powered Policy Updates',
+        'Compliance Roadmap Checklists',
         'Secure Document History',
         'Priority Support',
     ];
     
-    const commonFeatures = [
-        'Access to all document templates',
-        'Ingcweti AI-powered document generation',
-        'Secure cloud document storage',
-        'Download as Word (.doc) or Excel',
+    const paygFeatures = [
+        'Pay per document (R50 - R150)',
+        'Access to all templates',
+        'Secure download (Word/Excel)',
+        'Basic AI generation',
     ];
 
-    const validateField = (form: 'pro' | 'payg', name: keyof typeof proData | keyof typeof paygData, value: string) => {
+    const validateField = (name: string, value: string) => {
         let error = '';
-        const data = form === 'pro' ? proData : paygData;
-
         if (!value.trim()) {
-            error = 'This field is required.';
+            error = 'Required';
         } else if (name === 'email' && !/\S+@\S+\.\S+/.test(value)) {
-            error = 'Please enter a valid email address.';
-        } else if (name === 'contactNumber' && !/^\d{10}$/.test(value.replace(/\s/g, ''))) {
-            error = 'Please enter a valid 10-digit phone number.';
+            error = 'Invalid email';
         } else if (name === 'password' && value.length < 6) {
-            error = 'Password must be at least 6 characters long.';
-        } else if (name === 'confirmPassword' && value !== data.password) {
-            error = 'Passwords do not match.';
+            error = 'Min 6 chars';
+        } else if (name === 'contactNumber' && selectedPlan === 'payg' && !/^\d{10}$/.test(value.replace(/\s/g, ''))) {
+            error = 'Invalid phone number';
         }
-
-        if (form === 'pro') {
-            setProErrors(prev => ({ ...prev, [name as keyof typeof proErrors]: error }));
-        } else {
-            setPaygErrors(prev => ({ ...prev, [name as keyof typeof paygErrors]: error }));
-        }
+        setErrors(prev => ({ ...prev, [name]: error }));
         return !error;
     };
 
-    const handleProSubmit = (e: React.FormEvent) => {
-        e.preventDefault();
-        const isNameValid = validateField('pro', 'name', proData.name);
-        const isEmailValid = validateField('pro', 'email', proData.email);
-        const isPasswordValid = validateField('pro', 'password', proData.password);
-        const isConfirmValid = validateField('pro', 'confirmPassword', proData.confirmPassword);
-        if (!isNameValid || !isEmailValid || !isPasswordValid || !isConfirmValid) return;
-        
-        setLoading('pro');
-        onStartAuthFlow('signup', proData.email, { password: proData.password, name: proData.name });
+    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const { name, value } = e.target;
+        setFormData(prev => ({ ...prev, [name]: value }));
+        if (errors[name as keyof typeof errors]) {
+            validateField(name, value);
+        }
     };
 
-    const handlePaygSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        const isNameValid = validateField('payg', 'name', paygData.name);
-        const isEmailValid = validateField('payg', 'email', paygData.email);
-        const isContactValid = validateField('payg', 'contactNumber', paygData.contactNumber);
-        const isPasswordValid = validateField('payg', 'password', paygData.password);
-        const isConfirmValid = validateField('payg', 'confirmPassword', paygData.confirmPassword);
         
-        if (!isNameValid || !isEmailValid || !isContactValid || !isPasswordValid || !isConfirmValid) return;
-        
-        setLoading('payg');
-        onStartAuthFlow('payg_signup', paygData.email, { name: paygData.name, contactNumber: paygData.contactNumber, password: paygData.password });
+        let isValid = true;
+        isValid = validateField('name', formData.name) && isValid;
+        isValid = validateField('email', formData.email) && isValid;
+        isValid = validateField('password', formData.password) && isValid;
+        if (selectedPlan === 'payg') {
+            isValid = validateField('contactNumber', formData.contactNumber) && isValid;
+        }
+
+        if (!isValid) return;
+
+        setLoading('email');
+        const flow = selectedPlan === 'pro' ? 'signup' : 'payg_signup';
+        try {
+            await onStartAuthFlow(flow, formData.email, { 
+                password: formData.password, 
+                name: formData.name, 
+                contactNumber: selectedPlan === 'payg' ? formData.contactNumber : undefined 
+            });
+        } catch (error) {
+            setLoading('none');
+        }
     };
-    
-    const PlanSelectorCard: React.FC<{ plan: 'pro' | 'payg', title: string, price: string, badge?: string }> = ({ plan, title, price, badge }) => {
-        const isSelected = selectedPlan === plan;
-        return (
-            <div
-                onClick={() => setSelectedPlan(plan)}
-                className={`relative border-2 rounded-lg p-5 cursor-pointer transition-all duration-200 ${
-                    isSelected ? 'border-primary bg-primary/5' : 'border-gray-300 bg-white hover:border-gray-400'
+
+    const handleGoogleSignUp = async () => {
+        setLoading('google');
+        const flow = selectedPlan === 'pro' ? 'signup' : 'payg_signup';
+        try {
+            await onStartGoogleAuthFlow(flow);
+        } catch (error) {
+            setLoading('none');
+        }
+    };
+
+    // --- Sub-Components ---
+
+    const InputField = ({ name, type, placeholder, icon }: any) => (
+        <div className="relative">
+            <input
+                type={type}
+                name={name}
+                value={formData[name as keyof typeof formData]}
+                onChange={handleInputChange}
+                onBlur={(e) => validateField(name, e.target.value)}
+                placeholder={placeholder}
+                className={`w-full p-4 pl-4 ${icon ? 'pr-12' : ''} bg-white border rounded-lg text-base transition-all focus:outline-none focus:ring-2 focus:ring-primary/20 ${
+                    errors[name as keyof typeof errors] 
+                    ? 'border-red-300 focus:border-red-500' 
+                    : 'border-gray-200 focus:border-primary'
                 }`}
-            >
-                <div className="flex justify-between items-start">
-                    <div className="font-bold text-secondary text-lg">{title}</div>
-                    <div className="w-6 h-6 flex-shrink-0">
-                        {isSelected ? (
-                            <div className="w-6 h-6 rounded-full bg-primary flex items-center justify-center">
-                                <CheckIcon className="w-4 h-4 text-white" />
-                            </div>
-                        ) : (
-                            <div className="w-6 h-6 rounded-full border-2 border-gray-300"></div>
+            />
+            {icon && <div className="absolute right-3 top-4 text-gray-400">{icon}</div>}
+            {errors[name as keyof typeof errors] && (
+                <p className="text-red-500 text-xs mt-1 ml-1">{errors[name as keyof typeof errors]}</p>
+            )}
+        </div>
+    );
+
+    const FeaturesList = () => (
+        <div className="space-y-3">
+            {(selectedPlan === 'pro' ? proFeatures : paygFeatures).map((feature, idx) => (
+                <div key={idx} className="flex items-start">
+                    <div className="bg-green-100 rounded-full p-1 mr-3 mt-0.5">
+                        <CheckIcon className="w-3 h-3 text-green-700" />
+                    </div>
+                    <span className="text-gray-700 text-sm">{feature}</span>
+                </div>
+            ))}
+        </div>
+    );
+
+    // --- Mobile Layout ---
+    if (isMobile) {
+        return (
+            <div className="min-h-screen bg-gray-50 pb-24">
+                {/* Sticky Header */}
+                <div className="fixed top-0 left-0 right-0 bg-white shadow-sm z-50 px-4 py-3 flex justify-between items-center">
+                    <img src="https://i.postimg.cc/h48FMCNY/edited-image-11-removebg-preview.png" alt="HR CoPilot" className="h-8" />
+                    <button onClick={onShowLogin} className="text-sm font-semibold text-primary">Sign In</button>
+                </div>
+
+                <div className="pt-20 px-4">
+                    <h1 className="text-2xl font-bold text-secondary text-center mb-6">Create your account</h1>
+
+                    {/* Plan Toggle */}
+                    <div className="bg-gray-200 p-1 rounded-full flex relative mb-6">
+                        <div 
+                            className={`absolute top-1 bottom-1 w-[calc(50%-4px)] bg-white rounded-full shadow-sm transition-all duration-300 ease-out ${selectedPlan === 'pro' ? 'left-[calc(50%+2px)]' : 'left-1'}`}
+                        />
+                        <button 
+                            onClick={() => setSelectedPlan('payg')}
+                            className={`flex-1 py-2.5 text-sm font-medium z-10 text-center transition-colors ${selectedPlan === 'payg' ? 'text-secondary' : 'text-gray-500'}`}
+                        >
+                            Pay-As-You-Go
+                        </button>
+                        <button 
+                            onClick={() => setSelectedPlan('pro')}
+                            className={`flex-1 py-2.5 text-sm font-medium z-10 text-center transition-colors ${selectedPlan === 'pro' ? 'text-primary' : 'text-gray-500'}`}
+                        >
+                            Pro (Best Value)
+                        </button>
+                    </div>
+
+                    {/* Price Hero */}
+                    <div className="text-center mb-4">
+                        <div className="inline-flex items-baseline">
+                            <span className="text-4xl font-bold text-secondary">
+                                {selectedPlan === 'pro' ? 'R747' : 'R50+'}
+                            </span>
+                            <span className="text-gray-500 ml-1">
+                                {selectedPlan === 'pro' ? '/ year' : '/ doc'}
+                            </span>
+                        </div>
+                        {selectedPlan === 'pro' && (
+                            <p className="text-green-600 text-xs font-bold mt-1 bg-green-100 inline-block px-2 py-0.5 rounded-full">
+                                SAVE 20%
+                            </p>
                         )}
                     </div>
-                </div>
-                <p className="text-gray-600">{price}</p>
-                {badge && (
-                    <div className="absolute top-4 right-12 text-xs font-bold text-pink-700 bg-pink-100 border border-pink-200 px-2.5 py-1 rounded-full">
-                        {badge}
+
+                    {/* Collapsible Features */}
+                    <div className="mb-8 bg-white rounded-lg border border-gray-200 overflow-hidden">
+                        <button 
+                            onClick={() => setShowFeatures(!showFeatures)}
+                            className="w-full px-4 py-3 flex justify-between items-center text-sm font-medium text-gray-600 bg-gray-50"
+                        >
+                            <span>What's included?</span>
+                            <span className={`transform transition-transform ${showFeatures ? 'rotate-180' : ''}`}>▼</span>
+                        </button>
+                        {showFeatures && (
+                            <div className="p-4 border-t border-gray-200 animate-fade-in">
+                                <FeaturesList />
+                            </div>
+                        )}
                     </div>
-                )}
+
+                    {/* Google Sign Up */}
+                    <button 
+                        onClick={handleGoogleSignUp}
+                        disabled={loading !== 'none'}
+                        className="w-full flex justify-center items-center py-3.5 bg-white border-2 border-gray-200 rounded-xl text-gray-700 font-bold mb-6 shadow-sm active:bg-gray-50"
+                    >
+                        {loading === 'google' ? <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-gray-600 mr-2"></div> : <GoogleIcon className="w-5 h-5 mr-3" />}
+                        Sign Up with Google
+                    </button>
+
+                    <div className="flex items-center mb-6">
+                        <div className="flex-1 border-t border-gray-300"></div>
+                        <span className="px-3 text-gray-400 text-sm">OR</span>
+                        <div className="flex-1 border-t border-gray-300"></div>
+                    </div>
+
+                    {/* Form */}
+                    <form onSubmit={handleSubmit} className="space-y-4 mb-20">
+                        <InputField name="name" type="text" placeholder="Full Name" />
+                        <InputField name="email" type="email" placeholder="Email Address" />
+                        {selectedPlan === 'payg' && (
+                            <InputField name="contactNumber" type="tel" placeholder="Mobile Number" />
+                        )}
+                        <InputField 
+                            name="password" 
+                            type={showPassword ? "text" : "password"} 
+                            placeholder="Create Password"
+                            icon={
+                                <button type="button" onClick={() => setShowPassword(!showPassword)}>
+                                    {showPassword ? <EyeOffIcon className="w-5 h-5" /> : <EyeIcon className="w-5 h-5" />}
+                                </button>
+                            }
+                        />
+                        
+                        <div className="text-center mt-2">
+                            <p className="text-xs text-gray-400 flex justify-center items-center">
+                                <ShieldCheckIcon className="w-3 h-3 mr-1" /> Encrypted & Secure
+                            </p>
+                        </div>
+
+                        {/* Sticky CTA */}
+                        <div className="fixed bottom-0 left-0 right-0 p-4 bg-white border-t border-gray-200 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] z-40">
+                            <button 
+                                type="submit"
+                                disabled={loading !== 'none'}
+                                className="w-full bg-primary text-white font-bold py-3.5 rounded-xl shadow-lg active:scale-[0.98] transition-transform flex justify-center items-center"
+                            >
+                                {loading === 'email' ? 'Creating Account...' : `Sign Up for ${selectedPlan === 'pro' ? 'Pro' : 'Free'}`}
+                            </button>
+                        </div>
+                    </form>
+                    
+                    <div className="text-center text-xs text-gray-400 pb-8">
+                        <button onClick={onShowPrivacyPolicy} className="underline mr-4">Privacy</button>
+                        <button onClick={onShowTerms} className="underline">Terms</button>
+                    </div>
+                </div>
             </div>
         );
-    };
+    }
 
+    // --- Desktop Layout ---
     return (
-        <div className="min-h-screen bg-white text-secondary flex flex-col">
-            <header className="py-6">
-                <div className="container mx-auto flex justify-between items-center px-6">
-                    <img src="https://i.postimg.cc/h48FMCNY/edited-image-11-removebg-preview.png" alt="HR CoPilot Logo" className="h-12" />
-                    <div className="text-sm">
-                        <span>Already have an account? </span>
-                        <button onClick={onShowLogin} className="font-semibold text-primary hover:underline">Sign In</button>
-                    </div>
-                </div>
-            </header>
-            <main className="flex-grow container mx-auto flex flex-col items-center px-6 py-12">
-                <div className="w-full max-w-2xl">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-10">
-                        <PlanSelectorCard plan="pro" title="HR CoPilot Pro" price="R747 / year" badge="Recommended" />
-                        <PlanSelectorCard plan="payg" title="Pay-As-You-Go" price="Pay per document" />
+        <div className="min-h-screen flex flex-row bg-white">
+            {/* Left Side - Value & Trust */}
+            <div className="w-5/12 bg-secondary text-white relative flex flex-col justify-between overflow-hidden p-12">
+                {/* Background Blobs */}
+                <div className="absolute top-0 right-0 w-96 h-96 bg-primary rounded-full filter blur-[120px] opacity-20 -mr-20 -mt-20"></div>
+                <div className="absolute bottom-0 left-0 w-80 h-80 bg-accent rounded-full filter blur-[120px] opacity-10 -ml-20 -mb-20"></div>
+
+                <div className="relative z-10 flex flex-col h-full justify-between">
+                    <div>
+                        <img src="https://i.postimg.cc/h48FMCNY/edited-image-11-removebg-preview.png" alt="HR CoPilot" className="h-10 mb-12 brightness-0 invert" />
+                        
+                        <h1 className="text-5xl font-bold leading-tight mb-6">
+                            Expert HR Compliance, <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-cyan-300">Automated.</span>
+                        </h1>
+                        <p className="text-lg text-blue-100 leading-relaxed mb-10">
+                            Join over 500 South African small businesses using Ingcweti AI to generate compliant contracts, policies, and forms in minutes.
+                        </p>
+
+                        <div className="bg-white/10 backdrop-blur-md rounded-xl p-6 border border-white/10 shadow-lg max-w-md">
+                            <div className="flex text-accent mb-3">
+                                {[...Array(5)].map((_, i) => <StarIcon key={i} className="w-5 h-5" />)}
+                            </div>
+                            <p className="text-blue-50 italic mb-4">"I used to pay consultants thousands for these documents. HR CoPilot saved me time and money instantly."</p>
+                            <div className="flex items-center">
+                                <div className="w-10 h-10 bg-gradient-to-tr from-accent to-yellow-600 rounded-full flex items-center justify-center font-bold text-secondary mr-3 shadow-md">
+                                    JS
+                                </div>
+                                <div>
+                                    <p className="text-sm font-bold">John Smit</p>
+                                    <p className="text-xs text-blue-200">Owner, Smit Construction</p>
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
-                    <div className="mb-10 text-center">
-                        <h2 className="text-2xl font-bold text-secondary mb-4">What's included?</h2>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-3 max-w-lg mx-auto text-left">
-                            {commonFeatures.map((feature) => (
-                                <div key={feature} className="flex items-center"><CheckIcon className="w-5 h-5 text-green-500 mr-3" /><span>{feature}</span></div>
-                            ))}
-                        </div>
-                        <div className="mt-6 pt-6 border-t border-gray-200">
-                             <h3 className="text-lg font-bold text-primary mb-3">HR CoPilot Pro adds:</h3>
-                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-3 max-w-lg mx-auto text-left">
-                                <div className="flex items-center"><CheckIcon className="w-5 h-5 text-green-500 mr-3" /><span>Unlimited document generation</span></div>
-                                <div className="flex items-center"><CheckIcon className="w-5 h-5 text-green-500 mr-3" /><span>Ingcweti AI Compliance Checklist</span></div>
-                                <div className="flex items-center"><CheckIcon className="w-5 h-5 text-green-500 mr-3" /><span>Ingcweti AI Policy Updater</span></div>
-                                <div className="flex items-center"><CheckIcon className="w-5 h-5 text-green-500 mr-3" /><span>Priority Support</span></div>
-                            </div>
+                    <div className="text-xs text-blue-300 flex justify-between items-end mt-10">
+                        <p>© 2025 HR CoPilot</p>
+                        <div className="space-x-6">
+                            <button onClick={onShowPrivacyPolicy} className="hover:text-white transition-colors">Privacy Policy</button>
+                            <button onClick={onShowTerms} className="hover:text-white transition-colors">Terms of Use</button>
                         </div>
                     </div>
-                    
-                    <div className="w-full max-w-md mx-auto">
-                        <h2 className="text-2xl font-bold text-secondary text-center mb-6">Create your account</h2>
-                        {selectedPlan === 'pro' && (
-                            <div className="space-y-4">
-                                <button onClick={() => { setLoading('google_pro'); onStartGoogleAuthFlow('signup'); }} disabled={loading !== 'none'} className="w-full flex justify-center items-center py-3 px-4 border border-gray-300 rounded-md shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:bg-gray-200">
-                                    <GoogleIcon className="w-5 h-5 mr-2" /> {loading === 'google_pro' ? 'Redirecting...' : 'Sign Up with Google'}
-                                </button>
-                                <div className="my-4 flex items-center"><div className="flex-grow border-t border-gray-300"></div><span className="flex-shrink mx-4 text-gray-400 text-sm">OR</span><div className="flex-grow border-t border-gray-300"></div></div>
-                                <form onSubmit={handleProSubmit} className="space-y-4">
-                                    <div>
-                                        <input type="text" value={proData.name} onChange={e => { setProData({...proData, name: e.target.value}); validateField('pro', 'name', e.target.value); }} placeholder="Your Name" className={`w-full p-3 border rounded-md shadow-sm ${proErrors.name ? 'border-red-500' : 'border-gray-300'}`} />
-                                        {proErrors.name && <p className="text-red-600 text-xs mt-1">{proErrors.name}</p>}
-                                    </div>
-                                    <div>
-                                        <input type="email" value={proData.email} onChange={e => { setProData({...proData, email: e.target.value}); validateField('pro', 'email', e.target.value); }} placeholder="your-email@example.com" className={`w-full p-3 border rounded-md shadow-sm ${proErrors.email ? 'border-red-500' : 'border-gray-300'}`} />
-                                        {proErrors.email && <p className="text-red-600 text-xs mt-1">{proErrors.email}</p>}
-                                    </div>
-                                    <div>
-                                        <input type="password" value={proData.password} onChange={e => { setProData({...proData, password: e.target.value}); validateField('pro', 'password', e.target.value); }} placeholder="Password" className={`w-full p-3 border rounded-md shadow-sm ${proErrors.password ? 'border-red-500' : 'border-gray-300'}`} />
-                                        {proErrors.password && <p className="text-red-600 text-xs mt-1">{proErrors.password}</p>}
-                                    </div>
-                                    <div>
-                                        <input type="password" value={proData.confirmPassword} onChange={e => { setProData({...proData, confirmPassword: e.target.value}); validateField('pro', 'confirmPassword', e.target.value); }} placeholder="Confirm Password" className={`w-full p-3 border rounded-md shadow-sm ${proErrors.confirmPassword ? 'border-red-500' : 'border-gray-300'}`} />
-                                        {proErrors.confirmPassword && <p className="text-red-600 text-xs mt-1">{proErrors.confirmPassword}</p>}
-                                    </div>
-                                    <button type="submit" disabled={loading !== 'none'} className="w-full bg-primary text-white font-bold py-3 px-4 rounded-md hover:bg-opacity-90 disabled:bg-gray-400">
-                                        {loading === 'pro' ? 'Creating Account...' : 'Sign Up for Pro'}
-                                    </button>
-                                </form>
+                </div>
+            </div>
+
+            {/* Right Side - Action */}
+            <div className="w-7/12 bg-white overflow-y-auto flex flex-col">
+                <div className="flex justify-end p-8">
+                    <span className="text-gray-500 text-sm mr-2">Already have an account?</span>
+                    <button onClick={onShowLogin} className="text-primary font-bold text-sm hover:underline">Sign In</button>
+                </div>
+
+                <div className="flex-1 flex flex-col justify-center max-w-xl mx-auto w-full px-8 pb-12">
+                    <div className="mb-8 text-center">
+                        <h2 className="text-3xl font-bold text-secondary mb-2">Select your plan</h2>
+                        <p className="text-gray-500">Choose the best way to handle your HR compliance.</p>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4 mb-8">
+                        {/* Pro Card */}
+                        <div 
+                            onClick={() => setSelectedPlan('pro')}
+                            className={`p-5 rounded-xl border-2 cursor-pointer transition-all duration-300 relative flex flex-col justify-between h-full ${
+                                selectedPlan === 'pro' 
+                                ? 'border-primary bg-white shadow-xl scale-[1.02] z-10' 
+                                : 'border-gray-200 bg-gray-50 hover:bg-white hover:border-primary/30'
+                            }`}
+                        >
+                            {selectedPlan === 'pro' && (
+                                <div className="absolute -top-3 right-4 bg-accent text-white text-[10px] font-bold px-2 py-1 rounded-full shadow-sm tracking-wide">
+                                    RECOMMENDED
+                                </div>
+                            )}
+                            <div>
+                                <h3 className={`font-bold ${selectedPlan === 'pro' ? 'text-secondary' : 'text-gray-500'}`}>HR CoPilot Pro</h3>
+                                <div className="mt-2">
+                                    <span className="text-2xl font-bold text-secondary">R747</span>
+                                    <span className="text-xs text-gray-500"> / year</span>
+                                </div>
                             </div>
-                        )}
-                        {selectedPlan === 'payg' && (
-                             <div className="space-y-4">
-                                <button onClick={() => { setLoading('google_payg'); onStartGoogleAuthFlow('payg_signup'); }} disabled={loading !== 'none'} className="w-full flex justify-center items-center py-3 px-4 border border-gray-300 rounded-md shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:bg-gray-200">
-                                    <GoogleIcon className="w-5 h-5 mr-2" /> {loading === 'google_payg' ? 'Redirecting...' : 'Sign Up with Google'}
-                                </button>
-                                <div className="my-4 flex items-center"><div className="flex-grow border-t border-gray-300"></div><span className="flex-shrink mx-4 text-gray-400 text-sm">OR</span><div className="flex-grow border-t border-gray-300"></div></div>
-                                 <form onSubmit={handlePaygSubmit} className="space-y-4">
-                                    <div>
-                                        <input type="text" value={paygData.name} onChange={e => { setPaygData({...paygData, name: e.target.value}); validateField('payg', 'name', e.target.value);}} placeholder="Your Name" className={`w-full p-3 border rounded-md shadow-sm ${paygErrors.name ? 'border-red-500' : 'border-gray-300'}`} />
-                                        {paygErrors.name && <p className="text-red-600 text-xs mt-1">{paygErrors.name}</p>}
-                                    </div>
-                                    <div>
-                                        <input type="email" value={paygData.email} onChange={e => { setPaygData({...paygData, email: e.target.value}); validateField('payg', 'email', e.target.value);}} placeholder="Your Email Address" className={`w-full p-3 border rounded-md shadow-sm ${paygErrors.email ? 'border-red-500' : 'border-gray-300'}`} />
-                                        {paygErrors.email && <p className="text-red-600 text-xs mt-1">{paygErrors.email}</p>}
-                                    </div>
-                                    <div>
-                                        <input type="tel" value={paygData.contactNumber} onChange={e => { setPaygData({...paygData, contactNumber: e.target.value}); validateField('payg', 'contactNumber', e.target.value);}} placeholder="Contact Number (e.g. 0821234567)" className={`w-full p-3 border rounded-md shadow-sm ${paygErrors.contactNumber ? 'border-red-500' : 'border-gray-300'}`} />
-                                        {paygErrors.contactNumber && <p className="text-red-600 text-xs mt-1">{paygErrors.contactNumber}</p>}
-                                    </div>
-                                    <div>
-                                        <input type="password" value={paygData.password} onChange={e => { setPaygData({...paygData, password: e.target.value}); validateField('payg', 'password', e.target.value);}} placeholder="Password" className={`w-full p-3 border rounded-md shadow-sm ${paygErrors.password ? 'border-red-500' : 'border-gray-300'}`} />
-                                        {paygErrors.password && <p className="text-red-600 text-xs mt-1">{paygErrors.password}</p>}
-                                    </div>
-                                    <div>
-                                        <input type="password" value={paygData.confirmPassword} onChange={e => { setPaygData({...paygData, confirmPassword: e.target.value}); validateField('payg', 'confirmPassword', e.target.value);}} placeholder="Confirm Password" className={`w-full p-3 border rounded-md shadow-sm ${paygErrors.confirmPassword ? 'border-red-500' : 'border-gray-300'}`} />
-                                        {paygErrors.confirmPassword && <p className="text-red-600 text-xs mt-1">{paygErrors.confirmPassword}</p>}
-                                    </div>
-                                    <button type="submit" disabled={loading !== 'none'} className="w-full bg-gray-700 text-white font-bold py-3 px-4 rounded-md hover:bg-gray-800 disabled:bg-gray-400">
-                                        {loading === 'payg' ? 'Creating Account...' : 'Sign Up for PAYG'}
-                                    </button>
-                                </form>
+                            <div className="mt-3 pt-3 border-t border-gray-100">
+                                <p className="text-xs text-green-600 font-bold">Unlimited Access</p>
                             </div>
-                        )}
+                        </div>
+
+                        {/* PAYG Card */}
+                        <div 
+                            onClick={() => setSelectedPlan('payg')}
+                            className={`p-5 rounded-xl border-2 cursor-pointer transition-all duration-300 relative flex flex-col justify-between h-full ${
+                                selectedPlan === 'payg' 
+                                ? 'border-secondary bg-white shadow-xl scale-[1.02] z-10' 
+                                : 'border-gray-200 bg-gray-50 hover:bg-white hover:border-gray-300'
+                            }`}
+                        >
+                            <div>
+                                <h3 className={`font-bold ${selectedPlan === 'payg' ? 'text-secondary' : 'text-gray-500'}`}>Pay-As-You-Go</h3>
+                                <div className="mt-2">
+                                    <span className="text-2xl font-bold text-secondary">R50+</span>
+                                    <span className="text-xs text-gray-500"> / doc</span>
+                                </div>
+                            </div>
+                            <div className="mt-3 pt-3 border-t border-gray-100">
+                                <p className="text-xs text-gray-500 font-medium">Single Purchase</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="bg-gray-50 p-6 rounded-lg mb-8 border border-gray-100">
+                        <h4 className="font-bold text-xs text-gray-400 uppercase tracking-wider mb-4">
+                            Included with {selectedPlan === 'pro' ? 'Pro Membership' : 'Pay-As-You-Go'}
+                        </h4>
+                        <FeaturesList />
+                    </div>
+
+                    <div className="space-y-6">
+                        <div className="relative">
+                            <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-gray-200"></div></div>
+                            <div className="relative flex justify-center text-sm"><span className="px-2 bg-white text-gray-500">Create your account</span></div>
+                        </div>
+
+                        <button 
+                            onClick={handleGoogleSignUp}
+                            disabled={loading !== 'none'}
+                            className="w-full flex justify-center items-center py-3 bg-white border border-gray-300 rounded-lg text-gray-700 font-bold hover:bg-gray-50 transition-colors shadow-sm"
+                        >
+                            {loading === 'google' ? <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-gray-600 mr-2"></div> : <GoogleIcon className="w-5 h-5 mr-3" />}
+                            Sign Up with Google
+                        </button>
+
+                        <div className="relative flex py-2 items-center">
+                            <div className="flex-grow border-t border-gray-200"></div>
+                            <span className="flex-shrink mx-4 text-gray-400 text-xs uppercase">Or with email</span>
+                            <div className="flex-grow border-t border-gray-200"></div>
+                        </div>
+
+                        <form onSubmit={handleSubmit} className="space-y-4">
+                            <div className="grid grid-cols-2 gap-4">
+                                <InputField name="name" type="text" placeholder="Full Name" />
+                                {selectedPlan === 'payg' && (
+                                    <InputField name="contactNumber" type="tel" placeholder="Mobile Number" />
+                                )}
+                            </div>
+                            <InputField name="email" type="email" placeholder="Email Address" />
+                            <InputField 
+                                name="password" 
+                                type={showPassword ? "text" : "password"} 
+                                placeholder="Create Password"
+                                icon={
+                                    <button type="button" onClick={() => setShowPassword(!showPassword)} className="focus:outline-none hover:text-secondary">
+                                        {showPassword ? <EyeOffIcon className="w-5 h-5" /> : <EyeIcon className="w-5 h-5" />}
+                                    </button>
+                                }
+                            />
+
+                            <button 
+                                type="submit"
+                                disabled={loading !== 'none'}
+                                className="w-full bg-primary text-white font-bold py-4 rounded-lg shadow-lg hover:bg-secondary hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200 disabled:bg-gray-300 disabled:shadow-none disabled:transform-none mt-4"
+                            >
+                                {loading === 'email' ? 'Creating Account...' : `Sign Up for ${selectedPlan === 'pro' ? 'Pro' : 'Free'}`}
+                            </button>
+                        </form>
+
+                        <div className="flex justify-center items-center space-x-4 text-xs text-gray-400">
+                            <div className="flex items-center"><ShieldCheckIcon className="w-3 h-3 mr-1 text-green-500" /> Secure 256-bit Encryption</div>
+                            <div className="flex items-center"><ShieldCheckIcon className="w-3 h-3 mr-1 text-green-500" /> POPIA Compliant</div>
+                        </div>
                     </div>
                 </div>
-            </main>
-            <footer className="bg-secondary text-white py-8 mt-12">
-                <div className="container mx-auto px-6 text-center">
-                    <div className="flex justify-center space-x-6 mb-4">
-                        <button onClick={onShowPrivacyPolicy} className="text-sm text-gray-300 hover:text-white hover:underline">
-                            Privacy Policy
-                        </button>
-                        <button onClick={onShowTerms} className="text-sm text-gray-300 hover:text-white hover:underline">
-                            Terms of Use
-                        </button>
-                    </div>
-                    <p className="text-sm text-gray-300">© {new Date().getFullYear()} HR CoPilot. All rights reserved.</p>
-                </div>
-            </footer>
+            </div>
         </div>
     );
 };
