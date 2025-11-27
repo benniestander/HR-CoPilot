@@ -2,6 +2,15 @@
 import { supabase } from './supabase';
 
 // ==============================================================================
+// GLOBAL TYPES
+// ==============================================================================
+declare global {
+  interface Window {
+    YocoSDK: any;
+  }
+}
+
+// ==============================================================================
 // CONFIGURATION
 // ==============================================================================
 
@@ -24,6 +33,9 @@ export const YOCO_PUBLIC_KEY = (import.meta as any).env?.VITE_YOCO_PUBLIC_KEY ||
    6. Run: supabase functions deploy process-payment
 
    --- EDGE FUNCTION CODE START (Copy ONLY this block into index.ts) ---
+   
+   // ⚠️ IMPORTANT: Do NOT import '../services/supabase' or any local files here.
+   // Edge functions run in Deno and cannot access your local React project files.
    
    import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
    import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
@@ -166,40 +178,46 @@ interface PaymentDetails {
   };
 }
 
-// Helper to ensure SDK is loaded
+let sdkLoadingPromise: Promise<any> | null = null;
+
+// Robust Loader to prevent race conditions and redundant injections
 const loadYocoSdk = (): Promise<any> => {
-  return new Promise((resolve, reject) => {
-    if (window.YocoSDK) {
-      resolve(window.YocoSDK);
+  if (window.YocoSDK) {
+    return Promise.resolve(window.YocoSDK);
+  }
+
+  if (sdkLoadingPromise) {
+    return sdkLoadingPromise;
+  }
+
+  sdkLoadingPromise = new Promise((resolve, reject) => {
+    // Check if script is already present but not loaded (e.g. in HTML head)
+    const existingScript = document.querySelector('script[src="https://js.yoco.com/sdk/v1/yoco-sdk-web.js"]');
+
+    if (existingScript) {
+      existingScript.addEventListener('load', () => {
+        if (window.YocoSDK) resolve(window.YocoSDK);
+        else reject(new Error("Yoco SDK script loaded but window.YocoSDK is undefined"));
+      });
+      existingScript.addEventListener('error', () => reject(new Error("Yoco SDK script failed to load")));
       return;
     }
 
-    // Check if script tag exists
-    const existingScript = document.querySelector('script[src="https://js.yoco.com/sdk/v1/yoco-sdk-web.js"]');
-    
-    if (!existingScript) {
-        // If script is missing entirely, inject it
-        const script = document.createElement('script');
-        script.src = 'https://js.yoco.com/sdk/v1/yoco-sdk-web.js';
-        script.onload = () => resolve(window.YocoSDK);
-        script.onerror = () => reject(new Error("Failed to load Yoco SDK"));
-        document.head.appendChild(script);
-    } else {
-        // Script exists but might not be ready. Poll for it.
-        let retries = 0;
-        const interval = setInterval(() => {
-            if (window.YocoSDK) {
-                clearInterval(interval);
-                resolve(window.YocoSDK);
-            }
-            retries++;
-            if (retries > 20) { // 10 seconds
-                clearInterval(interval);
-                reject(new Error("Yoco SDK failed to initialize in time."));
-            }
-        }, 500);
-    }
+    const script = document.createElement('script');
+    script.src = 'https://js.yoco.com/sdk/v1/yoco-sdk-web.js';
+    script.async = true;
+    script.onload = () => {
+      if (window.YocoSDK) resolve(window.YocoSDK);
+      else reject(new Error("Yoco SDK script loaded but window.YocoSDK is undefined"));
+    };
+    script.onerror = () => {
+      sdkLoadingPromise = null; // Reset so retry is possible
+      reject(new Error("Failed to load Yoco SDK. Please check your internet connection or ad blockers."));
+    };
+    document.head.appendChild(script);
   });
+
+  return sdkLoadingPromise;
 };
 
 export const processPayment = async (details: PaymentDetails): Promise<{ success: boolean; id?: string; error?: string }> => {
@@ -269,6 +287,6 @@ export const processPayment = async (details: PaymentDetails): Promise<{ success
     });
   } catch (e: any) {
       console.error("SDK Load Error:", e);
-      return { success: false, error: "Could not load payment gateway. Please check your connection and try again." };
+      return { success: false, error: e.message || "Could not load payment gateway." };
   }
 };

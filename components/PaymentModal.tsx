@@ -3,12 +3,6 @@ import React, { useState } from 'react';
 import { LoadingIcon, CreditCardIcon } from './Icons';
 import { processPayment } from '../services/paymentService';
 
-declare global {
-  interface Window {
-    YocoSDK: any;
-  }
-}
-
 interface PaymentModalProps {
   isOpen: boolean;
   onClose: () => void;

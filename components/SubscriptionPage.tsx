@@ -6,12 +6,6 @@ import { useAuthContext } from '../contexts/AuthContext';
 import { processPayment } from '../services/paymentService';
 import { validateCoupon } from '../services/dbService';
 
-declare global {
-  interface Window {
-    YocoSDK: any;
-  }
-}
-
 interface SubscriptionPageProps {
   onSuccess: () => void;
   onCancel: () => void;
