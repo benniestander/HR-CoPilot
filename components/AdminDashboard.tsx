@@ -601,7 +601,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 isOpen={!!activeUser}
                 onClose={() => setSelectedUser(null)}
                 user={activeUser}
-                userDocuments={paginatedDocuments.data.filter(doc => doc.companyProfile.companyName === activeUser.profile.companyName)}
                 adminActions={adminActions}
             />
         )}
