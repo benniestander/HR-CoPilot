@@ -1,7 +1,14 @@
 import { GoogleGenAI, GenerateContentResponse } from "@google/genai";
 import type { FormAnswers, PolicyUpdateResult } from '../types';
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+// Robust safe access for env vars in Vite
+const API_KEY = (import.meta as any).env?.VITE_GEMINI_API_KEY || (typeof process !== 'undefined' ? process.env.API_KEY : '');
+
+if (!API_KEY) {
+    console.warn("Gemini API Key is missing. AI features will not work.");
+}
+
+const ai = new GoogleGenAI({ apiKey: API_KEY });
 
 const INDUSTRY_SPECIFIC_GUIDANCE: Record<string, Record<string, string>> = {
   'Professional Services': {
@@ -12,6 +19,28 @@ const INDUSTRY_SPECIFIC_GUIDANCE: Record<string, Record<string, string>> = {
     'expense-reimbursement': "Detail the procedure for distinguishing between billable and non-billable expenses, client rebilling processes, and any specific markup policies on expenses."
   }
 };
+
+/**
+ * Helper to retry async functions with exponential backoff
+ */
+async function withRetry<T>(fn: () => Promise<T>, retries = 3, delay = 1000): Promise<T> {
+    try {
+        return await fn();
+    } catch (error: any) {
+        if (retries === 0) throw error;
+        
+        // Retry on specific error codes (503 Service Unavailable, 429 Too Many Requests)
+        const isRetryable = error.status === 503 || error.status === 429 || error.message?.includes('fetch failed');
+        
+        if (isRetryable) {
+            console.warn(`Gemini API Error. Retrying in ${delay}ms... (${retries} attempts left)`);
+            await new Promise(resolve => setTimeout(resolve, delay));
+            return withRetry(fn, retries - 1, delay * 2);
+        }
+        
+        throw error;
+    }
+}
 
 export const generatePolicyStream = async function* (type: string, answers: FormAnswers) {
   const model = 'gemini-2.5-flash';
@@ -33,13 +62,14 @@ export const generatePolicyStream = async function* (type: string, answers: Form
   Use a professional yet accessible tone.
   Format with Markdown.`;
 
-  const response = await ai.models.generateContentStream({
+  // We can't easily retry streams mid-flight, but we can retry the initial connection
+  const response = await withRetry(() => ai.models.generateContentStream({
     model,
     contents: prompt,
     config: {
         responseMimeType: 'text/plain',
     }
-  });
+  })) as AsyncIterable<GenerateContentResponse>;
 
   for await (const chunk of response) {
     yield chunk;
@@ -48,17 +78,25 @@ export const generatePolicyStream = async function* (type: string, answers: Form
 
 export const generateFormStream = async function* (type: string, answers: FormAnswers) {
     const model = 'gemini-2.5-flash';
+    
+    // Dynamic Fallback Prompt if no specific template exists (Generic Handler)
     const prompt = `Generate a professional HR Form for "${type}".
     Company Name: ${answers.companyName}
     Details: ${JSON.stringify(answers)}
     
-    Ensure it is ready to use and complies with South African standards.
-    Format with Markdown.`;
+    Context:
+    This form is for South African HR compliance.
+    
+    Instructions:
+    1. Create a clean, structured form using Markdown tables and clear headings.
+    2. Include sections for Employee Details, Date, Signatures, and the specific content required for a "${type}".
+    3. Ensure it looks professional and is ready to print.
+    `;
   
-    const response = await ai.models.generateContentStream({
+    const response = await withRetry(() => ai.models.generateContentStream({
       model,
       contents: prompt,
-    });
+    })) as AsyncIterable<GenerateContentResponse>;
   
     for await (const chunk of response) {
         if (chunk.text) yield chunk.text;
@@ -83,16 +121,16 @@ export const updatePolicy = async (content: string, instructions?: string): Prom
        - updatedText: The new snippet.
     `;
 
-    const response = await ai.models.generateContent({
+    const response = await withRetry(() => ai.models.generateContent({
         model,
         contents: prompt,
         config: {
             responseMimeType: 'application/json'
         }
-    });
+    })) as GenerateContentResponse;
 
     const text = response.text;
-    if (!text) throw new Error("No response from AI");
+    if (!text) throw new Error("No response from Ingcweti AI");
     return JSON.parse(text) as PolicyUpdateResult;
 };
 
@@ -100,10 +138,10 @@ export const explainPolicyTypeStream = async function* (title: string) {
     const model = 'gemini-2.5-flash';
     const prompt = `Explain the purpose and key components of a "${title}" in the context of South African HR law. Keep it brief and informative for a business owner.`;
     
-    const response = await ai.models.generateContentStream({
+    const response = await withRetry(() => ai.models.generateContentStream({
         model,
         contents: prompt
-    });
+    })) as AsyncIterable<GenerateContentResponse>;
 
     for await (const chunk of response) {
         if (chunk.text) yield chunk.text;
@@ -114,10 +152,10 @@ export const explainFormTypeStream = async function* (title: string) {
     const model = 'gemini-2.5-flash';
     const prompt = `Explain the purpose of a "${title}" form in South African HR management. Keep it brief.`;
     
-    const response = await ai.models.generateContentStream({
+    const response = await withRetry(() => ai.models.generateContentStream({
         model,
         contents: prompt
-    });
+    })) as AsyncIterable<GenerateContentResponse>;
 
     for await (const chunk of response) {
         if (chunk.text) yield chunk.text;

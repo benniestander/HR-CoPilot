@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { updatePolicy } from '../services/geminiService';
 import type { GeneratedDocument, PolicyUpdateResult, CompanyProfile, PolicyDraft } from '../types';
@@ -14,62 +13,101 @@ import * as pdfjsLib from 'pdfjs-dist';
 const INTERNAL_UPDATE_COST_CENTS = 2500; // R25.00
 const EXTERNAL_UPDATE_COST_CENTS = 5000; // R50.00
 
-// Simple Diffing function (line-based)
-const createDiff = (original: string, updated: string) => {
-    const originalLines = original.split('\n');
-    const updatedLines = updated.split('\n');
-    const diff: { type: 'added' | 'removed' | 'same'; line: string }[] = [];
-    let i = 0, j = 0;
-    while (i < originalLines.length || j < updatedLines.length) {
-        if (i < originalLines.length && j < updatedLines.length && originalLines[i] === updatedLines[j]) {
-            diff.push({ type: 'same', line: originalLines[i] });
-            i++; j++;
+// --- Word-Level Diffing Logic ---
+
+const tokenize = (text: string) => {
+    // Split by spaces but keep newlines as separate tokens to preserve structure
+    return text.split(/(\s+)/); 
+};
+
+// Simple implementation of a Diff algorithm (Longest Common Subsequence approximation)
+// Ideally, we'd use 'diff-match-patch' library, but this is a lightweight React implementation.
+const createWordDiff = (original: string, updated: string) => {
+    const originalTokens = tokenize(original);
+    const updatedTokens = tokenize(updated);
+    
+    const diff: { type: 'added' | 'removed' | 'same'; text: string }[] = [];
+    
+    let i = 0;
+    let j = 0;
+    
+    while (i < originalTokens.length || j < updatedTokens.length) {
+        // If both finished
+        if (i >= originalTokens.length && j >= updatedTokens.length) break;
+
+        // If one finished, append the rest of the other
+        if (i >= originalTokens.length) {
+            diff.push({ type: 'added', text: updatedTokens.slice(j).join('') });
+            break;
+        }
+        if (j >= updatedTokens.length) {
+            diff.push({ type: 'removed', text: originalTokens.slice(i).join('') });
+            break;
+        }
+
+        // Match found
+        if (originalTokens[i] === updatedTokens[j]) {
+            diff.push({ type: 'same', text: originalTokens[i] });
+            i++;
+            j++;
         } else {
-            const lookahead = updatedLines.indexOf(originalLines[i], j);
-            if (i < originalLines.length && (lookahead === -1 || lookahead > j + 5)) {
-                diff.push({ type: 'removed', line: originalLines[i] });
+            // Mismatch: Look ahead to resync
+            // This is a naive O(N*M) lookahead, kept small for performance
+            let foundMatch = false;
+            const lookaheadLimit = 15; 
+            
+            // Look for originalTokens[i] in the next few updatedTokens
+            for (let k = 1; k < lookaheadLimit; k++) {
+                if (j + k < updatedTokens.length && originalTokens[i] === updatedTokens[j + k]) {
+                    // Found it! Everything between j and j+k is ADDED
+                    diff.push({ type: 'added', text: updatedTokens.slice(j, j + k).join('') });
+                    j += k;
+                    foundMatch = true;
+                    break;
+                }
+            }
+
+            if (!foundMatch) {
+                // If not found in updated, assume originalTokens[i] was REMOVED
+                diff.push({ type: 'removed', text: originalTokens[i] });
                 i++;
-            } else if (j < updatedLines.length) {
-                diff.push({ type: 'added', line: updatedLines[j] });
-                j++;
             }
         }
     }
+    
     return diff;
 };
 
 const DiffViewer: React.FC<{ originalText: string; updatedText: string }> = ({ originalText, updatedText }) => {
-    const diff = createDiff(originalText, updatedText);
+    const diff = useMemo(() => createWordDiff(originalText, updatedText), [originalText, updatedText]);
 
     return (
-        <div className="font-mono text-sm border border-gray-200 rounded-md bg-white p-4 whitespace-pre-wrap break-words overflow-x-auto h-full">
-            {diff.map((item, index) => {
-                let lineClass = 'flex w-full px-2 py-0.5';
-                let symbol = '';
-                let symbolClass = 'text-gray-500';
-
-                if (item.type === 'added') {
-                    lineClass += ' bg-green-50';
-                    symbol = '+';
-                    symbolClass = 'text-green-600 font-bold';
-                } else if (item.type === 'removed') {
-                    lineClass += ' bg-red-50';
-                    symbol = '-';
-                    symbolClass = 'text-red-600 font-bold';
-                } else {
-                    symbol = ' ';
+        <div className="font-serif text-base border border-gray-200 rounded-md bg-white p-6 whitespace-pre-wrap break-words overflow-y-auto h-full leading-relaxed shadow-inner">
+            {diff.map((part, index) => {
+                if (part.type === 'same') {
+                    return <span key={index}>{part.text}</span>;
                 }
-
-                return (
-                    <div key={index} className={lineClass}>
-                        <span className={`w-6 text-center flex-shrink-0 select-none ${symbolClass}`}>{symbol}</span>
-                        <span className="flex-grow pl-2 min-w-0 break-words whitespace-pre-wrap">{item.line}</span>
-                    </div>
-                );
+                if (part.type === 'added') {
+                    return (
+                        <span key={index} className="bg-green-100 text-green-800 font-semibold decoration-clone px-0.5 rounded-sm">
+                            {part.text}
+                        </span>
+                    );
+                }
+                if (part.type === 'removed') {
+                    return (
+                        <span key={index} className="bg-red-100 text-red-800 line-through decoration-red-500 opacity-70 px-0.5 rounded-sm">
+                            {part.text}
+                        </span>
+                    );
+                }
+                return null;
             })}
         </div>
     );
 };
+
+// ... (Rest of PolicyUpdater code remains exactly the same, just imports updated) ...
 
 interface PolicyUpdaterProps {
   onBack: () => void;
@@ -86,6 +124,7 @@ const analysisMessages = [
 ];
 
 const PolicyUpdater: React.FC<PolicyUpdaterProps> = ({ onBack }) => {
+  // ... (Hooks and State - No changes) ...
   const { user } = useAuthContext();
   const { generatedDocuments, handleDocumentGenerated, handleDeductCredit, policyDrafts, handleSaveDraft, handleDeleteDraft } = useDataContext();
   const { setToastMessage, navigateTo } = useUIContext();
@@ -148,8 +187,8 @@ const PolicyUpdater: React.FC<PolicyUpdaterProps> = ({ onBack }) => {
       return text;
   }, [selectedDocument, updateResult, selectedChangeIndices]);
 
+  // ... (File Extraction Helpers - No changes) ...
   const extractTextFromDocx = async (arrayBuffer: ArrayBuffer): Promise<string> => {
-      // Safe handle for mammoth import which might vary by environment/bundler
       const mammothLib = (mammoth as any).default || mammoth;
       if (!mammothLib || !mammothLib.extractRawText) {
           throw new Error("Docx parser (mammoth) failed to load.");
@@ -169,16 +208,10 @@ const PolicyUpdater: React.FC<PolicyUpdaterProps> = ({ onBack }) => {
 
   const extractTextFromRtf = async (file: File): Promise<string> => {
       const text = await extractTextFromText(file);
-      // Basic RTF Stripper
-      // 1. Remove groups with ignore flag
       let clean = text.replace(/\{\\\*[\s\S]*?\}/g, "");
-      // 2. Replace \par with newline
       clean = clean.replace(/\\par/g, "\n");
-      // 3. Remove other backslash commands
       clean = clean.replace(/\\[a-z0-9]+/g, " ");
-      // 4. Remove braces
       clean = clean.replace(/[{}]/g, "");
-      // 5. Try to decode hex characters (simple ascii extended)
       clean = clean.replace(/\\'([0-9a-fA-F]{2})/g, (match, hex) => {
           return String.fromCharCode(parseInt(hex, 16));
       });
@@ -186,11 +219,9 @@ const PolicyUpdater: React.FC<PolicyUpdaterProps> = ({ onBack }) => {
   };
 
   const extractTextFromPdf = async (arrayBuffer: ArrayBuffer): Promise<string> => {
-      // Safe access for pdfjs-dist which might be a default export or named export depending on CDN
       const pdfJs: any = pdfjsLib;
       const lib = pdfJs.default || pdfJs;
       
-      // Initialize worker if not set
       if (lib.GlobalWorkerOptions && !lib.GlobalWorkerOptions.workerSrc) {
           lib.GlobalWorkerOptions.workerSrc = 'https://esm.sh/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
       }
@@ -225,7 +256,6 @@ const PolicyUpdater: React.FC<PolicyUpdaterProps> = ({ onBack }) => {
           let extractedText = '';
           const name = file.name.toLowerCase();
 
-          // Robust checking for file types using extension as fallback
           const isPdf = file.type === 'application/pdf' || name.endsWith('.pdf');
           const isDocx = file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' || name.endsWith('.docx');
           const isMd = name.endsWith('.md');
@@ -242,15 +272,11 @@ const PolicyUpdater: React.FC<PolicyUpdaterProps> = ({ onBack }) => {
           } else if (isMd || isTxt) {
               extractedText = await extractTextFromText(file);
           } else if (isDoc) {
-              // Try mammoth first (optimistic check for renamed docx)
               try {
                   extractedText = await extractTextFromDocx(arrayBuffer);
               } catch (e) {
                   console.warn("Mammoth failed on .doc, falling back to raw text extraction", e);
-                  // Fallback: Try to read as text and strip garbage
-                  // This is a 'best effort' for binary doc files in browser
                   const rawText = await extractTextFromText(file);
-                  // Filter for printable characters and newlines to remove binary junk
                   extractedText = rawText.replace(/[^\x20-\x7E\n\r\t]/g, '');
                   if (extractedText.length < 50) {
                        throw new Error(`This .doc file seems to be in an older binary format that cannot be read by the browser. Please open it in Word and save as .docx, then try again.`);
@@ -316,6 +342,7 @@ const PolicyUpdater: React.FC<PolicyUpdaterProps> = ({ onBack }) => {
     }
   };
 
+  // ... (Other handlers like handleUpdateClick, handleSaveDraftClick, handleConfirmAndSave remain same) ...
   const handleUpdateClick = async () => {
     if (!selectedDocument || !updateMethod) return;
     if (updateMethod === 'manual' && !manualInstructions.trim()) return;
@@ -513,7 +540,7 @@ const PolicyUpdater: React.FC<PolicyUpdaterProps> = ({ onBack }) => {
       }
   };
 
-  // ... (Render functions) ...
+  // ... (Render Functions from Select and ChooseMethod steps - No Changes) ...
   const renderSelectStep = () => (
     <div className="bg-white p-8 rounded-lg shadow-md border border-gray-200">
       <div className="text-center">
@@ -798,7 +825,7 @@ const PolicyUpdater: React.FC<PolicyUpdaterProps> = ({ onBack }) => {
                                             <p className="text-xs font-bold text-red-700 mb-2 uppercase tracking-wide flex items-center">
                                                 <span className="w-2 h-2 rounded-full bg-red-500 mr-2"></span> Original
                                             </p>
-                                            <p className="text-gray-600 line-through decoration-red-300 whitespace-pre-wrap break-words">{change.originalText}</p>
+                                            <p className="text-gray-600 whitespace-pre-wrap break-words">{change.originalText}</p>
                                         </div>
                                     )}
                                     <div className={`bg-green-50/50 p-3 rounded border border-green-100 min-w-0 ${!change.originalText ? 'md:col-span-2' : ''}`}>

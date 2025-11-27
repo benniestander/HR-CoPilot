@@ -37,7 +37,6 @@ export const YOCO_PUBLIC_KEY = (import.meta as any).env?.VITE_YOCO_PUBLIC_KEY ||
    // ⚠️ IMPORTANT: Do NOT import '../services/supabase' or any local files here.
    // Edge functions run in Deno and cannot access your local React project files.
    
-   import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
    import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
    const corsHeaders = {
@@ -45,24 +44,25 @@ export const YOCO_PUBLIC_KEY = (import.meta as any).env?.VITE_YOCO_PUBLIC_KEY ||
      'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
    }
 
-   const YOCO_SECRET_KEY = Deno.env.get('YOCO_SECRET_KEY');
-   const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
-   const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-
-   serve(async (req) => {
+   // Modern Deno.serve syntax
+   Deno.serve(async (req) => {
      // Handle CORS preflight request
      if (req.method === 'OPTIONS') {
        return new Response('ok', { headers: corsHeaders })
      }
 
      try {
+       const YOCO_SECRET_KEY = Deno.env.get('YOCO_SECRET_KEY');
+       const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
+       const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+
        const { token, amountInCents, currency, description, metadata } = await req.json()
        
        // Server-side Configuration Check
        if (!YOCO_SECRET_KEY || !SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
          console.error("Missing Environment Variables on Server");
          return new Response(
-           JSON.stringify({ error: "Server configuration error (Missing Secrets)." }), 
+           JSON.stringify({ error: "Server configuration error (Missing Secrets). Please check Supabase dashboard." }), 
            { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
          )
        }
@@ -88,7 +88,7 @@ export const YOCO_PUBLIC_KEY = (import.meta as any).env?.VITE_YOCO_PUBLIC_KEY ||
        if (!response.ok) {
          console.error('Yoco Error:', data);
          return new Response(
-           JSON.stringify({ error: data.displayMessage || 'Payment Declined' }), 
+           JSON.stringify({ error: data.displayMessage || 'Payment Declined by Gateway' }), 
            { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
          )
        }
@@ -101,35 +101,34 @@ export const YOCO_PUBLIC_KEY = (import.meta as any).env?.VITE_YOCO_PUBLIC_KEY ||
          const couponCode = metadata?.couponCode;
          
          // LOGIC FIX: Use creditAmount if provided (for top-ups with coupons), otherwise use charged amount
-         // If I pay R50 for R100 credit, amountInCents is 5000, but creditAmount is 10000.
          const creditValue = metadata?.creditAmount ? Number(metadata.creditAmount) : amountInCents;
 
          if (userId && type) {
-            // Determine transaction log amount (Cost is negative, Credit is positive)
-            // Subscription: We log the COST (what they paid or full value? Usually what they paid is better for revenue tracking)
-            // TopUp: We log the CREDIT they received.
-            
             const txAmount = type === 'subscription' ? -amountInCents : creditValue;
             
             // Insert Transaction Record
-            await supabaseAdmin.from('transactions').insert({
+            const { error: txError } = await supabaseAdmin.from('transactions').insert({
                 user_id: userId,
                 amount: txAmount,
                 description: description || 'Payment',
                 date: new Date().toISOString()
             });
+            
+            if (txError) console.error("Transaction Log Error:", txError);
 
             // Update User Profile
             if (type === 'topup') {
                 // USE ATOMIC UPDATE VIA RPC to prevent race conditions
-                // We add the CREDIT VALUE (e.g. 10000), not just what they paid
-                await supabaseAdmin.rpc('increment_balance', { 
+                const { error: rpcError } = await supabaseAdmin.rpc('increment_balance', { 
                     user_id: userId, 
                     amount: creditValue 
                 });
+                if (rpcError) console.error("Balance Update Error:", rpcError);
+
             } else if (type === 'subscription') {
                 // Enable Pro Plan
-                await supabaseAdmin.from('profiles').update({ plan: 'pro' }).eq('id', userId);
+                const { error: subError } = await supabaseAdmin.from('profiles').update({ plan: 'pro' }).eq('id', userId);
+                if (subError) console.error("Subscription Update Error:", subError);
             }
 
             // Track Coupon Usage
@@ -149,6 +148,7 @@ export const YOCO_PUBLIC_KEY = (import.meta as any).env?.VITE_YOCO_PUBLIC_KEY ||
          )
        }
      } catch (error) {
+       console.error("Edge Function Exception:", error);
        return new Response(
          JSON.stringify({ error: error.message }), 
          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
@@ -238,11 +238,11 @@ export const processPayment = async (details: PaymentDetails): Promise<{ success
         customer: details.customer,
         callback: async (result: any) => {
             if (result.error) {
-            if (result.error.message === "User closed popup") {
-                resolve({ success: false, error: "User cancelled" }); 
-            } else {
-                resolve({ success: false, error: result.error.message });
-            }
+                if (result.error.message === "User closed popup") {
+                    resolve({ success: false, error: "User cancelled" }); 
+                } else {
+                    resolve({ success: false, error: result.error.message });
+                }
             } else {
             // ============================================================
             // SECURE BACKEND VERIFICATION
@@ -260,12 +260,14 @@ export const processPayment = async (details: PaymentDetails): Promise<{ success
                 });
 
                 if (error) {
-                    console.error("Edge Function Error:", error);
-                    resolve({ success: false, error: "Payment verification failed (Server Error). Please contact support." });
+                    console.error("Edge Function Invoke Error:", error);
+                    const msg = error.message || "Payment verification failed (Server Error). Please contact support.";
+                    resolve({ success: false, error: msg });
                     return;
                 }
 
                 if (data && data.error) {
+                    console.error("Edge Function Logic Error:", data.error);
                     resolve({ success: false, error: data.error });
                     return;
                 }
@@ -274,7 +276,7 @@ export const processPayment = async (details: PaymentDetails): Promise<{ success
                     console.log("Payment Verified & Charged:", data.id);
                     resolve({ success: true, id: data.id });
                 } else {
-                    resolve({ success: false, error: "Unknown payment state." });
+                    resolve({ success: false, error: "Unknown payment state from server." });
                 }
 
             } catch (err: any) {
