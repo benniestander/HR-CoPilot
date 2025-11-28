@@ -31,6 +31,7 @@ const ProfilePage = lazy(() => import('./components/ProfilePage'));
 const PlanSelectionPage = lazy(() => import('./components/PlanSelectionPage'));
 const SubscriptionPage = lazy(() => import('./components/SubscriptionPage'));
 const PaygPaymentPage = lazy(() => import('./components/PaygPaymentPage'));
+const KnowledgeBase = lazy(() => import('./components/KnowledgeBase'));
 
 
 const AppContent: React.FC = () => {
@@ -360,6 +361,9 @@ const AppContent: React.FC = () => {
                     onCancel={handleBackToDashboard}
                     onUpgrade={() => navigateTo('upgrade')}
                 />;
+            case 'knowledge-base':
+                if (!user) { handleBackToDashboard(); return null; }
+                return <KnowledgeBase onBack={handleBackToDashboard} />;
             default:
                 return <Dashboard
                     onStartUpdate={() => navigateTo('updater')}

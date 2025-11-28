@@ -5,7 +5,7 @@ import FormSelector from './FormSelector';
 import DocumentHistory from './DocumentHistory';
 import ComplianceScore from './ComplianceScore';
 import OnboardingWalkthrough from './OnboardingWalkthrough';
-import { MasterPolicyIcon, FormsIcon, ComplianceIcon, UpdateIcon, FileIcon } from './Icons';
+import { MasterPolicyIcon, FormsIcon, ComplianceIcon, UpdateIcon, FileIcon, BookIcon } from './Icons';
 import { useUIContext } from '../contexts/UIContext';
 import { useAuthContext } from '../contexts/AuthContext';
 import { useDataContext } from '../contexts/DataContext';
@@ -73,6 +73,14 @@ const Dashboard: React.FC<DashboardProps> = ({
                     </p>
                 )}
             </div>
+            
+            <button 
+                onClick={() => navigateTo('knowledge-base')}
+                className="flex items-center text-sm font-semibold text-primary hover:text-primary-dark hover:underline bg-white px-4 py-2 rounded-full border border-gray-200 shadow-sm transition-all"
+            >
+                <BookIcon className="w-4 h-4 mr-2" />
+                Help & Guides
+            </button>
         </div>
 
         {user?.profile && (

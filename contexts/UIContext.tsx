@@ -1,7 +1,8 @@
+
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import type { Policy, Form, GeneratedDocument } from '../types';
 
-type View = 'dashboard' | 'generator' | 'updater' | 'checklist' | 'profile' | 'upgrade' | 'topup';
+type View = 'dashboard' | 'generator' | 'updater' | 'checklist' | 'profile' | 'upgrade' | 'topup' | 'knowledge-base';
 
 interface UIContextType {
     currentView: View;
