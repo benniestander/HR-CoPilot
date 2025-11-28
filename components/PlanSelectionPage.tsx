@@ -101,24 +101,27 @@ const PlanSelectionPage: React.FC<PlanSelectionPageProps> = ({
 
     // --- Sub-Components ---
 
-    const InputField = ({ name, type, placeholder, icon }: any) => (
-        <div className="relative">
-            <input
-                type={type}
-                name={name}
-                value={formData[name as keyof typeof formData]}
-                onChange={handleInputChange}
-                onBlur={(e) => validateField(name, e.target.value)}
-                placeholder={placeholder}
-                className={`w-full p-4 pl-4 ${icon ? 'pr-12' : ''} bg-white border rounded-lg text-base transition-all focus:outline-none focus:ring-2 focus:ring-primary/20 ${
-                    errors[name as keyof typeof errors] 
-                    ? 'border-red-300 focus:border-red-500' 
-                    : 'border-gray-200 focus:border-primary'
-                }`}
-            />
-            {icon && <div className="absolute right-3 top-4 text-gray-400">{icon}</div>}
+    const InputField = ({ name, type, placeholder, label, icon }: any) => (
+        <div className="space-y-1.5">
+            {label && <label className="block text-sm font-semibold text-gray-700 ml-1">{label}</label>}
+            <div className="relative">
+                <input
+                    type={type}
+                    name={name}
+                    value={formData[name as keyof typeof formData]}
+                    onChange={handleInputChange}
+                    onBlur={(e) => validateField(name, e.target.value)}
+                    placeholder={placeholder}
+                    className={`w-full p-3.5 pl-4 ${icon ? 'pr-12' : ''} bg-gray-50 border rounded-lg text-base text-gray-900 placeholder-gray-400 transition-all focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary ${
+                        errors[name as keyof typeof errors] 
+                        ? 'border-red-300 focus:border-red-500 bg-red-50' 
+                        : 'border-gray-300 shadow-sm'
+                    }`}
+                />
+                {icon && <div className="absolute right-3 top-3.5 text-gray-400">{icon}</div>}
+            </div>
             {errors[name as keyof typeof errors] && (
-                <p className="text-red-500 text-xs mt-1 ml-1">{errors[name as keyof typeof errors]}</p>
+                <p className="text-red-500 text-xs mt-1 ml-1 font-medium">{errors[name as keyof typeof errors]}</p>
             )}
         </div>
     );
@@ -205,18 +208,19 @@ const PlanSelectionPage: React.FC<PlanSelectionPageProps> = ({
                     </div>
 
                     {/* Form */}
-                    <form onSubmit={handleSubmit} className="space-y-4 mb-20">
-                        <InputField name="name" type="text" placeholder="Full Name" />
-                        <InputField name="email" type="email" placeholder="Email Address" />
+                    <form onSubmit={handleSubmit} className="space-y-5 mb-20">
+                        <InputField name="name" type="text" placeholder="e.g. John Doe" label="Full Name" />
+                        <InputField name="email" type="email" placeholder="e.g. john@company.co.za" label="Email Address" />
                         {selectedPlan === 'payg' && (
-                            <InputField name="contactNumber" type="tel" placeholder="Mobile Number" />
+                            <InputField name="contactNumber" type="tel" placeholder="e.g. 082 123 4567" label="Mobile Number" />
                         )}
                         <InputField 
                             name="password" 
                             type={showPassword ? "text" : "password"} 
-                            placeholder="Create Password"
+                            placeholder="Min 6 characters"
+                            label="Create Password"
                             icon={
-                                <button type="button" onClick={() => setShowPassword(!showPassword)}>
+                                <button type="button" onClick={() => setShowPassword(!showPassword)} className="focus:outline-none hover:text-secondary" tabIndex={-1}>
                                     {showPassword ? <EyeOffIcon className="w-5 h-5" /> : <EyeIcon className="w-5 h-5" />}
                                 </button>
                             }
@@ -371,20 +375,21 @@ const PlanSelectionPage: React.FC<PlanSelectionPageProps> = ({
                             <div className="relative flex justify-center text-sm"><span className="px-2 bg-white text-gray-500">Create your account</span></div>
                         </div>
 
-                        <form onSubmit={handleSubmit} className="space-y-4">
+                        <form onSubmit={handleSubmit} className="space-y-5">
                             <div className="grid grid-cols-2 gap-4">
-                                <InputField name="name" type="text" placeholder="Full Name" />
+                                <InputField name="name" type="text" placeholder="e.g. John Doe" label="Full Name" />
                                 {selectedPlan === 'payg' && (
-                                    <InputField name="contactNumber" type="tel" placeholder="Mobile Number" />
+                                    <InputField name="contactNumber" type="tel" placeholder="e.g. 082 123 4567" label="Mobile Number" />
                                 )}
                             </div>
-                            <InputField name="email" type="email" placeholder="Email Address" />
+                            <InputField name="email" type="email" placeholder="e.g. john@company.co.za" label="Email Address" />
                             <InputField 
                                 name="password" 
                                 type={showPassword ? "text" : "password"} 
-                                placeholder="Create Password"
+                                placeholder="Min 6 characters"
+                                label="Create Password"
                                 icon={
-                                    <button type="button" onClick={() => setShowPassword(!showPassword)} className="focus:outline-none hover:text-secondary">
+                                    <button type="button" onClick={() => setShowPassword(!showPassword)} className="focus:outline-none hover:text-secondary" tabIndex={-1}>
                                         {showPassword ? <EyeOffIcon className="w-5 h-5" /> : <EyeIcon className="w-5 h-5" />}
                                     </button>
                                 }
