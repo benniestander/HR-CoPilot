@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { BookIcon, ChevronRightIcon, MasterPolicyIcon, FormsIcon, UpdateIcon, ComplianceIcon, CreditCardIcon, UserIcon } from './Icons';
+import { BookIcon, ChevronRightIcon, MasterPolicyIcon, FormsIcon, UpdateIcon, ComplianceIcon, CreditCardIcon, UserIcon, ShieldCheckIcon } from './Icons';
 
 interface Article {
   id: string;
@@ -175,6 +175,32 @@ const KNOWLEDGE_BASE_DATA: Category[] = [
               <li><strong>Recommended Items:</strong> Best practices that protect your business (e.g., Social Media Policy).</li>
             </ul>
             <p>Click "Generate Now" next to any missing item to jump straight to the generator for that specific document. The list updates automatically as you save documents.</p>
+          </div>
+        )
+      }
+    ]
+  },
+  {
+    id: 'quality-assurance',
+    title: 'Quality Assurance',
+    icon: ShieldCheckIcon,
+    articles: [
+      {
+        id: 'qa-process',
+        title: 'Our Quality Control Process',
+        content: (
+          <div className="space-y-4">
+            <p>At HR CoPilot, we prioritize accuracy and compliance. Our Ingcweti AI is powerful, but we back it up with rigorous human oversight to ensure you receive documents of the highest professional standard.</p>
+            <h4 className="font-bold text-secondary">How we ensure quality:</h4>
+            <ul className="list-disc pl-5 space-y-3">
+              <li><strong>Legal Foundation:</strong> Our templates and AI models are built upon the latest South African legislation, including the BCEA, LRA, EEA, and POPIA.</li>
+              <li><strong>Expert Review:</strong> We conduct regular spot checks and comprehensive quality audits with qualified HR practitioners and labor lawyers. This ensures our base templates and AI prompts remain current and legally sound.</li>
+              <li><strong>Continuous Improvement:</strong> Feedback from legal experts is fed back into the system to constantly refine the AI's output.</li>
+            </ul>
+            <div className="bg-green-50 p-4 rounded-md border border-green-200 text-sm mt-4">
+                <p className="font-semibold text-green-800">Our Commitment</p>
+                <p className="text-green-700">We strive to ensure every policy and form you generate is HR compliant, legally informed, and of real professional quality.</p>
+            </div>
           </div>
         )
       }
