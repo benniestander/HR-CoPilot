@@ -14,18 +14,16 @@ import { createClient } from '@supabase/supabase-js';
 
    ==========================================================================
 
-   -- 0. REPAIR SCHEMA (Fix column mismatches specifically for Coupons)
-   -- The error "null value in column type" means a legacy column exists. We must remove it.
+   -- 0. REPAIR SCHEMA (CRITICAL FIX FOR COUPONS)
+   -- The error "null value in column type" means a legacy column "type" exists and is NOT NULL.
+   -- The app uses "discount_type". We must remove the legacy column.
    ALTER TABLE coupons DROP COLUMN IF EXISTS "type";
 
-   -- Ensure discount_type exists
-   ALTER TABLE coupons ADD COLUMN IF NOT EXISTS discount_type text;
-   
    -- 1. Create Tables (IF NOT EXISTS)
    CREATE TABLE IF NOT EXISTS coupons (
      id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
      code text UNIQUE NOT NULL,
-     discount_type text NOT NULL CHECK (discount_type IN ('percentage', 'fixed')),
+     discount_type text CHECK (discount_type IN ('percentage', 'fixed')),
      discount_value int NOT NULL DEFAULT 0,
      max_uses int,
      used_count int DEFAULT 0,

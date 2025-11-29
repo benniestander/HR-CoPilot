@@ -1,7 +1,8 @@
+
 import React, { useState, useMemo } from 'react';
-import { POLICY_CATEGORIES, INDUSTRIES, FORMS, POLICIES } from '../constants';
+import { POLICY_CATEGORIES, FORMS, POLICIES } from '../constants';
 import type { Policy, Form, PolicyType, FormType } from '../types';
-import { SearchIcon, HelpIcon, WordIcon, ExcelIcon, TipIcon } from './Icons';
+import { SearchIcon, TipIcon } from './Icons';
 import { useAuthContext } from '../contexts/AuthContext';
 
 interface PolicySelectorProps {
@@ -87,7 +88,6 @@ const PolicyCard: React.FC<{ item: Policy | Form; onSelect: () => void; showPric
 const PolicySelector: React.FC<PolicySelectorProps> = ({ onSelect }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [scenarioInput, setScenarioInput] = useState('');
-  const [selectedIndustry, setSelectedIndustry] = useState('All');
   const { user } = useAuthContext();
   const showPrice = user?.plan !== 'pro';
 
@@ -120,19 +120,13 @@ const PolicySelector: React.FC<PolicySelectorProps> = ({ onSelect }) => {
     return POLICY_CATEGORIES.map(category => {
         const searchWords = searchTerm.toLowerCase().split(' ').filter(word => word.length > 0);
         const filteredItems = category.items.filter(policy => {
-        const policyText = `${policy.title.toLowerCase()} ${policy.description.toLowerCase()}`;
-        const searchMatch = searchWords.every(word => policyText.includes(word));
-
-        const industryMatch =
-            selectedIndustry === 'All' ||
-            !policy.industries || 
-            policy.industries.includes(selectedIndustry);
-
-        return searchMatch && industryMatch;
+            const policyText = `${policy.title.toLowerCase()} ${policy.description.toLowerCase()}`;
+            const searchMatch = searchWords.every(word => policyText.includes(word));
+            return searchMatch;
         });
         return { ...category, items: filteredItems };
     }).filter(category => category.items.length > 0);
-  }, [searchTerm, selectedIndustry, scenarioInput]);
+  }, [searchTerm, scenarioInput]);
 
   const hasStandardResults = categorizedAndFiltered.length > 0;
 
@@ -208,53 +202,19 @@ const PolicySelector: React.FC<PolicySelectorProps> = ({ onSelect }) => {
             </div>
         )}
 
-        {/* --- SECTION 2: LIBRARY (BROWSE & FILTER) --- */}
+        {/* --- SECTION 2: LIBRARY (BROWSE) --- */}
         {!scenarioInput.trim() && (
             <div className="animate-fade-in">
-                {/* Unified Toolbar */}
-                <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-8 bg-white p-4 rounded-xl shadow-sm border border-gray-200">
-                    
-                    {/* Industry Filter (Horizontal Scroll) */}
-                    <div className="w-full lg:w-2/3 overflow-hidden">
-                        <div className="flex items-center space-x-2 overflow-x-auto pb-2 sm:pb-0 scrollbar-hide">
-                            <span className="text-xs font-bold text-gray-400 uppercase tracking-wide mr-2 flex-shrink-0">Filter:</span>
-                            <button
-                                onClick={() => setSelectedIndustry('All')}
-                                className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all whitespace-nowrap ${
-                                selectedIndustry === 'All'
-                                    ? 'bg-secondary text-white shadow-md'
-                                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                                }`}
-                            >
-                                All Industries
-                            </button>
-                            {INDUSTRIES.map((industry) => (
-                                <button
-                                key={industry}
-                                onClick={() => setSelectedIndustry(industry)}
-                                className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all whitespace-nowrap ${
-                                    selectedIndustry === industry
-                                    ? 'bg-secondary text-white shadow-md'
-                                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                                }`}
-                                >
-                                {industry}
-                                </button>
-                            ))}
-                        </div>
-                    </div>
-
-                    {/* Search Input */}
-                    <div className="w-full lg:w-1/3 relative">
-                        <input
-                            type="text"
-                            placeholder="Filter by name..."
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            className="w-full p-2 pl-9 border border-gray-300 rounded-lg text-sm focus:ring-1 focus:ring-primary focus:border-primary"
-                        />
-                        <SearchIcon className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-                    </div>
+                {/* Simple Search Input */}
+                <div className="max-w-lg mx-auto relative mb-12">
+                    <input
+                        type="text"
+                        placeholder="Or search by document name..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="w-full p-4 pl-12 border border-gray-300 rounded-full shadow-sm focus:ring-2 focus:ring-primary focus:border-primary transition-all text-gray-700"
+                    />
+                    <SearchIcon className="w-5 h-5 text-gray-400 absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none" />
                 </div>
 
                 {/* Library Grid */}
@@ -282,8 +242,8 @@ const PolicySelector: React.FC<PolicySelectorProps> = ({ onSelect }) => {
                 ) : (
                     <div className="text-center py-20 bg-gray-50 rounded-xl border border-dashed border-gray-300">
                         <SearchIcon className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-                        <p className="text-gray-600 font-medium">No documents found matching your filters.</p>
-                        <button onClick={() => { setSearchTerm(''); setSelectedIndustry('All'); }} className="mt-4 text-primary text-sm hover:underline">Clear all filters</button>
+                        <p className="text-gray-600 font-medium">No documents found.</p>
+                        <button onClick={() => setSearchTerm('')} className="mt-4 text-primary text-sm hover:underline">Clear search</button>
                     </div>
                 )}
             </div>
