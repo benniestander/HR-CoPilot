@@ -35,7 +35,6 @@ export const YOCO_PUBLIC_KEY = (import.meta as any).env?.VITE_YOCO_PUBLIC_KEY ||
    --- EDGE FUNCTION CODE START (Copy ONLY this block into index.ts) ---
    
    // ⚠️ IMPORTANT: Do NOT import '../services/supabase' or any local files here.
-   // Edge functions run in Deno and cannot access your local React project files.
    
    import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
@@ -44,9 +43,7 @@ export const YOCO_PUBLIC_KEY = (import.meta as any).env?.VITE_YOCO_PUBLIC_KEY ||
      'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
    }
 
-   // Modern Deno.serve syntax
    Deno.serve(async (req) => {
-     // Handle CORS preflight request
      if (req.method === 'OPTIONS') {
        return new Response('ok', { headers: corsHeaders })
      }
@@ -58,17 +55,14 @@ export const YOCO_PUBLIC_KEY = (import.meta as any).env?.VITE_YOCO_PUBLIC_KEY ||
 
        const { token, amountInCents, currency, description, metadata } = await req.json()
        
-       // Server-side Configuration Check
        if (!YOCO_SECRET_KEY || !SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
-         console.error("Missing Environment Variables on Server");
          return new Response(
-           JSON.stringify({ error: "Server configuration error (Missing Secrets). Please check Supabase dashboard." }), 
+           JSON.stringify({ error: "Server configuration error (Missing Secrets)." }), 
            { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
          )
        }
 
        // 1. Charge the card via Yoco API
-       // We charge exactly what was passed in `amountInCents` (the discounted price if applicable)
        const response = await fetch('https://online.yoco.com/v1/charges/', {
          method: 'POST',
          headers: {
@@ -79,7 +73,7 @@ export const YOCO_PUBLIC_KEY = (import.meta as any).env?.VITE_YOCO_PUBLIC_KEY ||
            token,
            amountInCents,
            currency: currency || 'ZAR',
-           metadata: metadata // Pass metadata to Yoco for reconciliation in their dashboard
+           metadata: metadata
          })
        })
 
@@ -100,40 +94,54 @@ export const YOCO_PUBLIC_KEY = (import.meta as any).env?.VITE_YOCO_PUBLIC_KEY ||
          const type = metadata?.type; // 'subscription' | 'topup'
          const couponCode = metadata?.couponCode;
          
-         // LOGIC FIX: Use creditAmount if provided (for top-ups with coupons), otherwise use charged amount
-         const creditValue = metadata?.creditAmount ? Number(metadata.creditAmount) : amountInCents;
+         // SECURE CALCULATION: Do not trust client metadata for credit value.
+         // Calculate credit based on Amount Paid + Server-Verified Coupon.
+         let creditToAdd = amountInCents; // Default: You get what you paid for.
+
+         // Handle Coupons Server-Side
+         if (couponCode) {
+             const { data: coupon } = await supabaseAdmin.from('coupons').select('*').eq('code', couponCode).single();
+             
+             if (coupon && coupon.active) {
+                 // Reverse calculate the value
+                 if (coupon.discount_type === 'fixed') {
+                     // If they paid X, and discount was Y, the Value is X + Y
+                     creditToAdd = amountInCents + coupon.discount_value;
+                 } else if (coupon.discount_type === 'percentage') {
+                     // If they paid X, which is (100% - Discount%), then Value = X / (1 - Discount%)
+                     const factor = 1 - (coupon.discount_value / 100);
+                     if (factor > 0) {
+                        creditToAdd = Math.round(amountInCents / factor);
+                     }
+                 }
+                 // Track usage
+                 await supabaseAdmin.rpc('increment_coupon_uses', { coupon_code: couponCode });
+             } else {
+                 console.warn(`Invalid or inactive coupon used: ${couponCode}. Crediting paid amount only.`);
+             }
+         }
 
          if (userId && type) {
-            const txAmount = type === 'subscription' ? -amountInCents : creditValue;
+            // For subscriptions, the cost is the "value", for topups, it's the calculated credit
+            const txAmount = type === 'subscription' ? -amountInCents : creditToAdd;
             
             // Insert Transaction Record
-            const { error: txError } = await supabaseAdmin.from('transactions').insert({
+            await supabaseAdmin.from('transactions').insert({
                 user_id: userId,
                 amount: txAmount,
                 description: description || 'Payment',
                 date: new Date().toISOString()
             });
-            
-            if (txError) console.error("Transaction Log Error:", txError);
 
             // Update User Profile
             if (type === 'topup') {
-                // USE ATOMIC UPDATE VIA RPC to prevent race conditions
-                const { error: rpcError } = await supabaseAdmin.rpc('increment_balance', { 
+                // ATOMIC UPDATE
+                await supabaseAdmin.rpc('increment_balance', { 
                     user_id: userId, 
-                    amount: creditValue 
+                    amount: creditToAdd 
                 });
-                if (rpcError) console.error("Balance Update Error:", rpcError);
-
             } else if (type === 'subscription') {
-                // Enable Pro Plan
-                const { error: subError } = await supabaseAdmin.from('profiles').update({ plan: 'pro' }).eq('id', userId);
-                if (subError) console.error("Subscription Update Error:", subError);
-            }
-
-            // Track Coupon Usage
-            if (couponCode) {
-               await supabaseAdmin.rpc('increment_coupon_uses', { coupon_code: couponCode });
+                await supabaseAdmin.from('profiles').update({ plan: 'pro' }).eq('id', userId);
             }
          }
 
@@ -174,7 +182,7 @@ interface PaymentDetails {
     userId?: string;
     type?: 'subscription' | 'topup';
     couponCode?: string;
-    creditAmount?: number; // The actual value to credit the user (differs from amountInCents if discount applied)
+    // Removed creditAmount - logic moved to server for security
   };
 }
 
@@ -222,7 +230,6 @@ const loadYocoSdk = (): Promise<any> => {
 
 export const processPayment = async (details: PaymentDetails): Promise<{ success: boolean; id?: string; error?: string }> => {
   try {
-    // Ensure SDK is loaded before proceeding
     const YocoSDK = await loadYocoSdk();
 
     return new Promise((resolve) => {
@@ -244,9 +251,6 @@ export const processPayment = async (details: PaymentDetails): Promise<{ success
                     resolve({ success: false, error: result.error.message });
                 }
             } else {
-            // ============================================================
-            // SECURE BACKEND VERIFICATION
-            // ============================================================
             try {
                 // We send the token + metadata to our backend. 
                 const { data, error } = await supabase.functions.invoke('process-payment', {
