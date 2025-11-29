@@ -34,6 +34,26 @@ const OutlineIcon: React.FC<{ path: string, className?: string }> = ({ path, cla
 
 // --- Policy Icons ---
 
+// NEW PREMIUM POLICY ICON: Document with a Shield (Protection/Compliance)
+export const MasterPolicyIcon: React.FC<{ className?: string }> = ({ className }) => (
+  <DuotoneIcon className={className} paths={[
+    // Soft Fill: The Document shape
+    "M19 3H5a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2V5a2 2 0 00-2-2z", 
+    // Sharp Detail: The Shield Emblem
+    "M12 7a1 1 0 00-1 1v.5a.5.5 0 00.5.5h1a.5.5 0 00.5-.5V8a1 1 0 00-1-1zm0 0c-2.5 0-4 1.5-4 4v2c0 3.5 2.5 5.5 4 6 1.5-.5 4-2.5 4-6v-2c0-2.5-1.5-4-4-4z" 
+  ]} />
+);
+
+// NEW PREMIUM FORM ICON: Document with Input Fields (Interactive/Action)
+export const FormsIcon: React.FC<{ className?: string }> = ({ className }) => (
+  <DuotoneIcon className={className} paths={[
+    // Soft Fill: Document with a folded corner hint
+    "M16 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V6l-4-4z", 
+    // Sharp Detail: Input Boxes and Lines
+    "M8 8h8v2H8V8zm0 4h5v2H8v-2zm0 4h8v2H8v-2z" 
+  ]} />
+);
+
 export const AlcoholDrugIcon: React.FC<{ className?: string }> = ({ className }) => (
   <DuotoneIcon className={className} paths={[
     "M12 22a10 10 0 100-20 10 10 0 000 20z", "M12 16a4 4 0 100-8 4 4 0 000 8zM4.22 4.22l15.56 15.56"
@@ -121,7 +141,7 @@ export const CompanyVehicleIcon: React.FC<{ className?: string }> = ({ className
 
 export const CompensationBenefitsIcon: React.FC<{ className?: string }> = ({ className }) => (
   <DuotoneIcon className={className} paths={[
-    "M10 7H4v10h6", "M12 5a3 3 0 013 3v8a3 3 0 01-3 3h-2v- romanzo-2V7h2a3 3 0 013-3v1a2 2 0 100 4v2a2 2 0 100 4v1a3 3 0 01-3 3H5m14-3a3 3 0 100-6 3 3 0 000 6z"
+    "M10 7H4v10h6", "M12 5a3 3 0 013 3v8a3 3 0 01-3 3h-2v-2V7h2a3 3 0 013-3v1a2 2 0 100 4v2a2 2 0 100 4v1a3 3 0 01-3 3H5m14-3a3 3 0 100-6 3 3 0 000 6z"
   ]} />
 );
 
@@ -240,13 +260,6 @@ export const LeaveIcon: React.FC<{ className?: string }> = ({ className }) => (
   <DuotoneIcon className={className} paths={[
     "M17 14h2a2 2 0 002-2V7a2 2 0 00-2-2h-3.33a2 2 0 01-1.42-.59L13.5 3.5a2 2 0 00-2.82 0L10.09 4.4A2 2 0 018.67 5H5a2 2 0 00-2 2v5a2 2 0 002 2h2",
     "M17 21H7a2 2 0 01-2-2v-5h14v5a2 2 0 01-2 2zM12 18a1 1 0 100-2 1 1 0 000 2z"
-  ]} />
-);
-
-export const MasterPolicyIcon: React.FC<{ className?: string }> = ({ className }) => (
-  <DuotoneIcon className={className} paths={[
-    "M20 6.5a2.5 2.5 0 00-2.5-2.5H8a1 1 0 000 2h9.5A.5.5 0 0118 6.5v11a.5.5 0 01-.5.5H8a1 1 0 000 2h9.5A2.5 2.5 0 0020 17.5v-11z",
-    "M4 6.5A2.5 2.5 0 016.5 4H12v16H6.5A2.5 2.5 0 014 17.5v-11zM8 9H6v2h2V9zm2 0h2v2h-2V9z"
   ]} />
 );
 
@@ -705,13 +718,6 @@ export const DownloadIcon: React.FC<{ className?: string }> = ({ className }) =>
 
 export const CheckIcon: React.FC<{ className?: string }> = ({ className }) => (
   <OutlineIcon className={className} path="M5 13l4 4L19 7" />
-);
-
-export const FormsIcon: React.FC<{ className?: string }> = ({ className }) => (
-  <DuotoneIcon className={className} paths={[
-    "M17 3H7a2 2 0 00-2 2v14a2 2 0 002 2h10a2 2 0 002-2V5a2 2 0 00-2-2z",
-    "M9 7h6m-6 4h6m-6 4h4"
-  ]} />
 );
 
 export const HelpIcon: React.FC<{ className?: string }> = ({ className }) => (
