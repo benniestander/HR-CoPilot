@@ -1,170 +1,162 @@
 
-import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
 import { supabase } from '../services/supabase';
 import { useAuth } from '../hooks/useAuth';
 import type { User } from '../types';
 import type { AuthPage, AuthFlow } from '../AppContent';
-import { createAdminNotification } from '../services/dbService';
 
 interface AuthContextType {
-    user: User | null;
-    unverifiedUser: any | null;
-    isAdmin: boolean;
-    isLoading: boolean;
-    isSubscribed: boolean;
-    authPage: AuthPage;
-    authEmail: string | null;
-    authFlow: AuthFlow | null;
-    needsOnboarding: boolean;
-    onboardingSkipped: boolean;
-    showOnboardingWalkthrough: boolean;
-    handleStartAuthFlow: (flow: 'signup' | 'payg_signup', email: string, details: { password: string; name?: string; contactNumber?: string }) => Promise<void>;
-    handleLogin: (email: string, password: string) => Promise<void>;
-    handleForgotPassword: (email: string) => Promise<void>;
-    handleLogout: () => void;
-    setAuthPage: (page: AuthPage) => void;
-    handleSkipOnboarding: () => void;
-    handleGoToProfileSetup: () => void;
-    setShowOnboardingWalkthrough: React.Dispatch<React.SetStateAction<boolean>>;
-    setUser: React.Dispatch<React.SetStateAction<User | null>>;
-    setNeedsOnboarding: React.Dispatch<React.SetStateAction<boolean>>;
+  user: User | null;
+  unverifiedUser: any | null;
+  isAdmin: boolean;
+  isLoading: boolean;
+  authPage: AuthPage;
+  setAuthPage: (page: AuthPage) => void;
+  authEmail?: string;
+  authFlow?: AuthFlow;
+  
+  handleLogin: (email: string, pass: string) => Promise<void>;
+  handleLogout: () => Promise<void>;
+  handleForgotPassword: (email: string) => Promise<void>;
+  handleStartAuthFlow: (flow: AuthFlow, email: string, details: any) => void;
+  
+  needsOnboarding: boolean;
+  onboardingSkipped: boolean;
+  handleSkipOnboarding: () => void;
+  handleGoToProfileSetup: () => void;
+  isSubscribed: boolean;
+  
+  // Setters exposed for specific flows
+  setUser: React.Dispatch<React.SetStateAction<User | null>>;
+  setNeedsOnboarding: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-    const { user, setUser, unverifiedUser, isAdmin, isLoading, needsOnboarding, setNeedsOnboarding } = useAuth();
-    const [authPage, setAuthPage] = useState<AuthPage>('landing');
-    const [authEmail, setAuthEmail] = useState<string | null>(null);
-    const [authFlow, setAuthFlow] = useState<AuthFlow | null>(null);
-    const [onboardingSkipped, setOnboardingSkipped] = useState(false);
-    const [showOnboardingWalkthrough, setShowOnboardingWalkthrough] = useState(false);
+  const { user, setUser, unverifiedUser, isAdmin, isLoading, needsOnboarding, setNeedsOnboarding } = useAuth();
+  
+  const [authPage, setAuthPage] = useState<AuthPage>('landing');
+  const [authEmail, setAuthEmail] = useState<string>('');
+  const [authFlow, setAuthFlow] = useState<AuthFlow | undefined>(undefined);
+  const [onboardingSkipped, setOnboardingSkipped] = useState(false);
+
+  const handleLogin = async (email: string, pass: string) => {
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password: pass,
+    });
+    if (error) throw error;
+  };
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    setUser(null);
+    setAuthPage('login');
+    // Clear local storage or state if needed
+    window.location.hash = '';
+  };
+
+  const handleForgotPassword = async (email: string) => {
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/#/reset-password`, // Ensure this route exists or is handled
+    });
+    if (error) throw error;
+  };
+
+  const handleStartAuthFlow = async (flow: AuthFlow, email: string, details: any) => {
+    setAuthEmail(email);
+    setAuthFlow(flow);
     
-    const [isSubscribed, setIsSubscribed] = useState(false);
+    // Store temp details for profile creation after signup
+    window.localStorage.setItem('authFlow', flow);
+    window.localStorage.setItem('authDetails', JSON.stringify(details));
+
+    const { error } = await supabase.auth.signUp({
+      email,
+      password: details.password,
+      options: {
+        data: {
+          full_name: details.name,
+          contact_number: details.contactNumber,
+        }
+      }
+    });
+
+    if (error) throw error;
+    setAuthPage('email-sent');
+  };
+
+  const handleSkipOnboarding = () => {
+    setOnboardingSkipped(true);
+  };
+
+  const handleGoToProfileSetup = () => {
+    setOnboardingSkipped(false);
+    setNeedsOnboarding(true);
+  };
+
+  // Calculate subscription status
+  const isSubscribed = useMemo(() => {
+    if (!user) return false;
     
-    React.useEffect(() => {
-        if (user) {
-            if (user.plan === 'pro') {
-                const now = new Date();
-                const oneYearAgo = new Date();
-                oneYearAgo.setFullYear(now.getFullYear() - 1);
-
-                // Check for a transaction indicating a subscription payment or admin grant within the last year
-                // Explicitly check for "subscription" OR "pro plan" to catch manual grants
-                const validSubscription = user.transactions?.some(tx => {
-                    const desc = tx.description.toLowerCase();
-                    const isSubTx = desc.includes('subscription') || desc.includes('pro plan');
-                    const txDate = new Date(tx.date);
-                    // txDate must be AFTER oneYearAgo (i.e., newer than 365 days ago)
-                    return isSubTx && txDate.getTime() > oneYearAgo.getTime();
-                });
-                
-                setIsSubscribed(!!validSubscription);
-            } else {
-                setIsSubscribed(false);
-            }
-        } else {
-            setIsSubscribed(false);
-        }
-    }, [user]);
-
-    const handleStartAuthFlow = async (flow: AuthFlow, email: string, details: { password: string; name?: string; contactNumber?: string }) => {
-        const { password, name, contactNumber } = details;
-        try {
-            const { data, error } = await supabase.auth.signUp({
-                email,
-                password,
-                options: {
-                    data: {
-                        full_name: name,
-                        contact_number: contactNumber
-                    }
-                }
-            });
-
-            if (error) throw error;
-
-            window.localStorage.setItem('authFlow', flow);
-            if (name || contactNumber) {
-                window.localStorage.setItem('authDetails', JSON.stringify({ name, contactNumber }));
-            }
-            setAuthEmail(email);
-            setAuthFlow(flow);
-            setAuthPage('email-sent');
-        } catch (error: any) {
-            console.error(error);
-            throw error;
-        }
-    };
-    
-    const handleLogin = async (email: string, password: string) => {
-        try {
-            const { error } = await supabase.auth.signInWithPassword({ email, password });
-            if (error) throw error;
-        } catch (error: any) {
-            throw error;
-        }
-    };
-
-    const handleForgotPassword = async (email: string) => {
-        const { error } = await supabase.auth.resetPasswordForEmail(email, {
-             redirectTo: window.location.origin + '/#reset-password', // You might need to handle this route
-        });
+    // Strict check: User must be on 'pro' plan AND have a valid transaction in the last year
+    if (user.plan === 'pro') {
+        const oneYearAgo = new Date();
+        oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
         
-        if (error) throw error;
-        
-        await createAdminNotification({
-            type: 'password_reset_request',
-            message: `User with email ${email} requested a password reset.`,
+        // If no transactions exist, they cannot be validly subscribed (unless manually overridden in DB without log, which is discouraged)
+        if (!user.transactions || user.transactions.length === 0) {
+            return false;
+        }
+
+        // Find a qualifying transaction
+        const validTransaction = user.transactions.find(tx => {
+            const desc = tx.description ? tx.description.toLowerCase() : '';
+            // Robust keyword matching for any subscription-like transaction
+            const isSubTx = /subscription|pro plan|membership/i.test(desc);
+            
+            const txDate = new Date(tx.date);
+            // Check if transaction date is valid and occurred AFTER one year ago
+            const isValidDate = !isNaN(txDate.getTime()) && txDate > oneYearAgo;
+
+            return isSubTx && isValidDate;
         });
-    };
 
-    const handleLogout = () => {
-        supabase.auth.signOut().then(() => {
-            window.localStorage.removeItem('hr_copilot_user_profile');
-        });
-    };
-    
-    const handleSkipOnboarding = () => {
-        setOnboardingSkipped(true);
-    };
+        return !!validTransaction;
+    }
+    return false;
+  }, [user]);
 
-    const handleGoToProfileSetup = () => {
-        setOnboardingSkipped(false);
-    };
+  const value = {
+    user,
+    setUser,
+    unverifiedUser,
+    isAdmin,
+    isLoading,
+    authPage,
+    setAuthPage,
+    authEmail,
+    authFlow,
+    handleLogin,
+    handleLogout,
+    handleForgotPassword,
+    handleStartAuthFlow,
+    needsOnboarding,
+    setNeedsOnboarding,
+    onboardingSkipped,
+    handleSkipOnboarding,
+    handleGoToProfileSetup,
+    isSubscribed,
+  };
 
-
-    const value = {
-        user,
-        unverifiedUser,
-        isAdmin,
-        isLoading,
-        isSubscribed,
-        authPage,
-        authEmail,
-        authFlow,
-        needsOnboarding,
-        onboardingSkipped,
-        showOnboardingWalkthrough,
-        handleStartAuthFlow,
-        handleLogin,
-        handleForgotPassword,
-        handleLogout,
-        setAuthPage,
-        handleSkipOnboarding,
-        handleGoToProfileSetup,
-        setShowOnboardingWalkthrough,
-        setUser,
-        setNeedsOnboarding,
-    };
-
-    return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
 export const useAuthContext = () => {
-    const context = useContext(AuthContext);
-    if (context === undefined) {
-        throw new Error('useAuthContext must be used within an AuthProvider');
-    }
-    return context;
+  const context = useContext(AuthContext);
+  if (context === undefined) {
+    throw new Error('useAuthContext must be used within an AuthProvider');
+  }
+  return context;
 };

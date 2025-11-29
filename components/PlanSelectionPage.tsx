@@ -18,11 +18,11 @@ const PlanSelectionPage: React.FC<PlanSelectionPageProps> = ({
     const [selectedPlan, setSelectedPlan] = useState<'pro' | 'payg'>('pro');
     const [isMobile, setIsMobile] = useState(false);
     
-    // Unified Form State - Removed Confirm Password
+    // Unified Form State
     const [formData, setFormData] = useState({ name: '', email: '', password: '', contactNumber: '' });
     const [errors, setErrors] = useState({ name: '', email: '', password: '', contactNumber: '' });
     const [showPassword, setShowPassword] = useState(false);
-    const [loading, setLoading] = useState<'none' | 'email'>('none');
+    const [loading, setLoading] = useState(false);
     
     // Mobile Specific State
     const [showFeatures, setShowFeatures] = useState(false);
@@ -34,6 +34,7 @@ const PlanSelectionPage: React.FC<PlanSelectionPageProps> = ({
         return () => window.removeEventListener('resize', checkMobile);
     }, []);
 
+    // Product Marketing Manager Optimized Copy
     const proFeatures = [
         'Generate unlimited policies & contracts',
         'Unlimited HR Form Generation',
@@ -86,7 +87,7 @@ const PlanSelectionPage: React.FC<PlanSelectionPageProps> = ({
 
         if (!isValid) return;
 
-        setLoading('email');
+        setLoading(true);
         const flow = selectedPlan === 'pro' ? 'signup' : 'payg_signup';
         try {
             await onStartAuthFlow(flow, formData.email, { 
@@ -95,7 +96,7 @@ const PlanSelectionPage: React.FC<PlanSelectionPageProps> = ({
                 contactNumber: selectedPlan === 'payg' ? formData.contactNumber : undefined 
             });
         } catch (error) {
-            setLoading('none');
+            setLoading(false);
         }
     };
 
@@ -236,10 +237,10 @@ const PlanSelectionPage: React.FC<PlanSelectionPageProps> = ({
                         <div className="fixed bottom-0 left-0 right-0 p-4 bg-white border-t border-gray-200 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] z-40">
                             <button 
                                 type="submit"
-                                disabled={loading !== 'none'}
+                                disabled={loading}
                                 className="w-full bg-primary text-white font-bold py-3.5 rounded-xl shadow-lg active:scale-[0.98] transition-transform flex justify-center items-center"
                             >
-                                {loading === 'email' ? 'Creating Account...' : 'Sign Up Now'}
+                                {loading ? 'Creating Account...' : 'Sign Up Now'}
                             </button>
                         </div>
                     </form>
@@ -397,10 +398,10 @@ const PlanSelectionPage: React.FC<PlanSelectionPageProps> = ({
 
                             <button 
                                 type="submit"
-                                disabled={loading !== 'none'}
+                                disabled={loading}
                                 className="w-full bg-primary text-white font-bold py-4 rounded-lg shadow-lg hover:bg-secondary hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200 disabled:bg-gray-300 disabled:shadow-none disabled:transform-none mt-4"
                             >
-                                {loading === 'email' ? 'Creating Account...' : 'Sign Up Now'}
+                                {loading ? 'Creating Account...' : 'Sign Up Now'}
                             </button>
                         </form>
 

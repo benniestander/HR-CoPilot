@@ -168,6 +168,13 @@ const GeneratorPage: React.FC<GeneratorPageProps> = ({ selectedItem, initialData
         }
     }, [selectedItem, companyProfile, questionAnswers, initialData, user, handleDeductCredit, hasPaidSession]);
 
+    // Handle manual content edits from PolicyPreview
+    const handleContentChange = (newContent: string) => {
+        if (finalizedDoc) {
+            setFinalizedDoc(prev => prev ? ({ ...prev, content: newContent }) : null);
+        }
+    };
+
     const handleSaveDocument = async () => {
         if (finalizedDoc) {
             setIsSaving(true);
@@ -229,6 +236,7 @@ const GeneratorPage: React.FC<GeneratorPageProps> = ({ selectedItem, initialData
                             sources={sources}
                             errorMessage={errorMessage}
                             loadingMessages={selectedItem.kind === 'policy' ? policyLoadingMessages : formLoadingMessages}
+                            onContentChange={handleContentChange}
                         />
                         {status === 'success' && (
                              <div className="mt-8 flex flex-col sm:flex-row justify-between items-center bg-white p-6 rounded-lg shadow-md border border-gray-200 gap-4">

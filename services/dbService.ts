@@ -1,83 +1,18 @@
 
 import { supabase } from './supabase';
-import type { User, GeneratedDocument, Transaction, AdminActionLog, AdminNotification, UserFile, CompanyProfile, Coupon, PolicyDraft } from '../types';
+import type { 
+    User, 
+    GeneratedDocument, 
+    Transaction, 
+    AdminActionLog, 
+    AdminNotification, 
+    UserFile, 
+    Coupon, 
+    CompanyProfile,
+    PolicyDraft
+} from '../types';
 
-// --- Helpers for Type Mapping (Snake Case <-> Camel Case) ---
-
-const mapProfileToUser = (profile: any, transactions: any[] = []): User => ({
-    uid: profile.id,
-    email: profile.email,
-    name: profile.full_name || '',
-    contactNumber: profile.contact_number || '',
-    plan: profile.plan as 'payg' | 'pro',
-    creditBalance: Number(profile.credit_balance || 0), // Ensure it's a number
-    isAdmin: profile.is_admin,
-    photoURL: profile.avatar_url,
-    createdAt: profile.created_at,
-    profile: {
-        companyName: profile.company_name || '',
-        industry: profile.industry || '',
-        companySize: profile.company_size,
-        address: profile.company_address,
-        companyUrl: profile.company_url,
-        summary: profile.company_summary,
-    },
-    transactions: transactions.map(mapTransaction)
-});
-
-const mapTransaction = (tx: any): Transaction => ({
-    id: tx.id,
-    date: tx.date,
-    description: tx.description,
-    amount: Number(tx.amount), // Ensure number
-    userId: tx.user_id,
-});
-
-const mapDocument = (doc: any): GeneratedDocument => ({
-    id: doc.id,
-    title: doc.title,
-    kind: doc.kind,
-    type: doc.type,
-    content: doc.content,
-    createdAt: doc.created_at,
-    companyProfile: {
-       companyName: '', 
-       industry: '',
-       ...(doc.question_answers || {}) // Safe spread even if null
-    },
-    questionAnswers: doc.question_answers || {},
-    outputFormat: doc.output_format,
-    sources: doc.sources || [],
-    version: doc.version,
-    history: doc.history || []
-});
-
-const mapCoupon = (c: any): Coupon => ({
-    id: c.id,
-    code: c.code,
-    discountType: c.discount_type,
-    discountValue: c.discount_value,
-    maxUses: c.max_uses,
-    usedCount: c.used_count,
-    expiryDate: c.expiry_date,
-    active: c.active,
-    applicableTo: c.applicable_to || 'all',
-    createdAt: c.created_at
-});
-
-const mapDraft = (d: any): PolicyDraft => ({
-    id: d.id,
-    originalDocId: d.original_doc_id,
-    originalDocTitle: d.original_doc_title,
-    originalContent: d.original_content,
-    updateResult: d.update_result,
-    selectedIndices: d.selected_indices || [],
-    manualInstructions: d.manual_instructions,
-    createdAt: d.created_at,
-    updatedAt: d.updated_at
-});
-
-// --- User Profile Functions ---
+// --- User & Profile ---
 
 export const getUserProfile = async (uid: string): Promise<User | null> => {
     const { data: profile, error } = await supabase
@@ -86,124 +21,91 @@ export const getUserProfile = async (uid: string): Promise<User | null> => {
         .eq('id', uid)
         .single();
 
-    if (error || !profile) return null;
+    if (error) {
+        console.error('Error fetching profile:', error);
+        return null;
+    }
 
+    // Fetch recent transactions (Limit 50 for performance)
     const { data: transactions } = await supabase
         .from('transactions')
         .select('*')
         .eq('user_id', uid)
         .order('date', { ascending: false })
-        .limit(50); // PERFORMANCE: Limit to latest 50 transactions
+        .limit(50);
 
-    return mapProfileToUser(profile, transactions || []);
-};
-
-export const createUserProfile = async (
-    uid: string,
-    email: string,
-    plan: 'payg' | 'pro',
-    name?: string,
-    contactNumber?: string
-): Promise<User> => {
-    const { data: existing } = await supabase.from('profiles').select('*').eq('id', uid).single();
-    
-    if (existing) {
-        return mapProfileToUser(existing);
-    }
-
-    const newProfile = {
-        id: uid,
-        email,
-        full_name: name || '',
-        contact_number: contactNumber || '',
-        plan,
-        credit_balance: 0,
-        is_admin: false,
-        created_at: new Date().toISOString(),
+    return {
+        uid: profile.id,
+        email: profile.email,
+        name: profile.full_name,
+        contactNumber: profile.contact_number,
+        photoURL: profile.avatar_url,
+        plan: profile.plan || 'payg',
+        creditBalance: profile.credit_balance || 0,
+        createdAt: profile.created_at,
+        isAdmin: profile.is_admin,
+        profile: {
+            companyName: profile.company_name,
+            industry: profile.industry,
+            address: profile.address,
+            companyUrl: profile.website,
+            summary: profile.summary,
+            companySize: profile.company_size,
+        },
+        transactions: transactions || [],
     };
-
-    const { error } = await supabase.from('profiles').insert(newProfile);
-
-    if (error) {
-        console.error("Error creating user profile:", error);
-        throw error;
-    }
-
-    // Notify admin
-    if (email !== 'admin@hrcopilot.co.za') {
-        await createAdminNotification({
-            type: 'new_user',
-            message: `New ${plan.toUpperCase()} user signed up: ${email}`,
-            relatedUserId: uid,
-        });
-    }
-
-    return mapProfileToUser(newProfile, []);
 };
 
-export const updateUser = async (uid: string, userData: Partial<User> & { name?: string; contactNumber?: string }): Promise<void> => {
-    const updates: any = {};
+export const createUserProfile = async (uid: string, email: string, plan: 'pro' | 'payg', name?: string, contactNumber?: string): Promise<User> => {
+    const { data, error } = await supabase
+        .from('profiles')
+        .insert({
+            id: uid,
+            email,
+            plan,
+            full_name: name,
+            contact_number: contactNumber,
+            credit_balance: 0,
+            created_at: new Date().toISOString(),
+        })
+        .select()
+        .single();
+
+    if (error) throw error;
+
+    return {
+        uid: data.id,
+        email: data.email,
+        name: data.full_name,
+        contactNumber: data.contact_number,
+        plan: data.plan,
+        creditBalance: 0,
+        createdAt: data.created_at,
+        isAdmin: false,
+        profile: { companyName: '', industry: '' },
+        transactions: [],
+    };
+};
+
+export const updateUser = async (uid: string, updates: Partial<User>) => {
+    const dbUpdates: any = {};
+    if (updates.name !== undefined) dbUpdates.full_name = updates.name;
+    if (updates.contactNumber !== undefined) dbUpdates.contact_number = updates.contactNumber;
     
-    if (userData.name !== undefined) updates.full_name = userData.name;
-    if (userData.contactNumber !== undefined) updates.contact_number = userData.contactNumber;
-    if (userData.plan) updates.plan = userData.plan;
-    if (userData.photoURL) updates.avatar_url = userData.photoURL;
-    if (userData.isAdmin !== undefined) updates.is_admin = userData.isAdmin;
-    
-    if (userData.profile) {
-        if (userData.profile.companyName) updates.company_name = userData.profile.companyName;
-        if (userData.profile.industry) updates.industry = userData.profile.industry;
-        if (userData.profile.companySize) updates.company_size = userData.profile.companySize;
-        if (userData.profile.address) updates.company_address = userData.profile.address;
-        if (userData.profile.companyUrl) updates.company_url = userData.profile.companyUrl;
-        if (userData.profile.summary) updates.company_summary = userData.profile.summary;
+    if (updates.profile) {
+        if (updates.profile.companyName !== undefined) dbUpdates.company_name = updates.profile.companyName;
+        if (updates.profile.industry !== undefined) dbUpdates.industry = updates.profile.industry;
+        if (updates.profile.address !== undefined) dbUpdates.address = updates.profile.address;
+        if (updates.profile.companyUrl !== undefined) dbUpdates.website = updates.profile.companyUrl;
+        if (updates.profile.summary !== undefined) dbUpdates.summary = updates.profile.summary;
+        if (updates.profile.companySize !== undefined) dbUpdates.company_size = updates.profile.companySize;
     }
 
-    const { error } = await supabase.from('profiles').update(updates).eq('id', uid);
+    const { error } = await supabase.from('profiles').update(dbUpdates).eq('id', uid);
     if (error) throw error;
 };
 
-/**
- * Adds a transaction and optionally updates the user's credit balance.
- * @param uid User ID
- * @param transaction Transaction details
- * @param shouldUpdateBalance If true, the amount is added to the user's credit_balance. 
- *                            Set to FALSE for subscription payments or admin grants that shouldn't affect PAYG credit.
- */
-export const addTransactionToUser = async (
-    uid: string, 
-    transaction: Omit<Transaction, 'id' | 'date' | 'userId' | 'userEmail'>,
-    shouldUpdateBalance: boolean = true
-): Promise<void> => {
-    
-    let finalAmount = Number(transaction.amount);
-
-    // 1. Insert Transaction
-    const { error: txError } = await supabase.from('transactions').insert({
-        user_id: uid,
-        amount: finalAmount,
-        description: transaction.description,
-        date: new Date().toISOString()
-    });
-
-    if (txError) throw txError;
-
-    // 2. Update User Balance (If flag is true) using Atomic RPC
-    if (shouldUpdateBalance) {
-        const { error } = await supabase.rpc('increment_balance', { 
-            user_id: uid, 
-            amount: finalAmount 
-        });
-
-        if (error) {
-            console.error("Error updating balance via RPC:", error);
-            throw new Error("Failed to update credit balance. Please contact support.");
-        }
-    }
-};
-
-
-// --- Generated Document Functions ---
+// --- Documents ---
 
 export const getGeneratedDocuments = async (uid: string): Promise<GeneratedDocument[]> => {
     const { data, error } = await supabase
@@ -212,374 +114,235 @@ export const getGeneratedDocuments = async (uid: string): Promise<GeneratedDocum
         .eq('user_id', uid)
         .order('created_at', { ascending: false });
 
-    if (error) return [];
-    
-    return data.map(d => {
-        const doc = mapDocument(d);
-        if (d.question_answers && d.question_answers.companyName) {
-             doc.companyProfile = d.question_answers as CompanyProfile;
-        }
-        return doc;
-    });
-};
-
-export const saveGeneratedDocument = async (uid: string, docData: GeneratedDocument): Promise<void> => {
-    const combinedData = {
-        ...docData.questionAnswers,
-        ...docData.companyProfile
-    };
-
-    const dataToSave = {
-        id: docData.id.length < 30 ? undefined : docData.id,
-        user_id: uid,
-        title: docData.title,
-        kind: docData.kind,
-        type: docData.type,
-        content: docData.content,
-        question_answers: combinedData,
-        output_format: docData.outputFormat,
-        sources: docData.sources,
-        version: docData.version,
-        history: docData.history,
-        created_at: new Date().toISOString()
-    };
-
-    const { error } = await supabase.from('generated_documents').upsert(dataToSave);
     if (error) throw error;
-};
 
-// --- Draft Functions ---
-
-export const savePolicyDraft = async (uid: string, draft: Omit<PolicyDraft, 'id' | 'createdAt' | 'updatedAt'> & { id?: string }): Promise<void> => {
-    const data = {
-        id: draft.id,
-        user_id: uid,
-        original_doc_id: draft.originalDocId,
-        original_doc_title: draft.originalDocTitle,
-        original_content: draft.originalContent,
-        update_result: draft.updateResult,
-        selected_indices: draft.selectedIndices,
-        manual_instructions: draft.manualInstructions,
-        updated_at: new Date().toISOString()
-    };
-
-    const { error } = await supabase.from('policy_drafts').upsert(data);
-    if (error) throw error;
-};
-
-export const getPolicyDrafts = async (uid: string): Promise<PolicyDraft[]> => {
-    const { data, error } = await supabase
-        .from('policy_drafts')
-        .select('*')
-        .eq('user_id', uid)
-        .order('updated_at', { ascending: false });
-
-    if (error) return [];
-    return data.map(mapDraft);
-};
-
-export const deletePolicyDraft = async (id: string): Promise<void> => {
-    const { error } = await supabase.from('policy_drafts').delete().eq('id', id);
-    if (error) throw error;
-};
-
-
-// --- Admin Functions ---
-
-const logAdminAction = async (action: Omit<AdminActionLog, 'id' | 'timestamp'>) => {
-    await supabase.from('admin_action_logs').insert({
-        admin_email: action.adminEmail,
-        action: action.action,
-        target_user_id: action.targetUserId,
-        target_user_email: action.targetUserEmail,
-        details: action.details,
-        timestamp: new Date().toISOString()
-    });
-};
-
-export const updateUserByAdmin = async (adminEmail: string, targetUid: string, updates: Partial<User>): Promise<User | null> => {
-    await updateUser(targetUid, updates);
-    
-    const user = await getUserProfile(targetUid);
-    
-    await logAdminAction({
-        adminEmail,
-        action: 'Updated User Profile',
-        targetUserId: targetUid,
-        targetUserEmail: user?.email || 'Unknown',
-        details: { updates }
-    });
-
-    return user;
-};
-
-export const adjustUserCreditByAdmin = async (adminEmail: string, targetUid: string, amountInCents: number, reason: string): Promise<User | null> => {
-    const user = await getUserProfile(targetUid);
-    if (!user) return null;
-
-    // Add transaction AND update balance (true)
-    await addTransactionToUser(targetUid, {
-        description: `Admin adjustment: ${reason}`,
-        amount: amountInCents,
-    }, true);
-
-    await logAdminAction({
-        adminEmail,
-        action: 'Adjusted User Credit',
-        targetUserId: targetUid,
-        targetUserEmail: user.email,
-        details: { amountInCents, reason }
-    });
-
-    // Return the fresh profile to update UI
-    return await getUserProfile(targetUid);
-};
-
-export const changeUserPlanByAdmin = async (adminEmail: string, targetUid: string, newPlan: 'pro' | 'payg'): Promise<User | null> => {
-    const user = await getUserProfile(targetUid);
-    if (!user) return null;
-
-    const oldPlan = user.plan;
-    await supabase.from('profiles').update({ plan: newPlan }).eq('id', targetUid);
-
-    if (newPlan === 'pro') {
-        // Pro Plan Grant - Log transaction but DO NOT update credit balance (false)
-        await addTransactionToUser(targetUid, {
-            description: 'Pro Plan (Admin Grant)',
-            amount: 0
-        }, false);
-    }
-
-    await logAdminAction({
-        adminEmail,
-        action: 'Changed User Plan',
-        targetUserId: targetUid,
-        targetUserEmail: user.email,
-        details: { from: oldPlan, to: newPlan }
-    });
-    
-    return await getUserProfile(targetUid);
-};
-
-export const grantProPlanByAdmin = async (adminEmail: string, targetUid: string): Promise<User | null> => {
-    const user = await getUserProfile(targetUid);
-    if (!user) return null;
-
-    // Ensure plan is set to pro
-    await supabase.from('profiles').update({ plan: 'pro' }).eq('id', targetUid);
-
-    // Add transaction for record keeping - DO NOT update credit balance (false)
-    await addTransactionToUser(targetUid, {
-        description: 'Free Pro Plan (12 Months - Admin Gift)',
-        amount: 0
-    }, false);
-
-    await logAdminAction({
-        adminEmail,
-        action: 'Granted Free Pro Plan',
-        targetUserId: targetUid,
-        targetUserEmail: user.email,
-        details: { duration: '12 months' }
-    });
-    
-    return await getUserProfile(targetUid);
-};
-
-export const simulateFailedPaymentForUser = async (adminEmail: string, targetUid: string, targetUserEmail: string): Promise<void> => {
-    if (targetUserEmail === 'admin@hrcopilot.co.za') return;
-    await createAdminNotification({
-        type: 'payment_failed',
-        message: `A payment simulation failed for user ${targetUserEmail}.`,
-        relatedUserId: targetUid,
-    });
-    await logAdminAction({
-        adminEmail,
-        action: 'Simulated Failed Payment',
-        targetUserId: targetUid,
-        targetUserEmail: targetUserEmail,
-        details: { simulation: true }
-    });
-};
-
-// --- Notifications ---
-
-export const createAdminNotification = async (notification: Omit<AdminNotification, 'id' | 'timestamp' | 'isRead'>): Promise<void> => {
-    await supabase.from('admin_notifications').insert({
-        type: notification.type,
-        message: notification.message,
-        related_user_id: notification.relatedUserId,
-        is_read: false,
-        timestamp: new Date().toISOString()
-    });
-};
-
-export const getAdminNotifications = async (): Promise<AdminNotification[]> => {
-    const { data, error } = await supabase
-        .from('admin_notifications')
-        .select('*')
-        .order('timestamp', { ascending: false });
-    
-    if (error) return [];
-    
-    return data.map((n: any) => ({
-        id: n.id,
-        type: n.type,
-        message: n.message,
-        isRead: n.is_read,
-        relatedUserId: n.related_user_id,
-        timestamp: n.timestamp
+    return data.map((doc: any) => ({
+        id: doc.id,
+        title: doc.title,
+        kind: doc.kind,
+        type: doc.type,
+        content: doc.content,
+        createdAt: doc.created_at,
+        companyProfile: doc.company_profile,
+        questionAnswers: doc.question_answers,
+        outputFormat: doc.output_format,
+        sources: doc.sources,
+        version: doc.version,
+        history: doc.history,
     }));
 };
 
-export const markNotificationAsRead = async (notificationId: string): Promise<void> => {
-    await supabase.from('admin_notifications').update({ is_read: true }).eq('id', notificationId);
-};
-
-export const markAllNotificationsAsRead = async (): Promise<void> => {
-    await supabase.from('admin_notifications').update({ is_read: true }).eq('is_read', false);
-};
-
-// --- Coupons ---
-
-export const createCoupon = async (couponData: Partial<Coupon>): Promise<void> => {
-    // Ensure admin status using secure function before writing
-    const { data: isAdmin } = await supabase.rpc('is_admin');
-    if (!isAdmin) throw new Error("Permission denied: You must be an admin to create coupons.");
-
-    const newCoupon = {
-        code: couponData.code,
-        discount_type: couponData.discountType,
-        discount_value: couponData.discountValue,
-        max_uses: couponData.maxUses || null,
-        expiry_date: couponData.expiryDate || null,
-        applicable_to: couponData.applicableTo === 'all' ? null : couponData.applicableTo,
-        active: true
+export const saveGeneratedDocument = async (uid: string, doc: GeneratedDocument) => {
+    const dbDoc = {
+        id: doc.id, // Keep ID if updating
+        user_id: uid,
+        title: doc.title,
+        kind: doc.kind,
+        type: doc.type,
+        content: doc.content,
+        created_at: doc.createdAt,
+        company_profile: doc.companyProfile,
+        question_answers: doc.questionAnswers,
+        output_format: doc.outputFormat,
+        sources: doc.sources,
+        version: doc.version,
+        history: doc.history,
     };
 
-    const { error } = await supabase.from('coupons').insert(newCoupon);
+    const { error } = await supabase.from('generated_documents').upsert(dbDoc);
     if (error) throw error;
 };
 
-export const getCoupons = async (): Promise<Coupon[]> => {
-    const { data, error } = await supabase.from('coupons').select('*').order('created_at', { ascending: false });
-    if (error) return [];
-    return data.map(mapCoupon);
-};
+// --- Transactions & Credit ---
 
-export const deactivateCoupon = async (id: string): Promise<void> => {
-    await supabase.from('coupons').update({ active: false }).eq('id', id);
-};
-
-export const validateCoupon = async (code: string, planType: 'pro' | 'payg'): Promise<{ valid: boolean; coupon?: Coupon; message?: string }> => {
-    const { data, error } = await supabase.from('coupons').select('*').eq('code', code).single();
-    
-    if (error || !data) return { valid: false, message: 'Invalid coupon code.' };
-    
-    const coupon = mapCoupon(data);
-
-    if (!coupon.active) return { valid: false, message: 'This coupon is inactive.' };
-    
-    if (coupon.expiryDate && new Date(coupon.expiryDate) < new Date()) {
-        return { valid: false, message: 'This coupon has expired.' };
-    }
-    
-    if (coupon.maxUses && coupon.usedCount >= coupon.maxUses) {
-        return { valid: false, message: 'This coupon has reached its usage limit.' };
-    }
-
-    if (coupon.applicableTo !== 'all' && coupon.applicableTo !== `plan:${planType}`) {
-        return { valid: false, message: `This coupon is not applicable to ${planType === 'pro' ? 'Pro subscriptions' : 'credit top-ups'}.` };
-    }
-
-    return { valid: true, coupon };
-};
-
-
-// --- Pagination Wrappers for Admin ---
-
-export const getAllUsers = async (pageSize: number, cursor?: any): Promise<{ data: User[], lastVisible: any }> => {
-    const offset = cursor || 0;
-    const { data, error } = await supabase
-        .from('profiles')
-        .select('*', { count: 'exact' })
-        .range(offset, offset + pageSize - 1)
-        .order('created_at', { ascending: false });
-
-    if (error) return { data: [], lastVisible: null };
-
-    const users = data.map(p => mapProfileToUser(p));
-    return { data: users, lastVisible: offset + pageSize };
-};
-
-export const getAllDocumentsForAllUsers = async (pageSize: number, cursor?: any): Promise<{ data: GeneratedDocument[], lastVisible: any }> => {
-    const offset = cursor || 0;
-    const { data, error } = await supabase
-        .from('generated_documents')
-        .select(`
-            *,
-            profiles ( company_name )
-        `)
-        .range(offset, offset + pageSize - 1)
-        .order('created_at', { ascending: false });
-    
-    if (error) return { data: [], lastVisible: null };
-
-    const docs = data.map(d => {
-        const doc = mapDocument(d);
-        if ((d as any).profiles) {
-             doc.companyProfile = { companyName: (d as any).profiles.company_name, industry: '' };
-        }
-        return doc;
+export const addTransactionToUser = async (uid: string, transaction: Partial<Transaction>, updateBalance: boolean = false) => {
+    // 1. Insert Transaction
+    const { error: txError } = await supabase.from('transactions').insert({
+        user_id: uid,
+        amount: transaction.amount,
+        description: transaction.description,
+        date: new Date().toISOString(),
     });
+    
+    if (txError) throw txError;
+
+    // 2. Update Balance if requested (using RPC for safety)
+    if (updateBalance && transaction.amount) {
+        const { error: balanceError } = await supabase.rpc('increment_balance', {
+            user_id: uid,
+            amount: transaction.amount
+        });
+        if (balanceError) throw balanceError;
+    }
+};
+
+// --- Admin Features (Pagination) ---
+
+export const getAllUsers = async (pageSize: number, lastVisible?: number): Promise<{ data: User[], lastVisible: number | null }> => {
+    let query = supabase.from('profiles').select('*', { count: 'exact' }).order('created_at', { ascending: false }).limit(pageSize);
+    
+    // Note: Since we are using offset/limit in UI logic via pageIndex, we can also use range.
+    // However, the context uses cursor logic. For Supabase simple pagination:
+    if (lastVisible) {
+        // This is a simplification. Ideally, use cursor based on created_at or id.
+        // If the context passes a page offset as cursor, we can use range.
+        // Assuming lastVisible passed here acts as an offset
+        query = query.range(lastVisible, lastVisible + pageSize - 1);
+    } else {
+        query = query.range(0, pageSize - 1);
+    }
+
+    const { data, error, count } = await query;
+    
+    if (error) throw error;
+
+    const users = data.map((profile: any) => ({
+        uid: profile.id,
+        email: profile.email,
+        name: profile.full_name,
+        contactNumber: profile.contact_number,
+        plan: profile.plan,
+        creditBalance: profile.credit_balance,
+        createdAt: profile.created_at,
+        isAdmin: profile.is_admin,
+        profile: { companyName: profile.company_name, industry: profile.industry }, // minimal for list
+        transactions: [] // Don't fetch all tx for list view
+    }));
+
+    return { data: users, lastVisible: (lastVisible || 0) + pageSize };
+};
+
+export const getAllDocumentsForAllUsers = async (pageSize: number, lastVisible?: number): Promise<{ data: GeneratedDocument[], lastVisible: number | null }> => {
+    let query = supabase.from('generated_documents').select('*').order('created_at', { ascending: false });
+    
+    const offset = lastVisible || 0;
+    query = query.range(offset, offset + pageSize - 1);
+
+    const { data, error } = await query;
+    if (error) throw error;
+
+    const docs = data.map((doc: any) => ({
+        id: doc.id,
+        title: doc.title,
+        kind: doc.kind,
+        type: doc.type,
+        content: doc.content,
+        createdAt: doc.created_at,
+        companyProfile: doc.company_profile,
+        questionAnswers: doc.question_answers,
+        version: doc.version,
+    }));
 
     return { data: docs, lastVisible: offset + pageSize };
 };
 
-export const getAdminActionLogs = async (pageSize: number, cursor?: any): Promise<{ data: AdminActionLog[], lastVisible: any }> => {
-    const offset = cursor || 0;
-    const { data, error } = await supabase
-        .from('admin_action_logs')
-        .select('*')
-        .range(offset, offset + pageSize - 1)
-        .order('timestamp', { ascending: false });
+export const getAdminActionLogs = async (pageSize: number, lastVisible?: number): Promise<{ data: AdminActionLog[], lastVisible: number | null }> => {
+    let query = supabase.from('admin_action_logs').select('*').order('created_at', { ascending: false });
+    
+    const offset = lastVisible || 0;
+    query = query.range(offset, offset + pageSize - 1);
 
-    if (error) return { data: [], lastVisible: null };
+    const { data, error } = await query;
+    if (error) throw error;
 
-    const logs = data.map((l: any) => ({
-        id: l.id,
-        adminEmail: l.admin_email,
-        action: l.action,
-        targetUserId: l.target_user_id,
-        targetUserEmail: l.target_user_email,
-        details: l.details,
-        timestamp: l.timestamp
+    const logs = data.map((log: any) => ({
+        id: log.id,
+        timestamp: log.created_at,
+        adminEmail: log.admin_email,
+        action: log.action,
+        targetUserId: log.target_user_id,
+        targetUserEmail: log.target_user_email,
+        details: log.details
     }));
 
     return { data: logs, lastVisible: offset + pageSize };
 };
 
+// --- Admin Actions ---
 
-// --- Files (Supabase Storage) ---
+const logAdminAction = async (action: string, targetUid: string, details?: any) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
 
-export const uploadUserFile = async (uid: string, file: File, notes: string): Promise<void> => {
-    const path = `${uid}/${Date.now()}_${file.name}`;
-    const { error: uploadError } = await supabase.storage.from('user-files').upload(path, file);
-    if (uploadError) throw uploadError;
+    // Get target email for log clarity
+    const { data: target } = await supabase.from('profiles').select('email').eq('id', targetUid).single();
 
-    await supabase.from('user_files').insert({
-        user_id: uid,
-        name: file.name,
-        notes: notes,
-        size: file.size,
-        storage_path: path,
-        created_at: new Date().toISOString()
+    await supabase.from('admin_action_logs').insert({
+        admin_email: user.email,
+        action,
+        target_user_id: targetUid,
+        target_user_email: target?.email || 'Unknown',
+        details
     });
 };
 
-export const getUserFiles = async (uid: string): Promise<UserFile[]> => {
-    const { data, error } = await supabase.from('user-files').select('*').eq('user_id', uid).order('created_at', { ascending: false });
-    if (error) return [];
+export const updateUserByAdmin = async (adminEmail: string, targetUid: string, updates: Partial<User>) => {
+    await updateUser(targetUid, updates);
+    await logAdminAction('Updated User Profile', targetUid, updates);
+};
 
+export const adjustUserCreditByAdmin = async (adminEmail: string, targetUid: string, amountInCents: number, reason: string) => {
+    await addTransactionToUser(targetUid, { description: `Admin Adjustment: ${reason}`, amount: amountInCents }, true);
+    await logAdminAction('Adjusted Credit', targetUid, { amount: amountInCents, reason });
+    return getUserProfile(targetUid);
+};
+
+export const changeUserPlanByAdmin = async (adminEmail: string, targetUid: string, newPlan: 'pro' | 'payg') => {
+    await supabase.from('profiles').update({ plan: newPlan }).eq('id', targetUid);
+    await logAdminAction('Changed Plan', targetUid, { to: newPlan });
+};
+
+export const grantProPlanByAdmin = async (adminEmail: string, targetUid: string) => {
+    await supabase.from('profiles').update({ plan: 'pro' }).eq('id', targetUid);
+    await addTransactionToUser(targetUid, { description: 'Pro Plan (Admin Grant)', amount: 0 }); // record 0 value tx
+    await logAdminAction('Granted Pro Plan', targetUid);
+};
+
+export const simulateFailedPaymentForUser = async (adminEmail: string, targetUid: string, targetUserEmail: string) => {
+    await supabase.from('admin_notifications').insert({
+        type: 'payment_failed',
+        message: `Payment failed for ${targetUserEmail}`,
+        is_read: false,
+        related_user_id: targetUid
+    });
+    await logAdminAction('Simulated Failed Payment', targetUid);
+};
+
+// --- Admin Notifications ---
+
+export const getAdminNotifications = async (): Promise<AdminNotification[]> => {
+    const { data, error } = await supabase
+        .from('admin_notifications')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(50);
+        
+    if (error) return [];
+    
+    return data.map((n: any) => ({
+        id: n.id,
+        timestamp: n.created_at,
+        type: n.type,
+        message: n.message,
+        isRead: n.is_read,
+        relatedUserId: n.related_user_id
+    }));
+};
+
+export const markNotificationAsRead = async (id: string) => {
+    await supabase.from('admin_notifications').update({ is_read: true }).eq('id', id);
+};
+
+export const markAllNotificationsAsRead = async () => {
+    await supabase.from('admin_notifications').update({ is_read: true }).eq('is_read', false);
+};
+
+// --- User Files ---
+
+export const getUserFiles = async (uid: string): Promise<UserFile[]> => {
+    const { data, error } = await supabase.from('user_files').select('*').eq('user_id', uid).order('created_at', { ascending: false });
+    if (error) return [];
+    
     return data.map((f: any) => ({
         id: f.id,
         name: f.name,
@@ -590,18 +353,40 @@ export const getUserFiles = async (uid: string): Promise<UserFile[]> => {
     }));
 };
 
-export const getDownloadUrlForFile = async (storagePath: string): Promise<string> => {
-    const { data } = await supabase.storage.from('user-files').createSignedUrl(storagePath, 60);
-    return data?.signedUrl || '';
+export const uploadUserFile = async (uid: string, file: File, notes: string) => {
+    const path = `${uid}/${Date.now()}_${file.name}`;
+    
+    // 1. Upload to Storage
+    const { error: uploadError } = await supabase.storage.from('user_docs').upload(path, file);
+    if (uploadError) throw uploadError;
+
+    // 2. Record in DB
+    const { error: dbError } = await supabase.from('user_files').insert({
+        user_id: uid,
+        name: file.name,
+        notes,
+        size: file.size,
+        storage_path: path
+    });
+    if (dbError) throw dbError;
 };
 
-export const deleteUserFile = async (uid: string, fileId: string, storagePath: string): Promise<void> => {
-    await supabase.storage.from('user-files').remove([storagePath]);
+export const getDownloadUrlForFile = async (path: string) => {
+    const { data } = await supabase.storage.from('user_docs').createSignedUrl(path, 60); // 60 seconds link
+    if (!data?.signedUrl) throw new Error("Could not generate link");
+    return data.signedUrl;
+};
+
+export const deleteUserFile = async (uid: string, fileId: string, path: string) => {
+    await supabase.storage.from('user_docs').remove([path]);
     await supabase.from('user_files').delete().eq('id', fileId);
 };
 
-export const uploadProfilePhoto = async (uid: string, file: File): Promise<string> => {
-    const path = `${uid}/avatar.png`;
+// --- Profile Photo ---
+
+export const uploadProfilePhoto = async (uid: string, file: File) => {
+    const path = `${uid}/profile_photo`;
+    
     const { error: uploadError } = await supabase.storage.from('avatars').upload(path, file, { upsert: true });
     if (uploadError) throw uploadError;
 
@@ -612,8 +397,122 @@ export const uploadProfilePhoto = async (uid: string, file: File): Promise<strin
     return publicUrl;
 };
 
-export const deleteProfilePhoto = async (uid: string): Promise<void> => {
-    const path = `${uid}/avatar.png`;
+export const deleteProfilePhoto = async (uid: string) => {
+    const path = `${uid}/profile_photo`;
     await supabase.storage.from('avatars').remove([path]);
     await supabase.from('profiles').update({ avatar_url: null }).eq('id', uid);
+};
+
+// --- Coupons ---
+
+export const createCoupon = async (coupon: Partial<Coupon>) => {
+    // Transform camelCase to snake_case for DB
+    // IMPORTANT: Treat 'all' as null for DB storage to match schema pattern if desired, 
+    // OR enforce string type in DB. Current schema allows text.
+    const { error } = await supabase.from('coupons').insert({
+        code: coupon.code,
+        discount_type: coupon.discountType,
+        discount_value: coupon.discountValue,
+        max_uses: coupon.maxUses,
+        applicable_to: coupon.applicableTo === 'all' ? null : coupon.applicableTo
+    });
+    if (error) throw error;
+};
+
+export const getCoupons = async (): Promise<Coupon[]> => {
+    const { data, error } = await supabase.from('coupons').select('*').order('created_at', { ascending: false });
+    if (error) return [];
+    
+    return data.map((c: any) => ({
+        id: c.id,
+        code: c.code,
+        discountType: c.discount_type,
+        discountValue: c.discount_value,
+        maxUses: c.max_uses,
+        usedCount: c.used_count,
+        expiryDate: c.expiry_date,
+        active: c.active,
+        applicableTo: c.applicable_to || 'all', // Map null back to 'all' for UI
+        createdAt: c.created_at
+    }));
+};
+
+export const deactivateCoupon = async (id: string) => {
+    await supabase.from('coupons').update({ active: false }).eq('id', id);
+};
+
+export const validateCoupon = async (code: string, planType: 'pro' | 'payg'): Promise<{ valid: boolean; coupon?: Coupon; message?: string }> => {
+    const { data, error } = await supabase
+        .from('coupons')
+        .select('*')
+        .eq('code', code)
+        .eq('active', true)
+        .single();
+
+    if (error || !data) return { valid: false, message: 'Invalid or expired coupon.' };
+
+    if (data.max_uses && data.used_count >= data.max_uses) {
+        return { valid: false, message: 'Coupon usage limit reached.' };
+    }
+
+    // Check target audience. Null means "all".
+    if (data.applicable_to && data.applicable_to !== `plan:${planType}`) {
+        return { valid: false, message: 'Coupon not applicable for this plan.' };
+    }
+
+    const coupon: Coupon = {
+        id: data.id,
+        code: data.code,
+        discountType: data.discount_type,
+        discountValue: data.discount_value,
+        maxUses: data.max_uses,
+        usedCount: data.used_count,
+        expiryDate: data.expiry_date,
+        active: data.active,
+        applicableTo: data.applicable_to || 'all',
+        createdAt: data.created_at
+    };
+
+    return { valid: true, coupon };
+};
+
+// --- Drafts ---
+
+export const savePolicyDraft = async (uid: string, draft: Omit<PolicyDraft, 'id' | 'createdAt' | 'updatedAt'> & { id?: string }): Promise<void> => {
+    const data = {
+        id: draft.id, // optional, upsert will generate if missing
+        user_id: uid,
+        original_doc_id: draft.originalDocId,
+        original_doc_title: draft.originalDocTitle,
+        original_content: draft.originalContent,
+        update_result: draft.updateResult, // CRITICAL FIX: Was missing in previous version
+        selected_indices: draft.selectedIndices,
+        manual_instructions: draft.manualInstructions,
+        updated_at: new Date().toISOString()
+    };
+
+    const { error } = await supabase.from('policy_drafts').upsert(data);
+    if (error) throw error;
+};
+
+export const getPolicyDrafts = async (uid: string): Promise<PolicyDraft[]> => {
+    const { data, error } = await supabase.from('policy_drafts').select('*').eq('user_id', uid).order('updated_at', { ascending: false });
+    if (error) return [];
+
+    return data.map((d: any) => ({
+        id: d.id,
+        originalDocId: d.original_doc_id,
+        originalDocTitle: d.original_doc_title,
+        originalContent: d.original_content,
+        updateResult: d.update_result,
+        selectedIndices: d.selected_indices,
+        manualInstructions: d.manual_instructions,
+        updatedAt: d.updated_at,
+        createdAt: d.created_at
+    }));
+};
+
+export const deletePolicyDraft = async (id: string) => {
+    const { error } = await supabase.from('policy_drafts').delete().eq('id', id);
+    if (error) throw error;
 };

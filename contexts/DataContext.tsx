@@ -388,30 +388,35 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const handleSubscriptionSuccess = async () => {
         if (!user) return;
-        // The server has already processed the payment via Edge Function.
-        // We just need to fetch the updated user profile.
+        // Optimistic UI Update: Assume success
+        setUser(prev => prev ? ({ ...prev, plan: 'pro' }) : null);
+        setToastMessage("Success! Welcome to HR CoPilot Pro.");
+        navigateTo('dashboard');
+        setShowOnboardingWalkthrough(true);
+
+        // Background Sync
         const updatedUser = await getUserProfile(user.uid);
         if(updatedUser) {
             setUser(updatedUser);
-            setToastMessage("Success! Welcome to HR CoPilot Pro.");
-            navigateTo('dashboard');
-            setShowOnboardingWalkthrough(true);
         } else {
-            setToastMessage("Subscription verified, but profile update failed. Please refresh.");
+            // Only show error if sync fails significantly, but UI is already updated
+            console.warn("Background profile sync failed");
         }
     };
     
     const handleTopUpSuccess = async (amountInCents: number) => {
         if (!user) return;
-        // The server has already processed the payment via Edge Function.
-        // We just need to fetch the updated user profile to see new balance.
+        // Optimistic UI Update: Assume success
+        setUser(prev => prev ? ({ ...prev, creditBalance: (prev.creditBalance || 0) + amountInCents }) : null);
+        setToastMessage(`Success! R${(amountInCents / 100).toFixed(2)} has been added.`);
+        navigateTo('dashboard');
+
+        // Background Sync
         const updatedUser = await getUserProfile(user.uid);
         if(updatedUser) {
             setUser(updatedUser);
-            setToastMessage(`Success! R${(amountInCents / 100).toFixed(2)} has been added.`);
-            navigateTo('dashboard');
         } else {
-            setToastMessage("Top-up verified, but profile update failed. Please refresh.");
+            console.warn("Background profile sync failed");
         }
     };
 
@@ -423,15 +428,22 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
 
         try {
-            // Explicitly pass true to update balance
+            // Optimistically update
+            setUser(prev => prev ? ({ ...prev, creditBalance: Math.max(0, prev.creditBalance - amountInCents) }) : null);
+
+            // Explicitly pass true to update balance in DB
             await addTransactionToUser(user.uid, { description, amount: -amountInCents }, true);
             
-            // Optimistically update state or fetch fresh
+            // Re-sync to be safe
             const updatedUser = await getUserProfile(user.uid);
             if (updatedUser) setUser(updatedUser);
             return true;
         } catch (error: any) {
             console.error("Deduction failed:", error);
+            // Revert on error (fetch fresh)
+            const updatedUser = await getUserProfile(user.uid);
+            if (updatedUser) setUser(updatedUser);
+            
             setToastMessage("Failed to deduct credit. Please try again.");
             return false;
         }

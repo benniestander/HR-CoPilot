@@ -15,6 +15,7 @@ interface PolicyPreviewProps {
   sources: Source[];
   errorMessage?: string | null;
   loadingMessages?: string[];
+  onContentChange?: (newContent: string) => void;
 }
 
 const WORD_DOCUMENT_STYLES = `
@@ -55,7 +56,7 @@ const SourcesUsed: React.FC<{ sources: Source[] }> = ({ sources }) => {
   );
 };
 
-const PolicyPreview: React.FC<PolicyPreviewProps> = ({ policyText, status, onRetry, isForm, outputFormat, sources, errorMessage, loadingMessages }) => {
+const PolicyPreview: React.FC<PolicyPreviewProps> = ({ policyText, status, onRetry, isForm, outputFormat, sources, errorMessage, loadingMessages, onContentChange }) => {
   const [copied, setCopied] = useState(false);
   const [isDownloadMenuOpen, setDownloadMenuOpen] = useState(false);
 
@@ -71,16 +72,38 @@ const PolicyPreview: React.FC<PolicyPreviewProps> = ({ policyText, status, onRet
 
   useEffect(() => {
     if (status === 'success' && editorRef.current) {
-      (async () => {
-        const rawHtml = await marked.parse(policyText);
-        // Sanitize the HTML to prevent XSS
-        const cleanHtml = DOMPurify.sanitize(rawHtml);
-        editorRef.current.innerHTML = cleanHtml;
-      })();
-    } else if (editorRef.current) {
+        // Only set content if it's different to prevent cursor jumps if this runs on re-render
+        // However, typically policyText won't change while editing unless re-generated.
+        // We assume policyText is the source of truth from AI initially.
+        if (editorRef.current.innerHTML === '') {
+             (async () => {
+                const rawHtml = await marked.parse(policyText);
+                const cleanHtml = DOMPurify.sanitize(rawHtml);
+                editorRef.current!.innerHTML = cleanHtml;
+                // If onContentChange is provided, initialize it with the generated content
+                if (onContentChange) onContentChange(policyText); // We pass markdown back initially? No, let's keep it HTML edit.
+                // Actually, if we edit HTML, we lose markdown structure. But for saving, we save the HTML or Text content.
+                // The DB saves 'content'. If we edit, we save the innerText/HTML.
+                // For simplicity, let's just assume manual edits are saved as text or basic HTML.
+              })();
+        }
+    } else if (editorRef.current && status !== 'success') {
       editorRef.current.innerHTML = '';
     }
   }, [policyText, status]);
+
+  const handleInput = () => {
+      if (editorRef.current && onContentChange) {
+          // Pass the innerText (or innerHTML if you want to support rich text saving, but marked converts MD->HTML)
+          // Since the generator expects to save 'content', and the preview displays MD converted to HTML,
+          // saving innerText is safer for "text" edits, but we lose formatting. 
+          // Saving innerHTML preserves formatting but makes future "updates" harder if not converted back to MD.
+          // For this MVP: Save innerText to keep it simple, or innerHTML if we treat it as the final doc.
+          // Let's use innerText to be safe against XSS persistence, or check requirements.
+          // Requirement: "user edits are captured". 
+          onContentChange(editorRef.current.innerText); 
+      }
+  };
 
   const handleCopy = () => {
     if (editorRef.current) {
@@ -143,13 +166,17 @@ const PolicyPreview: React.FC<PolicyPreviewProps> = ({ policyText, status, onRet
       case 'success':
         return (
             <div id="policy-preview-content" className="h-full flex flex-col">
-                <div className="bg-white shadow-sm border border-gray-200 p-8 md:p-12 min-h-[600px] rounded-sm">
+                <div className="bg-white shadow-sm border border-gray-200 p-8 md:p-12 min-h-[600px] rounded-sm relative group">
                     <div 
-                    ref={editorRef}
-                    contentEditable={true}
-                    suppressContentEditableWarning={true}
-                    className="word-document-preview w-full h-full outline-none"
+                        ref={editorRef}
+                        contentEditable={true}
+                        suppressContentEditableWarning={true}
+                        onInput={handleInput}
+                        className="word-document-preview w-full h-full outline-none"
                     />
+                    <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                        <span className="text-xs text-gray-400 bg-white px-2 py-1 rounded shadow-sm border">Click to Edit</span>
+                    </div>
                 </div>
                {!isForm && <SourcesUsed sources={sources} />}
                <div className="mt-6 pt-6 border-t border-dashed border-gray-300 print-hide">

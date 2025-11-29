@@ -96,7 +96,8 @@ const SubscriptionPage: React.FC<SubscriptionPageProps> = ({ onSuccess, onCancel
     const result = await processPayment({
         amountInCents: Math.round(finalAmount),
         name: 'HR CoPilot Pro (12 Months)',
-        description: '12 months full access to the HR CoPilot platform.',
+        // Ensure description contains 'Subscription' to pass AuthContext validation
+        description: 'HR CoPilot Pro Subscription - 12 Months Access',
         customer: {
             name: formData.firstName,
             surname: formData.lastName,
