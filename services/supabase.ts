@@ -14,12 +14,28 @@ import { createClient } from '@supabase/supabase-js';
 
    ==========================================================================
 
-   -- 1. Create Tables (IF NOT EXISTS) to ensure targets for policy drops exist
+   -- 0. REPAIR SCHEMA (Fix column mismatches)
+   DO $$
+   BEGIN
+     -- Rename 'type' to 'discount_type' if 'type' exists and 'discount_type' does not
+     -- This fixes the "null value in column type" error
+     IF EXISTS(SELECT 1 FROM information_schema.columns WHERE table_name = 'coupons' AND column_name = 'type') AND 
+        NOT EXISTS(SELECT 1 FROM information_schema.columns WHERE table_name = 'coupons' AND column_name = 'discount_type') THEN
+       ALTER TABLE coupons RENAME COLUMN "type" TO discount_type;
+     END IF;
+
+     -- If 'type' still exists (e.g., both existed), make it nullable to prevent insert errors
+     IF EXISTS(SELECT 1 FROM information_schema.columns WHERE table_name = 'coupons' AND column_name = 'type') THEN
+       ALTER TABLE coupons ALTER COLUMN "type" DROP NOT NULL;
+     END IF;
+   END $$;
+
+   -- 1. Create Tables (IF NOT EXISTS)
    CREATE TABLE IF NOT EXISTS coupons (
      id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
      code text UNIQUE NOT NULL,
-     discount_type text NOT NULL CHECK (discount_type IN ('percentage', 'fixed')),
-     discount_value int NOT NULL,
+     discount_type text, -- Constraint added later
+     discount_value int NOT NULL DEFAULT 0,
      max_uses int,
      used_count int DEFAULT 0,
      expiry_date timestamptz,
@@ -41,18 +57,25 @@ import { createClient } from '@supabase/supabase-js';
      created_at timestamptz DEFAULT now()
    );
 
-   -- REPAIR: Ensure columns exist if table was created by older script
-   -- This fixes "Could not find the 'discount_type' column" errors
+   -- 2. ENSURE COLUMNS EXIST & FIX TYPES
    ALTER TABLE coupons ADD COLUMN IF NOT EXISTS code text;
    ALTER TABLE coupons ADD COLUMN IF NOT EXISTS discount_type text;
-   ALTER TABLE coupons ADD COLUMN IF NOT EXISTS discount_value int;
+   ALTER TABLE coupons ADD COLUMN IF NOT EXISTS discount_value int DEFAULT 0;
    ALTER TABLE coupons ADD COLUMN IF NOT EXISTS max_uses int;
    ALTER TABLE coupons ADD COLUMN IF NOT EXISTS used_count int DEFAULT 0;
    ALTER TABLE coupons ADD COLUMN IF NOT EXISTS expiry_date timestamptz;
    ALTER TABLE coupons ADD COLUMN IF NOT EXISTS active boolean DEFAULT true;
    ALTER TABLE coupons ADD COLUMN IF NOT EXISTS applicable_to text;
 
-   -- 2. Enable RLS on All Tables
+   -- Fix potential nulls in discount_type before applying constraint
+   UPDATE coupons SET discount_type = 'fixed' WHERE discount_type IS NULL;
+   ALTER TABLE coupons ALTER COLUMN discount_type SET NOT NULL;
+   
+   -- Re-apply check constraint
+   ALTER TABLE coupons DROP CONSTRAINT IF EXISTS coupons_discount_type_check;
+   ALTER TABLE coupons ADD CONSTRAINT coupons_discount_type_check CHECK (discount_type IN ('percentage', 'fixed'));
+
+   -- 3. Enable RLS on All Tables
    ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
    ALTER TABLE generated_documents ENABLE ROW LEVEL SECURITY;
    ALTER TABLE transactions ENABLE ROW LEVEL SECURITY;
@@ -62,7 +85,7 @@ import { createClient } from '@supabase/supabase-js';
    ALTER TABLE coupons ENABLE ROW LEVEL SECURITY;
    ALTER TABLE policy_drafts ENABLE ROW LEVEL SECURITY;
 
-   -- 3. Cleanup Old Policies (Now safe because tables definitely exist)
+   -- 4. Cleanup Old Policies
    DROP POLICY IF EXISTS "Users can read own profile" ON profiles;
    DROP POLICY IF EXISTS "Users can update own profile" ON profiles;
    DROP POLICY IF EXISTS "Users can insert own profile" ON profiles;
@@ -99,7 +122,7 @@ import { createClient } from '@supabase/supabase-js';
 
    DROP POLICY IF EXISTS "Users can manage own drafts" ON policy_drafts;
    
-   -- 4. Functions
+   -- 5. Functions
    DROP FUNCTION IF EXISTS is_admin() CASCADE;
    DROP FUNCTION IF EXISTS increment_balance(uuid, int) CASCADE;
    DROP FUNCTION IF EXISTS increment_coupon_uses(text) CASCADE;
@@ -142,14 +165,14 @@ import { createClient } from '@supabase/supabase-js';
    END;
    $$;
 
-   -- Grant execute to authenticated users so the API can call it
+   -- Grant execute to authenticated users
    GRANT EXECUTE ON FUNCTION is_admin TO authenticated;
    GRANT EXECUTE ON FUNCTION increment_balance TO authenticated;
    GRANT EXECUTE ON FUNCTION increment_balance TO service_role;
    GRANT EXECUTE ON FUNCTION increment_coupon_uses TO authenticated;
    GRANT EXECUTE ON FUNCTION increment_coupon_uses TO service_role;
 
-   -- 5. Create Policies
+   -- 6. Create Policies
 
    -- PROFILES
    CREATE POLICY "Users can read own profile" ON profiles FOR SELECT USING (auth.uid() = id);
