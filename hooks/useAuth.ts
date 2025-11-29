@@ -25,12 +25,12 @@ export const useAuth = () => {
 
     useEffect(() => {
         // Initial Session Check
-        supabase.auth.getSession().then(({ data: { session } }) => {
+        (supabase.auth as any).getSession().then(({ data: { session } }: any) => {
             handleSessionChange(session);
         });
 
         // Listen for changes
-        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+        const { data: { subscription } } = (supabase.auth as any).onAuthStateChange((_event: any, session: any) => {
             handleSessionChange(session);
         });
 

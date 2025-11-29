@@ -8,7 +8,7 @@ import type {
     AdminNotification, 
     UserFile, 
     Coupon, 
-    CompanyProfile,
+    CompanyProfile, 
     PolicyDraft
 } from '../types';
 
@@ -261,7 +261,7 @@ export const getAdminActionLogs = async (pageSize: number, lastVisible?: number)
 // --- Admin Actions ---
 
 const logAdminAction = async (action: string, targetUid: string, details?: any) => {
-    const { data: { user } } = await supabase.auth.getUser();
+    const { data: { user } } = await (supabase.auth as any).getUser();
     if (!user) return;
 
     // Get target email for log clarity
@@ -506,7 +506,7 @@ export const getPolicyDrafts = async (uid: string): Promise<PolicyDraft[]> => {
         originalContent: d.original_content,
         updateResult: d.update_result,
         selectedIndices: d.selected_indices,
-        manualInstructions: d.manual_instructions,
+        manual_instructions: d.manual_instructions,
         updatedAt: d.updated_at,
         createdAt: d.created_at
     }));

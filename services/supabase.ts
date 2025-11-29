@@ -42,6 +42,13 @@ import { createClient } from '@supabase/supabase-js';
    );
 
    -- REPAIR: Ensure columns exist if table was created by older script
+   -- This fixes "Could not find the 'discount_type' column" errors
+   ALTER TABLE coupons ADD COLUMN IF NOT EXISTS code text;
+   ALTER TABLE coupons ADD COLUMN IF NOT EXISTS discount_type text;
+   ALTER TABLE coupons ADD COLUMN IF NOT EXISTS discount_value int;
+   ALTER TABLE coupons ADD COLUMN IF NOT EXISTS max_uses int;
+   ALTER TABLE coupons ADD COLUMN IF NOT EXISTS used_count int DEFAULT 0;
+   ALTER TABLE coupons ADD COLUMN IF NOT EXISTS expiry_date timestamptz;
    ALTER TABLE coupons ADD COLUMN IF NOT EXISTS active boolean DEFAULT true;
    ALTER TABLE coupons ADD COLUMN IF NOT EXISTS applicable_to text;
 

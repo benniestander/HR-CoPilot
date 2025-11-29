@@ -42,7 +42,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [onboardingSkipped, setOnboardingSkipped] = useState(false);
 
   const handleLogin = async (email: string, pass: string) => {
-    const { error } = await supabase.auth.signInWithPassword({
+    const { error } = await (supabase.auth as any).signInWithPassword({
       email,
       password: pass,
     });
@@ -50,7 +50,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const handleLogout = async () => {
-    await supabase.auth.signOut();
+    await (supabase.auth as any).signOut();
     setUser(null);
     setAuthPage('login');
     // Clear local storage or state if needed
@@ -58,7 +58,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const handleForgotPassword = async (email: string) => {
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    const { error } = await (supabase.auth as any).resetPasswordForEmail(email, {
       redirectTo: `${window.location.origin}/#/reset-password`, // Ensure this route exists or is handled
     });
     if (error) throw error;
@@ -72,7 +72,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     window.localStorage.setItem('authFlow', flow);
     window.localStorage.setItem('authDetails', JSON.stringify(details));
 
-    const { error } = await supabase.auth.signUp({
+    const { error } = await (supabase.auth as any).signUp({
       email,
       password: details.password,
       options: {
