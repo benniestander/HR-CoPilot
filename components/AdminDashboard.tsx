@@ -357,7 +357,7 @@ const ActivityLog: React.FC<{ logs: AdminActionLog[], pageInfo: PageInfo, onNext
 
 // --- New Coupon Manager Component ---
 const CouponManager: React.FC<{ coupons: Coupon[], adminActions: any }> = ({ coupons, adminActions }) => {
-    const [newCoupon, setNewCoupon] = React.useState({ code: '', discountType: 'fixed', discountValue: '', maxUses: '', applicableTo: 'all' });
+    const [newCoupon, setNewCoupon] = React.useState({ code: '', discountType: 'fixed', discountValue: '', maxUses: '', applicableTo: 'plan:pro' });
     const [isCreating, setIsCreating] = React.useState(false);
 
     const handleCreate = async (e: React.FormEvent) => {
@@ -374,10 +374,10 @@ const CouponManager: React.FC<{ coupons: Coupon[], adminActions: any }> = ({ cou
                 ...newCoupon,
                 discountValue: value,
                 maxUses: newCoupon.maxUses ? Number(newCoupon.maxUses) : null,
-                applicableTo: newCoupon.applicableTo === 'all' ? 'all' : newCoupon.applicableTo 
+                applicableTo: newCoupon.applicableTo
             });
             // Coupons will update automatically via prop from DataContext
-            setNewCoupon({ code: '', discountType: 'fixed', discountValue: '', maxUses: '', applicableTo: 'all' });
+            setNewCoupon({ code: '', discountType: 'fixed', discountValue: '', maxUses: '', applicableTo: 'plan:pro' });
         } catch (error) {
             console.error(error);
         } finally {
@@ -395,33 +395,52 @@ const CouponManager: React.FC<{ coupons: Coupon[], adminActions: any }> = ({ cou
         <div className="space-y-8">
             <div className="bg-gray-50 p-6 rounded-lg border border-gray-200">
                 <h3 className="text-lg font-bold text-secondary mb-4">Create New Coupon</h3>
-                <form onSubmit={handleCreate} className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
-                    <div>
-                        <label className="block text-xs font-medium text-gray-500 mb-1">Code</label>
-                        <input required type="text" placeholder="e.g. SAVE20" value={newCoupon.code} onChange={e => setNewCoupon({...newCoupon, code: e.target.value.toUpperCase()})} className="w-full p-2 border rounded-md" />
+                <form onSubmit={handleCreate} className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="md:col-span-2">
+                        <label className="block text-sm font-medium text-gray-700 mb-2">1. Who is this coupon for?</label>
+                        <div className="grid grid-cols-2 gap-4">
+                            <label className={`border-2 rounded-lg p-4 cursor-pointer transition-all ${newCoupon.applicableTo === 'plan:pro' ? 'border-primary bg-primary/5' : 'border-gray-200 hover:border-primary/50'}`}>
+                                <input type="radio" name="applicableTo" value="plan:pro" checked={newCoupon.applicableTo === 'plan:pro'} onChange={e => setNewCoupon({...newCoupon, applicableTo: e.target.value})} className="sr-only"/>
+                                <span className="font-bold text-secondary block">Pro Membership</span>
+                                <span className="text-xs text-gray-500">Applies to the R747 yearly subscription fee.</span>
+                            </label>
+                            <label className={`border-2 rounded-lg p-4 cursor-pointer transition-all ${newCoupon.applicableTo === 'plan:payg' ? 'border-primary bg-primary/5' : 'border-gray-200 hover:border-primary/50'}`}>
+                                <input type="radio" name="applicableTo" value="plan:payg" checked={newCoupon.applicableTo === 'plan:payg'} onChange={e => setNewCoupon({...newCoupon, applicableTo: e.target.value})} className="sr-only"/>
+                                <span className="font-bold text-secondary block">PAYG Credit Top-Up</span>
+                                <span className="text-xs text-gray-500">Applies to credit purchases (e.g. Pay R50 get R100).</span>
+                            </label>
+                        </div>
                     </div>
+
                     <div>
-                        <label className="block text-xs font-medium text-gray-500 mb-1">Type</label>
-                        <select value={newCoupon.discountType} onChange={e => setNewCoupon({...newCoupon, discountType: e.target.value})} className="w-full p-2 border rounded-md bg-white">
-                            <option value="fixed">Fixed Amount (R)</option>
-                            <option value="percentage">Percentage (%)</option>
-                        </select>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">2. Coupon Code</label>
+                        <input required type="text" placeholder="e.g. SAVE20" value={newCoupon.code} onChange={e => setNewCoupon({...newCoupon, code: e.target.value.toUpperCase()})} className="w-full p-3 border rounded-md" />
                     </div>
+
                     <div>
-                        <label className="block text-xs font-medium text-gray-500 mb-1">Value</label>
-                        <input required type="number" placeholder={newCoupon.discountType === 'fixed' ? '50 (Rand)' : '10 (%)'} value={newCoupon.discountValue} onChange={e => setNewCoupon({...newCoupon, discountValue: e.target.value})} className="w-full p-2 border rounded-md" />
+                        <label className="block text-sm font-medium text-gray-700 mb-1">3. Max Uses (Optional)</label>
+                        <input type="number" placeholder="Unlimited" value={newCoupon.maxUses} onChange={e => setNewCoupon({...newCoupon, maxUses: e.target.value})} className="w-full p-3 border rounded-md" />
                     </div>
-                    <div>
-                        <label className="block text-xs font-medium text-gray-500 mb-1">Target Audience</label>
-                        <select value={newCoupon.applicableTo} onChange={e => setNewCoupon({...newCoupon, applicableTo: e.target.value})} className="w-full p-2 border rounded-md bg-white">
-                            <option value="all">All Users</option>
-                            <option value="plan:pro">Pro Subscription Only</option>
-                            <option value="plan:payg">PAYG Top-up Only</option>
-                        </select>
+
+                    <div className="md:col-span-2 grid grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">4. Discount Type</label>
+                            <select value={newCoupon.discountType} onChange={e => setNewCoupon({...newCoupon, discountType: e.target.value})} className="w-full p-3 border rounded-md bg-white">
+                                <option value="fixed">Fixed Amount (Rand)</option>
+                                <option value="percentage">Percentage (%)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">5. Value</label>
+                            <input required type="number" placeholder={newCoupon.discountType === 'fixed' ? '50 (Rand off)' : '10 (% off)'} value={newCoupon.discountValue} onChange={e => setNewCoupon({...newCoupon, discountValue: e.target.value})} className="w-full p-3 border rounded-md" />
+                        </div>
                     </div>
-                    <button disabled={isCreating} type="submit" className="bg-primary text-white font-bold py-2 px-4 rounded-md hover:bg-opacity-90 disabled:opacity-50">
-                        {isCreating ? 'Creating...' : 'Create'}
-                    </button>
+
+                    <div className="md:col-span-2">
+                        <button disabled={isCreating} type="submit" className="w-full bg-primary text-white font-bold py-3 px-4 rounded-md hover:bg-opacity-90 disabled:opacity-50">
+                            {isCreating ? 'Creating...' : 'Create Coupon'}
+                        </button>
+                    </div>
                 </form>
             </div>
 

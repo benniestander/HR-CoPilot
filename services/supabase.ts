@@ -14,27 +14,18 @@ import { createClient } from '@supabase/supabase-js';
 
    ==========================================================================
 
-   -- 0. REPAIR SCHEMA (Fix column mismatches)
-   DO $$
-   BEGIN
-     -- Rename 'type' to 'discount_type' if 'type' exists and 'discount_type' does not
-     -- This fixes the "null value in column type" error
-     IF EXISTS(SELECT 1 FROM information_schema.columns WHERE table_name = 'coupons' AND column_name = 'type') AND 
-        NOT EXISTS(SELECT 1 FROM information_schema.columns WHERE table_name = 'coupons' AND column_name = 'discount_type') THEN
-       ALTER TABLE coupons RENAME COLUMN "type" TO discount_type;
-     END IF;
+   -- 0. REPAIR SCHEMA (Fix column mismatches specifically for Coupons)
+   -- The error "null value in column type" means a legacy column exists. We must remove it.
+   ALTER TABLE coupons DROP COLUMN IF EXISTS "type";
 
-     -- If 'type' still exists (e.g., both existed), make it nullable to prevent insert errors
-     IF EXISTS(SELECT 1 FROM information_schema.columns WHERE table_name = 'coupons' AND column_name = 'type') THEN
-       ALTER TABLE coupons ALTER COLUMN "type" DROP NOT NULL;
-     END IF;
-   END $$;
-
+   -- Ensure discount_type exists
+   ALTER TABLE coupons ADD COLUMN IF NOT EXISTS discount_type text;
+   
    -- 1. Create Tables (IF NOT EXISTS)
    CREATE TABLE IF NOT EXISTS coupons (
      id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
      code text UNIQUE NOT NULL,
-     discount_type text, -- Constraint added later
+     discount_type text NOT NULL CHECK (discount_type IN ('percentage', 'fixed')),
      discount_value int NOT NULL DEFAULT 0,
      max_uses int,
      used_count int DEFAULT 0,
@@ -66,14 +57,6 @@ import { createClient } from '@supabase/supabase-js';
    ALTER TABLE coupons ADD COLUMN IF NOT EXISTS expiry_date timestamptz;
    ALTER TABLE coupons ADD COLUMN IF NOT EXISTS active boolean DEFAULT true;
    ALTER TABLE coupons ADD COLUMN IF NOT EXISTS applicable_to text;
-
-   -- Fix potential nulls in discount_type before applying constraint
-   UPDATE coupons SET discount_type = 'fixed' WHERE discount_type IS NULL;
-   ALTER TABLE coupons ALTER COLUMN discount_type SET NOT NULL;
-   
-   -- Re-apply check constraint
-   ALTER TABLE coupons DROP CONSTRAINT IF EXISTS coupons_discount_type_check;
-   ALTER TABLE coupons ADD CONSTRAINT coupons_discount_type_check CHECK (discount_type IN ('percentage', 'fixed'));
 
    -- 3. Enable RLS on All Tables
    ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
