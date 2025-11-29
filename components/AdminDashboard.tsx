@@ -57,9 +57,11 @@ const exportToCsv = (filename: string, rows: object[]) => {
     }
     const header = Object.keys(rows[0]).join(',');
     const csv = rows.map(row => 
-        Object.values(row).map(value => 
-            `"${String(value).replace(/"/g, '""')}"`
-        ).join(',')
+        Object.values(row).map(value => {
+            // Handle null/undefined safely and escape quotes
+            const val = value === null || value === undefined ? '' : String(value);
+            return `"${val.replace(/"/g, '""')}"`;
+        }).join(',')
     ).join('\n');
     
     const blob = new Blob([header + '\n' + csv], { type: 'text/csv;charset=utf-8;' });
@@ -92,13 +94,14 @@ const PaginationControls: React.FC<{ pageInfo: PageInfo; onNext: () => void; onP
 // ... UserList, DocumentAnalytics, TransactionLog, ActivityLog components remain same ...
 const UserList: React.FC<{ users: User[], pageInfo: PageInfo, onNext: () => void, onPrev: () => void, onViewUser: (user: User) => void, isLoading: boolean }> = ({ users, pageInfo, onNext, onPrev, onViewUser, isLoading }) => {
     const [searchTerm, setSearchTerm] = useState('');
+    const safeUsers = users || []; // Safety check
     const filteredUsers = useMemo(() => {
-        return users.filter(user => 
+        return safeUsers.filter(user => 
         !user.isAdmin &&
         (user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
         (user.name && user.name.toLowerCase().includes(searchTerm.toLowerCase())))
         );
-    }, [users, searchTerm]);
+    }, [safeUsers, searchTerm]);
 
     return (
         <div>
@@ -177,10 +180,30 @@ const UserList: React.FC<{ users: User[], pageInfo: PageInfo, onNext: () => void
 };
 
 const DocumentAnalytics: React.FC<{ documents: GeneratedDocument[], pageInfo: PageInfo, onNext: () => void, onPrev: () => void, isLoading: boolean }> = ({ documents, pageInfo, onNext, onPrev, isLoading }) => {
+  const safeDocs = documents || [];
+  
+  const handleExport = () => {
+      // Flatten data structure for CSV to prevent [object Object] output
+      const exportData = safeDocs.map(d => ({
+          id: d.id,
+          title: d.title,
+          kind: d.kind,
+          type: d.type,
+          companyName: d.companyProfile?.companyName || 'Unknown',
+          createdAt: d.createdAt,
+          version: d.version
+      }));
+      exportToCsv('documents.csv', exportData);
+  };
+
   return (
     <div>
       <div className="flex justify-end mb-4">
-        <button onClick={() => exportToCsv('documents.csv', documents.map(d => ({ id: d.id, title: d.title, kind: d.kind, type: d.type, company: d.companyProfile.companyName, createdAt: d.createdAt, version: d.version })))} className="flex items-center text-sm font-semibold text-primary hover:underline">
+        <button 
+            onClick={handleExport}
+            disabled={safeDocs.length === 0}
+            className="flex items-center text-sm font-semibold text-primary hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
+        >
           <DownloadIcon className="w-4 h-4 mr-1" /> Export as CSV
         </button>
       </div>
@@ -188,6 +211,8 @@ const DocumentAnalytics: React.FC<{ documents: GeneratedDocument[], pageInfo: Pa
         <div className="p-12 flex justify-center">
             <LoadingIcon className="w-10 h-10 animate-spin text-primary" />
         </div>
+      ) : safeDocs.length === 0 ? (
+        <div className="p-12 text-center text-gray-500 italic">No documents found.</div>
       ) : (
       <>
         {/* Desktop View */}
@@ -201,10 +226,10 @@ const DocumentAnalytics: React.FC<{ documents: GeneratedDocument[], pageInfo: Pa
                 </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-                {documents.map(doc => (
+                {safeDocs.map(doc => (
                 <tr key={doc.id}>
                     <td className="px-6 py-4 whitespace-nowrap">{doc.title}</td>
-                    <td className="px-6 py-4 whitespace-nowrap">{doc.companyProfile.companyName}</td>
+                    <td className="px-6 py-4 whitespace-nowrap">{doc.companyProfile?.companyName || 'N/A'}</td>
                     <td className="px-6 py-4 whitespace-nowrap">{new Date(doc.createdAt).toLocaleDateString()}</td>
                 </tr>
                 ))}
@@ -214,11 +239,11 @@ const DocumentAnalytics: React.FC<{ documents: GeneratedDocument[], pageInfo: Pa
 
         {/* Mobile Card View */}
         <div className="md:hidden space-y-4">
-            {documents.map(doc => (
+            {safeDocs.map(doc => (
                 <div key={doc.id} className="bg-white p-4 rounded-lg shadow border border-gray-200">
                     <h3 className="font-bold text-secondary mb-1">{doc.title}</h3>
                     <div className="text-sm text-gray-600 mb-1">
-                        <span className="font-medium">Company:</span> {doc.companyProfile.companyName}
+                        <span className="font-medium">Company:</span> {doc.companyProfile?.companyName || 'N/A'}
                     </div>
                     <div className="text-xs text-gray-500">
                         Generated on {new Date(doc.createdAt).toLocaleDateString()}
@@ -234,11 +259,28 @@ const DocumentAnalytics: React.FC<{ documents: GeneratedDocument[], pageInfo: Pa
 };
 
 const TransactionLog: React.FC<{ transactions: Transaction[], usersPageInfo: PageInfo, onNext: () => void, onPrev: () => void, isLoading: boolean }> = ({ transactions, usersPageInfo, onNext, onPrev, isLoading }) => {
+  const safeTransactions = transactions || [];
+  
+  const handleExport = () => {
+      const exportData = safeTransactions.map(t => ({
+          id: t.id,
+          date: t.date,
+          description: t.description,
+          amount: Number(t.amount) / 100, // Convert cents to Rands
+          userEmail: t.userEmail
+      }));
+      exportToCsv('transactions.csv', exportData);
+  };
+
   return (
     <div>
       <p className="text-sm text-gray-500 mb-4">Displaying transactions for the current page of users.</p>
        <div className="flex justify-end mb-4">
-        <button onClick={() => exportToCsv('transactions.csv', transactions.map(t => ({ id: t.id, date: t.date, description: t.description, amount: Number(t.amount) / 100, userEmail: t.userEmail })))} className="flex items-center text-sm font-semibold text-primary hover:underline">
+        <button 
+            onClick={handleExport}
+            disabled={safeTransactions.length === 0}
+            className="flex items-center text-sm font-semibold text-primary hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
+        >
           <DownloadIcon className="w-4 h-4 mr-1" /> Export as CSV
         </button>
       </div>
@@ -246,6 +288,8 @@ const TransactionLog: React.FC<{ transactions: Transaction[], usersPageInfo: Pag
         <div className="p-12 flex justify-center">
             <LoadingIcon className="w-10 h-10 animate-spin text-primary" />
         </div>
+      ) : safeTransactions.length === 0 ? (
+        <div className="p-12 text-center text-gray-500 italic">No transactions found for this page.</div>
       ) : (
       <>
         {/* Desktop View */}
@@ -260,7 +304,7 @@ const TransactionLog: React.FC<{ transactions: Transaction[], usersPageInfo: Pag
                 </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-                {transactions.map((tx, index) => (
+                {safeTransactions.map((tx, index) => (
                 <tr key={tx.id || index}>
                     <td className="px-6 py-4 whitespace-nowrap">{new Date(tx.date).toLocaleString()}</td>
                     <td className="px-6 py-4 whitespace-nowrap">{tx.userEmail}</td>
@@ -274,7 +318,7 @@ const TransactionLog: React.FC<{ transactions: Transaction[], usersPageInfo: Pag
 
         {/* Mobile Card View */}
         <div className="md:hidden space-y-4">
-            {transactions.map((tx, index) => (
+            {safeTransactions.map((tx, index) => (
                 <div key={tx.id || index} className="bg-white p-4 rounded-lg shadow border border-gray-200">
                     <div className="flex justify-between items-start mb-2">
                         <div className="flex-1">
@@ -299,12 +343,15 @@ const TransactionLog: React.FC<{ transactions: Transaction[], usersPageInfo: Pag
 };
 
 const ActivityLog: React.FC<{ logs: AdminActionLog[], pageInfo: PageInfo, onNext: () => void, onPrev: () => void, isLoading: boolean }> = ({ logs, pageInfo, onNext, onPrev, isLoading }) => {
+  const safeLogs = logs || [];
   return (
     <div>
       {isLoading ? (
         <div className="p-12 flex justify-center">
             <LoadingIcon className="w-10 h-10 animate-spin text-primary" />
         </div>
+      ) : safeLogs.length === 0 ? (
+        <div className="p-12 text-center text-gray-500 italic">No activity logs found.</div>
       ) : (
       <>
         {/* Desktop View */}
@@ -319,7 +366,7 @@ const ActivityLog: React.FC<{ logs: AdminActionLog[], pageInfo: PageInfo, onNext
                 </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-                {logs.map(log => (
+                {safeLogs.map(log => (
                 <tr key={log.id}>
                     <td className="px-6 py-4 whitespace-nowrap">{new Date(log.timestamp).toLocaleString()}</td>
                     <td className="px-6 py-4 whitespace-nowrap">{log.adminEmail}</td>
@@ -333,7 +380,7 @@ const ActivityLog: React.FC<{ logs: AdminActionLog[], pageInfo: PageInfo, onNext
 
         {/* Mobile Card View */}
         <div className="md:hidden space-y-4">
-            {logs.map(log => (
+            {safeLogs.map(log => (
                 <div key={log.id} className="bg-white p-4 rounded-lg shadow border border-gray-200">
                     <div className="mb-2">
                         <span className="font-bold text-secondary block">{log.action}</span>
@@ -359,6 +406,7 @@ const ActivityLog: React.FC<{ logs: AdminActionLog[], pageInfo: PageInfo, onNext
 const CouponManager: React.FC<{ coupons: Coupon[], adminActions: any }> = ({ coupons, adminActions }) => {
     const [newCoupon, setNewCoupon] = React.useState({ code: '', discountType: 'fixed', discountValue: '', maxUses: '', applicableTo: 'plan:pro' });
     const [isCreating, setIsCreating] = React.useState(false);
+    const safeCoupons = coupons || [];
 
     const handleCreate = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -461,7 +509,7 @@ const CouponManager: React.FC<{ coupons: Coupon[], adminActions: any }> = ({ cou
                             </tr>
                         </thead>
                         <tbody className="bg-white divide-y divide-gray-200">
-                            {coupons.map(c => (
+                            {safeCoupons.map(c => (
                                 <tr key={c.id}>
                                     <td className="px-6 py-4 font-bold text-primary">{c.code}</td>
                                     <td className="px-6 py-4">
@@ -489,7 +537,7 @@ const CouponManager: React.FC<{ coupons: Coupon[], adminActions: any }> = ({ cou
 
                 {/* Mobile Card View */}
                 <div className="md:hidden space-y-4">
-                    {coupons.map(c => (
+                    {safeCoupons.map(c => (
                         <div key={c.id} className="bg-white p-4 rounded-lg shadow border border-gray-200 relative">
                             <div className="flex justify-between items-center mb-2">
                                 <span className="font-bold text-lg text-primary">{c.code}</span>

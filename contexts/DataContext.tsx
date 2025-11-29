@@ -35,8 +35,6 @@ import {
 import { useAuthContext } from './AuthContext';
 import { useUIContext } from './UIContext';
 import { useModalContext } from './ModalContext';
-import { POLICIES, FORMS } from '../constants';
-import type { PolicyType, FormType } from '../types';
 
 const PAGE_SIZE = 25;
 
@@ -152,24 +150,39 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         cursors: number[],
         setLoading: React.Dispatch<React.SetStateAction<boolean>>
     ) => async (pageIndex: number) => {
-        if (pageIndex < 0 || pageIndex >= cursors.length) return;
+        // Validation to prevent out of bounds
+        if (pageIndex < 0) return;
+        if (pageIndex >= cursors.length) return;
         
         setLoading(true);
         try {
             const cursor = cursors[pageIndex];
             const { data, lastVisible } = await fetchFn(PAGE_SIZE, cursor);
 
-            setData(data);
+            setData(data || []); // Safety check
             setPageIndex(pageIndex);
 
+            // Update cursors for next page if valid
             if (pageIndex === cursors.length - 1) {
-                if (lastVisible !== null && data.length === PAGE_SIZE) {
-                    setCursors(prev => [...prev, lastVisible]);
+                if (lastVisible !== null && data && data.length === PAGE_SIZE) {
+                    setCursors(prev => {
+                        // Prevent duplicate cursor additions
+                        if (prev[prev.length - 1] !== lastVisible) {
+                            return [...prev, lastVisible];
+                        }
+                        return prev;
+                    });
                     setHasNextPage(true);
                 } else {
                     setHasNextPage(false);
                 }
+            } else {
+                // If we went back and are not at the end, check if there's a next page available in cursor history
+                setHasNextPage(pageIndex < cursors.length - 1);
             }
+        } catch (err) {
+            console.error("Pagination fetch error:", err);
+            setToastMessage("Error loading data page.");
         } finally {
             setLoading(false);
         }
@@ -199,6 +212,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     useEffect(() => {
         if (user) {
             if (isAdmin) {
+                // Ensure cursors are initialized before fetching
+                if (userCursors.length === 0) setUserCursors([0]);
+                if (docCursors.length === 0) setDocCursors([0]);
+                if (logCursors.length === 0) setLogCursors([0]);
+
                 fetchUsersPage(0);
                 fetchDocsPage(0);
                 fetchLogsPage(0);
@@ -231,7 +249,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setIsLoadingUserDocs(false);
             setIsLoadingUserFiles(false);
         }
-    }, [user, isAdmin]);
+    }, [user, isAdmin]); // Removed fetchUsersPage etc dependencies to avoid infinite loops
 
     const handleUpdateProfile = async (data: { profile: CompanyProfile; name?: string; contactNumber?: string }) => {
         if (!user) return;
@@ -506,16 +524,16 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         generatedDocuments,
         userFiles,
         policyDrafts,
-        paginatedUsers: { data: paginatedUsers, pageInfo: { pageIndex: userPageIndex, pageSize: PAGE_SIZE, hasNextPage: userHasNextPage, dataLength: paginatedUsers.length } },
+        paginatedUsers: { data: paginatedUsers, pageInfo: { pageIndex: userPageIndex, pageSize: PAGE_SIZE, hasNextPage: userHasNextPage, dataLength: paginatedUsers.length, total: undefined } },
         handleNextUsers,
         handlePrevUsers,
         isFetchingUsers,
-        paginatedDocuments: { data: paginatedDocuments, pageInfo: { pageIndex: docPageIndex, pageSize: PAGE_SIZE, hasNextPage: docHasNextPage, dataLength: paginatedDocuments.length } },
+        paginatedDocuments: { data: paginatedDocuments, pageInfo: { pageIndex: docPageIndex, pageSize: PAGE_SIZE, hasNextPage: docHasNextPage, dataLength: paginatedDocuments.length, total: undefined } },
         handleNextDocs,
         handlePrevDocs,
         isFetchingDocs,
         transactionsForUserPage,
-        paginatedLogs: { data: paginatedLogs, pageInfo: { pageIndex: logPageIndex, pageSize: PAGE_SIZE, hasNextPage: logHasNextPage, dataLength: paginatedLogs.length } },
+        paginatedLogs: { data: paginatedLogs, pageInfo: { pageIndex: logPageIndex, pageSize: PAGE_SIZE, hasNextPage: logHasNextPage, dataLength: paginatedLogs.length, total: undefined } },
         handleNextLogs,
         handlePrevLogs,
         isFetchingLogs,
