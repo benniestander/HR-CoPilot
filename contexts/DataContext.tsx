@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect, useMemo, useCallback } from 'react';
 import type { GeneratedDocument, CompanyProfile, User, Transaction, AdminActionLog, AdminNotification, UserFile, Coupon, PolicyDraft } from '../types';
 import {
@@ -150,23 +149,33 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         cursors: number[],
         setLoading: React.Dispatch<React.SetStateAction<boolean>>
     ) => async (pageIndex: number) => {
-        // Validation to prevent out of bounds
+        // 1. Strict Bounds Check
         if (pageIndex < 0) return;
-        if (pageIndex >= cursors.length) return;
+        if (pageIndex >= cursors.length) {
+            console.warn(`Attempted to fetch page ${pageIndex} but cursor not found.`);
+            return;
+        }
         
+        // 2. Strict Cursor Validation
+        const cursor = cursors[pageIndex];
+        if (cursor === undefined || cursor === null) {
+             console.error("Cursor is invalid (undefined/null) for page", pageIndex);
+             return;
+        }
+
         setLoading(true);
         try {
-            const cursor = cursors[pageIndex];
             const { data, lastVisible } = await fetchFn(PAGE_SIZE, cursor);
 
             setData(data || []); // Safety check
             setPageIndex(pageIndex);
 
-            // Update cursors for next page if valid
+            // 3. Robust Next Page Logic
             if (pageIndex === cursors.length - 1) {
+                // If we are at the last known page, check if we should add a new cursor
                 if (lastVisible !== null && data && data.length === PAGE_SIZE) {
                     setCursors(prev => {
-                        // Prevent duplicate cursor additions
+                        // Idempotency: Don't add if already exists
                         if (prev[prev.length - 1] !== lastVisible) {
                             return [...prev, lastVisible];
                         }
@@ -177,12 +186,19 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
                     setHasNextPage(false);
                 }
             } else {
-                // If we went back and are not at the end, check if there's a next page available in cursor history
+                // Navigating history
                 setHasNextPage(pageIndex < cursors.length - 1);
             }
-        } catch (err) {
-            console.error("Pagination fetch error:", err);
-            setToastMessage("Error loading data page.");
+        } catch (err: any) {
+            console.error(`Pagination error (Page ${pageIndex}):`, err.message || err);
+            // 4. Improved User Feedback: Only toast on user navigation or critical failure
+            // Avoid spamming "Error loading data page" on initial mount if transient
+            if (pageIndex > 0) {
+                setToastMessage("Failed to load next page.");
+            } else {
+                // Log but don't toast on initial load to allow for silent retry or background resolution
+                console.warn("Initial admin data fetch failed.");
+            }
         } finally {
             setLoading(false);
         }
@@ -212,14 +228,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     useEffect(() => {
         if (user) {
             if (isAdmin) {
-                // Ensure cursors are initialized before fetching
-                if (userCursors.length === 0) setUserCursors([0]);
-                if (docCursors.length === 0) setDocCursors([0]);
-                if (logCursors.length === 0) setLogCursors([0]);
-
-                fetchUsersPage(0);
-                fetchDocsPage(0);
-                fetchLogsPage(0);
+                // Ensure cursors are initialized before fetching to prevent error
+                if (userCursors.length > 0) fetchUsersPage(0).catch(e => console.error("Initial User Fetch Error", e));
+                if (docCursors.length > 0) fetchDocsPage(0).catch(e => console.error("Initial Doc Fetch Error", e));
+                if (logCursors.length > 0) fetchLogsPage(0).catch(e => console.error("Initial Log Fetch Error", e));
+                
                 getAdminNotifications().then(setAdminNotifications);
                 getCoupons().then(setCoupons);
             } else {
@@ -249,7 +262,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setIsLoadingUserDocs(false);
             setIsLoadingUserFiles(false);
         }
-    }, [user, isAdmin]); // Removed fetchUsersPage etc dependencies to avoid infinite loops
+    }, [user, isAdmin]); 
 
     const handleUpdateProfile = async (data: { profile: CompanyProfile; name?: string; contactNumber?: string }) => {
         if (!user) return;
