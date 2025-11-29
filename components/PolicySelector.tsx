@@ -1,8 +1,7 @@
-
 import React, { useState, useMemo } from 'react';
 import { POLICY_CATEGORIES, INDUSTRIES, FORMS, POLICIES } from '../constants';
 import type { Policy, Form, PolicyType, FormType } from '../types';
-import { SearchIcon, HelpIcon, MasterPolicyIcon, FormsIcon, WordIcon, ExcelIcon } from './Icons';
+import { SearchIcon, HelpIcon, WordIcon, ExcelIcon, TipIcon } from './Icons';
 import { useAuthContext } from '../contexts/AuthContext';
 
 interface PolicySelectorProps {
@@ -17,7 +16,7 @@ const SCENARIO_MAP: Record<string, (PolicyType | FormType)[]> = {
     'dishonest': ['disciplinary', 'code-of-ethics'],
     
     'late': ['attendance-punctuality', 'verbal-warning', 'written-warning', 'disciplinary'],
-    'absent': ['attendance-punctuality', 'leave'], // Removed invalid 'abscondment-policy'
+    'absent': ['attendance-punctuality', 'leave'],
     'punctual': ['attendance-punctuality'],
     
     'sick': ['leave', 'incapacity-inquiry-ill-health-notice', 'medical-report-template'],
@@ -57,22 +56,27 @@ const PolicyCard: React.FC<{ item: Policy | Form; onSelect: () => void; showPric
       onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && onSelect()}
       role="button"
       tabIndex={0}
-      className={`bg-white p-6 rounded-lg shadow-md hover:shadow-xl hover:-translate-y-1 transition-all duration-300 cursor-pointer border border-gray-200 flex flex-col focus:outline-none focus:ring-2 focus:ring-primary relative overflow-hidden ${isForm ? 'border-l-4 border-l-accent' : ''}`}
+      className={`bg-white p-5 rounded-xl shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all duration-300 cursor-pointer border border-gray-200 flex flex-col focus:outline-none focus:ring-2 focus:ring-primary h-full group ${isForm ? 'border-l-4 border-l-accent' : ''}`}
       aria-label={`Select ${item.kind}: ${item.title}`}
     >
-      {isForm && (
-          <div className="absolute top-0 right-0 bg-accent text-white text-xs font-bold px-2 py-1 rounded-bl-md uppercase tracking-wide">
-              Form
-          </div>
-      )}
-      <div className="flex-shrink-0">
-        <item.icon className={`w-10 h-10 mb-4 ${isForm ? 'text-accent' : 'text-primary'}`} />
-        <h3 className="text-xl font-bold text-secondary mb-2">{item.title}</h3>
+      <div className="flex justify-between items-start mb-4">
+        <div className={`p-3 rounded-lg ${isForm ? 'bg-accent/10' : 'bg-primary/10'} group-hover:scale-110 transition-transform duration-300`}>
+            <item.icon className={`w-8 h-8 ${isForm ? 'text-accent' : 'text-primary'}`} />
+        </div>
+        {isForm && (
+            <div className="text-[10px] font-bold uppercase tracking-wider text-accent bg-accent/10 px-2 py-1 rounded-full">
+                Form
+            </div>
+        )}
       </div>
-      <p className="text-gray-600 flex-grow text-sm">{item.description}</p>
+      
+      <h3 className="text-lg font-bold text-secondary mb-2 leading-tight group-hover:text-primary transition-colors">{item.title}</h3>
+      <p className="text-gray-500 flex-grow text-sm line-clamp-3 mb-4">{item.description}</p>
+      
       {showPrice && (
-        <div className="mt-4 pt-4 border-t border-gray-100">
-          <p className="text-lg font-bold text-primary">R{(item.price / 100).toFixed(2)}</p>
+        <div className="mt-auto pt-3 border-t border-gray-100 flex justify-between items-center">
+          <span className="text-xs text-gray-400 font-medium">Pay-As-You-Go</span>
+          <p className="text-base font-bold text-primary">R{(item.price / 100).toFixed(2)}</p>
         </div>
       )}
     </div>
@@ -94,14 +98,12 @@ const PolicySelector: React.FC<PolicySelectorProps> = ({ onSelect }) => {
       const inputLower = scenarioInput.toLowerCase();
       const matchedTypes = new Set<string>();
 
-      // Check input against keywords map
       Object.entries(SCENARIO_MAP).forEach(([keyword, types]) => {
           if (inputLower.includes(keyword)) {
               types.forEach(t => matchedTypes.add(t));
           }
       });
 
-      // Fetch the actual Policy/Form objects
       const results: (Policy | Form)[] = [];
       matchedTypes.forEach(typeId => {
           if (POLICIES[typeId as PolicyType]) results.push(POLICIES[typeId as PolicyType]);
@@ -113,7 +115,7 @@ const PolicySelector: React.FC<PolicySelectorProps> = ({ onSelect }) => {
 
   // Standard Search Logic
   const categorizedAndFiltered = useMemo(() => {
-    if (scenarioInput.trim()) return []; // If using scenario search, hide standard lists
+    if (scenarioInput.trim()) return [];
 
     return POLICY_CATEGORIES.map(category => {
         const searchWords = searchTerm.toLowerCase().split(' ').filter(word => word.length > 0);
@@ -123,7 +125,7 @@ const PolicySelector: React.FC<PolicySelectorProps> = ({ onSelect }) => {
 
         const industryMatch =
             selectedIndustry === 'All' ||
-            !policy.industries || // Universal policies (no industry array) are always included
+            !policy.industries || 
             policy.industries.includes(selectedIndustry);
 
         return searchMatch && industryMatch;
@@ -135,133 +137,156 @@ const PolicySelector: React.FC<PolicySelectorProps> = ({ onSelect }) => {
   const hasStandardResults = categorizedAndFiltered.length > 0;
 
   return (
-    <div>
-        {/* Scenario / Problem Solver Section */}
-        <div className="bg-blue-50 border border-blue-100 rounded-xl p-6 mb-10 shadow-sm">
-            <div className="flex items-start space-x-4">
-                <div className="bg-white p-2 rounded-full shadow-sm flex-shrink-0">
-                    <HelpIcon className="w-6 h-6 text-primary" />
-                </div>
-                <div className="flex-1">
-                    <h3 className="text-lg font-bold text-secondary mb-1">Not sure what you need?</h3>
-                    <p className="text-gray-600 text-sm mb-4">Describe your situation, and we'll recommend the right documents.</p>
-                    <div className="relative">
-                        <input
-                            type="text"
-                            placeholder="e.g., 'Employee stole money', 'Someone is always late', 'Hiring a new manager'..."
-                            value={scenarioInput}
-                            onChange={(e) => setScenarioInput(e.target.value)}
-                            className="w-full p-3 pl-4 pr-12 border border-blue-200 rounded-lg shadow-sm focus:ring-2 focus:ring-primary focus:border-primary bg-white"
-                        />
-                        {scenarioInput && (
-                            <button 
-                                onClick={() => setScenarioInput('')}
-                                className="absolute right-3 top-3 text-gray-400 hover:text-gray-600"
-                            >
-                                Clear
-                            </button>
-                        )}
-                    </div>
-                </div>
-            </div>
+    <div className="space-y-8">
+        
+        {/* --- SECTION 1: AI ASSISTANT (HERO) --- */}
+        <div className="bg-gradient-to-r from-secondary to-[#1a4b85] rounded-2xl p-8 text-center text-white shadow-md relative overflow-hidden">
+            {/* Decorative circles */}
+            <div className="absolute top-0 right-0 w-64 h-64 bg-white opacity-5 rounded-full -mr-20 -mt-20"></div>
+            <div className="absolute bottom-0 left-0 w-40 h-40 bg-primary opacity-10 rounded-full -ml-10 -mb-10"></div>
 
-            {/* Scenario Results */}
-            {scenarioInput.trim() && (
-                <div className="mt-6 animate-fade-in">
-                    <h4 className="font-semibold text-secondary mb-4 flex items-center">
-                        Recommended Documents
-                        <span className="ml-2 text-xs font-normal text-gray-500 bg-white px-2 py-0.5 rounded-full border border-gray-200">
-                            {scenarioResults.length} found
-                        </span>
-                    </h4>
-                    {scenarioResults.length > 0 ? (
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                            {scenarioResults.map((item) => (
-                                <PolicyCard 
-                                    key={item.type} 
-                                    item={item} 
-                                    onSelect={() => onSelect(item)} 
-                                    showPrice={showPrice} 
-                                />
-                            ))}
-                        </div>
+            <div className="relative z-10 max-w-2xl mx-auto">
+                <h3 className="text-2xl font-bold mb-2 flex items-center justify-center">
+                    <TipIcon className="w-6 h-6 mr-2 text-accent" />
+                    Not sure what you need?
+                </h3>
+                <p className="text-blue-100 mb-6 text-sm sm:text-base">
+                    Describe your HR situation (e.g. "Employee stole money", "Maternity leave"), and our AI will recommend the right documents.
+                </p>
+                
+                <div className="relative">
+                    <input
+                        type="text"
+                        placeholder="Describe your issue..."
+                        value={scenarioInput}
+                        onChange={(e) => setScenarioInput(e.target.value)}
+                        className="w-full p-4 pl-6 pr-12 text-gray-800 rounded-full shadow-lg border-2 border-transparent focus:border-accent focus:ring-0 transition-all placeholder-gray-400"
+                    />
+                    {scenarioInput ? (
+                        <button 
+                            onClick={() => setScenarioInput('')}
+                            className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-1"
+                        >
+                            <span className="text-xs font-bold uppercase">Clear</span>
+                        </button>
                     ) : (
-                        <p className="text-sm text-gray-500 italic">
-                            No specific recommendations found for this phrasing. Try using simpler keywords like "theft", "sick", or "hiring".
-                        </p>
+                        <div className="absolute right-4 top-1/2 -translate-y-1/2 p-1.5 bg-primary rounded-full">
+                            <SearchIcon className="w-4 h-4 text-white" />
+                        </div>
                     )}
                 </div>
-            )}
+            </div>
         </div>
 
+        {/* Results for AI Search */}
+        {scenarioInput.trim() && (
+            <div className="animate-fade-in bg-blue-50 border border-blue-100 rounded-xl p-6">
+                <div className="flex items-center justify-between mb-4">
+                    <h4 className="font-bold text-secondary flex items-center">
+                        <span className="bg-primary text-white text-xs px-2 py-1 rounded-md mr-2">AI Recommended</span>
+                        Results for "{scenarioInput}"
+                    </h4>
+                    <span className="text-xs text-gray-500">{scenarioResults.length} documents found</span>
+                </div>
+                
+                {scenarioResults.length > 0 ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {scenarioResults.map((item) => (
+                            <PolicyCard 
+                                key={item.type} 
+                                item={item} 
+                                onSelect={() => onSelect(item)} 
+                                showPrice={showPrice} 
+                            />
+                        ))}
+                    </div>
+                ) : (
+                    <div className="text-center py-8">
+                        <p className="text-gray-500 italic">No specific recommendations found. Try simpler keywords like "hiring", "leave", or "safety".</p>
+                    </div>
+                )}
+            </div>
+        )}
+
+        {/* --- SECTION 2: LIBRARY (BROWSE & FILTER) --- */}
         {!scenarioInput.trim() && (
-            <>
-                <div className="mb-8">
-                    <div className="flex justify-between items-center mb-4">
-                        <p className="text-sm font-semibold text-gray-600">Filter by Industry:</p>
+            <div className="animate-fade-in">
+                {/* Unified Toolbar */}
+                <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-8 bg-white p-4 rounded-xl shadow-sm border border-gray-200">
+                    
+                    {/* Industry Filter (Horizontal Scroll) */}
+                    <div className="w-full lg:w-2/3 overflow-hidden">
+                        <div className="flex items-center space-x-2 overflow-x-auto pb-2 sm:pb-0 scrollbar-hide">
+                            <span className="text-xs font-bold text-gray-400 uppercase tracking-wide mr-2 flex-shrink-0">Filter:</span>
+                            <button
+                                onClick={() => setSelectedIndustry('All')}
+                                className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all whitespace-nowrap ${
+                                selectedIndustry === 'All'
+                                    ? 'bg-secondary text-white shadow-md'
+                                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                }`}
+                            >
+                                All Industries
+                            </button>
+                            {INDUSTRIES.map((industry) => (
+                                <button
+                                key={industry}
+                                onClick={() => setSelectedIndustry(industry)}
+                                className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all whitespace-nowrap ${
+                                    selectedIndustry === industry
+                                    ? 'bg-secondary text-white shadow-md'
+                                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                }`}
+                                >
+                                {industry}
+                                </button>
+                            ))}
+                        </div>
                     </div>
-                    <div className="flex flex-wrap gap-2">
-                    <button
-                        onClick={() => setSelectedIndustry('All')}
-                        className={`px-4 py-2 rounded-full text-sm font-semibold transition-colors ${
-                        selectedIndustry === 'All'
-                            ? 'bg-primary text-white shadow'
-                            : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-300'
-                        }`}
-                    >
-                        All Policies
-                    </button>
-                    {INDUSTRIES.map((industry) => (
-                        <button
-                        key={industry}
-                        onClick={() => setSelectedIndustry(industry)}
-                        className={`px-4 py-2 rounded-full text-sm font-semibold transition-colors ${
-                            selectedIndustry === industry
-                            ? 'bg-primary text-white shadow'
-                            : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-300'
-                        }`}
-                        >
-                        {industry}
-                        </button>
-                    ))}
+
+                    {/* Search Input */}
+                    <div className="w-full lg:w-1/3 relative">
+                        <input
+                            type="text"
+                            placeholder="Filter by name..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="w-full p-2 pl-9 border border-gray-300 rounded-lg text-sm focus:ring-1 focus:ring-primary focus:border-primary"
+                        />
+                        <SearchIcon className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
                     </div>
                 </div>
 
-                <div className="relative mb-12 max-w-lg mx-auto">
-                    <input
-                    type="text"
-                    placeholder="Or search by policy name..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full p-4 pl-12 border border-gray-300 rounded-full shadow-sm focus:ring-primary focus:border-primary"
-                    />
-                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                        <SearchIcon className="w-5 h-5 text-gray-400" />
-                    </div>
-                </div>
-
+                {/* Library Grid */}
                 {hasStandardResults ? (
                     <div className="space-y-12">
                     {categorizedAndFiltered.map((category) => (
                         <div key={category.title}>
-                        <h2 className="text-2xl font-bold text-secondary mb-6 border-b-2 border-primary pb-2">{category.title}</h2>
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                            {category.items.map((policy) => (
-                            <PolicyCard
-                                key={policy.type}
-                                item={policy}
-                                onSelect={() => onSelect(policy)}
-                                showPrice={showPrice}
-                            />
-                            ))}
-                        </div>
+                            <h2 className="text-xl font-bold text-gray-800 mb-6 flex items-center">
+                                {category.title}
+                                <span className="ml-3 text-xs font-normal text-gray-500 bg-gray-100 px-2 py-1 rounded-full">{category.items.length}</span>
+                            </h2>
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                                {category.items.map((policy) => (
+                                <PolicyCard
+                                    key={policy.type}
+                                    item={policy}
+                                    onSelect={() => onSelect(policy)}
+                                    showPrice={showPrice}
+                                />
+                                ))}
+                            </div>
                         </div>
                     ))}
                     </div>
                 ) : (
-                    <p className="text-gray-600 mt-8 text-center">No policies found for your selected criteria.</p>
+                    <div className="text-center py-20 bg-gray-50 rounded-xl border border-dashed border-gray-300">
+                        <SearchIcon className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+                        <p className="text-gray-600 font-medium">No documents found matching your filters.</p>
+                        <button onClick={() => { setSearchTerm(''); setSelectedIndustry('All'); }} className="mt-4 text-primary text-sm hover:underline">Clear all filters</button>
+                    </div>
                 )}
-            </>
+            </div>
         )}
     </div>
   );
