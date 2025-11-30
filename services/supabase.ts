@@ -15,8 +15,6 @@ import { createClient } from '@supabase/supabase-js';
    ==========================================================================
 
    -- 0. REPAIR SCHEMA (CRITICAL FIX FOR COUPONS)
-   -- The error "null value in column type" means a legacy column "type" exists and is NOT NULL.
-   -- The app uses "discount_type". We must remove the legacy column.
    ALTER TABLE coupons DROP COLUMN IF EXISTS "type";
 
    -- 1. Create Tables (IF NOT EXISTS)
@@ -29,7 +27,7 @@ import { createClient } from '@supabase/supabase-js';
      used_count int DEFAULT 0,
      expiry_date timestamptz,
      active boolean DEFAULT true,
-     applicable_to text, -- 'all', 'plan:pro', 'plan:payg'
+     applicable_to text,
      created_at timestamptz DEFAULT now()
    );
    
@@ -44,6 +42,19 @@ import { createClient } from '@supabase/supabase-js';
      manual_instructions text,
      updated_at timestamptz DEFAULT now(),
      created_at timestamptz DEFAULT now()
+   );
+
+   -- NEW TABLES FOR DYNAMIC PRICING --
+   CREATE TABLE IF NOT EXISTS app_settings (
+     key text PRIMARY KEY,
+     value jsonb NOT NULL,
+     description text
+   );
+
+   CREATE TABLE IF NOT EXISTS document_prices (
+     doc_type text PRIMARY KEY,
+     price int NOT NULL, -- in cents
+     category text CHECK (category IN ('policy', 'form'))
    );
 
    -- 2. ENSURE COLUMNS EXIST & FIX TYPES
@@ -65,6 +76,8 @@ import { createClient } from '@supabase/supabase-js';
    ALTER TABLE admin_notifications ENABLE ROW LEVEL SECURITY;
    ALTER TABLE coupons ENABLE ROW LEVEL SECURITY;
    ALTER TABLE policy_drafts ENABLE ROW LEVEL SECURITY;
+   ALTER TABLE app_settings ENABLE ROW LEVEL SECURITY;
+   ALTER TABLE document_prices ENABLE ROW LEVEL SECURITY;
 
    -- 4. Cleanup Old Policies
    DROP POLICY IF EXISTS "Users can read own profile" ON profiles;
@@ -102,17 +115,16 @@ import { createClient } from '@supabase/supabase-js';
    DROP POLICY IF EXISTS "Anyone can read coupons" ON coupons;
 
    DROP POLICY IF EXISTS "Users can manage own drafts" ON policy_drafts;
-   
+
    -- 5. Functions
    DROP FUNCTION IF EXISTS is_admin() CASCADE;
    DROP FUNCTION IF EXISTS increment_balance(uuid, int) CASCADE;
    DROP FUNCTION IF EXISTS increment_coupon_uses(text) CASCADE;
 
-   -- Create Secure Admin Check Function
    CREATE OR REPLACE FUNCTION is_admin()
    RETURNS boolean
    LANGUAGE sql
-   SECURITY DEFINER -- Runs with superuser privileges to avoid RLS recursion
+   SECURITY DEFINER 
    AS $$
      SELECT COALESCE(
        (SELECT is_admin FROM profiles WHERE id = auth.uid()), 
@@ -120,7 +132,6 @@ import { createClient } from '@supabase/supabase-js';
      );
    $$;
 
-   -- Create Atomic Balance Update Function (Prevents Race Conditions)
    CREATE OR REPLACE FUNCTION increment_balance(user_id uuid, amount int)
    RETURNS void
    LANGUAGE plpgsql
@@ -133,7 +144,6 @@ import { createClient } from '@supabase/supabase-js';
    END;
    $$;
 
-   -- Create Coupon Increment Function
    CREATE OR REPLACE FUNCTION increment_coupon_uses(coupon_code text)
    RETURNS void
    LANGUAGE plpgsql
@@ -146,7 +156,6 @@ import { createClient } from '@supabase/supabase-js';
    END;
    $$;
 
-   -- Grant execute to authenticated users
    GRANT EXECUTE ON FUNCTION is_admin TO authenticated;
    GRANT EXECUTE ON FUNCTION increment_balance TO authenticated;
    GRANT EXECUTE ON FUNCTION increment_balance TO service_role;
@@ -197,6 +206,13 @@ import { createClient } from '@supabase/supabase-js';
    
    -- DRAFTS
    CREATE POLICY "Users can manage own drafts" ON policy_drafts FOR ALL USING (auth.uid() = user_id);
+
+   -- SETTINGS & PRICES (Everyone can read, only Admin can write)
+   CREATE POLICY "Everyone can read settings" ON app_settings FOR SELECT USING (true);
+   CREATE POLICY "Admins can update settings" ON app_settings FOR ALL USING (is_admin());
+   
+   CREATE POLICY "Everyone can read prices" ON document_prices FOR SELECT USING (true);
+   CREATE POLICY "Admins can update prices" ON document_prices FOR ALL USING (is_admin());
    
    -- Force Schema Cache Reload
    NOTIFY pgrst, 'reload config';

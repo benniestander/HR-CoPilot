@@ -1,8 +1,10 @@
+
 import React, { useState } from 'react';
 import { CreditCardIcon, LoadingIcon, ShieldCheckIcon, CouponIcon } from './Icons';
 import { useAuthContext } from '../contexts/AuthContext';
 import { processPayment } from '../services/paymentService';
 import { validateCoupon } from '../services/dbService';
+import { useDataContext } from '../contexts/DataContext';
 
 interface PaygPaymentPageProps {
   onTopUpSuccess: (amountInCents: number) => void;
@@ -12,6 +14,7 @@ interface PaygPaymentPageProps {
 
 const PaygPaymentPage: React.FC<PaygPaymentPageProps> = ({ onTopUpSuccess, onCancel, onUpgrade }) => {
   const { user } = useAuthContext();
+  const { proPlanPrice } = useDataContext(); // Dynamic pro price
   const [selectedAmount, setSelectedAmount] = useState<number | null>(10000); // Default to R100
   const [customAmount, setCustomAmount] = useState('');
   const [isCustom, setIsCustom] = useState(false);
@@ -254,7 +257,7 @@ const PaygPaymentPage: React.FC<PaygPaymentPageProps> = ({ onTopUpSuccess, onCan
 
             <div className="mt-8 p-6 border-2 border-dashed border-accent rounded-lg bg-accent/10 text-center">
                  <h3 className="text-2xl font-bold text-accent-800">Go Unlimited!</h3>
-                 <p className="text-accent-700 my-3 max-w-md mx-auto">Tired of topping up? Upgrade to HR CoPilot Pro for R747 and get unlimited document generation for a full year, plus access to all premium features.</p>
+                 <p className="text-accent-700 my-3 max-w-md mx-auto">Tired of topping up? Upgrade to HR CoPilot Pro for R{(proPlanPrice / 100).toFixed(0)} and get unlimited document generation for a full year, plus access to all premium features.</p>
                  <button onClick={onUpgrade} className="bg-primary text-white font-bold py-3 px-6 rounded-md hover:bg-opacity-90 transition-colors inline-flex items-center">
                     <ShieldCheckIcon className="w-5 h-5 mr-2" />
                     Upgrade to Pro Now

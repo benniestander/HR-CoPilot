@@ -4,12 +4,13 @@ import { POLICY_CATEGORIES } from '../constants';
 import type { Policy, Form } from '../types';
 import { SearchIcon } from './Icons';
 import { useAuthContext } from '../contexts/AuthContext';
+import { useDataContext } from '../contexts/DataContext';
 
 interface PolicySelectorProps {
   onSelect: (item: Policy | Form) => void;
 }
 
-const PolicyCard: React.FC<{ item: Policy | Form; onSelect: () => void; showPrice: boolean }> = ({ item, onSelect, showPrice }) => {
+const PolicyCard: React.FC<{ item: Policy | Form; onSelect: () => void; showPrice: boolean; price: number }> = ({ item, onSelect, showPrice, price }) => {
   const isForm = item.kind === 'form';
   return (
     <div
@@ -37,7 +38,7 @@ const PolicyCard: React.FC<{ item: Policy | Form; onSelect: () => void; showPric
       {showPrice && (
         <div className="mt-auto pt-3 border-t border-gray-100 flex justify-between items-center">
           <span className="text-xs text-gray-400 font-medium">Pay-As-You-Go</span>
-          <p className="text-base font-bold text-primary">R{(item.price / 100).toFixed(2)}</p>
+          <p className="text-base font-bold text-primary">R{(price / 100).toFixed(2)}</p>
         </div>
       )}
     </div>
@@ -48,6 +49,7 @@ const PolicyCard: React.FC<{ item: Policy | Form; onSelect: () => void; showPric
 const PolicySelector: React.FC<PolicySelectorProps> = ({ onSelect }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const { user } = useAuthContext();
+  const { getDocPrice } = useDataContext(); // Use pricing helper
   const showPrice = user?.plan !== 'pro';
 
   // Standard Search Logic
@@ -96,6 +98,7 @@ const PolicySelector: React.FC<PolicySelectorProps> = ({ onSelect }) => {
                                 item={policy}
                                 onSelect={() => onSelect(policy)}
                                 showPrice={showPrice}
+                                price={getDocPrice(policy)}
                             />
                             ))}
                         </div>

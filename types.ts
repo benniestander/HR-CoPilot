@@ -314,3 +314,16 @@ export type UserFile = {
   storagePath: string;
   createdAt: string; // ISO string
 };
+
+// PRICING TYPES
+export type AppSetting = {
+  key: string;
+  value: any;
+  description?: string;
+};
+
+export type DocumentPrice = {
+  docType: PolicyType | FormType;
+  price: number; // in cents
+  category: 'policy' | 'form';
+};

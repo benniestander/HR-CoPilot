@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { CheckIcon, EyeIcon, EyeOffIcon, ShieldCheckIcon, StarIcon } from './Icons';
+import { useDataContext } from '../contexts/DataContext';
 
 interface PlanSelectionPageProps {
   onStartAuthFlow: (flow: 'signup' | 'payg_signup', email: string, details: { password: string, name?: string, contactNumber?: string }) => void;
@@ -15,6 +16,7 @@ const PlanSelectionPage: React.FC<PlanSelectionPageProps> = ({
     onShowPrivacyPolicy, 
     onShowTerms 
 }) => {
+    const { proPlanPrice } = useDataContext(); // Dynamic Price
     const [selectedPlan, setSelectedPlan] = useState<'pro' | 'payg'>('pro');
     const [isMobile, setIsMobile] = useState(false);
     
@@ -140,6 +142,8 @@ const PlanSelectionPage: React.FC<PlanSelectionPageProps> = ({
         </div>
     );
 
+    const formatPrice = (cents: number) => `R${(cents / 100).toFixed(0)}`;
+
     // --- Mobile Layout ---
     if (isMobile) {
         return (
@@ -176,7 +180,7 @@ const PlanSelectionPage: React.FC<PlanSelectionPageProps> = ({
                     <div className="text-center mb-4">
                         {selectedPlan === 'pro' ? (
                             <div className="inline-flex items-baseline">
-                                <span className="text-4xl font-bold text-secondary">R747</span>
+                                <span className="text-4xl font-bold text-secondary">{formatPrice(proPlanPrice)}</span>
                                 <span className="text-gray-500 ml-1">/ year</span>
                             </div>
                         ) : (
@@ -332,7 +336,7 @@ const PlanSelectionPage: React.FC<PlanSelectionPageProps> = ({
                             <div>
                                 <h3 className={`font-bold ${selectedPlan === 'pro' ? 'text-secondary' : 'text-gray-500'}`}>HR CoPilot Pro</h3>
                                 <div className="mt-2">
-                                    <span className="text-2xl font-bold text-secondary">R747</span>
+                                    <span className="text-2xl font-bold text-secondary">{formatPrice(proPlanPrice)}</span>
                                     <span className="text-xs text-gray-500"> / year</span>
                                 </div>
                             </div>

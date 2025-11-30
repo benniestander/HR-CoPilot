@@ -5,6 +5,7 @@ import type { User } from '../types';
 import { useAuthContext } from '../contexts/AuthContext';
 import { processPayment } from '../services/paymentService';
 import { validateCoupon } from '../services/dbService';
+import { useDataContext } from '../contexts/DataContext';
 
 interface SubscriptionPageProps {
   onSuccess: () => void;
@@ -13,6 +14,7 @@ interface SubscriptionPageProps {
 
 const SubscriptionPage: React.FC<SubscriptionPageProps> = ({ onSuccess, onCancel }) => {
   const { user } = useAuthContext();
+  const { proPlanPrice } = useDataContext(); // Dynamic Price
   const [formData, setFormData] = useState({ 
     firstName: user?.name?.split(' ')[0] || '', 
     lastName: user?.name?.split(' ').slice(1).join(' ') || '', 
@@ -28,7 +30,7 @@ const SubscriptionPage: React.FC<SubscriptionPageProps> = ({ onSuccess, onCancel
   const [discount, setDiscount] = useState(0); // In cents
   const [appliedCouponCode, setAppliedCouponCode] = useState<string | null>(null);
 
-  const originalAmount = 74700;
+  const originalAmount = proPlanPrice; // Use Context Value
   const finalAmount = Math.max(0, originalAmount - discount);
 
   const features = [
@@ -145,7 +147,7 @@ const SubscriptionPage: React.FC<SubscriptionPageProps> = ({ onSuccess, onCancel
                 </div>
                 <div>
                     <h3 className="text-lg font-bold text-secondary">HR CoPilot Pro Membership</h3>
-                    <p className="text-xl font-bold text-secondary mt-1">R747 <span className="text-base font-normal text-gray-600">/ 12 months</span></p>
+                    <p className="text-xl font-bold text-secondary mt-1">R{(originalAmount / 100).toFixed(0)} <span className="text-base font-normal text-gray-600">/ 12 months</span></p>
                 </div>
                 <div className="absolute top-4 right-4 bg-blue-600 text-white text-xs font-bold px-3 py-1 rounded-full">SAVE 20%</div>
               </div>

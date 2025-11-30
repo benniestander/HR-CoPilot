@@ -1,6 +1,6 @@
 
 import React, { createContext, useContext, useState, useEffect, useMemo, useCallback } from 'react';
-import type { GeneratedDocument, CompanyProfile, User, Transaction, AdminActionLog, AdminNotification, UserFile, Coupon, PolicyDraft } from '../types';
+import type { GeneratedDocument, CompanyProfile, User, Transaction, AdminActionLog, AdminNotification, UserFile, Coupon, PolicyDraft, Policy, Form, PolicyType, FormType } from '../types';
 import {
     updateUser,
     getGeneratedDocuments,
@@ -30,11 +30,15 @@ import {
     validateCoupon,
     savePolicyDraft,
     getPolicyDrafts,
-    deletePolicyDraft
+    deletePolicyDraft,
+    getPricingSettings,
+    updateProPrice,
+    updateDocumentPrice
 } from '../services/dbService';
 import { useAuthContext } from './AuthContext';
 import { useUIContext } from './UIContext';
 import { useModalContext } from './ModalContext';
+import { POLICIES, FORMS } from '../constants';
 
 const PAGE_SIZE = 25;
 
@@ -47,36 +51,27 @@ export interface PageInfo {
 }
 
 interface DataContextType {
+    // ... (Existing properties)
     generatedDocuments: GeneratedDocument[];
     userFiles: UserFile[];
     policyDrafts: PolicyDraft[];
-    
-    // Paginated Admin Data
     paginatedUsers: { data: User[]; pageInfo: PageInfo };
     handleNextUsers: () => void;
     handlePrevUsers: () => void;
     isFetchingUsers: boolean;
-
     paginatedDocuments: { data: GeneratedDocument[]; pageInfo: PageInfo };
     handleNextDocs: () => void;
     handlePrevDocs: () => void;
     isFetchingDocs: boolean;
-
     transactionsForUserPage: Transaction[];
-
     paginatedLogs: { data: AdminActionLog[]; pageInfo: PageInfo };
     handleNextLogs: () => void;
     handlePrevLogs: () => void;
     isFetchingLogs: boolean;
-
-    // Non-paginated admin data
     adminNotifications: AdminNotification[];
     coupons: Coupon[];
-    
-    // User Loading States
     isLoadingUserDocs: boolean;
     isLoadingUserFiles: boolean;
-
     handleUpdateProfile: (data: { profile: CompanyProfile; name?: string; contactNumber?: string }) => Promise<void>;
     handleInitialProfileSubmit: (profileData: CompanyProfile, name: string) => Promise<void>;
     handleProfilePhotoUpload: (file: File) => Promise<void>;
@@ -92,6 +87,9 @@ interface DataContextType {
         simulateFailedPayment: (targetUid: string, targetUserEmail: string) => Promise<void>;
         createCoupon: (data: Partial<Coupon>) => Promise<void>;
         deactivateCoupon: (id: string) => Promise<void>;
+        // Pricing actions
+        setProPrice: (priceInCents: number) => Promise<void>;
+        setDocPrice: (docType: string, priceInCents: number, category: 'policy' | 'form') => Promise<void>;
     };
     validateCoupon: (code: string, planType: 'pro' | 'payg') => Promise<{ valid: boolean; coupon?: Coupon; message?: string }>;
     handleMarkNotificationRead: (notificationId: string) => Promise<void>;
@@ -102,6 +100,10 @@ interface DataContextType {
     handleDocumentGenerated: (doc: GeneratedDocument, originalId?: string) => Promise<void>;
     handleSaveDraft: (draft: Omit<PolicyDraft, 'id' | 'createdAt' | 'updatedAt'> & { id?: string }) => Promise<void>;
     handleDeleteDraft: (id: string) => Promise<void>;
+    
+    // Pricing Data
+    proPlanPrice: number;
+    getDocPrice: (item: Policy | Form) => number;
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
@@ -111,36 +113,35 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const { setToastMessage, navigateTo, setShowOnboardingWalkthrough } = useUIContext();
     const { showConfirmationModal, hideConfirmationModal } = useModalContext();
 
-    // User data
+    // ... (Existing state definitions)
     const [generatedDocuments, setGeneratedDocuments] = useState<GeneratedDocument[]>([]);
     const [userFiles, setUserFiles] = useState<UserFile[]>([]);
     const [policyDrafts, setPolicyDrafts] = useState<PolicyDraft[]>([]);
     const [isLoadingUserDocs, setIsLoadingUserDocs] = useState(true);
     const [isLoadingUserFiles, setIsLoadingUserFiles] = useState(true);
-
-    // Admin data (paginated)
     const [paginatedUsers, setPaginatedUsers] = useState<User[]>([]);
     const [userCursors, setUserCursors] = useState<number[]>([0]);
     const [userPageIndex, setUserPageIndex] = useState(0);
     const [userHasNextPage, setUserHasNextPage] = useState(true);
     const [isFetchingUsers, setIsFetchingUsers] = useState(false);
-
     const [paginatedDocuments, setPaginatedDocuments] = useState<GeneratedDocument[]>([]);
     const [docCursors, setDocCursors] = useState<number[]>([0]);
     const [docPageIndex, setDocPageIndex] = useState(0);
     const [docHasNextPage, setDocHasNextPage] = useState(true);
     const [isFetchingDocs, setIsFetchingDocs] = useState(false);
-
     const [paginatedLogs, setPaginatedLogs] = useState<AdminActionLog[]>([]);
     const [logCursors, setLogCursors] = useState<number[]>([0]);
     const [logPageIndex, setLogPageIndex] = useState(0);
     const [logHasNextPage, setLogHasNextPage] = useState(true);
     const [isFetchingLogs, setIsFetchingLogs] = useState(false);
-    
-    // Admin data (non-paginated)
     const [adminNotifications, setAdminNotifications] = useState<AdminNotification[]>([]);
     const [coupons, setCoupons] = useState<Coupon[]>([]);
 
+    // Pricing State
+    const [proPlanPrice, setProPlanPrice] = useState(74700); // Default R747
+    const [docPriceMap, setDocPriceMap] = useState<Record<string, number>>({});
+
+    // ... (createPageFetcher and handleNext/Prev implementations) ...
     const createPageFetcher = <T,>(
         fetchFn: (pageSize: number, cursor?: number) => Promise<{ data: T[], lastVisible: number | null }>,
         setData: React.Dispatch<React.SetStateAction<T[]>>,
@@ -151,21 +152,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setLoading: React.Dispatch<React.SetStateAction<boolean>>
     ) => async (pageIndex: number) => {
         if (pageIndex < 0) return;
-        if (pageIndex >= cursors.length) {
-            console.warn(`Attempted to fetch page ${pageIndex} but cursor not found.`);
-            return;
-        }
+        if (pageIndex >= cursors.length) return;
         
         const cursor = cursors[pageIndex];
-        if (cursor === undefined || cursor === null) {
-             console.error("Cursor is invalid (undefined/null) for page", pageIndex);
-             return;
-        }
+        if (cursor === undefined || cursor === null) return;
 
         setLoading(true);
         try {
             const { data, lastVisible } = await fetchFn(PAGE_SIZE, cursor);
-
             setData(data || []); 
             setPageIndex(pageIndex);
 
@@ -185,12 +179,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 setHasNextPage(pageIndex < cursors.length - 1);
             }
         } catch (err: any) {
-            console.error(`Pagination error (Page ${pageIndex}):`, err.message || err);
-            if (pageIndex > 0) {
-                setToastMessage("Failed to load next page.");
-            } else {
-                console.warn("Initial admin data fetch failed.");
-            }
+            console.error(`Pagination error (Page ${pageIndex}):`, err);
         } finally {
             setLoading(false);
         }
@@ -209,52 +198,56 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const transactionsForUserPage = useMemo(() => {
         return paginatedUsers.flatMap(user => 
-            (user.transactions || []).map(tx => ({
-                ...tx,
-                userEmail: user.email
-            }))
+            (user.transactions || []).map(tx => ({ ...tx, userEmail: user.email }))
         ).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
     }, [paginatedUsers]);
 
+    // Initial Load - Fetch Pricing
+    useEffect(() => {
+        const loadPricing = async () => {
+            try {
+                const { settings, docPrices } = await getPricingSettings();
+                
+                // Set Pro Price
+                const proSetting = settings.find((s: any) => s.key === 'pro_plan_yearly');
+                if (proSetting) setProPlanPrice(proSetting.value);
+
+                // Set Doc Prices
+                const priceMap: Record<string, number> = {};
+                docPrices.forEach((dp: any) => {
+                    priceMap[dp.doc_type] = dp.price;
+                });
+                setDocPriceMap(priceMap);
+            } catch (error) {
+                console.error("Failed to load pricing settings", error);
+            }
+        };
+        loadPricing();
+    }, []);
 
     useEffect(() => {
-        // Use user.uid for stability. The full 'user' object might change ref if updated (e.g. credit change)
-        // causing unnecessary fetches. We only want to refetch if the USER IDENTITY changes or LOGIN happens.
         if (user && user.uid) {
             if (isAdmin) {
-                if (userCursors.length > 0) fetchUsersPage(0).catch(e => console.error("Initial User Fetch Error", e));
-                if (docCursors.length > 0) fetchDocsPage(0).catch(e => console.error("Initial Doc Fetch Error", e));
-                if (logCursors.length > 0) fetchLogsPage(0).catch(e => console.error("Initial Log Fetch Error", e));
-                
+                if (userCursors.length > 0) fetchUsersPage(0).catch(e => console.error(e));
+                if (docCursors.length > 0) fetchDocsPage(0).catch(e => console.error(e));
+                if (logCursors.length > 0) fetchLogsPage(0).catch(e => console.error(e));
                 getAdminNotifications().then(setAdminNotifications);
                 getCoupons().then(setCoupons);
             } else {
                 setIsLoadingUserDocs(true);
-                getGeneratedDocuments(user.uid)
-                    .then(docs => {
-                        console.log(`Fetched ${docs.length} documents for user ${user.uid}`);
-                        setGeneratedDocuments(docs);
-                    })
-                    .catch(err => {
-                        console.error("Error fetching user documents:", err);
-                        setToastMessage("Failed to load documents. Please check your connection.");
-                    })
-                    .finally(() => setIsLoadingUserDocs(false));
-                
+                getGeneratedDocuments(user.uid).then(docs => {
+                    setGeneratedDocuments(docs);
+                    setIsLoadingUserDocs(false);
+                });
                 setIsLoadingUserFiles(true);
-                getUserFiles(user.uid)
-                    .then(files => {
-                        setUserFiles(files);
-                    })
-                    .catch(err => console.error("Error fetching user files:", err))
-                    .finally(() => setIsLoadingUserFiles(false));
-
-                getPolicyDrafts(user.uid)
-                    .then(setPolicyDrafts)
-                    .catch(err => console.error("Error fetching drafts:", err));
+                getUserFiles(user.uid).then(files => {
+                    setUserFiles(files);
+                    setIsLoadingUserFiles(false);
+                });
+                getPolicyDrafts(user.uid).then(setPolicyDrafts);
             }
         } else {
-            // Logout / No User
+            // Reset state on logout
             setGeneratedDocuments([]);
             setUserFiles([]);
             setPolicyDrafts([]);
@@ -266,15 +259,21 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setIsLoadingUserDocs(false);
             setIsLoadingUserFiles(false);
         }
-    }, [user?.uid, isAdmin]); // Only re-run if UID or Admin status changes
+    }, [user?.uid, isAdmin]);
 
+    const getDocPrice = (item: Policy | Form): number => {
+        // Return dynamic price if exists, else fallback to constant
+        if (docPriceMap[item.type]) return docPriceMap[item.type];
+        return item.price;
+    };
+
+    // ... (handleUpdateProfile, handleInitialProfileSubmit, photo, file handlers - Unchanged) ...
     const handleUpdateProfile = async (data: { profile: CompanyProfile; name?: string; contactNumber?: string }) => {
         if (!user) return;
         const updatedProfile = { ...user.profile, ...data.profile };
         const updates: Partial<User> = { profile: updatedProfile };
         if (data.name !== undefined) updates.name = data.name;
         if (data.contactNumber !== undefined) updates.contactNumber = data.contactNumber;
-
         const updatedUser = { ...user, ...updates };
         setUser(updatedUser);
         await updateUser(user.uid, updates);
@@ -340,7 +339,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (!user) return;
         const file = userFiles.find(f => f.id === fileId);
         if (!file) return;
-
         showConfirmationModal({
             title: "Delete File",
             message: `Are you sure you want to permanently delete the file "${file.name}"?`,
@@ -367,12 +365,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         adjustCredit: async (targetUid: string, amountInCents: number, reason: string) => {
             if (!user || !isAdmin) return;
             const updatedUser = await adjustUserCreditByAdmin(user.email, targetUid, amountInCents, reason);
-            
-            if (updatedUser) {
-                setPaginatedUsers(prev => prev.map(u => u.uid === targetUid ? updatedUser : u));
-            } else {
-                await fetchUsersPage(userPageIndex);
-            }
+            if (updatedUser) setPaginatedUsers(prev => prev.map(u => u.uid === targetUid ? updatedUser : u));
+            else await fetchUsersPage(userPageIndex);
             setToastMessage(`Credit adjusted.`);
         },
         changePlan: async (targetUid: string, newPlan: 'pro' | 'payg') => {
@@ -408,6 +402,18 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
             await deactivateCoupon(id);
             await getCoupons().then(setCoupons);
             setToastMessage("Coupon deactivated.");
+        },
+        setProPrice: async (priceInCents: number) => {
+            if (!user || !isAdmin) return;
+            await updateProPrice(priceInCents);
+            setProPlanPrice(priceInCents);
+            setToastMessage("Pro Plan price updated.");
+        },
+        setDocPrice: async (docType: string, priceInCents: number, category: 'policy' | 'form') => {
+            if (!user || !isAdmin) return;
+            await updateDocumentPrice(docType, priceInCents, category);
+            setDocPriceMap(prev => ({ ...prev, [docType]: priceInCents }));
+            setToastMessage("Document price updated.");
         }
     };
     
@@ -427,13 +433,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setToastMessage("Success! Welcome to HR CoPilot Pro.");
         navigateTo('dashboard');
         setShowOnboardingWalkthrough(true);
-
         const updatedUser = await getUserProfile(user.uid);
-        if(updatedUser) {
-            setUser(updatedUser);
-        } else {
-            console.warn("Background profile sync failed");
-        }
+        if(updatedUser) setUser(updatedUser);
     };
     
     const handleTopUpSuccess = async (amountInCents: number) => {
@@ -441,13 +442,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUser(prev => prev ? ({ ...prev, creditBalance: (prev.creditBalance || 0) + amountInCents }) : null);
         setToastMessage(`Success! R${(amountInCents / 100).toFixed(2)} has been added.`);
         navigateTo('dashboard');
-
         const updatedUser = await getUserProfile(user.uid);
-        if(updatedUser) {
-            setUser(updatedUser);
-        } else {
-            console.warn("Background profile sync failed");
-        }
+        if(updatedUser) setUser(updatedUser);
     };
 
     const handleDeductCredit = async (amountInCents: number, description: string): Promise<boolean> => {
@@ -456,12 +452,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setToastMessage("Insufficient credit.");
             return false;
         }
-
         try {
             setUser(prev => prev ? ({ ...prev, creditBalance: Math.max(0, prev.creditBalance - amountInCents) }) : null);
-
             await addTransactionToUser(user.uid, { description, amount: -amountInCents }, true);
-            
             const updatedUser = await getUserProfile(user.uid);
             if (updatedUser) setUser(updatedUser);
             return true;
@@ -469,7 +462,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
             console.error("Deduction failed:", error);
             const updatedUser = await getUserProfile(user.uid);
             if (updatedUser) setUser(updatedUser);
-            
             setToastMessage("Failed to deduct credit. Please try again.");
             return false;
         }
@@ -477,7 +469,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     
     const handleDocumentGenerated = async (doc: GeneratedDocument, originalId?: string) => {
         if (!user) return;
-        
         let docToSave = { ...doc };
         if (originalId) {
             const oldDoc = generatedDocuments.find(d => d.id === originalId);
@@ -497,10 +488,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
 
         try {
-            // Save to DB and get real ID back (sanitize happens inside saveGeneratedDocument)
             const savedDoc = await saveGeneratedDocument(user.uid, docToSave);
-            
-            // OPTIMISTIC UPDATE with correct ID from DB
             setGeneratedDocuments(prevDocs => {
                 if (originalId) {
                     return prevDocs.map(d => d.id === originalId ? savedDoc : d);
@@ -508,19 +496,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
                     return [savedDoc, ...prevDocs];
                 }
             });
-
-            // Background Sync to be safe
-            getGeneratedDocuments(user.uid)
-                .then(updatedDocs => {
-                    setGeneratedDocuments(updatedDocs);
-                })
-                .catch(err => console.warn("Background doc sync failed", err));
-
+            getGeneratedDocuments(user.uid).then(updatedDocs => { setGeneratedDocuments(updatedDocs); }).catch(err => console.warn(err));
         } catch (error) {
             console.error("Failed to save document:", error);
             setToastMessage("Error saving document to database.");
         }
-        
         navigateTo('dashboard');
     };
 
@@ -584,6 +564,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         handleDocumentGenerated,
         handleSaveDraft,
         handleDeleteDraft,
+        proPlanPrice,
+        getDocPrice
     };
 
     return <DataContext.Provider value={value}>{children}</DataContext.Provider>;

@@ -1,3 +1,4 @@
+
 import { supabase } from './supabase';
 import type { 
     User, 
@@ -8,8 +9,12 @@ import type {
     UserFile, 
     Coupon, 
     CompanyProfile, 
-    PolicyDraft
+    PolicyDraft,
+    DocumentPrice,
+    AppSetting
 } from '../types';
+
+// ... (Existing functions getUserProfile, createUserProfile, updateUser, getGeneratedDocuments, isValidUUID, saveGeneratedDocument, addTransactionToUser, getAllUsers, getAllDocumentsForAllUsers, getAdminActionLogs, logAdminAction) ...
 
 // --- User & Profile ---
 
@@ -145,16 +150,14 @@ export const saveGeneratedDocument = async (uid: string, doc: GeneratedDocument)
         type: doc.type,
         content: doc.content,
         created_at: doc.createdAt,
-        company_profile: doc.company_profile,
-        question_answers: doc.question_answers,
-        output_format: doc.output_format,
+        company_profile: doc.companyProfile,
+        question_answers: doc.questionAnswers,
+        output_format: doc.outputFormat,
         sources: doc.sources,
         version: doc.version,
         history: doc.history,
     };
 
-    // If ID is a valid UUID, use it (update existing).
-    // If it's a temp ID (e.g., 'policy-123'), exclude it to let DB generate a new UUID.
     if (doc.id && isValidUUID(doc.id)) {
         dbDoc.id = doc.id;
     }
@@ -167,7 +170,6 @@ export const saveGeneratedDocument = async (uid: string, doc: GeneratedDocument)
 
     if (error) throw error;
 
-    // Return the saved document with the real DB ID
     return {
         ...doc,
         id: data.id,
@@ -178,7 +180,6 @@ export const saveGeneratedDocument = async (uid: string, doc: GeneratedDocument)
 // --- Transactions & Credit ---
 
 export const addTransactionToUser = async (uid: string, transaction: Partial<Transaction>, updateBalance: boolean = false) => {
-    // 1. Insert Transaction
     const { error: txError } = await supabase.from('transactions').insert({
         user_id: uid,
         amount: transaction.amount,
@@ -188,7 +189,6 @@ export const addTransactionToUser = async (uid: string, transaction: Partial<Tra
     
     if (txError) throw txError;
 
-    // 2. Update Balance if requested (using RPC for safety)
     if (updateBalance && transaction.amount) {
         const { error: balanceError } = await supabase.rpc('increment_balance', {
             user_id: uid,
@@ -203,12 +203,7 @@ export const addTransactionToUser = async (uid: string, transaction: Partial<Tra
 export const getAllUsers = async (pageSize: number, lastVisible?: number): Promise<{ data: User[], lastVisible: number | null }> => {
     let query = supabase.from('profiles').select('*', { count: 'exact' }).order('created_at', { ascending: false }).limit(pageSize);
     
-    // Note: Since we are using offset/limit in UI logic via pageIndex, we can also use range.
-    // However, the context uses cursor logic. For Supabase simple pagination:
     if (lastVisible) {
-        // This is a simplification. Ideally, use cursor based on created_at or id.
-        // If the context passes a page offset as cursor, we can use range.
-        // Assuming lastVisible passed here acts as an offset
         query = query.range(lastVisible, lastVisible + pageSize - 1);
     } else {
         query = query.range(0, pageSize - 1);
@@ -227,8 +222,8 @@ export const getAllUsers = async (pageSize: number, lastVisible?: number): Promi
         creditBalance: profile.credit_balance,
         createdAt: profile.created_at,
         isAdmin: profile.is_admin,
-        profile: { companyName: profile.company_name, industry: profile.industry }, // minimal for list
-        transactions: [] // Don't fetch all tx for list view
+        profile: { companyName: profile.company_name, industry: profile.industry },
+        transactions: []
     }));
 
     return { data: users, lastVisible: (lastVisible || 0) + pageSize };
@@ -286,7 +281,6 @@ const logAdminAction = async (action: string, targetUid: string, details?: any) 
     const { data: { user } } = await (supabase.auth as any).getUser();
     if (!user) return;
 
-    // Get target email for log clarity
     const { data: target } = await supabase.from('profiles').select('email').eq('id', targetUid).single();
 
     await supabase.from('admin_action_logs').insert({
@@ -328,6 +322,36 @@ export const simulateFailedPaymentForUser = async (adminEmail: string, targetUid
         related_user_id: targetUid
     });
     await logAdminAction('Simulated Failed Payment', targetUid);
+};
+
+// --- Dynamic Pricing ---
+
+export const getPricingSettings = async () => {
+    const { data: settings } = await supabase.from('app_settings').select('*');
+    const { data: docPrices } = await supabase.from('document_prices').select('*');
+    
+    return {
+        settings: settings || [],
+        docPrices: docPrices || []
+    };
+};
+
+export const updateProPrice = async (priceInCents: number) => {
+    await supabase.from('app_settings').upsert({
+        key: 'pro_plan_yearly',
+        value: priceInCents,
+        description: 'Yearly Pro Plan Price in Cents'
+    });
+    await logAdminAction('Updated Pro Plan Price', 'system', { price: priceInCents });
+};
+
+export const updateDocumentPrice = async (docType: string, priceInCents: number, category: 'policy' | 'form') => {
+    await supabase.from('document_prices').upsert({
+        doc_type: docType,
+        price: priceInCents,
+        category
+    });
+    await logAdminAction('Updated Document Price', 'system', { docType, price: priceInCents });
 };
 
 // --- Admin Notifications ---
@@ -378,11 +402,9 @@ export const getUserFiles = async (uid: string): Promise<UserFile[]> => {
 export const uploadUserFile = async (uid: string, file: File, notes: string) => {
     const path = `${uid}/${Date.now()}_${file.name}`;
     
-    // 1. Upload to Storage
     const { error: uploadError } = await supabase.storage.from('user_docs').upload(path, file);
     if (uploadError) throw uploadError;
 
-    // 2. Record in DB
     const { error: dbError } = await supabase.from('user_files').insert({
         user_id: uid,
         name: file.name,
@@ -394,7 +416,7 @@ export const uploadUserFile = async (uid: string, file: File, notes: string) => 
 };
 
 export const getDownloadUrlForFile = async (path: string) => {
-    const { data } = await supabase.storage.from('user_docs').createSignedUrl(path, 60); // 60 seconds link
+    const { data } = await supabase.storage.from('user_docs').createSignedUrl(path, 60);
     if (!data?.signedUrl) throw new Error("Could not generate link");
     return data.signedUrl;
 };
@@ -428,9 +450,6 @@ export const deleteProfilePhoto = async (uid: string) => {
 // --- Coupons ---
 
 export const createCoupon = async (coupon: Partial<Coupon>) => {
-    // Transform camelCase to snake_case for DB
-    // IMPORTANT: Treat 'all' as null for DB storage to match schema pattern if desired, 
-    // OR enforce string type in DB. Current schema allows text.
     const { error } = await supabase.from('coupons').insert({
         code: coupon.code,
         discount_type: coupon.discountType,
@@ -454,7 +473,7 @@ export const getCoupons = async (): Promise<Coupon[]> => {
         usedCount: c.used_count,
         expiryDate: c.expiry_date,
         active: c.active,
-        applicableTo: c.applicable_to || 'all', // Map null back to 'all' for UI
+        applicableTo: c.applicable_to || 'all', 
         createdAt: c.created_at
     }));
 };
@@ -477,7 +496,6 @@ export const validateCoupon = async (code: string, planType: 'pro' | 'payg'): Pr
         return { valid: false, message: 'Coupon usage limit reached.' };
     }
 
-    // Check target audience. Null means "all".
     if (data.applicable_to && data.applicable_to !== `plan:${planType}`) {
         return { valid: false, message: 'Coupon not applicable for this plan.' };
     }
@@ -502,12 +520,12 @@ export const validateCoupon = async (code: string, planType: 'pro' | 'payg'): Pr
 
 export const savePolicyDraft = async (uid: string, draft: Omit<PolicyDraft, 'id' | 'createdAt' | 'updatedAt'> & { id?: string }): Promise<void> => {
     const data = {
-        id: draft.id, // optional, upsert will generate if missing
+        id: draft.id,
         user_id: uid,
         original_doc_id: draft.originalDocId,
         original_doc_title: draft.originalDocTitle,
         original_content: draft.originalContent,
-        update_result: draft.updateResult, // CRITICAL FIX: Was missing in previous version
+        update_result: draft.updateResult,
         selected_indices: draft.selectedIndices,
         manual_instructions: draft.manualInstructions,
         updated_at: new Date().toISOString()
