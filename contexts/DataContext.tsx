@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, useEffect, useMemo, useCallback } from 'react';
 import type { GeneratedDocument, CompanyProfile, User, Transaction, AdminActionLog, AdminNotification, UserFile, Coupon, PolicyDraft } from '../types';
 import {
@@ -149,16 +150,13 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         cursors: number[],
         setLoading: React.Dispatch<React.SetStateAction<boolean>>
     ) => async (pageIndex: number) => {
-        // 1. Strict Bounds Check
         if (pageIndex < 0) return;
         if (pageIndex >= cursors.length) {
             console.warn(`Attempted to fetch page ${pageIndex} but cursor not found.`);
             return;
         }
         
-        // 2. Strict Cursor Validation
         const cursor = cursors[pageIndex];
-        // Allow 0 as a valid cursor (initial fetch)
         if (cursor === undefined || cursor === null) {
              console.error("Cursor is invalid (undefined/null) for page", pageIndex);
              return;
@@ -168,15 +166,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         try {
             const { data, lastVisible } = await fetchFn(PAGE_SIZE, cursor);
 
-            setData(data || []); // Safety check
+            setData(data || []); 
             setPageIndex(pageIndex);
 
-            // 3. Robust Next Page Logic
             if (pageIndex === cursors.length - 1) {
-                // If we are at the last known page, check if we should add a new cursor
                 if (lastVisible !== null && data && data.length === PAGE_SIZE) {
                     setCursors(prev => {
-                        // Idempotency: Don't add if already exists
                         if (prev[prev.length - 1] !== lastVisible) {
                             return [...prev, lastVisible];
                         }
@@ -187,17 +182,13 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
                     setHasNextPage(false);
                 }
             } else {
-                // Navigating history
                 setHasNextPage(pageIndex < cursors.length - 1);
             }
         } catch (err: any) {
             console.error(`Pagination error (Page ${pageIndex}):`, err.message || err);
-            // 4. Improved User Feedback: Only toast on user navigation or critical failure
-            // Avoid spamming "Error loading data page" on initial mount if transient
             if (pageIndex > 0) {
                 setToastMessage("Failed to load next page.");
             } else {
-                // Log but don't toast on initial load to allow for silent retry or background resolution
                 console.warn("Initial admin data fetch failed.");
             }
         } finally {
@@ -227,9 +218,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
 
     useEffect(() => {
-        if (user) {
+        // Use user.uid for stability. The full 'user' object might change ref if updated (e.g. credit change)
+        // causing unnecessary fetches. We only want to refetch if the USER IDENTITY changes or LOGIN happens.
+        if (user && user.uid) {
             if (isAdmin) {
-                // Ensure cursors are initialized before fetching to prevent error
                 if (userCursors.length > 0) fetchUsersPage(0).catch(e => console.error("Initial User Fetch Error", e));
                 if (docCursors.length > 0) fetchDocsPage(0).catch(e => console.error("Initial Doc Fetch Error", e));
                 if (logCursors.length > 0) fetchLogsPage(0).catch(e => console.error("Initial Log Fetch Error", e));
@@ -238,20 +230,31 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 getCoupons().then(setCoupons);
             } else {
                 setIsLoadingUserDocs(true);
-                getGeneratedDocuments(user.uid).then(docs => {
-                    setGeneratedDocuments(docs);
-                    setIsLoadingUserDocs(false);
-                });
+                getGeneratedDocuments(user.uid)
+                    .then(docs => {
+                        console.log(`Fetched ${docs.length} documents for user ${user.uid}`);
+                        setGeneratedDocuments(docs);
+                    })
+                    .catch(err => {
+                        console.error("Error fetching user documents:", err);
+                        setToastMessage("Failed to load documents. Please check your connection.");
+                    })
+                    .finally(() => setIsLoadingUserDocs(false));
                 
                 setIsLoadingUserFiles(true);
-                getUserFiles(user.uid).then(files => {
-                    setUserFiles(files);
-                    setIsLoadingUserFiles(false);
-                });
+                getUserFiles(user.uid)
+                    .then(files => {
+                        setUserFiles(files);
+                    })
+                    .catch(err => console.error("Error fetching user files:", err))
+                    .finally(() => setIsLoadingUserFiles(false));
 
-                getPolicyDrafts(user.uid).then(setPolicyDrafts);
+                getPolicyDrafts(user.uid)
+                    .then(setPolicyDrafts)
+                    .catch(err => console.error("Error fetching drafts:", err));
             }
         } else {
+            // Logout / No User
             setGeneratedDocuments([]);
             setUserFiles([]);
             setPolicyDrafts([]);
@@ -263,7 +266,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setIsLoadingUserDocs(false);
             setIsLoadingUserFiles(false);
         }
-    }, [user, isAdmin]); 
+    }, [user?.uid, isAdmin]); // Only re-run if UID or Admin status changes
 
     const handleUpdateProfile = async (data: { profile: CompanyProfile; name?: string; contactNumber?: string }) => {
         if (!user) return;
@@ -420,30 +423,25 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const handleSubscriptionSuccess = async () => {
         if (!user) return;
-        // Optimistic UI Update: Assume success
         setUser(prev => prev ? ({ ...prev, plan: 'pro' }) : null);
         setToastMessage("Success! Welcome to HR CoPilot Pro.");
         navigateTo('dashboard');
         setShowOnboardingWalkthrough(true);
 
-        // Background Sync
         const updatedUser = await getUserProfile(user.uid);
         if(updatedUser) {
             setUser(updatedUser);
         } else {
-            // Only show error if sync fails significantly, but UI is already updated
             console.warn("Background profile sync failed");
         }
     };
     
     const handleTopUpSuccess = async (amountInCents: number) => {
         if (!user) return;
-        // Optimistic UI Update: Assume success
         setUser(prev => prev ? ({ ...prev, creditBalance: (prev.creditBalance || 0) + amountInCents }) : null);
         setToastMessage(`Success! R${(amountInCents / 100).toFixed(2)} has been added.`);
         navigateTo('dashboard');
 
-        // Background Sync
         const updatedUser = await getUserProfile(user.uid);
         if(updatedUser) {
             setUser(updatedUser);
@@ -460,19 +458,15 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
 
         try {
-            // Optimistically update
             setUser(prev => prev ? ({ ...prev, creditBalance: Math.max(0, prev.creditBalance - amountInCents) }) : null);
 
-            // Explicitly pass true to update balance in DB
             await addTransactionToUser(user.uid, { description, amount: -amountInCents }, true);
             
-            // Re-sync to be safe
             const updatedUser = await getUserProfile(user.uid);
             if (updatedUser) setUser(updatedUser);
             return true;
         } catch (error: any) {
             console.error("Deduction failed:", error);
-            // Revert on error (fetch fresh)
             const updatedUser = await getUserProfile(user.uid);
             if (updatedUser) setUser(updatedUser);
             
@@ -511,12 +505,17 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
             }
         });
 
-        await saveGeneratedDocument(user.uid, docToSave);
-        
-        // Background Sync to be safe
-        getGeneratedDocuments(user.uid).then(updatedDocs => {
-             setGeneratedDocuments(updatedDocs);
-        });
+        try {
+            await saveGeneratedDocument(user.uid, docToSave);
+            
+            // Background Sync to ensure DB ID and timestamps are correct
+            const updatedDocs = await getGeneratedDocuments(user.uid);
+            setGeneratedDocuments(updatedDocs);
+        } catch (error) {
+            console.error("Failed to save document:", error);
+            setToastMessage("Error saving document to database.");
+            // Revert optimistic update? For now, we leave it as user might want to retry
+        }
         
         navigateTo('dashboard');
     };
