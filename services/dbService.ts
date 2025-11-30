@@ -1,4 +1,3 @@
-
 import { supabase } from './supabase';
 import type { 
     User, 
@@ -14,9 +13,7 @@ import type {
     AppSetting
 } from '../types';
 
-// ... (Existing functions getUserProfile, createUserProfile, updateUser, getGeneratedDocuments, isValidUUID, saveGeneratedDocument, addTransactionToUser, getAllUsers, getAllDocumentsForAllUsers, getAdminActionLogs, logAdminAction) ...
-
-// --- User & Profile ---
+// ... (User & Profile functions remain unchanged) ...
 
 export const getUserProfile = async (uid: string): Promise<User | null> => {
     const { data: profile, error } = await supabase
@@ -30,7 +27,6 @@ export const getUserProfile = async (uid: string): Promise<User | null> => {
         return null;
     }
 
-    // Fetch recent transactions (Limit 50 for performance)
     const { data: transactions } = await supabase
         .from('transactions')
         .select('*')
@@ -136,7 +132,6 @@ export const getGeneratedDocuments = async (uid: string): Promise<GeneratedDocum
     }));
 };
 
-// Helper to check for valid UUID format
 const isValidUUID = (id: string) => {
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
     return uuidRegex.test(id);
@@ -230,7 +225,11 @@ export const getAllUsers = async (pageSize: number, lastVisible?: number): Promi
 };
 
 export const getAllDocumentsForAllUsers = async (pageSize: number, lastVisible?: number): Promise<{ data: GeneratedDocument[], lastVisible: number | null }> => {
-    let query = supabase.from('generated_documents').select('*').order('created_at', { ascending: false });
+    // Join with profiles table to get current company name as fallback
+    let query = supabase
+        .from('generated_documents')
+        .select('*, profiles(company_name)') 
+        .order('created_at', { ascending: false });
     
     const offset = lastVisible || 0;
     query = query.range(offset, offset + pageSize - 1);
@@ -245,13 +244,16 @@ export const getAllDocumentsForAllUsers = async (pageSize: number, lastVisible?:
         type: doc.type,
         content: doc.content,
         createdAt: doc.created_at,
-        companyProfile: doc.company_profile,
+        // Fallback to joined profile company_name if doc.company_profile is missing/incomplete
+        companyProfile: doc.company_profile || { companyName: doc.profiles?.company_name || 'N/A', industry: 'Unknown' },
         questionAnswers: doc.question_answers,
         version: doc.version,
     }));
 
     return { data: docs, lastVisible: offset + pageSize };
 };
+
+// ... (Rest of the file remains unchanged: logs, admin actions, notifications, files, photos, coupons, pricing, drafts) ...
 
 export const getAdminActionLogs = async (pageSize: number, lastVisible?: number): Promise<{ data: AdminActionLog[], lastVisible: number | null }> => {
     let query = supabase.from('admin_action_logs').select('*').order('created_at', { ascending: false });
@@ -274,8 +276,6 @@ export const getAdminActionLogs = async (pageSize: number, lastVisible?: number)
 
     return { data: logs, lastVisible: offset + pageSize };
 };
-
-// --- Admin Actions ---
 
 const logAdminAction = async (action: string, targetUid: string, details?: any) => {
     const { data: { user } } = await (supabase.auth as any).getUser();
@@ -310,7 +310,7 @@ export const changeUserPlanByAdmin = async (adminEmail: string, targetUid: strin
 
 export const grantProPlanByAdmin = async (adminEmail: string, targetUid: string) => {
     await supabase.from('profiles').update({ plan: 'pro' }).eq('id', targetUid);
-    await addTransactionToUser(targetUid, { description: 'Pro Plan (Admin Grant)', amount: 0 }); // record 0 value tx
+    await addTransactionToUser(targetUid, { description: 'Pro Plan (Admin Grant)', amount: 0 }); 
     await logAdminAction('Granted Pro Plan', targetUid);
 };
 
@@ -323,8 +323,6 @@ export const simulateFailedPaymentForUser = async (adminEmail: string, targetUid
     });
     await logAdminAction('Simulated Failed Payment', targetUid);
 };
-
-// --- Dynamic Pricing ---
 
 export const getPricingSettings = async () => {
     const { data: settings } = await supabase.from('app_settings').select('*');
@@ -354,8 +352,6 @@ export const updateDocumentPrice = async (docType: string, priceInCents: number,
     await logAdminAction('Updated Document Price', 'system', { docType, price: priceInCents });
 };
 
-// --- Admin Notifications ---
-
 export const getAdminNotifications = async (): Promise<AdminNotification[]> => {
     const { data, error } = await supabase
         .from('admin_notifications')
@@ -382,8 +378,6 @@ export const markNotificationAsRead = async (id: string) => {
 export const markAllNotificationsAsRead = async () => {
     await supabase.from('admin_notifications').update({ is_read: true }).eq('is_read', false);
 };
-
-// --- User Files ---
 
 export const getUserFiles = async (uid: string): Promise<UserFile[]> => {
     const { data, error } = await supabase.from('user_files').select('*').eq('user_id', uid).order('created_at', { ascending: false });
@@ -426,8 +420,6 @@ export const deleteUserFile = async (uid: string, fileId: string, path: string) 
     await supabase.from('user_files').delete().eq('id', fileId);
 };
 
-// --- Profile Photo ---
-
 export const uploadProfilePhoto = async (uid: string, file: File) => {
     const path = `${uid}/profile_photo`;
     
@@ -446,8 +438,6 @@ export const deleteProfilePhoto = async (uid: string) => {
     await supabase.storage.from('avatars').remove([path]);
     await supabase.from('profiles').update({ avatar_url: null }).eq('id', uid);
 };
-
-// --- Coupons ---
 
 export const createCoupon = async (coupon: Partial<Coupon>) => {
     const { error } = await supabase.from('coupons').insert({
@@ -515,8 +505,6 @@ export const validateCoupon = async (code: string, planType: 'pro' | 'payg'): Pr
 
     return { valid: true, coupon };
 };
-
-// --- Drafts ---
 
 export const savePolicyDraft = async (uid: string, draft: Omit<PolicyDraft, 'id' | 'createdAt' | 'updatedAt'> & { id?: string }): Promise<void> => {
     const data = {
