@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { POLICY_CATEGORIES, FORMS, POLICIES } from '../constants';
+import { POLICY_CATEGORIES } from '../constants';
 import type { Policy, Form } from '../types';
 import { SearchIcon } from './Icons';
 import { useAuthContext } from '../contexts/AuthContext';
