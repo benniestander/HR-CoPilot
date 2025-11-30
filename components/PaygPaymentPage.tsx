@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { CreditCardIcon, LoadingIcon, ShieldCheckIcon, CouponIcon } from './Icons';
 import { useAuthContext } from '../contexts/AuthContext';
@@ -14,7 +13,7 @@ interface PaygPaymentPageProps {
 
 const PaygPaymentPage: React.FC<PaygPaymentPageProps> = ({ onTopUpSuccess, onCancel, onUpgrade }) => {
   const { user } = useAuthContext();
-  const { proPlanPrice } = useDataContext(); // Dynamic pro price
+  const { proPlanPrice } = useDataContext(); 
   const [selectedAmount, setSelectedAmount] = useState<number | null>(10000); // Default to R100
   const [customAmount, setCustomAmount] = useState('');
   const [isCustom, setIsCustom] = useState(false);
@@ -239,7 +238,7 @@ const PaygPaymentPage: React.FC<PaygPaymentPageProps> = ({ onTopUpSuccess, onCan
                         </div>
                         <button type="submit" disabled={isLoading || !isAmountValid || !isUserDetailsValid} className="w-full bg-primary text-white font-bold py-4 px-4 rounded-lg text-lg hover:bg-opacity-90 disabled:bg-gray-400 transition-colors flex items-center justify-center">
                             {isLoading ? (
-                                <><LoadingIcon className="animate-spin -ml-1 mr-3 h-5 w-5" /> Opening Secure Portal...</>
+                                <><LoadingIcon className="animate-spin -ml-1 mr-3 h-5 w-5" /> Opening Payment Portal...</>
                             ) : (
                                 <>
                                 <CreditCardIcon className="w-6 h-6 mr-3" />
