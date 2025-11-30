@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect, useMemo, useCallback } from 'react';
 import type { GeneratedDocument, CompanyProfile, User, Transaction, AdminActionLog, AdminNotification, UserFile, Coupon, PolicyDraft } from '../types';
 import {
@@ -496,25 +495,21 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setToastMessage("Document saved successfully!");
         }
 
-        // OPTIMISTIC UPDATE
-        setGeneratedDocuments(prevDocs => {
-            if (originalId) {
-                return prevDocs.map(d => d.id === originalId ? docToSave : d);
-            } else {
-                return [docToSave, ...prevDocs];
-            }
-        });
-
         try {
-            await saveGeneratedDocument(user.uid, docToSave);
+            // Save to DB and get real ID back (sanitize happens inside saveGeneratedDocument)
+            const savedDoc = await saveGeneratedDocument(user.uid, docToSave);
             
-            // Background Sync to ensure DB ID and timestamps are correct
-            const updatedDocs = await getGeneratedDocuments(user.uid);
-            setGeneratedDocuments(updatedDocs);
+            // OPTIMISTIC UPDATE with correct ID from DB
+            setGeneratedDocuments(prevDocs => {
+                if (originalId) {
+                    return prevDocs.map(d => d.id === originalId ? savedDoc : d);
+                } else {
+                    return [savedDoc, ...prevDocs];
+                }
+            });
         } catch (error) {
             console.error("Failed to save document:", error);
             setToastMessage("Error saving document to database.");
-            // Revert optimistic update? For now, we leave it as user might want to retry
         }
         
         navigateTo('dashboard');
