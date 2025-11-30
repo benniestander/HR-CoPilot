@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { calculateComplianceScore } from '../utils/compliance';
 import type { CompanyProfile, GeneratedDocument, Policy, Form } from '../types';

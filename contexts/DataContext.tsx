@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, useEffect, useMemo, useCallback } from 'react';
 import type { GeneratedDocument, CompanyProfile, User, Transaction, AdminActionLog, AdminNotification, UserFile, Coupon, PolicyDraft } from '../types';
 import {
@@ -507,6 +508,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
                     return [savedDoc, ...prevDocs];
                 }
             });
+
+            // Background Sync to be safe
+            getGeneratedDocuments(user.uid)
+                .then(updatedDocs => {
+                    setGeneratedDocuments(updatedDocs);
+                })
+                .catch(err => console.warn("Background doc sync failed", err));
+
         } catch (error) {
             console.error("Failed to save document:", error);
             setToastMessage("Error saving document to database.");
