@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { CreditCardIcon, LoadingIcon, ShieldCheckIcon, CouponIcon } from './Icons';
 import { useAuthContext } from '../contexts/AuthContext';
@@ -41,7 +40,7 @@ const PaygPaymentPage: React.FC<PaygPaymentPageProps> = ({ onTopUpSuccess, onCan
       setSelectedAmount(amount);
       setCustomAmount('');
     }
-    // Reset coupon on amount change to force re-validation logic if percentage based (though fixed is simpler)
+    // Reset coupon on amount change to force re-validation logic
     setDiscount(0);
     setAppliedCouponCode(null);
     setCouponMessage(null);
@@ -97,7 +96,7 @@ const PaygPaymentPage: React.FC<PaygPaymentPageProps> = ({ onTopUpSuccess, onCan
   };
 
   const isUserDetailsValid = Object.values(formData).every(val => typeof val === 'string' && val.trim() !== '') && Object.values(errors).every(err => err === '');
-  const isAmountValid = baseAmount !== null && baseAmount >= 5000;
+  const isAmountValid = baseAmount !== null && baseAmount >= 5000; // Min R50
   
   const handlePayment = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -110,8 +109,9 @@ const PaygPaymentPage: React.FC<PaygPaymentPageProps> = ({ onTopUpSuccess, onCan
     setIsLoading(true);
     setApiError(null);
 
+    // Trigger the payment portal (Yoco SDK Popup)
     const result = await processPayment({
-        amountInCents: Math.round(finalAmount), // THIS IS WHAT IS CHARGED
+        amountInCents: Math.round(finalAmount), // Amount to charge card
         name: `Credit Top-Up R${(finalAmount / 100).toFixed(2)}`,
         description: 'Credit for HR CoPilot',
         customer: {
@@ -123,15 +123,15 @@ const PaygPaymentPage: React.FC<PaygPaymentPageProps> = ({ onTopUpSuccess, onCan
             userId: user.uid,
             type: 'topup',
             couponCode: appliedCouponCode || undefined
-            // SECURE UPDATE: We removed creditAmount. The server will calculate credits 
-            // based on charged amount + coupon validation to prevent tampering.
+            // Note: Server calculates credit amount to add based on payment + coupon to ensure security
         }
     });
 
     setIsLoading(false);
 
     if (result.success) {
-        // Optimistic update for UI (baseAmount is what user expects to see added)
+        // Payment successful - update credit balance in UI
+        // We pass the *baseAmount* (the value the user gets) to the optimistic update
         onTopUpSuccess(baseAmount); 
     } else if (result.error && result.error !== "User cancelled") {
         setApiError(`Payment failed: ${result.error}`);
@@ -236,7 +236,7 @@ const PaygPaymentPage: React.FC<PaygPaymentPageProps> = ({ onTopUpSuccess, onCan
                         </div>
                         <button type="submit" disabled={isLoading || !isAmountValid || !isUserDetailsValid} className="w-full bg-primary text-white font-bold py-4 px-4 rounded-lg text-lg hover:bg-opacity-90 disabled:bg-gray-400 transition-colors flex items-center justify-center">
                             {isLoading ? (
-                                <><LoadingIcon className="animate-spin -ml-1 mr-3 h-5 w-5" /> Opening payment...</>
+                                <><LoadingIcon className="animate-spin -ml-1 mr-3 h-5 w-5" /> Opening Secure Portal...</>
                             ) : (
                                 <>
                                 <CreditCardIcon className="w-6 h-6 mr-3" />
@@ -246,7 +246,7 @@ const PaygPaymentPage: React.FC<PaygPaymentPageProps> = ({ onTopUpSuccess, onCan
                         </button>
                         {apiError && <p className="text-xs text-red-600 text-center mt-3">{apiError}</p>}
                         <p className="text-xs text-gray-400 text-center mt-4">
-                            Secure payments processed by Yoco.
+                            You will be redirected to the secure Yoco payment gateway.
                         </p>
                     </div>
                 </form>

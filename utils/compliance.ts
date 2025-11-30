@@ -1,4 +1,3 @@
-
 import type { CompanyProfile, GeneratedDocument, PolicyType, FormType } from '../types';
 import { POLICIES, FORMS } from '../constants';
 
@@ -40,7 +39,8 @@ const UNIVERSAL_RECOMMENDED: (PolicyType | FormType)[] = [
     'electronic-communications',
     'recruitment-selection',
     'job-description', // Form
-    'leave-application' // Form
+    'leave-application', // Form
+    'code-of-ethics' // Policy
 ];
 
 export const calculateComplianceScore = (
@@ -81,6 +81,7 @@ export const getComplianceRoadmap = (
     profile: CompanyProfile,
     documents: GeneratedDocument[]
 ): RoadmapItem[] => {
+    // Check against ALL generated documents to prevent duplicates in "Missing" list
     const generatedTypes = new Set(documents.map(d => d.type));
     const roadmap: RoadmapItem[] = [];
 
@@ -90,6 +91,7 @@ export const getComplianceRoadmap = (
         const isPolicy = id in POLICIES;
         const itemDef = isPolicy ? POLICIES[id as PolicyType] : FORMS[id as FormType];
         
+        // Skip if definition not found (safety check)
         if (!itemDef) return;
 
         roadmap.push({
@@ -112,23 +114,39 @@ export const getComplianceRoadmap = (
             case 'Construction':
             case 'Manufacturing':
             case 'Agriculture':
+            case 'Mining':
                 addItem('coida', 'critical', "High-risk industries must have clear injury-on-duty protocols (COIDA).");
                 addItem('alcohol-drug', 'critical', "Zero-tolerance policy is essential for safety-sensitive environments.");
                 addItem('incident-report', 'critical', "Mandatory for recording workplace accidents.");
                 addItem('company-vehicle', 'recommended', "Essential if staff use company transport or heavy machinery.");
+                addItem('ppe-policy', 'recommended', "Personal Protective Equipment usage rules are vital."); // Assuming ppe-policy exists or will map to H&S
                 break;
             case 'Technology':
             case 'Professional Services':
+            case 'Finance':
                 addItem('confidentiality', 'critical', "Crucial for protecting client data and intellectual property.");
                 addItem('data-protection-privacy', 'critical', "Mandatory for POPIA compliance when handling personal information.");
                 addItem('remote-hybrid-work', 'recommended', "Clarifies expectations for off-site work.");
                 addItem('byod', 'recommended', "Protects company data on personal devices.");
+                addItem('social-media', 'recommended', "Protects brand reputation online.");
+                addItem('expense-reimbursement', 'recommended', "Standardizes claims for client entertainment and travel.");
+                addItem('conflict-of-interest', 'recommended', "Critical for maintaining professional objectivity.");
                 break;
             case 'Retail':
             case 'Hospitality':
                 addItem('working-hours', 'critical', "Essential for managing shifts, overtime, and public holiday pay.");
                 addItem('dress-code', 'recommended', "Maintains professional standards for customer-facing staff.");
                 addItem('attendance-punctuality', 'recommended', "Critical for shift-based operations.");
+                addItem('social-media', 'recommended', "Guidelines for staff representing the brand.");
+                break;
+            case 'Transport':
+                addItem('company-vehicle', 'critical', "Strict rules for drivers and vehicle usage are mandatory.");
+                addItem('alcohol-drug', 'critical', "Safety critical requirement for drivers.");
+                addItem('travel', 'recommended', "Manages allowances and rules for long-distance trips.");
+                break;
+            case 'Health':
+                addItem('confidentiality', 'critical', "Patient confidentiality is a legal requirement.");
+                addItem('health-and-safety', 'critical', "Strict protocols for biological hazards.");
                 break;
         }
     }
@@ -170,6 +188,14 @@ function getReasonForRecommendation(type: string, industry?: string): string {
         'sexual-harassment': "Protects the company from liability by establishing a zero-tolerance approach.",
         'electronic-communications': "Regulates the use of email and internet to prevent liability and misuse.",
         'recruitment-selection': "Ensures hiring practices are fair and non-discriminatory (EEA compliance).",
+        'code-of-ethics': "Sets the standard for professional behavior and integrity in your business.",
+        'expense-reimbursement': "Ensures fair and controlled spending on business activities.",
+        'social-media': "Protects your company's reputation from harmful online employee activity.",
+        'travel': "Manages costs and liability during business trips.",
+        'conflict-of-interest': "Prevents employees from engaging in activities that compete with or harm the business.",
+        'workplace-wellness': "Promotes a productive and healthy workforce.",
+        'company-vehicle': "Regulates the use, care, and liability of company cars.",
+        'remote-hybrid-work': "Defines productivity expectations and data security for remote staff.",
     };
     return mapping[type] || "Recommended for comprehensive HR governance and risk management.";
 }

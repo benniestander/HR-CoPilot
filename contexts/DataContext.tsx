@@ -158,6 +158,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         
         // 2. Strict Cursor Validation
         const cursor = cursors[pageIndex];
+        // Allow 0 as a valid cursor (initial fetch)
         if (cursor === undefined || cursor === null) {
              console.error("Cursor is invalid (undefined/null) for page", pageIndex);
              return;
@@ -501,12 +502,21 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setToastMessage("Document saved successfully!");
         }
 
+        // OPTIMISTIC UPDATE
+        setGeneratedDocuments(prevDocs => {
+            if (originalId) {
+                return prevDocs.map(d => d.id === originalId ? docToSave : d);
+            } else {
+                return [docToSave, ...prevDocs];
+            }
+        });
+
         await saveGeneratedDocument(user.uid, docToSave);
-        // Fetch updated docs to show in history immediately
-        setIsLoadingUserDocs(true);
-        const updatedDocs = await getGeneratedDocuments(user.uid);
-        setGeneratedDocuments(updatedDocs);
-        setIsLoadingUserDocs(false);
+        
+        // Background Sync to be safe
+        getGeneratedDocuments(user.uid).then(updatedDocs => {
+             setGeneratedDocuments(updatedDocs);
+        });
         
         navigateTo('dashboard');
     };
