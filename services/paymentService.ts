@@ -15,8 +15,9 @@ declare global {
 // ==============================================================================
 
 // 1. REPLACE WITH YOUR YOCO LIVE PUBLIC KEY FOR PRODUCTION
-// Using Vite env var for secure configuration
-export const YOCO_PUBLIC_KEY = (import.meta as any).env?.VITE_YOCO_PUBLIC_KEY || 'pk_live_922ec78alWPdK17eeac4'; 
+// Using Vite env var for secure configuration with safe access
+const meta = import.meta as any;
+export const YOCO_PUBLIC_KEY = meta.env?.VITE_YOCO_PUBLIC_KEY || 'pk_live_922ec78alWPdK17eeac4'; 
 
 /* 
    ==============================================================================

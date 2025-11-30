@@ -119,7 +119,6 @@ export const getComplianceRoadmap = (
                 addItem('alcohol-drug', 'critical', "Zero-tolerance policy is essential for safety-sensitive environments.");
                 addItem('incident-report', 'critical', "Mandatory for recording workplace accidents.");
                 addItem('company-vehicle', 'recommended', "Essential if staff use company transport or heavy machinery.");
-                addItem('ppe-policy', 'recommended', "Personal Protective Equipment usage rules are vital."); // Assuming ppe-policy exists or will map to H&S
                 break;
             case 'Technology':
             case 'Professional Services':
