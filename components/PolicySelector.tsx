@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo } from 'react';
 import { POLICY_CATEGORIES } from '../constants';
 import type { Policy, Form } from '../types';
@@ -12,13 +11,19 @@ interface PolicySelectorProps {
 
 const PolicyCard: React.FC<{ item: Policy | Form; onSelect: () => void; showPrice: boolean; price: number }> = ({ item, onSelect, showPrice, price }) => {
   const isForm = item.kind === 'form';
+  
+  // Clean class construction without template literal interpolation inside JSX attributes if possible
+  const baseClasses = "bg-white p-5 rounded-xl shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all duration-300 cursor-pointer border border-gray-200 flex flex-col focus:outline-none focus:ring-2 focus:ring-primary h-full group";
+  const borderClass = isForm ? " border-l-4 border-l-accent" : "";
+  const containerClasses = baseClasses + borderClass;
+
   return (
     <div
       onClick={onSelect}
       onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && onSelect()}
       role="button"
       tabIndex={0}
-      className={`bg-white p-5 rounded-xl shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all duration-300 cursor-pointer border border-gray-200 flex flex-col focus:outline-none focus:ring-2 focus:ring-primary h-full group ${isForm ? 'border-l-4 border-l-accent' : ''}`}
+      className={containerClasses}
       aria-label={`Select ${item.kind}: ${item.title}`}
     >
       <div className="flex justify-between items-start mb-4">
@@ -49,7 +54,7 @@ const PolicyCard: React.FC<{ item: Policy | Form; onSelect: () => void; showPric
 const PolicySelector: React.FC<PolicySelectorProps> = ({ onSelect }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const { user } = useAuthContext();
-  const { getDocPrice } = useDataContext(); // Use pricing helper
+  const { getDocPrice } = useDataContext();
   const showPrice = user?.plan !== 'pro';
 
   // Standard Search Logic

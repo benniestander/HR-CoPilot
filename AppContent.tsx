@@ -389,7 +389,8 @@ const AppContent: React.FC = () => {
                 />;
             case 'topup':
                 // FIX: Do not return null or call state setter here. 
-                // Render fallback Dashboard if logic fails, useEffect will handle navigation if needed elsewhere.
+                // Render fallback Dashboard if logic fails. useEffect will handle navigation if needed elsewhere,
+                // or the user sees the dashboard and realizes they can't top up (though button shouldn't be visible).
                 if (!user || user.plan !== 'payg') { 
                      return <Dashboard
                         onStartUpdate={() => navigateTo('updater')}

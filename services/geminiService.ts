@@ -1,11 +1,8 @@
-
 import { GoogleGenAI, GenerateContentResponse } from "@google/genai";
 import type { FormAnswers, PolicyUpdateResult } from '../types';
 
-// Robust safe access for env vars in Vite
-// Assigning import.meta to a variable first prevents parsing ambiguity
-const meta = import.meta as any;
-const API_KEY = meta.env?.VITE_GEMINI_API_KEY || (typeof process !== 'undefined' ? process.env.API_KEY : '');
+// Standard Vite env access - Cleanest possible syntax
+const API_KEY = import.meta.env.VITE_GEMINI_API_KEY || (typeof process !== 'undefined' ? process.env.API_KEY : '');
 
 if (!API_KEY) {
     console.warn("Gemini API Key is missing. AI features will not work.");
@@ -65,7 +62,6 @@ export const generatePolicyStream = async function* (type: string, answers: Form
   Use a professional yet accessible tone.
   Format with Markdown.`;
 
-  // We can't easily retry streams mid-flight, but we can retry the initial connection
   const response = await withRetry(() => ai.models.generateContentStream({
     model,
     contents: prompt,
@@ -82,7 +78,6 @@ export const generatePolicyStream = async function* (type: string, answers: Form
 export const generateFormStream = async function* (type: string, answers: FormAnswers) {
     const model = 'gemini-2.5-flash';
     
-    // Dynamic Fallback Prompt if no specific template exists (Generic Handler)
     const prompt = `Generate a professional HR Form for "${type}".
     Company Name: ${answers.companyName}
     Details: ${JSON.stringify(answers)}
