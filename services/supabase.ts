@@ -1,4 +1,3 @@
-
 import { createClient } from '@supabase/supabase-js';
 
 /* 
@@ -17,7 +16,7 @@ import { createClient } from '@supabase/supabase-js';
    -- 0. REPAIR SCHEMA (CRITICAL FIXES)
    ALTER TABLE coupons DROP COLUMN IF EXISTS "type";
    
-   -- Fix generated_documents missing columns (Causes 400 Error on Save)
+   -- Repair generated_documents (Fixing 400 Bad Request on Save)
    CREATE TABLE IF NOT EXISTS generated_documents (
      id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
      user_id uuid REFERENCES auth.users(id) NOT NULL,
@@ -34,6 +33,26 @@ import { createClient } from '@supabase/supabase-js';
    ALTER TABLE generated_documents ADD COLUMN IF NOT EXISTS history jsonb DEFAULT '[]'::jsonb;
    ALTER TABLE generated_documents ADD COLUMN IF NOT EXISTS company_profile jsonb DEFAULT '{}'::jsonb;
    ALTER TABLE generated_documents ADD COLUMN IF NOT EXISTS question_answers jsonb DEFAULT '{}'::jsonb;
+
+   -- Repair profiles (Fixing 400 Bad Request on Profile Update)
+   CREATE TABLE IF NOT EXISTS profiles (
+     id uuid REFERENCES auth.users(id) PRIMARY KEY,
+     email text,
+     full_name text,
+     created_at timestamptz DEFAULT now()
+   );
+
+   ALTER TABLE profiles ADD COLUMN IF NOT EXISTS plan text DEFAULT 'payg';
+   ALTER TABLE profiles ADD COLUMN IF NOT EXISTS credit_balance int DEFAULT 0;
+   ALTER TABLE profiles ADD COLUMN IF NOT EXISTS is_admin boolean DEFAULT false;
+   ALTER TABLE profiles ADD COLUMN IF NOT EXISTS contact_number text;
+   ALTER TABLE profiles ADD COLUMN IF NOT EXISTS avatar_url text;
+   ALTER TABLE profiles ADD COLUMN IF NOT EXISTS company_name text;
+   ALTER TABLE profiles ADD COLUMN IF NOT EXISTS industry text;
+   ALTER TABLE profiles ADD COLUMN IF NOT EXISTS address text;
+   ALTER TABLE profiles ADD COLUMN IF NOT EXISTS website text;
+   ALTER TABLE profiles ADD COLUMN IF NOT EXISTS summary text;
+   ALTER TABLE profiles ADD COLUMN IF NOT EXISTS company_size text;
 
    -- 1. Create Tables (IF NOT EXISTS)
    CREATE TABLE IF NOT EXISTS coupons (
@@ -75,7 +94,7 @@ import { createClient } from '@supabase/supabase-js';
      category text CHECK (category IN ('policy', 'form'))
    );
 
-   -- 2. ENSURE COLUMNS EXIST & FIX TYPES
+   -- 2. ENSURE COLUMNS EXIST & FIX TYPES (Coupons)
    ALTER TABLE coupons ADD COLUMN IF NOT EXISTS code text;
    ALTER TABLE coupons ADD COLUMN IF NOT EXISTS discount_type text;
    ALTER TABLE coupons ADD COLUMN IF NOT EXISTS discount_value int DEFAULT 0;
@@ -133,6 +152,12 @@ import { createClient } from '@supabase/supabase-js';
    DROP POLICY IF EXISTS "Anyone can read coupons" ON coupons;
 
    DROP POLICY IF EXISTS "Users can manage own drafts" ON policy_drafts;
+
+   -- CLEANUP for Settings & Prices (Fixing 'policy already exists' error)
+   DROP POLICY IF EXISTS "Everyone can read settings" ON app_settings;
+   DROP POLICY IF EXISTS "Admins can update settings" ON app_settings;
+   DROP POLICY IF EXISTS "Everyone can read prices" ON document_prices;
+   DROP POLICY IF EXISTS "Admins can update prices" ON document_prices;
 
    -- 5. Functions
    DROP FUNCTION IF EXISTS is_admin() CASCADE;
