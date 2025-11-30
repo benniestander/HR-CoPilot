@@ -51,7 +51,6 @@ export interface PageInfo {
 }
 
 interface DataContextType {
-    // ... (Existing properties)
     generatedDocuments: GeneratedDocument[];
     userFiles: UserFile[];
     policyDrafts: PolicyDraft[];
@@ -97,7 +96,7 @@ interface DataContextType {
     handleSubscriptionSuccess: () => Promise<void>;
     handleTopUpSuccess: (amountInCents: number) => Promise<void>;
     handleDeductCredit: (amountInCents: number, description: string) => Promise<boolean>;
-    handleDocumentGenerated: (doc: GeneratedDocument, originalId?: string) => Promise<void>;
+    handleDocumentGenerated: (doc: GeneratedDocument, originalId?: string, shouldNavigate?: boolean) => Promise<GeneratedDocument | undefined>;
     handleSaveDraft: (draft: Omit<PolicyDraft, 'id' | 'createdAt' | 'updatedAt'> & { id?: string }) => Promise<void>;
     handleDeleteDraft: (id: string) => Promise<void>;
     
@@ -113,7 +112,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const { setToastMessage, navigateTo, setShowOnboardingWalkthrough } = useUIContext();
     const { showConfirmationModal, hideConfirmationModal } = useModalContext();
 
-    // ... (Existing state definitions)
     const [generatedDocuments, setGeneratedDocuments] = useState<GeneratedDocument[]>([]);
     const [userFiles, setUserFiles] = useState<UserFile[]>([]);
     const [policyDrafts, setPolicyDrafts] = useState<PolicyDraft[]>([]);
@@ -141,7 +139,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const [proPlanPrice, setProPlanPrice] = useState(74700); // Default R747
     const [docPriceMap, setDocPriceMap] = useState<Record<string, number>>({});
 
-    // ... (createPageFetcher and handleNext/Prev implementations) ...
     const createPageFetcher = <T,>(
         fetchFn: (pageSize: number, cursor?: number) => Promise<{ data: T[], lastVisible: number | null }>,
         setData: React.Dispatch<React.SetStateAction<T[]>>,
@@ -267,7 +264,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return item.price;
     };
 
-    // ... (handleUpdateProfile, handleInitialProfileSubmit, photo, file handlers - Unchanged) ...
     const handleUpdateProfile = async (data: { profile: CompanyProfile; name?: string; contactNumber?: string }) => {
         if (!user) return;
         const updatedProfile = { ...user.profile, ...data.profile };
@@ -467,8 +463,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
     };
     
-    const handleDocumentGenerated = async (doc: GeneratedDocument, originalId?: string) => {
-        if (!user) return;
+    const handleDocumentGenerated = async (doc: GeneratedDocument, originalId?: string, shouldNavigate: boolean = true): Promise<GeneratedDocument | undefined> => {
+        if (!user) return undefined;
         let docToSave = { ...doc };
         if (originalId) {
             const oldDoc = generatedDocuments.find(d => d.id === originalId);
@@ -480,11 +476,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
                     createdAt: new Date().toISOString(),
                     history: [{ version: oldDoc.version, createdAt: oldDoc.createdAt, content: oldDoc.content }, ...(oldDoc.history || [])],
                 };
-                setToastMessage("Document updated successfully!");
+                if (shouldNavigate) setToastMessage("Document updated successfully!");
             }
         } else {
             docToSave = { ...doc, version: 1, history: [] };
-            setToastMessage("Document saved successfully!");
+            if (shouldNavigate) setToastMessage("Document saved successfully!");
         }
 
         try {
@@ -497,11 +493,16 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 }
             });
             getGeneratedDocuments(user.uid).then(updatedDocs => { setGeneratedDocuments(updatedDocs); }).catch(err => console.warn(err));
+            
+            if (shouldNavigate) {
+                navigateTo('dashboard');
+            }
+            return savedDoc;
         } catch (error) {
             console.error("Failed to save document:", error);
             setToastMessage("Error saving document to database.");
+            return undefined;
         }
-        navigateTo('dashboard');
     };
 
     const handleSaveDraft = async (draft: Omit<PolicyDraft, 'id' | 'createdAt' | 'updatedAt'> & { id?: string }) => {
