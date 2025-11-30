@@ -153,6 +153,8 @@ export const saveGeneratedDocument = async (uid: string, doc: GeneratedDocument)
         history: doc.history,
     };
 
+    // If ID is a valid UUID, use it (update existing).
+    // If it's a temp ID (e.g., 'policy-123'), exclude it to let DB generate a new UUID.
     if (doc.id && isValidUUID(doc.id)) {
         dbDoc.id = doc.id;
     }
@@ -165,6 +167,7 @@ export const saveGeneratedDocument = async (uid: string, doc: GeneratedDocument)
 
     if (error) throw error;
 
+    // Return the saved document with the real DB ID
     return {
         ...doc,
         id: data.id,
