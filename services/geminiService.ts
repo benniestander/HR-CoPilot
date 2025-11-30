@@ -1,8 +1,9 @@
 import { GoogleGenAI, GenerateContentResponse } from "@google/genai";
 import type { FormAnswers, PolicyUpdateResult } from '../types';
 
-// Standard Vite env access - Cleanest possible syntax
-const API_KEY = import.meta.env.VITE_GEMINI_API_KEY || (typeof process !== 'undefined' ? process.env.API_KEY : '');
+// Standard Vite env access - Cleanest possible syntax with safe property access
+const env = (import.meta as any).env || {};
+const API_KEY = env.VITE_GEMINI_API_KEY || (typeof process !== 'undefined' ? process.env.API_KEY : '');
 
 if (!API_KEY) {
     console.warn("Gemini API Key is missing. AI features will not work.");

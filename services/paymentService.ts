@@ -13,8 +13,9 @@ declare global {
 // CONFIGURATION
 // ==============================================================================
 
-// Standard Vite env access
-export const YOCO_PUBLIC_KEY = import.meta.env.VITE_YOCO_PUBLIC_KEY || 'pk_live_922ec78alWPdK17eeac4'; 
+// Robust safe access for env vars
+const env = (import.meta as any).env || {};
+export const YOCO_PUBLIC_KEY = env.VITE_YOCO_PUBLIC_KEY || 'pk_live_922ec78alWPdK17eeac4'; 
 
 /* 
    ==============================================================================
