@@ -138,36 +138,51 @@ const isValidUUID = (id: string) => {
 };
 
 export const saveGeneratedDocument = async (uid: string, doc: GeneratedDocument): Promise<GeneratedDocument> => {
+    const isUpdate = doc.id && isValidUUID(doc.id);
+
     const dbDoc: any = {
         user_id: uid,
         title: doc.title,
         kind: doc.kind,
         type: doc.type,
-        content: doc.content,
-        created_at: doc.createdAt,
-        company_profile: doc.companyProfile,
-        question_answers: doc.questionAnswers,
-        output_format: doc.outputFormat,
-        sources: doc.sources,
+        content: doc.content || "",
+        created_at: doc.createdAt, 
+        company_profile: doc.companyProfile || {},
+        question_answers: doc.questionAnswers || {},
+        output_format: doc.outputFormat || 'word',
+        sources: doc.sources || [],
         version: doc.version,
-        history: doc.history,
+        history: doc.history || [],
     };
 
-    // If ID is a valid UUID, use it (update existing).
-    // If it's a temp ID (e.g., 'policy-123'), exclude it to let DB generate a new UUID.
-    if (doc.id && isValidUUID(doc.id)) {
-        dbDoc.id = doc.id;
+    let data, error;
+
+    if (isUpdate) {
+        // UPDATE existing
+        const result = await supabase
+            .from('generated_documents')
+            .update(dbDoc)
+            .eq('id', doc.id)
+            .select()
+            .single();
+        data = result.data;
+        error = result.error;
+    } else {
+        // INSERT new (Let DB generate ID)
+        const result = await supabase
+            .from('generated_documents')
+            .insert(dbDoc)
+            .select()
+            .single();
+        data = result.data;
+        error = result.error;
     }
 
-    const { data, error } = await supabase
-        .from('generated_documents')
-        .upsert(dbDoc)
-        .select()
-        .single();
+    if (error) {
+        console.error("Supabase Save Error:", error); 
+        throw error;
+    }
 
-    if (error) throw error;
-
-    // Return the saved document with the real DB ID
     return {
         ...doc,
         id: data.id,
