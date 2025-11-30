@@ -14,8 +14,26 @@ import { createClient } from '@supabase/supabase-js';
 
    ==========================================================================
 
-   -- 0. REPAIR SCHEMA (CRITICAL FIX FOR COUPONS)
+   -- 0. REPAIR SCHEMA (CRITICAL FIXES)
    ALTER TABLE coupons DROP COLUMN IF EXISTS "type";
+   
+   -- Fix generated_documents missing columns (Causes 400 Error on Save)
+   CREATE TABLE IF NOT EXISTS generated_documents (
+     id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+     user_id uuid REFERENCES auth.users(id) NOT NULL,
+     title text,
+     content text,
+     created_at timestamptz DEFAULT now()
+   );
+
+   ALTER TABLE generated_documents ADD COLUMN IF NOT EXISTS kind text;
+   ALTER TABLE generated_documents ADD COLUMN IF NOT EXISTS type text;
+   ALTER TABLE generated_documents ADD COLUMN IF NOT EXISTS output_format text;
+   ALTER TABLE generated_documents ADD COLUMN IF NOT EXISTS sources jsonb DEFAULT '[]'::jsonb;
+   ALTER TABLE generated_documents ADD COLUMN IF NOT EXISTS version int DEFAULT 1;
+   ALTER TABLE generated_documents ADD COLUMN IF NOT EXISTS history jsonb DEFAULT '[]'::jsonb;
+   ALTER TABLE generated_documents ADD COLUMN IF NOT EXISTS company_profile jsonb DEFAULT '{}'::jsonb;
+   ALTER TABLE generated_documents ADD COLUMN IF NOT EXISTS question_answers jsonb DEFAULT '{}'::jsonb;
 
    -- 1. Create Tables (IF NOT EXISTS)
    CREATE TABLE IF NOT EXISTS coupons (
