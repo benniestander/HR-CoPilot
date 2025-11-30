@@ -1,4 +1,3 @@
-
 import React, { useRef, useEffect, lazy, Suspense } from 'react';
 import Dashboard from './components/Dashboard';
 import FullPageLoader from './components/FullPageLoader';
@@ -320,8 +319,15 @@ const AppContent: React.FC = () => {
                 />;
             case 'generator':
                 if (!selectedItem || !user) {
-                    handleBackToDashboard();
-                    return null;
+                    // Safe fallback
+                    return <Dashboard
+                        onStartUpdate={() => navigateTo('updater')}
+                        onStartChecklist={() => navigateTo('checklist')}
+                        showOnboardingWalkthrough={false}
+                        onCloseWalkthrough={handleCloseWalkthrough}
+                        onGoToProfileSetup={handleGoToProfileSetup}
+                        onSelectDocument={handleSelectDocument}
+                    />;
                 }
                 return <GeneratorPage
                     selectedItem={selectedItem}
@@ -335,34 +341,81 @@ const AppContent: React.FC = () => {
                     onBack={handleBackToDashboard}
                 />;
             case 'checklist':
-                if (!user) { handleBackToDashboard(); return null; }
+                if (!user) { 
+                     return <Dashboard
+                        onStartUpdate={() => navigateTo('updater')}
+                        onStartChecklist={() => navigateTo('checklist')}
+                        showOnboardingWalkthrough={false}
+                        onCloseWalkthrough={handleCloseWalkthrough}
+                        onGoToProfileSetup={handleGoToProfileSetup}
+                        onSelectDocument={handleSelectDocument}
+                    />;
+                }
                 return <ComplianceChecklist
                     userProfile={user.profile}
                     onBack={handleBackToDashboard}
                     onSelectDocument={handleSelectDocument}
                 />;
             case 'profile':
-                if (!user) { handleBackToDashboard(); return null; }
+                if (!user) { 
+                     return <Dashboard
+                        onStartUpdate={() => navigateTo('updater')}
+                        onStartChecklist={() => navigateTo('checklist')}
+                        showOnboardingWalkthrough={false}
+                        onCloseWalkthrough={handleCloseWalkthrough}
+                        onGoToProfileSetup={handleGoToProfileSetup}
+                        onSelectDocument={handleSelectDocument}
+                    />;
+                }
                 return <ProfilePage
                     onBack={handleBackToDashboard}
                     onUpgrade={() => navigateTo('upgrade')}
                     onGoToTopUp={() => navigateTo('topup')}
                 />;
             case 'upgrade':
-                if (!user) { handleBackToDashboard(); return null; }
+                if (!user) { 
+                     return <Dashboard
+                        onStartUpdate={() => navigateTo('updater')}
+                        onStartChecklist={() => navigateTo('checklist')}
+                        showOnboardingWalkthrough={false}
+                        onCloseWalkthrough={handleCloseWalkthrough}
+                        onGoToProfileSetup={handleGoToProfileSetup}
+                        onSelectDocument={handleSelectDocument}
+                    />;
+                }
                 return <SubscriptionPage
                     onSuccess={handleSubscriptionSuccess}
                     onCancel={handleBackToDashboard}
                 />;
             case 'topup':
-                if (!user || user.plan !== 'payg') { handleBackToDashboard(); return null; }
+                // FIX: Do not return null or call state setter here. 
+                // Render fallback Dashboard if logic fails, useEffect will handle navigation if needed elsewhere.
+                if (!user || user.plan !== 'payg') { 
+                     return <Dashboard
+                        onStartUpdate={() => navigateTo('updater')}
+                        onStartChecklist={() => navigateTo('checklist')}
+                        showOnboardingWalkthrough={false}
+                        onCloseWalkthrough={handleCloseWalkthrough}
+                        onGoToProfileSetup={handleGoToProfileSetup}
+                        onSelectDocument={handleSelectDocument}
+                    />;
+                }
                 return <PaygPaymentPage
                     onTopUpSuccess={handleTopUpSuccess}
                     onCancel={handleBackToDashboard}
                     onUpgrade={() => navigateTo('upgrade')}
                 />;
             case 'knowledge-base':
-                if (!user) { handleBackToDashboard(); return null; }
+                if (!user) { 
+                     return <Dashboard
+                        onStartUpdate={() => navigateTo('updater')}
+                        onStartChecklist={() => navigateTo('checklist')}
+                        showOnboardingWalkthrough={false}
+                        onCloseWalkthrough={handleCloseWalkthrough}
+                        onGoToProfileSetup={handleGoToProfileSetup}
+                        onSelectDocument={handleSelectDocument}
+                    />;
+                }
                 return <KnowledgeBase onBack={handleBackToDashboard} />;
             default:
                 return <Dashboard
