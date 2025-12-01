@@ -3,7 +3,7 @@
 declare const Deno: any;
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-import { GoogleGenAI } from 'https://esm.sh/@google/genai@0.1.1'
+import { GoogleGenAI } from 'npm:@google/genai'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
