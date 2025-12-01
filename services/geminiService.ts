@@ -13,7 +13,7 @@ const INDUSTRY_SPECIFIC_GUIDANCE: Record<string, Record<string, string>> = {
 };
 
 // Helper to stream from Edge Function (Proxy Pattern)
-async function* streamFromEdgeFunction(model: string, prompt: string) {
+async function* streamFromEdgeFunction(model: string, prompt: string, config?: any) {
     const { data: { session } } = await supabase.auth.getSession();
     
     if (!session) throw new Error("Authentication required");
@@ -24,7 +24,7 @@ async function* streamFromEdgeFunction(model: string, prompt: string) {
             'Authorization': `Bearer ${session.access_token}`,
             'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ model, prompt, stream: true })
+        body: JSON.stringify({ model, prompt, stream: true, config })
     });
 
     if (!response.ok) {
@@ -61,9 +61,12 @@ async function* streamFromEdgeFunction(model: string, prompt: string) {
 }
 
 // Simple non-streaming call via Edge Function
-async function callEdgeFunction(model: string, prompt: string) {
+async function callEdgeFunction(model: string, prompt: string, config?: any) {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) throw new Error("Authentication required");
+
     const { data, error } = await supabase.functions.invoke('generate-content', {
-        body: { model, prompt, stream: false }
+        body: { model, prompt, stream: false, config }
     });
 
     if (error) throw error;
@@ -90,7 +93,13 @@ export const generatePolicyStream = async function* (type: string, answers: Form
   Use a professional yet accessible tone.
   Format with Markdown.`;
 
-  for await (const chunk of streamFromEdgeFunction(model, prompt)) {
+  // Enable Google Search for updated regulations if needed, but for policies standard logic is usually fine.
+  // Using googleSearch tool for policies ensures latest legislative changes.
+  const config = {
+      tools: [{ googleSearch: {} }]
+  };
+
+  for await (const chunk of streamFromEdgeFunction(model, prompt, config)) {
     yield chunk; 
   }
 };
@@ -134,7 +143,11 @@ export const updatePolicy = async (content: string, instructions?: string): Prom
        - updatedText: The new snippet.
     `;
 
-    const response = await callEdgeFunction(model, prompt);
+    const config = {
+        responseMimeType: "application/json"
+    };
+
+    const response = await callEdgeFunction(model, prompt, config);
     
     const text = response.text || response.candidates?.[0]?.content?.parts?.[0]?.text;
     

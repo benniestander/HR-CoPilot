@@ -3,7 +3,7 @@
 declare const Deno: any;
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-import { GoogleGenAI } from 'https://esm.sh/@google/genai@0.1.3'
+import { GoogleGenAI } from 'https://esm.sh/@google/genai'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -34,13 +34,16 @@ Deno.serve(async (req: any) => {
     if (!apiKey) throw new Error('Missing Gemini API Key');
     
     const ai = new GoogleGenAI({ apiKey });
-    const { model, prompt, stream } = await req.json();
+    const { model, prompt, stream, config } = await req.json();
+
+    const requestConfig = config || {};
 
     // 3. Call AI
     if (stream) {
       const response = await ai.models.generateContentStream({
         model: model || 'gemini-2.5-flash',
         contents: prompt,
+        config: requestConfig
       });
 
       const readable = new ReadableStream({
@@ -48,9 +51,12 @@ Deno.serve(async (req: any) => {
           try {
             for await (const chunk of response) {
               const text = chunk.text;
-              if (text) {
-                // Send raw text chunks for simpler client parsing or JSON if needed
-                controller.enqueue(new TextEncoder().encode(JSON.stringify({ text }) + '\n'));
+              // CRITICAL: Extract grounding metadata to pass to client
+              const groundingMetadata = chunk.candidates?.[0]?.groundingMetadata;
+              
+              if (text || groundingMetadata) {
+                // Send raw chunks as JSON
+                controller.enqueue(new TextEncoder().encode(JSON.stringify({ text, groundingMetadata }) + '\n'));
               }
             }
             controller.close();
@@ -67,6 +73,7 @@ Deno.serve(async (req: any) => {
       const response = await ai.models.generateContent({
         model: model || 'gemini-2.5-flash',
         contents: prompt,
+        config: requestConfig
       });
       return new Response(JSON.stringify(response), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },

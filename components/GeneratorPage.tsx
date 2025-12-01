@@ -119,9 +119,9 @@ const GeneratorPage: React.FC<GeneratorPageProps> = ({ selectedItem, initialData
                         fullText += chunk.text;
                         setGeneratedDocument(prev => prev + chunk.text);
                     }
-                    const chunkAny = chunk as any;
-                    const newSources = chunkAny.candidates?.[0]?.groundingMetadata?.groundingChunks;
-                    if (newSources) {
+                    // Handle Grounding Metadata from Edge Function Chunk
+                    if (chunk.groundingMetadata?.groundingChunks) {
+                        const newSources = chunk.groundingMetadata.groundingChunks;
                         const uniqueNewSources: Source[] = newSources
                             .filter((s: any) => s.web?.uri)
                             .map((s: any) => ({ web: { uri: s.web!.uri!, title: s.web!.title || s.web!.uri! } }));

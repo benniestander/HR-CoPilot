@@ -28,11 +28,9 @@ Deno.serve(async (req: any) => {
     const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
     
     // CRIT-1 FIX: Server-Side Price Validation
-    // We trust the client for the 'attempt', but we verify the 'amount' before fulfilling the service.
     let finalAmount = amountInCents;
     
     if (metadata?.type === 'subscription') {
-        // Fetch official price from DB to prevent tampering (e.g. client sending R1.00)
         const { data: setting } = await supabaseAdmin
             .from('app_settings')
             .select('value')
@@ -40,17 +38,9 @@ Deno.serve(async (req: any) => {
             .single();
             
         if (setting && setting.value) {
-            // In a production scenario, you would also account for coupons here.
-            // For strict security, we ensure the amount matches the expected price (or discounted price).
-            // Here we ensure it is at least not trivial (e.g. < R10) if no coupon logic is complex, 
-            // but ideally: expectedPrice = setting.value - (couponValue || 0).
-            
-            // For this fix, we simply ensure strict adherence if no coupon, or loose sanity check.
-            // Let's enforce the DB price if no coupon is present.
+            // Check if coupon is applied
             if (!metadata.couponCode && amountInCents !== setting.value) {
-                 // Allow a small buffer for legacy reasons or just reject? Reject is safer.
-                 // However, to avoid breaking valid discounts handled on client, we'll implement a sanity check.
-                 // Sanity Check: Pro plan shouldn't be less than R100 (10000 cents) without a verified coupon.
+                 // Sanity Check: Pro plan shouldn't be less than R100 without a coupon
                  if (amountInCents < 10000) {
                      throw new Error("Invalid subscription amount detected. Potential tampering.");
                  }
