@@ -5,7 +5,7 @@ import FormSelector from './FormSelector';
 import DocumentHistory from './DocumentHistory';
 import ComplianceScore from './ComplianceScore';
 import OnboardingWalkthrough from './OnboardingWalkthrough';
-import { MasterPolicyIcon, FormsIcon, ComplianceIcon, UpdateIcon, FileIcon, BookIcon } from './Icons';
+import { MasterPolicyIcon, FormsIcon, ComplianceIcon, UpdateIcon, FileIcon } from './Icons';
 import { useUIContext } from '../contexts/UIContext';
 import { useAuthContext } from '../contexts/AuthContext';
 import { useDataContext } from '../contexts/DataContext';
@@ -56,31 +56,21 @@ const Dashboard: React.FC<DashboardProps> = ({
   return (
     <div className="max-w-7xl mx-auto">
       <div className="mb-8">
-        <div className="flex justify-between items-end mb-6">
-            <div>
-                <h1 className="text-3xl font-bold text-secondary">
-                Welcome back, {user?.name ? user.name.split(' ')[0] : 'HR Hero'}!
-                </h1>
-                {user?.plan === 'payg' && user.creditBalance < 7500 && (
-                    <p className="text-sm text-gray-500 mt-1">
-                        <span className="text-amber-600 font-semibold mr-2">Low Balance:</span>
-                        Credit Balance: <span className="font-bold text-green-600">R{(Number(user.creditBalance || 0)/100).toFixed(2)}</span>
-                    </p>
-                )}
-                {user?.plan === 'payg' && user.creditBalance >= 7500 && (
-                    <p className="text-sm text-gray-500 mt-1">
-                        Credit Balance: <span className="font-bold text-green-600">R{(Number(user.creditBalance || 0)/100).toFixed(2)}</span>
-                    </p>
-                )}
-            </div>
-            
-            <button 
-                onClick={() => navigateTo('knowledge-base')}
-                className="flex items-center text-sm font-semibold text-primary hover:text-primary-dark hover:underline bg-white px-4 py-2 rounded-full border border-gray-200 shadow-sm transition-all"
-            >
-                <BookIcon className="w-4 h-4 mr-2" />
-                Help & Guides
-            </button>
+        <div className="mb-6">
+            <h1 className="text-3xl font-bold text-secondary">
+            Welcome back, {user?.name ? user.name.split(' ')[0] : 'HR Hero'}!
+            </h1>
+            {user?.plan === 'payg' && user.creditBalance < 7500 && (
+                <p className="text-sm text-gray-500 mt-1">
+                    <span className="text-amber-600 font-semibold mr-2">Low Balance:</span>
+                    Credit Balance: <span className="font-bold text-green-600">R{(Number(user.creditBalance || 0)/100).toFixed(2)}</span>
+                </p>
+            )}
+            {user?.plan === 'payg' && user.creditBalance >= 7500 && (
+                <p className="text-sm text-gray-500 mt-1">
+                    Credit Balance: <span className="font-bold text-green-600">R{(Number(user.creditBalance || 0)/100).toFixed(2)}</span>
+                </p>
+            )}
         </div>
 
         {user?.profile && (

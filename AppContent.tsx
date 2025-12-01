@@ -1,3 +1,4 @@
+
 import React, { useRef, useEffect, lazy, Suspense } from 'react';
 import Dashboard from './components/Dashboard';
 import FullPageLoader from './components/FullPageLoader';
@@ -10,7 +11,7 @@ import LegalModal from './components/LegalModal';
 import AdminNotificationPanel from './components/AdminNotificationPanel';
 import InitialProfileSetup from './components/InitialProfileSetup';
 import ConfirmationModal from './components/ConfirmationModal';
-import { UserIcon, BellIcon } from './components/Icons';
+import { UserIcon, BellIcon, BookIcon } from './components/Icons';
 import { useAuthContext } from './contexts/AuthContext';
 import { useDataContext } from './contexts/DataContext';
 import { useUIContext } from './contexts/UIContext';
@@ -229,7 +230,7 @@ const AppContent: React.FC = () => {
         const unreadCount = adminNotifications.filter(n => !n.isRead).length;
 
         return (
-            <header className="bg-white shadow-sm py-4">
+            <header className="bg-white shadow-sm py-4 sticky top-0 z-40">
                 <div className="container mx-auto flex justify-between items-center px-6">
                     <img
                         src="https://i.postimg.cc/h48FMCNY/edited-image-11-removebg-preview.png"
@@ -259,21 +260,33 @@ const AppContent: React.FC = () => {
                         </div>
                     ) : (
                         <div className="flex items-center space-x-4">
-                            <span className="text-sm text-gray-600 hidden sm:block">{user?.email}</span>
+                            <button 
+                                onClick={() => navigateTo('knowledge-base')}
+                                className="flex items-center text-sm font-semibold text-gray-600 hover:text-primary transition-colors bg-gray-50 hover:bg-gray-100 px-3 py-1.5 rounded-md border border-gray-200"
+                                title="Help & Guides"
+                            >
+                                <BookIcon className="w-5 h-5 mr-1.5" />
+                                <span className="hidden sm:inline">Help</span>
+                            </button>
+
+                            <div className="h-6 w-px bg-gray-200 hidden sm:block"></div>
+
+                            <span className="text-sm text-gray-600 hidden md:block">{user?.email}</span>
+                            
                             {user?.plan === 'payg' && (
-                                <div className="text-sm font-semibold bg-green-100 text-green-800 px-3 py-1 rounded-full">
+                                <div className="text-sm font-semibold bg-green-100 text-green-800 px-3 py-1 rounded-full whitespace-nowrap">
                                     Credit: R{(Number(user.creditBalance) / 100).toFixed(2)}
                                 </div>
                             )}
-                            <button onClick={handleShowProfile} className="flex items-center text-sm font-semibold text-primary hover:underline">
+                            <button onClick={handleShowProfile} className="flex items-center text-sm font-semibold text-primary hover:underline whitespace-nowrap">
                                 {user?.photoURL ? (
                                     <img src={user.photoURL} alt="Profile" className="w-6 h-6 rounded-full mr-2 object-cover" />
                                 ) : (
                                     <UserIcon className="w-5 h-5 mr-1" />
                                 )}
-                                My Profile
+                                <span className="hidden sm:inline">My Profile</span>
                             </button>
-                            <button onClick={handleLogout} className="text-sm font-semibold text-red-600 hover:underline">
+                            <button onClick={handleLogout} className="text-sm font-semibold text-red-600 hover:underline whitespace-nowrap">
                                 Logout
                             </button>
                         </div>
