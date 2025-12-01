@@ -14,11 +14,12 @@ import * as pdfjsLib from 'pdfjs-dist';
 const INTERNAL_UPDATE_COST_CENTS = 2500; // R25.00
 const EXTERNAL_UPDATE_COST_CENTS = 5000; // R50.00
 
-// --- HIGH-4: Web Worker for Diffing ---
+// --- HIGH-4: Web Worker for Diffing (Performance Fix) ---
 const WORKER_CODE = `
 self.onmessage = function(e) {
     const { original, updated } = e.data;
     
+    // Improved tokenizer for smoother diffing
     const tokenize = (text) => text.split(/(\\s+)/); 
     
     const originalTokens = tokenize(original);
@@ -46,7 +47,8 @@ self.onmessage = function(e) {
             j++;
         } else {
             let foundMatch = false;
-            const lookaheadLimit = 50; // Increased lookahead in worker
+            // Increased lookahead for better synchronization on large docs
+            const lookaheadLimit = 100; 
             
             for (let k = 1; k < lookaheadLimit; k++) {
                 if (j + k < updatedTokens.length && originalTokens[i] === updatedTokens[j + k]) {
@@ -75,24 +77,29 @@ const DiffViewer: React.FC<{ originalText: string; updatedText: string }> = ({ o
     useEffect(() => {
         setIsCalculating(true);
         const blob = new Blob([WORKER_CODE], { type: "application/javascript" });
-        const worker = new Worker(URL.createObjectURL(blob));
+        const workerUrl = URL.createObjectURL(blob);
+        const worker = new Worker(workerUrl);
 
         worker.onmessage = (e) => {
             setDiff(e.data);
             setIsCalculating(false);
             worker.terminate();
+            URL.revokeObjectURL(workerUrl);
         };
 
         worker.postMessage({ original: originalText, updated: updatedText });
 
-        return () => worker.terminate();
+        return () => {
+            worker.terminate();
+            URL.revokeObjectURL(workerUrl);
+        };
     }, [originalText, updatedText]);
 
     if (isCalculating) {
         return (
             <div className="flex items-center justify-center h-40 bg-gray-50 border border-gray-200 rounded-md">
                 <LoadingIcon className="w-6 h-6 animate-spin text-primary mr-3" />
-                <span className="text-gray-500">Calculating differences...</span>
+                <span className="text-gray-500">Calculating differences (processed in background)...</span>
             </div>
         );
     }
@@ -288,7 +295,6 @@ const PolicyUpdater: React.FC<PolicyUpdaterProps> = ({ onBack }) => {
               } catch (e) {
                   console.warn("Mammoth failed on .doc, falling back to raw text extraction", e);
                   const rawText = await extractTextFromText(file);
-                  // HIGH-5 FIX: Better fallback validation
                   extractedText = rawText.replace(/[^\x20-\x7E\n\r\t]/g, '');
                   if (extractedText.length < 50) {
                        throw new Error(`This .doc file seems to be in an older binary format that cannot be read by the browser. Please open it in Word and save as .docx, then try again.`);
@@ -299,9 +305,9 @@ const PolicyUpdater: React.FC<PolicyUpdaterProps> = ({ onBack }) => {
               throw new Error('Unsupported file format. Please upload a PDF, Word (.docx/.doc), RTF, or Text file.');
           }
 
-          // HIGH-5 FIX: Empty Text Validation
+          // HIGH-5 FIX: Defensive Validation for Empty Text (Scanned PDFs)
           if (!extractedText || extractedText.trim().length < 50) {
-              throw new Error('Could not extract sufficient text from the file. It might be an image-based scan or encrypted.');
+              throw new Error('Could not extract sufficient text from the file. It might be an image-based scan (OCR required) or an encrypted document.');
           }
 
           const tempDoc: GeneratedDocument = {
@@ -334,8 +340,6 @@ const PolicyUpdater: React.FC<PolicyUpdaterProps> = ({ onBack }) => {
       }
   };
 
-  // ... (Rest of component methods - executeUpdate, handleUpdateClick, etc. - remain unchanged)
-  
   const executeUpdate = async () => {
     if (!selectedDocument || !updateMethod) return;
     setConfirmation(null);
@@ -554,7 +558,6 @@ const PolicyUpdater: React.FC<PolicyUpdaterProps> = ({ onBack }) => {
       }
   };
 
-  // ... (Render Functions - No Changes) ...
   const renderSelectStep = () => (
     <div className="bg-white p-8 rounded-lg shadow-md border border-gray-200">
       <div className="text-center">

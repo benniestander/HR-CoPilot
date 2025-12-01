@@ -36,7 +36,6 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, setUser, unverifiedUser, isAdmin, isLoading, needsOnboarding, setNeedsOnboarding } = useAuth();
   
-  // HIGH-6 FIX: Additional local loading state to sync auth + profile fetch
   const [authPage, setAuthPage] = useState<AuthPage>('landing');
   const [authEmail, setAuthEmail] = useState<string>('');
   const [authFlow, setAuthFlow] = useState<AuthFlow | undefined>(undefined);
@@ -60,7 +59,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const handleForgotPassword = async (email: string) => {
     const { error } = await (supabase.auth as any).resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/#/reset-password`, // Ensure this route exists or is handled
+      redirectTo: `${window.location.origin}/#/reset-password`,
     });
     if (error) throw error;
   };
@@ -106,7 +105,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const oneYearAgo = new Date();
         oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
         
-        // If no transactions exist, they cannot be validly subscribed (unless manually overridden in DB without log, which is discouraged)
+        // If no transactions exist, they cannot be validly subscribed
         if (!user.transactions || user.transactions.length === 0) {
             return false;
         }
@@ -114,13 +113,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         // Find a qualifying transaction
         const validTransaction = user.transactions.find(tx => {
             const desc = tx.description ? tx.description.toLowerCase() : '';
-            // Robust keyword matching for any subscription-like transaction
             const isSubTx = /subscription|pro plan|membership/i.test(desc);
-            
             const txDate = new Date(tx.date);
-            // Check if transaction date is valid and occurred AFTER one year ago
             const isValidDate = !isNaN(txDate.getTime()) && txDate > oneYearAgo;
-
             return isSubTx && isValidDate;
         });
 
@@ -129,13 +124,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return false;
   }, [user]);
 
+  // HIGH-6 FIX: Ensure global loading state waits for profile hydration.
+  // If we have a user object but the profile is empty AND we aren't in "needsOnboarding" state (which is a valid state where profile is empty),
+  // then we are likely still fetching the profile details from DB.
+  // We check keys of user.profile. If empty, and we didn't explicitly flag 'needsOnboarding', assume fetching.
+  const isProfileHydrating = !!user && 
+                             user.profile && 
+                             Object.keys(user.profile).length <= 1 && // companyName/industry often defaults
+                             !user.profile.companyName && // Critical field check
+                             !needsOnboarding;
+
+  const combinedLoading = isLoading || isProfileHydrating;
+
   const value = {
     user,
     setUser,
     unverifiedUser,
     isAdmin,
-    // Ensure loading stays true if user is logged in but profile hasn't populated yet
-    isLoading: isLoading || (!!user && Object.keys(user.profile).length === 0 && !needsOnboarding),
+    isLoading: combinedLoading,
     authPage,
     setAuthPage,
     authEmail,

@@ -64,10 +64,8 @@ const GeneratorPage: React.FC<GeneratorPageProps> = ({ selectedItem, initialData
     // Manage document ID locally to handle transition from Temp ID -> Real DB UUID
     const [docId, setDocId] = useState<string | undefined>(initialData?.id);
     
-    // Initialize hasPaidSession with true if we came from Dashboard with isPrePaid flag
     const [hasPaidSession, setHasPaidSession] = useState(isPrePaid);
 
-    // Reset global pre-paid flag so if they navigate away and back, they don't skip payment next time
     useEffect(() => {
         if (isPrePaid) {
             setIsPrePaid(false); 
@@ -84,11 +82,10 @@ const GeneratorPage: React.FC<GeneratorPageProps> = ({ selectedItem, initialData
 
         let deductedAmount = 0;
 
-        // 1. Handle PAYG Credit Deduction (Fallback Logic)
+        // 1. Handle PAYG Credit Deduction (CRIT-3 Safe Logic)
         if (user.plan === 'payg' && !initialData && !hasPaidSession) {
             setIsDeducting(true);
             
-            // Use Dynamic Pricing from Context
             const price = getDocPrice(selectedItem);
 
             if (price > 0) {
@@ -122,7 +119,6 @@ const GeneratorPage: React.FC<GeneratorPageProps> = ({ selectedItem, initialData
                         fullText += chunk.text;
                         setGeneratedDocument(prev => prev + chunk.text);
                     }
-                    // Cast chunk to any to access potential metadata that might be added in future stream updates
                     const chunkAny = chunk as any;
                     const newSources = chunkAny.candidates?.[0]?.groundingMetadata?.groundingChunks;
                     if (newSources) {
@@ -151,9 +147,7 @@ const GeneratorPage: React.FC<GeneratorPageProps> = ({ selectedItem, initialData
             }
             setStatus('success');
             
-            // Create Document Object
             const newDoc: GeneratedDocument = {
-                // Use existing ID if editing/regenerating, otherwise temp ID
                 id: docId || `${selectedItem.type}-${Date.now()}`,
                 title: selectedItem.title,
                 kind: selectedItem.kind,
@@ -168,7 +162,6 @@ const GeneratorPage: React.FC<GeneratorPageProps> = ({ selectedItem, initialData
             };
             setFinalizedDoc(newDoc);
 
-            // AUTO-SAVE AS DRAFT
             try {
                 const savedDoc = await onDocumentGenerated(newDoc, docId, false);
                 if (savedDoc) {
@@ -185,12 +178,11 @@ const GeneratorPage: React.FC<GeneratorPageProps> = ({ selectedItem, initialData
             setStatus('error');
             setErrorMessage(error.message || 'An unexpected error occurred. Please try again.');
             
-            // CRIT-3 FIX: Refund on failure
+            // CRIT-3 FIX: Compensating Transaction (Refund)
             if (deductedAmount > 0) {
                 try {
-                    // Negative deduction = Refund
                     await handleDeductCredit(-deductedAmount, `Refund: Generation Failed (${selectedItem.title})`);
-                    setHasPaidSession(false); // Reset so next try pays again
+                    setHasPaidSession(false);
                     setToastMessage("Generation failed. Your credits have been refunded.");
                 } catch (refundError) {
                     console.error("Refund failed:", refundError);
@@ -200,7 +192,6 @@ const GeneratorPage: React.FC<GeneratorPageProps> = ({ selectedItem, initialData
         }
     }, [selectedItem, companyProfile, questionAnswers, initialData, user, handleDeductCredit, hasPaidSession, docId, onDocumentGenerated, setToastMessage, getDocPrice]);
 
-    // Handle manual content edits from PolicyPreview
     const handleContentChange = (newContent: string) => {
         if (finalizedDoc) {
             setFinalizedDoc(prev => prev ? ({ ...prev, content: newContent }) : null);
@@ -211,7 +202,6 @@ const GeneratorPage: React.FC<GeneratorPageProps> = ({ selectedItem, initialData
         if (finalizedDoc) {
             setIsSaving(true);
             try {
-                // Save and Navigate
                 await onDocumentGenerated(finalizedDoc, docId, true);
             } catch (error) {
                 console.error("Error saving document:", error);

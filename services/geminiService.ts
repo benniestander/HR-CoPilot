@@ -1,3 +1,4 @@
+
 import { supabase } from './supabase';
 import type { FormAnswers, PolicyUpdateResult } from '../types';
 
@@ -11,7 +12,7 @@ const INDUSTRY_SPECIFIC_GUIDANCE: Record<string, Record<string, string>> = {
   }
 };
 
-// Helper to stream from Edge Function
+// Helper to stream from Edge Function (Proxy Pattern)
 async function* streamFromEdgeFunction(model: string, prompt: string) {
     const { data: { session } } = await supabase.auth.getSession();
     
@@ -34,18 +35,33 @@ async function* streamFromEdgeFunction(model: string, prompt: string) {
 
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
+    let buffer = '';
 
     while (true) {
         const { done, value } = await reader.read();
         if (done) break;
-        const text = decoder.decode(value, { stream: true });
-        // Emulate the structure expected by the UI if needed, or just yield text
-        yield { text }; 
+        
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        
+        // Process complete lines (NDJSON)
+        for (let i = 0; i < lines.length - 1; i++) {
+            const line = lines[i].trim();
+            if (line) {
+                try {
+                    const parsed = JSON.parse(line);
+                    yield parsed; 
+                } catch (e) {
+                    console.warn("Failed to parse chunk:", line);
+                }
+            }
+        }
+        buffer = lines[lines.length - 1]; // Keep partial line
     }
 }
 
-// Simple non-streaming call
-async function callEdgeFunction(model: string, prompt: string, isJson: boolean = false) {
+// Simple non-streaming call via Edge Function
+async function callEdgeFunction(model: string, prompt: string) {
     const { data, error } = await supabase.functions.invoke('generate-content', {
         body: { model, prompt, stream: false }
     });
@@ -74,9 +90,8 @@ export const generatePolicyStream = async function* (type: string, answers: Form
   Use a professional yet accessible tone.
   Format with Markdown.`;
 
-  // Use Proxy Stream
   for await (const chunk of streamFromEdgeFunction(model, prompt)) {
-    yield chunk; // Chunk structure { text: string } matches what GeneratorPage expects mostly
+    yield chunk; 
   }
 };
 
@@ -119,12 +134,8 @@ export const updatePolicy = async (content: string, instructions?: string): Prom
        - updatedText: The new snippet.
     `;
 
-    // Note: Edge function should handle the JSON response properly
-    // We might need to ask the edge function to force JSON mode if the model supports it
-    // For now, we assume the prompt engineering + edge function proxy returns the response object
     const response = await callEdgeFunction(model, prompt);
     
-    // The Edge function returns the full Gemini response object. We need to extract text.
     const text = response.text || response.candidates?.[0]?.content?.parts?.[0]?.text;
     
     if (!text) throw new Error("No response from Ingcweti AI");

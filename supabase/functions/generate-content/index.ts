@@ -16,7 +16,7 @@ Deno.serve(async (req: any) => {
   }
 
   try {
-    // 1. Verify User (CRIT-2 Security)
+    // 1. Verify User (CRIT-2 Security: Key used only on server)
     const authHeader = req.headers.get('Authorization')!;
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
@@ -43,14 +43,14 @@ Deno.serve(async (req: any) => {
         contents: prompt,
       });
 
-      // Transform AsyncIterable into ReadableStream
       const readable = new ReadableStream({
         async start(controller) {
           try {
             for await (const chunk of response) {
               const text = chunk.text;
               if (text) {
-                controller.enqueue(new TextEncoder().encode(text));
+                // Send raw text chunks for simpler client parsing or JSON if needed
+                controller.enqueue(new TextEncoder().encode(JSON.stringify({ text }) + '\n'));
               }
             }
             controller.close();
@@ -61,7 +61,7 @@ Deno.serve(async (req: any) => {
       });
 
       return new Response(readable, {
-        headers: { ...corsHeaders, 'Content-Type': 'text/plain' },
+        headers: { ...corsHeaders, 'Content-Type': 'application/x-ndjson' },
       });
     } else {
       const response = await ai.models.generateContent({
