@@ -1,10 +1,8 @@
 
-import { supabase } from './supabase';
+import { GoogleGenAI } from "@google/genai";
 import type { FormAnswers, PolicyUpdateResult } from '../types';
 
-// Safe environment variable access
-const env = (import.meta as any).env || {};
-const SUPABASE_URL = env.VITE_SUPABASE_URL || "https://cljhzqmssrgynlpgpogi.supabase.co";
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 const INDUSTRY_SPECIFIC_GUIDANCE: Record<string, Record<string, string>> = {
   'Professional Services': {
@@ -15,83 +13,6 @@ const INDUSTRY_SPECIFIC_GUIDANCE: Record<string, Record<string, string>> = {
     'expense-reimbursement': "Detail the procedure for distinguishing between billable and non-billable expenses, client rebilling processes, and any specific markup policies on expenses."
   }
 };
-
-// Helper to stream from Edge Function (Proxy Pattern)
-async function* streamFromEdgeFunction(model: string, prompt: string, config?: any) {
-    const { data: { session } } = await supabase.auth.getSession();
-    
-    if (!session) throw new Error("Authentication required");
-
-    const response = await fetch(`${SUPABASE_URL}/functions/v1/generate-content`, {
-        method: 'POST',
-        headers: {
-            'Authorization': `Bearer ${session.access_token}`,
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ model, prompt, stream: true, config })
-    });
-
-    if (!response.ok) {
-        let errorMsg = response.statusText;
-        try {
-            const errorBody = await response.json();
-            errorMsg = errorBody.error || JSON.stringify(errorBody);
-        } catch {
-            // If JSON parse fails, try text
-            try {
-                const text = await response.text();
-                if (text) errorMsg = text;
-            } catch (e) {
-                // ignore
-            }
-        }
-        throw new Error(`AI Service Error: ${errorMsg}`);
-    }
-
-    if (!response.body) throw new Error("No response body");
-
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder();
-    let buffer = '';
-
-    while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split('\n');
-        
-        // Process complete lines (NDJSON)
-        for (let i = 0; i < lines.length - 1; i++) {
-            const line = lines[i].trim();
-            if (line) {
-                try {
-                    const parsed = JSON.parse(line);
-                    yield parsed; 
-                } catch (e) {
-                    console.warn("Failed to parse chunk:", line);
-                }
-            }
-        }
-        buffer = lines[lines.length - 1]; // Keep partial line
-    }
-}
-
-// Simple non-streaming call via Edge Function
-async function callEdgeFunction(model: string, prompt: string, config?: any) {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) throw new Error("Authentication required");
-
-    const { data, error } = await supabase.functions.invoke('generate-content', {
-        body: { model, prompt, stream: false, config }
-    });
-
-    if (error) {
-        console.error("Edge Function Invocation Error:", error);
-        throw new Error(error.message || "Failed to contact AI service");
-    }
-    return data;
-}
 
 export const generatePolicyStream = async function* (type: string, answers: FormAnswers) {
   const model = 'gemini-2.5-flash';
@@ -113,14 +34,19 @@ export const generatePolicyStream = async function* (type: string, answers: Form
   Use a professional yet accessible tone.
   Format with Markdown.`;
 
-  // Enable Google Search for updated regulations if needed, but for policies standard logic is usually fine.
-  // Using googleSearch tool for policies ensures latest legislative changes.
-  const config = {
-      tools: [{ googleSearch: {} }]
-  };
+  const response = await ai.models.generateContentStream({
+    model: model,
+    contents: prompt,
+    config: {
+        tools: [{ googleSearch: {} }]
+    }
+  });
 
-  for await (const chunk of streamFromEdgeFunction(model, prompt, config)) {
-    yield chunk; 
+  for await (const chunk of response) {
+    yield {
+        text: chunk.text,
+        groundingMetadata: chunk.candidates?.[0]?.groundingMetadata
+    };
   }
 };
 
@@ -140,7 +66,12 @@ export const generateFormStream = async function* (type: string, answers: FormAn
     3. Ensure it looks professional and is ready to print.
     `;
   
-    for await (const chunk of streamFromEdgeFunction(model, prompt)) {
+    const response = await ai.models.generateContentStream({
+        model: model,
+        contents: prompt
+    });
+
+    for await (const chunk of response) {
         if (chunk.text) yield chunk.text;
     }
 };
@@ -163,13 +94,15 @@ export const updatePolicy = async (content: string, instructions?: string): Prom
        - updatedText: The new snippet.
     `;
 
-    const config = {
-        responseMimeType: "application/json"
-    };
-
-    const response = await callEdgeFunction(model, prompt, config);
+    const response = await ai.models.generateContent({
+        model: model,
+        contents: prompt,
+        config: {
+            responseMimeType: "application/json"
+        }
+    });
     
-    const text = response.text || response.candidates?.[0]?.content?.parts?.[0]?.text;
+    const text = response.text;
     
     if (!text) throw new Error("No response from Ingcweti AI");
     
@@ -182,7 +115,12 @@ export const explainPolicyTypeStream = async function* (title: string) {
     const model = 'gemini-2.5-flash';
     const prompt = `Explain the purpose and key components of a "${title}" in the context of South African HR law. Keep it brief and informative for a business owner.`;
     
-    for await (const chunk of streamFromEdgeFunction(model, prompt)) {
+    const response = await ai.models.generateContentStream({
+        model: model,
+        contents: prompt
+    });
+
+    for await (const chunk of response) {
         if (chunk.text) yield chunk.text;
     }
 }
@@ -191,7 +129,12 @@ export const explainFormTypeStream = async function* (title: string) {
     const model = 'gemini-2.5-flash';
     const prompt = `Explain the purpose of a "${title}" form in South African HR management. Keep it brief.`;
     
-    for await (const chunk of streamFromEdgeFunction(model, prompt)) {
+    const response = await ai.models.generateContentStream({
+        model: model,
+        contents: prompt
+    });
+
+    for await (const chunk of response) {
         if (chunk.text) yield chunk.text;
     }
 }
