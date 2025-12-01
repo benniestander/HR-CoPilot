@@ -32,7 +32,20 @@ async function* streamFromEdgeFunction(model: string, prompt: string, config?: a
     });
 
     if (!response.ok) {
-        throw new Error(`AI Service Error: ${response.statusText}`);
+        let errorMsg = response.statusText;
+        try {
+            const errorBody = await response.json();
+            errorMsg = errorBody.error || JSON.stringify(errorBody);
+        } catch {
+            // If JSON parse fails, try text
+            try {
+                const text = await response.text();
+                if (text) errorMsg = text;
+            } catch (e) {
+                // ignore
+            }
+        }
+        throw new Error(`AI Service Error: ${errorMsg}`);
     }
 
     if (!response.body) throw new Error("No response body");
@@ -73,7 +86,10 @@ async function callEdgeFunction(model: string, prompt: string, config?: any) {
         body: { model, prompt, stream: false, config }
     });
 
-    if (error) throw error;
+    if (error) {
+        console.error("Edge Function Invocation Error:", error);
+        throw new Error(error.message || "Failed to contact AI service");
+    }
     return data;
 }
 

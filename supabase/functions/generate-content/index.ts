@@ -3,7 +3,7 @@
 declare const Deno: any;
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-import { GoogleGenAI } from 'https://esm.sh/@google/genai'
+import { GoogleGenAI } from 'https://esm.sh/@google/genai@0.1.1'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -26,24 +26,24 @@ Deno.serve(async (req: any) => {
 
     const { data: { user }, error: authError } = await supabaseClient.auth.getUser()
     if (authError || !user) {
-      return new Response('Unauthorized', { status: 401, headers: corsHeaders })
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
     }
 
     // 2. Initialize Gemini with Server-Side Key
     const apiKey = Deno.env.get('GEMINI_API_KEY');
-    if (!apiKey) throw new Error('Missing Gemini API Key');
+    if (!apiKey) {
+        return new Response(JSON.stringify({ error: 'Server Configuration Error: Missing Gemini API Key' }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
     
     const ai = new GoogleGenAI({ apiKey });
     const { model, prompt, stream, config } = await req.json();
-
-    const requestConfig = config || {};
 
     // 3. Call AI
     if (stream) {
       const response = await ai.models.generateContentStream({
         model: model || 'gemini-2.5-flash',
         contents: prompt,
-        config: requestConfig
+        config: config
       });
 
       const readable = new ReadableStream({
@@ -61,6 +61,10 @@ Deno.serve(async (req: any) => {
             }
             controller.close();
           } catch (e) {
+            console.error("Stream Error", e);
+            const errorMsg = e instanceof Error ? e.message : 'Unknown stream error';
+            // Try to send error as a final chunk if possible
+            try { controller.enqueue(new TextEncoder().encode(JSON.stringify({ error: errorMsg }) + '\n')); } catch {}
             controller.error(e);
           }
         },
@@ -73,7 +77,7 @@ Deno.serve(async (req: any) => {
       const response = await ai.models.generateContent({
         model: model || 'gemini-2.5-flash',
         contents: prompt,
-        config: requestConfig
+        config: config
       });
       return new Response(JSON.stringify(response), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -81,6 +85,7 @@ Deno.serve(async (req: any) => {
     }
 
   } catch (error: any) {
+    console.error("Generate Content Error:", error);
     return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
