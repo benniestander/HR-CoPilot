@@ -30,9 +30,11 @@ Deno.serve(async (req: any) => {
     }
 
     // 2. Initialize Gemini with Server-Side Key
-    const apiKey = Deno.env.get('GEMINI_API_KEY');
+    // Check multiple common variable names for the API Key
+    const apiKey = Deno.env.get('API_KEY') || Deno.env.get('GEMINI_API_KEY') || Deno.env.get('GOOGLE_API_KEY');
+    
     if (!apiKey) {
-        return new Response(JSON.stringify({ error: 'Server Configuration Error: Missing Gemini API Key' }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        return new Response(JSON.stringify({ error: 'Server Configuration Error: Missing API_KEY' }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
     
     const ai = new GoogleGenAI({ apiKey });
