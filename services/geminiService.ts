@@ -2,6 +2,10 @@
 import { supabase } from './supabase';
 import type { FormAnswers, PolicyUpdateResult } from '../types';
 
+// Safe environment variable access
+const env = (import.meta as any).env || {};
+const SUPABASE_URL = env.VITE_SUPABASE_URL || "https://cljhzqmssrgynlpgpogi.supabase.co";
+
 const INDUSTRY_SPECIFIC_GUIDANCE: Record<string, Record<string, string>> = {
   'Professional Services': {
     'confidentiality': "Place a strong emphasis on client confidentiality, professional ethics, and the secure handling of sensitive client documents and data. Reference professional body codes of conduct where applicable.",
@@ -18,7 +22,7 @@ async function* streamFromEdgeFunction(model: string, prompt: string, config?: a
     
     if (!session) throw new Error("Authentication required");
 
-    const response = await fetch(`${(import.meta as any).env.VITE_SUPABASE_URL}/functions/v1/generate-content`, {
+    const response = await fetch(`${SUPABASE_URL}/functions/v1/generate-content`, {
         method: 'POST',
         headers: {
             'Authorization': `Bearer ${session.access_token}`,
