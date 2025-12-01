@@ -1,15 +1,5 @@
-import { GoogleGenAI, GenerateContentResponse } from "@google/genai";
+import { supabase } from './supabase';
 import type { FormAnswers, PolicyUpdateResult } from '../types';
-
-// Standard Vite env access - Cleanest possible syntax with safe property access
-const env = (import.meta as any).env || {};
-const API_KEY = env.VITE_GEMINI_API_KEY || (typeof process !== 'undefined' ? process.env.API_KEY : '');
-
-if (!API_KEY) {
-    console.warn("Gemini API Key is missing. AI features will not work.");
-}
-
-const ai = new GoogleGenAI({ apiKey: API_KEY });
 
 const INDUSTRY_SPECIFIC_GUIDANCE: Record<string, Record<string, string>> = {
   'Professional Services': {
@@ -21,26 +11,47 @@ const INDUSTRY_SPECIFIC_GUIDANCE: Record<string, Record<string, string>> = {
   }
 };
 
-/**
- * Helper to retry async functions with exponential backoff
- */
-async function withRetry<T>(fn: () => Promise<T>, retries = 3, delay = 1000): Promise<T> {
-    try {
-        return await fn();
-    } catch (error: any) {
-        if (retries === 0) throw error;
-        
-        // Retry on specific error codes (503 Service Unavailable, 429 Too Many Requests)
-        const isRetryable = error.status === 503 || error.status === 429 || error.message?.includes('fetch failed');
-        
-        if (isRetryable) {
-            console.warn(`Gemini API Error. Retrying in ${delay}ms... (${retries} attempts left)`);
-            await new Promise(resolve => setTimeout(resolve, delay));
-            return withRetry(fn, retries - 1, delay * 2);
-        }
-        
-        throw error;
+// Helper to stream from Edge Function
+async function* streamFromEdgeFunction(model: string, prompt: string) {
+    const { data: { session } } = await supabase.auth.getSession();
+    
+    if (!session) throw new Error("Authentication required");
+
+    const response = await fetch(`${(import.meta as any).env.VITE_SUPABASE_URL}/functions/v1/generate-content`, {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${session.access_token}`,
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ model, prompt, stream: true })
+    });
+
+    if (!response.ok) {
+        throw new Error(`AI Service Error: ${response.statusText}`);
     }
+
+    if (!response.body) throw new Error("No response body");
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+
+    while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        const text = decoder.decode(value, { stream: true });
+        // Emulate the structure expected by the UI if needed, or just yield text
+        yield { text }; 
+    }
+}
+
+// Simple non-streaming call
+async function callEdgeFunction(model: string, prompt: string, isJson: boolean = false) {
+    const { data, error } = await supabase.functions.invoke('generate-content', {
+        body: { model, prompt, stream: false }
+    });
+
+    if (error) throw error;
+    return data;
 }
 
 export const generatePolicyStream = async function* (type: string, answers: FormAnswers) {
@@ -63,16 +74,9 @@ export const generatePolicyStream = async function* (type: string, answers: Form
   Use a professional yet accessible tone.
   Format with Markdown.`;
 
-  const response = await withRetry(() => ai.models.generateContentStream({
-    model,
-    contents: prompt,
-    config: {
-        responseMimeType: 'text/plain',
-    }
-  })) as AsyncIterable<GenerateContentResponse>;
-
-  for await (const chunk of response) {
-    yield chunk;
+  // Use Proxy Stream
+  for await (const chunk of streamFromEdgeFunction(model, prompt)) {
+    yield chunk; // Chunk structure { text: string } matches what GeneratorPage expects mostly
   }
 };
 
@@ -92,12 +96,7 @@ export const generateFormStream = async function* (type: string, answers: FormAn
     3. Ensure it looks professional and is ready to print.
     `;
   
-    const response = await withRetry(() => ai.models.generateContentStream({
-      model,
-      contents: prompt,
-    })) as AsyncIterable<GenerateContentResponse>;
-  
-    for await (const chunk of response) {
+    for await (const chunk of streamFromEdgeFunction(model, prompt)) {
         if (chunk.text) yield chunk.text;
     }
 };
@@ -120,29 +119,26 @@ export const updatePolicy = async (content: string, instructions?: string): Prom
        - updatedText: The new snippet.
     `;
 
-    const response = await withRetry(() => ai.models.generateContent({
-        model,
-        contents: prompt,
-        config: {
-            responseMimeType: 'application/json'
-        }
-    })) as GenerateContentResponse;
-
-    const text = response.text;
+    // Note: Edge function should handle the JSON response properly
+    // We might need to ask the edge function to force JSON mode if the model supports it
+    // For now, we assume the prompt engineering + edge function proxy returns the response object
+    const response = await callEdgeFunction(model, prompt);
+    
+    // The Edge function returns the full Gemini response object. We need to extract text.
+    const text = response.text || response.candidates?.[0]?.content?.parts?.[0]?.text;
+    
     if (!text) throw new Error("No response from Ingcweti AI");
-    return JSON.parse(text) as PolicyUpdateResult;
+    
+    // Clean markdown code blocks if present
+    const jsonStr = text.replace(/```json\n?|\n?```/g, '').trim();
+    return JSON.parse(jsonStr) as PolicyUpdateResult;
 };
 
 export const explainPolicyTypeStream = async function* (title: string) {
     const model = 'gemini-2.5-flash';
     const prompt = `Explain the purpose and key components of a "${title}" in the context of South African HR law. Keep it brief and informative for a business owner.`;
     
-    const response = await withRetry(() => ai.models.generateContentStream({
-        model,
-        contents: prompt
-    })) as AsyncIterable<GenerateContentResponse>;
-
-    for await (const chunk of response) {
+    for await (const chunk of streamFromEdgeFunction(model, prompt)) {
         if (chunk.text) yield chunk.text;
     }
 }
@@ -151,12 +147,7 @@ export const explainFormTypeStream = async function* (title: string) {
     const model = 'gemini-2.5-flash';
     const prompt = `Explain the purpose of a "${title}" form in South African HR management. Keep it brief.`;
     
-    const response = await withRetry(() => ai.models.generateContentStream({
-        model,
-        contents: prompt
-    })) as AsyncIterable<GenerateContentResponse>;
-
-    for await (const chunk of response) {
+    for await (const chunk of streamFromEdgeFunction(model, prompt)) {
         if (chunk.text) yield chunk.text;
     }
 }

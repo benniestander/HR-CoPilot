@@ -82,6 +82,8 @@ const GeneratorPage: React.FC<GeneratorPageProps> = ({ selectedItem, initialData
     const handleGenerate = useCallback(async () => {
         if (!selectedItem || !companyProfile || !user) return;
 
+        let deductedAmount = 0;
+
         // 1. Handle PAYG Credit Deduction (Fallback Logic)
         if (user.plan === 'payg' && !initialData && !hasPaidSession) {
             setIsDeducting(true);
@@ -95,6 +97,7 @@ const GeneratorPage: React.FC<GeneratorPageProps> = ({ selectedItem, initialData
                 if (!success) {
                     return; 
                 }
+                deductedAmount = price;
                 setHasPaidSession(true); 
             } else {
                 setIsDeducting(false);
@@ -119,11 +122,13 @@ const GeneratorPage: React.FC<GeneratorPageProps> = ({ selectedItem, initialData
                         fullText += chunk.text;
                         setGeneratedDocument(prev => prev + chunk.text);
                     }
-                    const newSources = chunk.candidates?.[0]?.groundingMetadata?.groundingChunks;
+                    // Cast chunk to any to access potential metadata that might be added in future stream updates
+                    const chunkAny = chunk as any;
+                    const newSources = chunkAny.candidates?.[0]?.groundingMetadata?.groundingChunks;
                     if (newSources) {
                         const uniqueNewSources: Source[] = newSources
-                            .filter(s => s.web?.uri)
-                            .map(s => ({ web: { uri: s.web!.uri!, title: s.web!.title || s.web!.uri! } }));
+                            .filter((s: any) => s.web?.uri)
+                            .map((s: any) => ({ web: { uri: s.web!.uri!, title: s.web!.title || s.web!.uri! } }));
                         
                         finalSources = [...finalSources, ...uniqueNewSources].reduce((acc, current) => {
                             if (!acc.find(item => item.web?.uri === current.web?.uri)) {
@@ -163,13 +168,12 @@ const GeneratorPage: React.FC<GeneratorPageProps> = ({ selectedItem, initialData
             };
             setFinalizedDoc(newDoc);
 
-            // AUTO-SAVE AS DRAFT (No Navigation)
-            // This ensures work is not lost if user navigates away, and sets the DB ID.
+            // AUTO-SAVE AS DRAFT
             try {
                 const savedDoc = await onDocumentGenerated(newDoc, docId, false);
                 if (savedDoc) {
                     setFinalizedDoc(savedDoc);
-                    setDocId(savedDoc.id); // Update local ID to the real UUID from DB
+                    setDocId(savedDoc.id); 
                     setToastMessage("Auto-saved to documents.");
                 }
             } catch (err) {
@@ -180,6 +184,19 @@ const GeneratorPage: React.FC<GeneratorPageProps> = ({ selectedItem, initialData
             console.error('Failed to generate document:', error);
             setStatus('error');
             setErrorMessage(error.message || 'An unexpected error occurred. Please try again.');
+            
+            // CRIT-3 FIX: Refund on failure
+            if (deductedAmount > 0) {
+                try {
+                    // Negative deduction = Refund
+                    await handleDeductCredit(-deductedAmount, `Refund: Generation Failed (${selectedItem.title})`);
+                    setHasPaidSession(false); // Reset so next try pays again
+                    setToastMessage("Generation failed. Your credits have been refunded.");
+                } catch (refundError) {
+                    console.error("Refund failed:", refundError);
+                    setToastMessage("Generation failed. Please contact support regarding your credit refund.");
+                }
+            }
         }
     }, [selectedItem, companyProfile, questionAnswers, initialData, user, handleDeductCredit, hasPaidSession, docId, onDocumentGenerated, setToastMessage, getDocPrice]);
 
@@ -296,4 +313,3 @@ const GeneratorPage: React.FC<GeneratorPageProps> = ({ selectedItem, initialData
 };
 
 export default GeneratorPage;
-    

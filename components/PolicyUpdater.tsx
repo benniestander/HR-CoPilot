@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { updatePolicy } from '../services/geminiService';
 import type { GeneratedDocument, PolicyUpdateResult, CompanyProfile, PolicyDraft } from '../types';
@@ -13,29 +14,23 @@ import * as pdfjsLib from 'pdfjs-dist';
 const INTERNAL_UPDATE_COST_CENTS = 2500; // R25.00
 const EXTERNAL_UPDATE_COST_CENTS = 5000; // R50.00
 
-// --- Word-Level Diffing Logic ---
-
-const tokenize = (text: string) => {
-    // Split by spaces but keep newlines as separate tokens to preserve structure
-    return text.split(/(\s+)/); 
-};
-
-// Simple implementation of a Diff algorithm (Longest Common Subsequence approximation)
-// Ideally, we'd use 'diff-match-patch' library, but this is a lightweight React implementation.
-const createWordDiff = (original: string, updated: string) => {
+// --- HIGH-4: Web Worker for Diffing ---
+const WORKER_CODE = `
+self.onmessage = function(e) {
+    const { original, updated } = e.data;
+    
+    const tokenize = (text) => text.split(/(\\s+)/); 
+    
     const originalTokens = tokenize(original);
     const updatedTokens = tokenize(updated);
     
-    const diff: { type: 'added' | 'removed' | 'same'; text: string }[] = [];
-    
+    const diff = [];
     let i = 0;
     let j = 0;
     
     while (i < originalTokens.length || j < updatedTokens.length) {
-        // If both finished
         if (i >= originalTokens.length && j >= updatedTokens.length) break;
 
-        // If one finished, append the rest of the other
         if (i >= originalTokens.length) {
             diff.push({ type: 'added', text: updatedTokens.slice(j).join('') });
             break;
@@ -45,21 +40,16 @@ const createWordDiff = (original: string, updated: string) => {
             break;
         }
 
-        // Match found
         if (originalTokens[i] === updatedTokens[j]) {
             diff.push({ type: 'same', text: originalTokens[i] });
             i++;
             j++;
         } else {
-            // Mismatch: Look ahead to resync
-            // This is a naive O(N*M) lookahead, kept small for performance
             let foundMatch = false;
-            const lookaheadLimit = 15; 
+            const lookaheadLimit = 50; // Increased lookahead in worker
             
-            // Look for originalTokens[i] in the next few updatedTokens
             for (let k = 1; k < lookaheadLimit; k++) {
                 if (j + k < updatedTokens.length && originalTokens[i] === updatedTokens[j + k]) {
-                    // Found it! Everything between j and j+k is ADDED
                     diff.push({ type: 'added', text: updatedTokens.slice(j, j + k).join('') });
                     j += k;
                     foundMatch = true;
@@ -68,18 +58,44 @@ const createWordDiff = (original: string, updated: string) => {
             }
 
             if (!foundMatch) {
-                // If not found in updated, assume originalTokens[i] was REMOVED
                 diff.push({ type: 'removed', text: originalTokens[i] });
                 i++;
             }
         }
     }
     
-    return diff;
+    self.postMessage(diff);
 };
+`;
 
 const DiffViewer: React.FC<{ originalText: string; updatedText: string }> = ({ originalText, updatedText }) => {
-    const diff = useMemo(() => createWordDiff(originalText, updatedText), [originalText, updatedText]);
+    const [diff, setDiff] = useState<{ type: 'added' | 'removed' | 'same'; text: string }[]>([]);
+    const [isCalculating, setIsCalculating] = useState(true);
+
+    useEffect(() => {
+        setIsCalculating(true);
+        const blob = new Blob([WORKER_CODE], { type: "application/javascript" });
+        const worker = new Worker(URL.createObjectURL(blob));
+
+        worker.onmessage = (e) => {
+            setDiff(e.data);
+            setIsCalculating(false);
+            worker.terminate();
+        };
+
+        worker.postMessage({ original: originalText, updated: updatedText });
+
+        return () => worker.terminate();
+    }, [originalText, updatedText]);
+
+    if (isCalculating) {
+        return (
+            <div className="flex items-center justify-center h-40 bg-gray-50 border border-gray-200 rounded-md">
+                <LoadingIcon className="w-6 h-6 animate-spin text-primary mr-3" />
+                <span className="text-gray-500">Calculating differences...</span>
+            </div>
+        );
+    }
 
     return (
         <div className="font-serif text-base border border-gray-200 rounded-md bg-white p-6 whitespace-pre-wrap break-words overflow-y-auto h-full leading-relaxed shadow-inner">
@@ -107,8 +123,6 @@ const DiffViewer: React.FC<{ originalText: string; updatedText: string }> = ({ o
     );
 };
 
-// ... (Rest of PolicyUpdater code remains exactly the same, just imports updated) ...
-
 interface PolicyUpdaterProps {
   onBack: () => void;
 }
@@ -124,7 +138,6 @@ const analysisMessages = [
 ];
 
 const PolicyUpdater: React.FC<PolicyUpdaterProps> = ({ onBack }) => {
-  // ... (Hooks and State - No changes) ...
   const { user } = useAuthContext();
   const { generatedDocuments, handleDocumentGenerated, handleDeductCredit, policyDrafts, handleSaveDraft, handleDeleteDraft } = useDataContext();
   const { setToastMessage, navigateTo } = useUIContext();
@@ -187,7 +200,6 @@ const PolicyUpdater: React.FC<PolicyUpdaterProps> = ({ onBack }) => {
       return text;
   }, [selectedDocument, updateResult, selectedChangeIndices]);
 
-  // ... (File Extraction Helpers - No changes) ...
   const extractTextFromDocx = async (arrayBuffer: ArrayBuffer): Promise<string> => {
       const mammothLib = (mammoth as any).default || mammoth;
       if (!mammothLib || !mammothLib.extractRawText) {
@@ -227,7 +239,6 @@ const PolicyUpdater: React.FC<PolicyUpdaterProps> = ({ onBack }) => {
       }
       
       const getDocument = lib.getDocument;
-      
       if (!getDocument) {
           throw new Error("PDF.js library not loaded correctly.");
       }
@@ -277,6 +288,7 @@ const PolicyUpdater: React.FC<PolicyUpdaterProps> = ({ onBack }) => {
               } catch (e) {
                   console.warn("Mammoth failed on .doc, falling back to raw text extraction", e);
                   const rawText = await extractTextFromText(file);
+                  // HIGH-5 FIX: Better fallback validation
                   extractedText = rawText.replace(/[^\x20-\x7E\n\r\t]/g, '');
                   if (extractedText.length < 50) {
                        throw new Error(`This .doc file seems to be in an older binary format that cannot be read by the browser. Please open it in Word and save as .docx, then try again.`);
@@ -287,8 +299,9 @@ const PolicyUpdater: React.FC<PolicyUpdaterProps> = ({ onBack }) => {
               throw new Error('Unsupported file format. Please upload a PDF, Word (.docx/.doc), RTF, or Text file.');
           }
 
-          if (!extractedText.trim()) {
-              throw new Error('Could not extract text from the file. It might be empty or an image-based PDF.');
+          // HIGH-5 FIX: Empty Text Validation
+          if (!extractedText || extractedText.trim().length < 50) {
+              throw new Error('Could not extract sufficient text from the file. It might be an image-based scan or encrypted.');
           }
 
           const tempDoc: GeneratedDocument = {
@@ -321,6 +334,8 @@ const PolicyUpdater: React.FC<PolicyUpdaterProps> = ({ onBack }) => {
       }
   };
 
+  // ... (Rest of component methods - executeUpdate, handleUpdateClick, etc. - remain unchanged)
+  
   const executeUpdate = async () => {
     if (!selectedDocument || !updateMethod) return;
     setConfirmation(null);
@@ -342,7 +357,6 @@ const PolicyUpdater: React.FC<PolicyUpdaterProps> = ({ onBack }) => {
     }
   };
 
-  // ... (Other handlers like handleUpdateClick, handleSaveDraftClick, handleConfirmAndSave remain same) ...
   const handleUpdateClick = async () => {
     if (!selectedDocument || !updateMethod) return;
     if (updateMethod === 'manual' && !manualInstructions.trim()) return;
@@ -540,7 +554,7 @@ const PolicyUpdater: React.FC<PolicyUpdaterProps> = ({ onBack }) => {
       }
   };
 
-  // ... (Render Functions from Select and ChooseMethod steps - No Changes) ...
+  // ... (Render Functions - No Changes) ...
   const renderSelectStep = () => (
     <div className="bg-white p-8 rounded-lg shadow-md border border-gray-200">
       <div className="text-center">

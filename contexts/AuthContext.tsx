@@ -36,6 +36,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, setUser, unverifiedUser, isAdmin, isLoading, needsOnboarding, setNeedsOnboarding } = useAuth();
   
+  // HIGH-6 FIX: Additional local loading state to sync auth + profile fetch
   const [authPage, setAuthPage] = useState<AuthPage>('landing');
   const [authEmail, setAuthEmail] = useState<string>('');
   const [authFlow, setAuthFlow] = useState<AuthFlow | undefined>(undefined);
@@ -133,7 +134,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUser,
     unverifiedUser,
     isAdmin,
-    isLoading,
+    // Ensure loading stays true if user is logged in but profile hasn't populated yet
+    isLoading: isLoading || (!!user && Object.keys(user.profile).length === 0 && !needsOnboarding),
     authPage,
     setAuthPage,
     authEmail,
