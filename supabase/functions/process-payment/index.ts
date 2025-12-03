@@ -31,22 +31,29 @@ Deno.serve(async (req: any) => {
     
     // Server-Side Price Validation
     if (metadata?.type === 'subscription') {
-        const { data: setting } = await supabaseAdmin
-            .from('app_settings')
-            .select('value')
-            .eq('key', 'pro_plan_yearly')
-            .single();
-            
-        if (setting && setting.value) {
-            // Check if coupon is applied (if not, amount must match setting)
-            if (!metadata.couponCode && finalAmount !== setting.value) {
-                 if (finalAmount < 10000) {
-                     return new Response(
-                        JSON.stringify({ error: "Invalid subscription amount detected." }), 
-                        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
-                     );
-                 }
+        try {
+            const { data: setting, error } = await supabaseAdmin
+                .from('app_settings')
+                .select('value')
+                .eq('key', 'pro_plan_yearly')
+                .single();
+                
+            if (!error && setting && setting.value) {
+                // Check if coupon is applied (if not, amount must match setting)
+                if (!metadata.couponCode && finalAmount !== setting.value) {
+                     // Sanity Check: Pro plan shouldn't be less than R100 without a coupon
+                     if (finalAmount < 10000) {
+                         return new Response(
+                            JSON.stringify({ error: "Invalid subscription amount detected." }), 
+                            { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+                         );
+                     }
+                }
             }
+        } catch (dbErr) {
+            console.warn("DB Price Check Warning (Proceeding):", dbErr);
+            // We do not block the payment if the DB check fails (e.g. table missing), 
+            // as the webhook will handle final provisioning.
         }
     }
 
@@ -82,7 +89,7 @@ Deno.serve(async (req: any) => {
       console.error('Yoco Checkout API Error:', data);
       return new Response(
         JSON.stringify({ 
-            error: data.message || 'Failed to create checkout session.', 
+            error: data.message || 'Failed to create checkout session with Yoco.', 
             details: data 
         }), 
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
@@ -98,7 +105,7 @@ Deno.serve(async (req: any) => {
   } catch (error: any) {
     console.error("Edge Function Exception:", error);
     return new Response(
-      JSON.stringify({ error: error.message }), 
+      JSON.stringify({ error: error.message || "Internal Server Error" }), 
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
     )
   }
