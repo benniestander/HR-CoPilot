@@ -1,4 +1,3 @@
-
 // @ts-ignore
 declare const Deno: any;
 
@@ -30,6 +29,7 @@ Deno.serve(async (req: any) => {
     // CRIT-1 FIX: Server-Side Price Validation
     let finalAmount = amountInCents;
     
+    // Perform subscription price check if applicable
     if (metadata?.type === 'subscription') {
         const { data: setting } = await supabaseAdmin
             .from('app_settings')
@@ -41,8 +41,12 @@ Deno.serve(async (req: any) => {
             // Check if coupon is applied
             if (!metadata.couponCode && amountInCents !== setting.value) {
                  // Sanity Check: Pro plan shouldn't be less than R100 without a coupon
+                 // We throw a specific error here to catch tampering
                  if (amountInCents < 10000) {
-                     throw new Error("Invalid subscription amount detected. Potential tampering.");
+                     return new Response(
+                        JSON.stringify({ error: "Invalid subscription amount detected." }), 
+                        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+                     );
                  }
             }
         }
@@ -59,16 +63,17 @@ Deno.serve(async (req: any) => {
         token,
         amountInCents: finalAmount,
         currency: currency || 'ZAR',
-        metadata: metadata
+        metadata: metadata || {}
       })
     })
 
     const data = await response.json()
 
     if (!response.ok) {
-      console.error('Yoco Error:', data);
+      console.error('Yoco Gateway Error:', JSON.stringify(data));
+      // Return 400 to client with the message from Yoco
       return new Response(
-        JSON.stringify({ error: data.displayMessage || 'Payment Declined by Gateway' }), 
+        JSON.stringify({ error: data.displayMessage || data.message || 'Payment Declined by Gateway', details: data }), 
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
       )
     }

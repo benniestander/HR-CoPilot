@@ -1,7 +1,7 @@
-
 import { GoogleGenAI } from "@google/genai";
 import type { FormAnswers, PolicyUpdateResult } from '../types';
 
+// Initialize Gemini Client with API Key from Environment
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 const INDUSTRY_SPECIFIC_GUIDANCE: Record<string, Record<string, string>> = {
@@ -34,19 +34,24 @@ export const generatePolicyStream = async function* (type: string, answers: Form
   Use a professional yet accessible tone.
   Format with Markdown.`;
 
-  const response = await ai.models.generateContentStream({
-    model: model,
-    contents: prompt,
-    config: {
-        tools: [{ googleSearch: {} }]
-    }
-  });
+  try {
+    const response = await ai.models.generateContentStream({
+        model: model,
+        contents: prompt,
+        config: {
+            tools: [{ googleSearch: {} }]
+        }
+    });
 
-  for await (const chunk of response) {
-    yield {
-        text: chunk.text,
-        groundingMetadata: chunk.candidates?.[0]?.groundingMetadata
-    };
+    for await (const chunk of response) {
+        yield {
+            text: chunk.text,
+            groundingMetadata: chunk.candidates?.[0]?.groundingMetadata
+        };
+    }
+  } catch (error) {
+    console.error("Gemini Client Error:", error);
+    throw new Error("Failed to generate policy. Please check your internet connection and API Key.");
   }
 };
 
@@ -66,13 +71,18 @@ export const generateFormStream = async function* (type: string, answers: FormAn
     3. Ensure it looks professional and is ready to print.
     `;
   
-    const response = await ai.models.generateContentStream({
-        model: model,
-        contents: prompt
-    });
+    try {
+        const response = await ai.models.generateContentStream({
+            model: model,
+            contents: prompt
+        });
 
-    for await (const chunk of response) {
-        if (chunk.text) yield chunk.text;
+        for await (const chunk of response) {
+            if (chunk.text) yield chunk.text;
+        }
+    } catch (error) {
+        console.error("Gemini Client Error:", error);
+        throw new Error("Failed to generate form.");
     }
 };
 
@@ -94,34 +104,44 @@ export const updatePolicy = async (content: string, instructions?: string): Prom
        - updatedText: The new snippet.
     `;
 
-    const response = await ai.models.generateContent({
-        model: model,
-        contents: prompt,
-        config: {
-            responseMimeType: "application/json"
-        }
-    });
-    
-    const text = response.text;
-    
-    if (!text) throw new Error("No response from Ingcweti AI");
-    
-    // Clean markdown code blocks if present
-    const jsonStr = text.replace(/```json\n?|\n?```/g, '').trim();
-    return JSON.parse(jsonStr) as PolicyUpdateResult;
+    try {
+        const response = await ai.models.generateContent({
+            model: model,
+            contents: prompt,
+            config: {
+                responseMimeType: "application/json"
+            }
+        });
+        
+        const text = response.text;
+        
+        if (!text) throw new Error("No response from Ingcweti AI");
+        
+        // Clean markdown code blocks if present
+        const jsonStr = text.replace(/```json\n?|\n?```/g, '').trim();
+        return JSON.parse(jsonStr) as PolicyUpdateResult;
+    } catch (error) {
+        console.error("Gemini Update Error:", error);
+        throw new Error("Failed to update policy. Ensure the document content is valid text.");
+    }
 };
 
 export const explainPolicyTypeStream = async function* (title: string) {
     const model = 'gemini-2.5-flash';
     const prompt = `Explain the purpose and key components of a "${title}" in the context of South African HR law. Keep it brief and informative for a business owner.`;
     
-    const response = await ai.models.generateContentStream({
-        model: model,
-        contents: prompt
-    });
+    try {
+        const response = await ai.models.generateContentStream({
+            model: model,
+            contents: prompt
+        });
 
-    for await (const chunk of response) {
-        if (chunk.text) yield chunk.text;
+        for await (const chunk of response) {
+            if (chunk.text) yield chunk.text;
+        }
+    } catch (error) {
+        console.error("Explanation Error:", error);
+        yield "Could not generate explanation at this time.";
     }
 }
 
@@ -129,12 +149,17 @@ export const explainFormTypeStream = async function* (title: string) {
     const model = 'gemini-2.5-flash';
     const prompt = `Explain the purpose of a "${title}" form in South African HR management. Keep it brief.`;
     
-    const response = await ai.models.generateContentStream({
-        model: model,
-        contents: prompt
-    });
+    try {
+        const response = await ai.models.generateContentStream({
+            model: model,
+            contents: prompt
+        });
 
-    for await (const chunk of response) {
-        if (chunk.text) yield chunk.text;
+        for await (const chunk of response) {
+            if (chunk.text) yield chunk.text;
+        }
+    } catch (error) {
+        console.error("Explanation Error:", error);
+        yield "Could not generate explanation at this time.";
     }
 }

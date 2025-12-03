@@ -15,13 +15,17 @@ declare global {
 
 // Robust safe access for env vars
 const env = (import.meta as any).env || {};
-export const YOCO_PUBLIC_KEY = env.VITE_YOCO_PUBLIC_KEY || 'pk_live_922ec78alWPdK17eeac4'; 
+
+// Use Test Key by default in development if not specified, to match standard Test Secret Keys
+export const YOCO_PUBLIC_KEY = env.VITE_YOCO_PUBLIC_KEY || 'pk_test_ed6c5c66gO2y778f24a0'; 
 
 /* 
    ==============================================================================
    CRITICAL: SUPABASE EDGE FUNCTION SETUP
    ==============================================================================
    You must deploy a Supabase Edge Function named 'process-payment' for this to work.
+   Ensure you have set the 'YOCO_SECRET_KEY' in your Supabase Secrets to match
+   the environment of your Public Key (Live vs Test).
 */
 
 interface PaymentDetails {
@@ -45,25 +49,24 @@ interface PaymentDetails {
 let sdkLoadingPromise: Promise<any> | null = null;
 
 const loadYocoSdk = (retries = 3): Promise<any> => {
-  if (window.YocoSDK) {
+  // If already loaded globally (e.g. from index.html)
+  if (typeof window.YocoSDK !== 'undefined') {
     return Promise.resolve(window.YocoSDK);
   }
 
+  // If currently loading
   if (sdkLoadingPromise) {
     return sdkLoadingPromise;
   }
 
   sdkLoadingPromise = new Promise((resolve, reject) => {
+    // Check if script tag exists but maybe not loaded yet
     const existingScript = document.querySelector('script[src="https://js.yoco.com/sdk/v1/yoco-sdk-web.js"]');
 
     if (existingScript) {
-       if (typeof window.YocoSDK !== 'undefined') {
-          resolve(window.YocoSDK);
-          return;
-      }
       let attempts = 0;
       const checkInterval = setInterval(() => {
-          if (window.YocoSDK) {
+          if (typeof window.YocoSDK !== 'undefined') {
               clearInterval(checkInterval);
               resolve(window.YocoSDK);
           } else {
@@ -77,12 +80,13 @@ const loadYocoSdk = (retries = 3): Promise<any> => {
       return;
     }
 
+    // Inject if missing
     const script = document.createElement('script');
     script.src = 'https://js.yoco.com/sdk/v1/yoco-sdk-web.js';
     script.async = true;
     
     script.onload = () => {
-      if (window.YocoSDK) resolve(window.YocoSDK);
+      if (typeof window.YocoSDK !== 'undefined') resolve(window.YocoSDK);
       else reject(new Error("Yoco SDK loaded but window.YocoSDK is undefined"));
     };
     
@@ -140,11 +144,13 @@ export const processPayment = async (details: PaymentDetails): Promise<{ success
 
                         if (error) {
                             console.error("Edge Function Invoke Error:", error);
+                            // Often returns a 400/500 object, try to parse meaningful message
                             const msg = error.message || "Payment verification failed (Server Error). Please contact support.";
                             resolve({ success: false, error: msg });
                             return;
                         }
 
+                        // Handle Logic Errors returned by Function (e.g. Price mismatch)
                         if (data && data.error) {
                             console.error("Edge Function Logic Error:", data.error);
                             resolve({ success: false, error: data.error });
