@@ -122,7 +122,13 @@ export const processPayment = async (details: PaymentDetails): Promise<{ success
             currency: details.currency || 'ZAR',
             name: details.name,
             description: details.description || 'HR CoPilot Purchase',
-            customer: details.customer,
+            // Correctly map app data (name/surname) to Yoco SDK expectations (firstName/lastName)
+            customer: {
+                firstName: details.customer.name,
+                lastName: details.customer.surname,
+                email: details.customer.email,
+                phone: details.customer.phone
+            },
             callback: async (result: any) => {
                 if (result.error) {
                     if (result.error.message === "User closed popup") {
