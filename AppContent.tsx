@@ -11,7 +11,7 @@ import LegalModal from './components/LegalModal';
 import AdminNotificationPanel from './components/AdminNotificationPanel';
 import InitialProfileSetup from './components/InitialProfileSetup';
 import ConfirmationModal from './components/ConfirmationModal';
-import { UserIcon, BellIcon, BookIcon } from './components/Icons';
+import { UserIcon, BellIcon, BookIcon, CheckIcon } from './components/Icons';
 import { useAuthContext } from './contexts/AuthContext';
 import { useDataContext } from './contexts/DataContext';
 import { useUIContext } from './contexts/UIContext';
@@ -33,6 +33,26 @@ const SubscriptionPage = lazy(() => import('./components/SubscriptionPage'));
 const PaygPaymentPage = lazy(() => import('./components/PaygPaymentPage'));
 const KnowledgeBase = lazy(() => import('./components/KnowledgeBase'));
 
+// New Payment Success Page Component
+const PaymentSuccessPage = ({ onContinue }: { onContinue: () => void }) => (
+    <div className="min-h-screen bg-light flex flex-col items-center justify-center p-4">
+        <div className="bg-white p-8 rounded-lg shadow-md max-w-md text-center border border-gray-200">
+            <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-green-100 mb-6">
+                <CheckIcon className="h-10 w-10 text-green-600" />
+            </div>
+            <h2 className="text-2xl font-bold text-secondary mb-2">Payment Successful!</h2>
+            <p className="text-gray-600 mb-6">
+                Thank you for your purchase. Your account is being updated.
+            </p>
+            <button 
+                onClick={onContinue}
+                className="w-full bg-primary text-white font-bold py-3 px-4 rounded-md hover:bg-opacity-90 transition-colors"
+            >
+                Return to Dashboard
+            </button>
+        </div>
+    </div>
+);
 
 const AppContent: React.FC = () => {
     const {
@@ -111,12 +131,19 @@ const AppContent: React.FC = () => {
 
     useEffect(() => {
         if (!user) {
-            navigateTo('dashboard');
-            setSelectedItem(null);
-            setDocumentToView(null);
-            setShowOnboardingWalkthrough(false);
+            // Allow access to login/landing pages
+            if (currentView === 'payment-success' || currentView === 'payment-cancel') {
+                // If user just paid but session is tricky, let them see success page, 
+                // but usually they should be logged in. 
+                // If they aren't logged in, they will see login page eventually.
+            } else {
+                // Default handling
+                setSelectedItem(null);
+                setDocumentToView(null);
+                setShowOnboardingWalkthrough(false);
+            }
         }
-    }, [user, navigateTo, setSelectedItem, setDocumentToView, setShowOnboardingWalkthrough]);
+    }, [user, currentView, setSelectedItem, setDocumentToView, setShowOnboardingWalkthrough]);
 
     const handleCloseWalkthrough = () => {
         setShowOnboardingWalkthrough(false);
@@ -330,9 +357,17 @@ const AppContent: React.FC = () => {
                     onGoToProfileSetup={handleGoToProfileSetup}
                     onSelectDocument={handleSelectDocument}
                 />;
+            case 'payment-success':
+                return <PaymentSuccessPage onContinue={handleBackToDashboard} />;
+            case 'payment-cancel':
+                // Auto-redirect to dashboard with a toast for cancellation
+                setTimeout(() => {
+                    setToastMessage('Payment was cancelled.');
+                    navigateTo('dashboard');
+                }, 100);
+                return <FullPageLoader />;
             case 'generator':
                 if (!selectedItem || !user) {
-                    // Safe fallback
                     return <Dashboard
                         onStartUpdate={() => navigateTo('updater')}
                         onStartChecklist={() => navigateTo('checklist')}
@@ -354,82 +389,41 @@ const AppContent: React.FC = () => {
                     onBack={handleBackToDashboard}
                 />;
             case 'checklist':
-                if (!user) { 
-                     return <Dashboard
-                        onStartUpdate={() => navigateTo('updater')}
-                        onStartChecklist={() => navigateTo('checklist')}
-                        showOnboardingWalkthrough={false}
-                        onCloseWalkthrough={handleCloseWalkthrough}
-                        onGoToProfileSetup={handleGoToProfileSetup}
-                        onSelectDocument={handleSelectDocument}
-                    />;
-                }
+                if (!user) return <FullPageLoader />;
                 return <ComplianceChecklist
                     userProfile={user.profile}
                     onBack={handleBackToDashboard}
                     onSelectDocument={handleSelectDocument}
                 />;
             case 'profile':
-                if (!user) { 
-                     return <Dashboard
-                        onStartUpdate={() => navigateTo('updater')}
-                        onStartChecklist={() => navigateTo('checklist')}
-                        showOnboardingWalkthrough={false}
-                        onCloseWalkthrough={handleCloseWalkthrough}
-                        onGoToProfileSetup={handleGoToProfileSetup}
-                        onSelectDocument={handleSelectDocument}
-                    />;
-                }
+                if (!user) return <FullPageLoader />;
                 return <ProfilePage
                     onBack={handleBackToDashboard}
                     onUpgrade={() => navigateTo('upgrade')}
                     onGoToTopUp={() => navigateTo('topup')}
                 />;
             case 'upgrade':
-                if (!user) { 
-                     return <Dashboard
-                        onStartUpdate={() => navigateTo('updater')}
-                        onStartChecklist={() => navigateTo('checklist')}
-                        showOnboardingWalkthrough={false}
-                        onCloseWalkthrough={handleCloseWalkthrough}
-                        onGoToProfileSetup={handleGoToProfileSetup}
-                        onSelectDocument={handleSelectDocument}
-                    />;
-                }
+                if (!user) return <FullPageLoader />;
                 return <SubscriptionPage
                     onSuccess={handleSubscriptionSuccess}
                     onCancel={handleBackToDashboard}
                 />;
             case 'topup':
-                // FIX: Do not return null or call state setter here. 
-                // Render fallback Dashboard if logic fails. useEffect will handle navigation if needed elsewhere,
-                // or the user sees the dashboard and realizes they can't top up (though button shouldn't be visible).
-                if (!user || user.plan !== 'payg') { 
-                     return <Dashboard
-                        onStartUpdate={() => navigateTo('updater')}
-                        onStartChecklist={() => navigateTo('checklist')}
-                        showOnboardingWalkthrough={false}
-                        onCloseWalkthrough={handleCloseWalkthrough}
-                        onGoToProfileSetup={handleGoToProfileSetup}
-                        onSelectDocument={handleSelectDocument}
-                    />;
-                }
+                if (!user || user.plan !== 'payg') return <Dashboard 
+                    onStartUpdate={() => navigateTo('updater')}
+                    onStartChecklist={() => navigateTo('checklist')}
+                    showOnboardingWalkthrough={false}
+                    onCloseWalkthrough={handleCloseWalkthrough}
+                    onGoToProfileSetup={handleGoToProfileSetup}
+                    onSelectDocument={handleSelectDocument}
+                />;
                 return <PaygPaymentPage
                     onTopUpSuccess={handleTopUpSuccess}
                     onCancel={handleBackToDashboard}
                     onUpgrade={() => navigateTo('upgrade')}
                 />;
             case 'knowledge-base':
-                if (!user) { 
-                     return <Dashboard
-                        onStartUpdate={() => navigateTo('updater')}
-                        onStartChecklist={() => navigateTo('checklist')}
-                        showOnboardingWalkthrough={false}
-                        onCloseWalkthrough={handleCloseWalkthrough}
-                        onGoToProfileSetup={handleGoToProfileSetup}
-                        onSelectDocument={handleSelectDocument}
-                    />;
-                }
+                if (!user) return <FullPageLoader />;
                 return <KnowledgeBase onBack={handleBackToDashboard} />;
             default:
                 return <Dashboard
