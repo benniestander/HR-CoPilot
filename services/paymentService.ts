@@ -122,7 +122,7 @@ export const processPayment = async (details: PaymentDetails): Promise<{ success
             currency: details.currency || 'ZAR',
             name: details.name,
             description: details.description || 'HR CoPilot Purchase',
-            // Correctly map app data (name/surname) to Yoco SDK expectations (firstName/lastName)
+            // Correctly map app data to Yoco SDK expectations
             customer: {
                 firstName: details.customer.name,
                 lastName: details.customer.surname,

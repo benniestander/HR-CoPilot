@@ -76,17 +76,9 @@ Deno.serve(async (req: any) => {
       })
     })
 
-    let data;
-    const responseText = await response.text();
-    try {
-        data = JSON.parse(responseText);
-    } catch (e) {
-        data = { message: responseText };
-    }
-
     if (!response.ok) {
-      console.error('Yoco Gateway Error Status:', response.status);
-      console.error('Yoco Gateway Error Body:', responseText);
+      const errorText = await response.text();
+      console.error('Yoco Gateway Error:', response.status, errorText);
       
       // Specific handling for Auth errors (Configuration mismatch)
       if (response.status === 401) {
@@ -96,15 +88,22 @@ Deno.serve(async (req: any) => {
           )
       }
 
+      let errorJson = {};
+      try {
+          errorJson = JSON.parse(errorText);
+      } catch(e) {}
+
       // Return 400 to client with the message from Yoco
       return new Response(
         JSON.stringify({ 
-            error: data.displayMessage || data.message || 'Payment Declined by Gateway', 
-            details: data 
+            error: (errorJson as any).displayMessage || (errorJson as any).message || 'Payment Declined by Gateway', 
+            details: errorJson 
         }), 
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
       )
     }
+
+    const data = await response.json();
 
     if (data.status === 'successful') {
       const userId = metadata?.userId;
