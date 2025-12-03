@@ -144,8 +144,17 @@ export const processPayment = async (details: PaymentDetails): Promise<{ success
 
                         if (error) {
                             console.error("Edge Function Invoke Error:", error);
-                            // Often returns a 400/500 object, try to parse meaningful message
-                            const msg = error.message || "Payment verification failed (Server Error). Please contact support.";
+                            // Detect Yoco "We are currently experiencing issues" generic error which often implies Auth/Key Mismatch
+                            let msg = error.message || "Payment verification failed.";
+                            
+                            // Check if the backend returned our custom JSON error
+                            try {
+                                if (error.context && typeof error.context.json === 'function') {
+                                    const jsonErr = await error.context.json();
+                                    if (jsonErr && jsonErr.error) msg = jsonErr.error;
+                                }
+                            } catch (e) { /* ignore parse error */ }
+
                             resolve({ success: false, error: msg });
                             return;
                         }
@@ -153,7 +162,14 @@ export const processPayment = async (details: PaymentDetails): Promise<{ success
                         // Handle Logic Errors returned by Function (e.g. Price mismatch)
                         if (data && data.error) {
                             console.error("Edge Function Logic Error:", data.error);
-                            resolve({ success: false, error: data.error });
+                            let errMsg = data.error;
+                            
+                            // Map the specific Yoco "issues" error to something actionable for the admin/developer
+                            if (errMsg.includes("We are currently experiencing issues") || errMsg.includes("Payment Configuration Error")) {
+                                errMsg = "Configuration Error: Please check that your Yoco Public and Secret keys match (Live vs Test).";
+                            }
+                            
+                            resolve({ success: false, error: errMsg });
                             return;
                         }
 

@@ -19,17 +19,17 @@ Deno.serve(async (req: any) => {
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 
     if (!YOCO_SECRET_KEY || !SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
-      throw new Error("Server configuration error (Missing Secrets).");
+      throw new Error("Server configuration error: Missing YOCO_SECRET_KEY or Supabase secrets.");
     }
 
     const { token, amountInCents, currency, description, metadata } = await req.json()
     
+    // Ensure amount is an integer
+    const finalAmount = Math.round(amountInCents);
+    
     const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
     
-    // CRIT-1 FIX: Server-Side Price Validation
-    let finalAmount = amountInCents;
-    
-    // Perform subscription price check if applicable
+    // Server-Side Price Validation
     if (metadata?.type === 'subscription') {
         const { data: setting } = await supabaseAdmin
             .from('app_settings')
@@ -38,11 +38,10 @@ Deno.serve(async (req: any) => {
             .single();
             
         if (setting && setting.value) {
-            // Check if coupon is applied
-            if (!metadata.couponCode && amountInCents !== setting.value) {
+            // Check if coupon is applied (if not, amount must match setting)
+            if (!metadata.couponCode && finalAmount !== setting.value) {
                  // Sanity Check: Pro plan shouldn't be less than R100 without a coupon
-                 // We throw a specific error here to catch tampering
-                 if (amountInCents < 10000) {
+                 if (finalAmount < 10000) {
                      return new Response(
                         JSON.stringify({ error: "Invalid subscription amount detected." }), 
                         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
@@ -50,6 +49,16 @@ Deno.serve(async (req: any) => {
                  }
             }
         }
+    }
+
+    // Sanitize Metadata (Yoco requires string values)
+    const safeMetadata: Record<string, string> = {};
+    if (metadata) {
+        Object.entries(metadata).forEach(([key, value]) => {
+            if (value !== undefined && value !== null) {
+                safeMetadata[key] = String(value);
+            }
+        });
     }
 
     // 1. Charge the card via Yoco API
@@ -63,17 +72,36 @@ Deno.serve(async (req: any) => {
         token,
         amountInCents: finalAmount,
         currency: currency || 'ZAR',
-        metadata: metadata || {}
+        metadata: safeMetadata
       })
     })
 
-    const data = await response.json()
+    let data;
+    const responseText = await response.text();
+    try {
+        data = JSON.parse(responseText);
+    } catch (e) {
+        data = { message: responseText };
+    }
 
     if (!response.ok) {
-      console.error('Yoco Gateway Error:', JSON.stringify(data));
+      console.error('Yoco Gateway Error Status:', response.status);
+      console.error('Yoco Gateway Error Body:', responseText);
+      
+      // Specific handling for Auth errors (Configuration mismatch)
+      if (response.status === 401) {
+          return new Response(
+            JSON.stringify({ error: 'Payment Configuration Error: Invalid Secret Key on Server.' }), 
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+          )
+      }
+
       // Return 400 to client with the message from Yoco
       return new Response(
-        JSON.stringify({ error: data.displayMessage || data.message || 'Payment Declined by Gateway', details: data }), 
+        JSON.stringify({ 
+            error: data.displayMessage || data.message || 'Payment Declined by Gateway', 
+            details: data 
+        }), 
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
       )
     }
