@@ -40,40 +40,48 @@ export const processPayment = async (details: PaymentDetails): Promise<{ success
             name: details.name,
             description: details.description,
             metadata: metadata,
-            returnUrl: returnUrl // Pass the base URL for success/cancel redirects
+            returnUrl: returnUrl 
         }
     });
 
     if (error) {
-        console.error("Edge Function Invoke Error:", error);
+        console.error("Payment API Error Raw:", error);
         
-        let msg = "Payment initiation failed.";
-        
-        // Attempt to extract detailed error message from the response body
-        // The error object from supabase-js typically has a 'context' property which is the Response object
-        if (error && (error as any).context && typeof (error as any).context.json === 'function') {
-            try {
-                const errorBody = await (error as any).context.json();
-                if (errorBody && errorBody.error) {
-                    msg = errorBody.error;
+        let displayMessage = "Payment initiation failed. Please try again.";
+
+        // The 'error' object from supabase.functions.invoke often contains the HTTP Response object 
+        // in a property called 'context' if it's a non-2xx error.
+        if (error instanceof Error && 'context' in error) {
+            const httpError = error as any;
+            if (httpError.context && typeof httpError.context.json === 'function') {
+                try {
+                    // Parse the JSON body sent by our Edge Function (e.g. { "error": "Missing API Key" })
+                    const errorBody = await httpError.context.json();
+                    if (errorBody && errorBody.error) {
+                        displayMessage = errorBody.error;
+                    }
+                } catch (parseError) {
+                    console.warn("Could not parse error response JSON:", parseError);
                 }
-            } catch (e) {
-                // If parsing fails, fall back to existing message
-                if (error.message) msg = error.message;
             }
         } else if (error.message) {
-             msg = error.message;
+             // Handle generic messages
+             if (error.message.includes("non-2xx")) {
+                 displayMessage = "The payment server is currently unavailable (Configuration Error).";
+             } else {
+                 displayMessage = error.message;
+             }
         }
 
-        return { success: false, error: msg };
+        return { success: false, error: displayMessage };
     }
 
     if (data && data.redirectUrl) {
         // Redirect the user to Yoco's secure checkout page
         window.location.href = data.redirectUrl;
-        // Return success: true to indicate the process started
         return { success: true, redirectUrl: data.redirectUrl };
     } else if (data && data.error) {
+        console.error("Payment Logic Error:", data);
         return { success: false, error: data.error };
     } else {
         return { success: false, error: "Invalid response from payment server." };
@@ -81,6 +89,6 @@ export const processPayment = async (details: PaymentDetails): Promise<{ success
 
   } catch (err: any) {
       console.error("Payment Exception:", err);
-      return { success: false, error: "Network error initiating payment. Please check your connection." };
+      return { success: false, error: "Network connection issue. Please check your internet." };
   }
 };

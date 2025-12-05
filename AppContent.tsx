@@ -1,5 +1,5 @@
 
-import React, { useRef, useEffect, lazy, Suspense } from 'react';
+import React, { useRef, useEffect, lazy, Suspense, useState } from 'react';
 import Dashboard from './components/Dashboard';
 import FullPageLoader from './components/FullPageLoader';
 import Login from './components/Login';
@@ -11,13 +11,14 @@ import LegalModal from './components/LegalModal';
 import AdminNotificationPanel from './components/AdminNotificationPanel';
 import InitialProfileSetup from './components/InitialProfileSetup';
 import ConfirmationModal from './components/ConfirmationModal';
-import { UserIcon, BellIcon, BookIcon, CheckIcon } from './components/Icons';
+import { UserIcon, BellIcon, BookIcon, CheckIcon, LoadingIcon } from './components/Icons';
 import { useAuthContext } from './contexts/AuthContext';
 import { useDataContext } from './contexts/DataContext';
 import { useUIContext } from './contexts/UIContext';
 import { useModalContext } from './contexts/ModalContext';
 import { PRIVACY_POLICY_CONTENT, TERMS_OF_USE_CONTENT } from './legalContent';
 import type { Policy, Form } from './types';
+import { getUserProfile } from './services/dbService';
 
 export type AuthPage = 'landing' | 'login' | 'email-sent' | 'verify-email';
 export type AuthFlow = 'signup' | 'login' | 'payg_signup';
@@ -34,25 +35,57 @@ const PaygPaymentPage = lazy(() => import('./components/PaygPaymentPage'));
 const KnowledgeBase = lazy(() => import('./components/KnowledgeBase'));
 
 // New Payment Success Page Component
-const PaymentSuccessPage = ({ onContinue }: { onContinue: () => void }) => (
-    <div className="min-h-screen bg-light flex flex-col items-center justify-center p-4">
-        <div className="bg-white p-8 rounded-lg shadow-md max-w-md text-center border border-gray-200">
-            <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-green-100 mb-6">
-                <CheckIcon className="h-10 w-10 text-green-600" />
+const PaymentSuccessPage = ({ onContinue }: { onContinue: () => void }) => {
+    const { user, setUser } = useAuthContext();
+    const [status, setStatus] = useState<'loading' | 'success'>('loading');
+
+    useEffect(() => {
+        const refreshUser = async () => {
+            if (!user) return;
+            // Short delay to allow webhook to process on the server
+            await new Promise(r => setTimeout(r, 2000));
+            
+            try {
+                const updatedUser = await getUserProfile(user.uid);
+                if (updatedUser) {
+                    setUser(updatedUser);
+                }
+            } catch (e) {
+                console.error("Failed to refresh user after payment", e);
+            } finally {
+                setStatus('success');
+            }
+        };
+        refreshUser();
+    }, [user, setUser]);
+
+    return (
+        <div className="min-h-screen bg-light flex flex-col items-center justify-center p-4">
+            <div className="bg-white p-8 rounded-lg shadow-md max-w-md text-center border border-gray-200">
+                <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-green-100 mb-6">
+                    {status === 'loading' ? (
+                        <LoadingIcon className="h-8 w-8 text-green-600 animate-spin" />
+                    ) : (
+                        <CheckIcon className="h-10 w-10 text-green-600" />
+                    )}
+                </div>
+                <h2 className="text-2xl font-bold text-secondary mb-2">Payment Successful!</h2>
+                <p className="text-gray-600 mb-6">
+                    {status === 'loading' 
+                        ? "Verifying your payment and updating your account..." 
+                        : "Thank you! Your account has been updated."}
+                </p>
+                <button 
+                    onClick={onContinue}
+                    disabled={status === 'loading'}
+                    className="w-full bg-primary text-white font-bold py-3 px-4 rounded-md hover:bg-opacity-90 transition-colors disabled:bg-gray-400"
+                >
+                    Return to Dashboard
+                </button>
             </div>
-            <h2 className="text-2xl font-bold text-secondary mb-2">Payment Successful!</h2>
-            <p className="text-gray-600 mb-6">
-                Thank you for your purchase. Your account is being updated.
-            </p>
-            <button 
-                onClick={onContinue}
-                className="w-full bg-primary text-white font-bold py-3 px-4 rounded-md hover:bg-opacity-90 transition-colors"
-            >
-                Return to Dashboard
-            </button>
         </div>
-    </div>
-);
+    );
+};
 
 const AppContent: React.FC = () => {
     const {

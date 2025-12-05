@@ -1,8 +1,31 @@
+// NOTE: This is a TypeScript file. Do not run this in a SQL Editor.
 import { GoogleGenAI } from "@google/genai";
 import type { FormAnswers, PolicyUpdateResult } from '../types';
 
-// Initialize Gemini Client with API Key from Environment
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+// Helper to safely get the API Key without crashing if 'process' is undefined
+const getApiKey = () => {
+  try {
+    // Primary method as per guidelines
+    if (process.env.API_KEY) return process.env.API_KEY;
+  } catch (e) {
+    // Ignore ReferenceError if process is not defined
+  }
+  
+  // Fallback for Vite environments if process.env isn't polyfilled
+  try {
+    const env = (import.meta as any).env;
+    if (env && env.API_KEY) return env.API_KEY;
+  } catch (e) {
+    // Ignore
+  }
+  
+  return undefined;
+};
+
+// Initialize Gemini Client
+// We use a dummy key if missing to prevent 'new GoogleGenAI' from throwing on load.
+// Actual calls will fail gracefully with the specific error in the functions below.
+const ai = new GoogleGenAI({ apiKey: getApiKey() || 'MISSING_API_KEY' });
 
 const INDUSTRY_SPECIFIC_GUIDANCE: Record<string, Record<string, string>> = {
   'Professional Services': {
@@ -15,6 +38,11 @@ const INDUSTRY_SPECIFIC_GUIDANCE: Record<string, Record<string, string>> = {
 };
 
 export const generatePolicyStream = async function* (type: string, answers: FormAnswers) {
+  const apiKey = getApiKey();
+  if (!apiKey) {
+      throw new Error("Client Configuration Error: Missing API_KEY. Please check your .env file.");
+  }
+
   const model = 'gemini-2.5-flash';
   const industry = answers.industry || 'General';
   const companyName = answers.companyName || 'the Company';
@@ -49,13 +77,18 @@ export const generatePolicyStream = async function* (type: string, answers: Form
             groundingMetadata: chunk.candidates?.[0]?.groundingMetadata
         };
     }
-  } catch (error) {
-    console.error("Gemini Client Error:", error);
-    throw new Error("Failed to generate policy. Please check your internet connection and API Key.");
+  } catch (error: any) {
+    console.error("Gemini Generation Error:", error);
+    throw new Error(error.message || "Failed to generate policy. Please check your internet connection.");
   }
 };
 
 export const generateFormStream = async function* (type: string, answers: FormAnswers) {
+    const apiKey = getApiKey();
+    if (!apiKey) {
+        throw new Error("Client Configuration Error: Missing API_KEY.");
+    }
+
     const model = 'gemini-2.5-flash';
     
     const prompt = `Generate a professional HR Form for "${type}".
@@ -80,13 +113,18 @@ export const generateFormStream = async function* (type: string, answers: FormAn
         for await (const chunk of response) {
             if (chunk.text) yield chunk.text;
         }
-    } catch (error) {
-        console.error("Gemini Client Error:", error);
-        throw new Error("Failed to generate form.");
+    } catch (error: any) {
+        console.error("Gemini Generation Error:", error);
+        throw new Error(error.message || "Failed to generate form.");
     }
 };
 
 export const updatePolicy = async (content: string, instructions?: string): Promise<PolicyUpdateResult> => {
+    const apiKey = getApiKey();
+    if (!apiKey) {
+        throw new Error("Client Configuration Error: Missing API_KEY.");
+    }
+
     const model = 'gemini-2.5-flash'; 
     const prompt = `Analyze the following HR policy document against current South African Labour Law.
     
@@ -120,13 +158,19 @@ export const updatePolicy = async (content: string, instructions?: string): Prom
         // Clean markdown code blocks if present
         const jsonStr = text.replace(/```json\n?|\n?```/g, '').trim();
         return JSON.parse(jsonStr) as PolicyUpdateResult;
-    } catch (error) {
+    } catch (error: any) {
         console.error("Gemini Update Error:", error);
-        throw new Error("Failed to update policy. Ensure the document content is valid text.");
+        throw new Error(error.message || "Failed to update policy.");
     }
 };
 
 export const explainPolicyTypeStream = async function* (title: string) {
+    const apiKey = getApiKey();
+    if (!apiKey) {
+        yield "Configuration Error: API Key missing.";
+        return;
+    }
+
     const model = 'gemini-2.5-flash';
     const prompt = `Explain the purpose and key components of a "${title}" in the context of South African HR law. Keep it brief and informative for a business owner.`;
     
@@ -146,6 +190,12 @@ export const explainPolicyTypeStream = async function* (title: string) {
 }
 
 export const explainFormTypeStream = async function* (title: string) {
+    const apiKey = getApiKey();
+    if (!apiKey) {
+        yield "Configuration Error: API Key missing.";
+        return;
+    }
+
     const model = 'gemini-2.5-flash';
     const prompt = `Explain the purpose of a "${title}" form in South African HR management. Keep it brief.`;
     

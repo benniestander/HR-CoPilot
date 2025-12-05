@@ -14,11 +14,14 @@ Deno.serve(async (req: any) => {
   }
 
   try {
-    const YOCO_SECRET_KEY = Deno.env.get('YOCO_SECRET_KEY');
+    // Retrieve and sanitise secrets
+    const rawYocoKey = Deno.env.get('YOCO_SECRET_KEY');
+    const YOCO_SECRET_KEY = rawYocoKey ? rawYocoKey.trim() : ''; // TRIM WHITESPACE
     const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 
     if (!YOCO_SECRET_KEY || !SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
+      console.error("Missing Secrets - Yoco Key Length:", YOCO_SECRET_KEY.length);
       throw new Error("Server configuration error: Missing YOCO_SECRET_KEY or Supabase secrets.");
     }
 
@@ -52,8 +55,6 @@ Deno.serve(async (req: any) => {
             }
         } catch (dbErr) {
             console.warn("DB Price Check Warning (Proceeding):", dbErr);
-            // We do not block the payment if the DB check fails (e.g. table missing), 
-            // as the webhook will handle final provisioning.
         }
     }
 
@@ -67,6 +68,8 @@ Deno.serve(async (req: any) => {
         });
     }
 
+    console.log(`Initiating Yoco Checkout for R${(finalAmount/100).toFixed(2)}...`);
+
     // Call Yoco Checkout API
     const response = await fetch('https://payments.yoco.com/api/checkouts', {
       method: 'POST',
@@ -77,8 +80,8 @@ Deno.serve(async (req: any) => {
       body: JSON.stringify({
         amount: finalAmount,
         currency: currency || 'ZAR',
-        successUrl: `${returnUrl}payment-success`, // Redirects to: https://app.com/#/payment-success
-        cancelUrl: `${returnUrl}payment-cancel`,   // Redirects to: https://app.com/#/payment-cancel
+        successUrl: `${returnUrl}payment-success`, 
+        cancelUrl: `${returnUrl}payment-cancel`,
         metadata: safeMetadata
       })
     })
@@ -86,15 +89,18 @@ Deno.serve(async (req: any) => {
     const data = await response.json();
 
     if (!response.ok) {
-      console.error('Yoco Checkout API Error:', data);
+      console.error('Yoco Checkout API Error Response:', JSON.stringify(data));
       return new Response(
         JSON.stringify({ 
-            error: data.message || 'Failed to create checkout session with Yoco.', 
-            details: data 
+            error: data.message || 'Payment Gateway Error. Please contact support.', 
+            details: data,
+            code: data.code
         }), 
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
       )
     }
+
+    console.log("Yoco Checkout Created:", data.id);
 
     // Return the redirect URL to the frontend
     return new Response(
@@ -103,7 +109,7 @@ Deno.serve(async (req: any) => {
     )
 
   } catch (error: any) {
-    console.error("Edge Function Exception:", error);
+    console.error("Edge Function Critical Exception:", error);
     return new Response(
       JSON.stringify({ error: error.message || "Internal Server Error" }), 
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
