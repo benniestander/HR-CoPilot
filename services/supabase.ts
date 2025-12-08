@@ -9,8 +9,11 @@ import { createClient } from '@supabase/supabase-js';
 const getEnvVar = (key: string): string | undefined => {
     // 1. Try Vite's import.meta.env
     try {
-        const viteEnv = (import.meta as any).env;
-        if (viteEnv && viteEnv[key]) return viteEnv[key];
+        // @ts-ignore
+        if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env[key]) {
+            // @ts-ignore
+            return import.meta.env[key];
+        }
     } catch (e) {
         // Ignore
     }
@@ -32,15 +35,17 @@ const getEnvVar = (key: string): string | undefined => {
 const SUPABASE_URL = getEnvVar('VITE_SUPABASE_URL');
 const SUPABASE_ANON_KEY = getEnvVar('VITE_SUPABASE_ANON_KEY');
 
+export const isSupabaseConfigured = !!(SUPABASE_URL && SUPABASE_ANON_KEY && SUPABASE_URL.startsWith('http'));
+
 // Log a warning if missing, but allow the app to initialize with placeholders.
 // This prevents immediate crashes (White Screen of Death).
-if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
-    console.warn("WARNING: Supabase Environment Variables are missing. The app is running in placeholder mode. Please check your .env file.");
+if (!isSupabaseConfigured) {
+    console.warn("WARNING: Supabase Environment Variables are missing or invalid. The app is running in placeholder mode. Please check your .env file.");
 }
 
 // Fallback to placeholder values.
 // createClient throws an error if the URL is empty/null, so we ensure a valid string exists.
 export const supabase = createClient(
-    SUPABASE_URL || "https://placeholder.supabase.co", 
-    SUPABASE_ANON_KEY || "placeholder-key"
+    (isSupabaseConfigured && SUPABASE_URL) ? SUPABASE_URL : "https://placeholder.supabase.co", 
+    (isSupabaseConfigured && SUPABASE_ANON_KEY) ? SUPABASE_ANON_KEY : "placeholder-key"
 );

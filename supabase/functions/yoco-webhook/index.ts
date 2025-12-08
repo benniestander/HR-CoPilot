@@ -43,22 +43,11 @@ Deno.serve(async (req: any) => {
         if (couponCode) {
             const { data: coupon } = await supabaseAdmin.from('coupons').select('*').eq('code', couponCode).single();
             if (coupon) {
-                // If the user paid a discounted price, we might want to give them credit for the *original* value if it's a top-up.
-                // However, simpler logic: The 'amountInCents' is what they paid.
-                // If it was a fixed discount on TopUp, e.g. Buy R100 credit for R50. 
-                // We need to calculate what the credit *should* be. 
-                // For simplicity in this implementation, we credit what they paid unless specific logic exists.
-                
-                // If it's a TopUp and we want to apply "bonus" credit logic, we could do it here.
-                // For now, increment usage.
                 await supabaseAdmin.rpc('increment_coupon_uses', { coupon_code: couponCode });
             }
         }
 
         if (userId && type) {
-            // Check if transaction already processed to avoid duplicates (Idempotency)
-            // Yoco sends checkout ID in payload.id usually, or charge ID.
-            
             const txAmount = type === 'subscription' ? -amountInCents : creditToAdd;
             const description = type === 'subscription' ? 'Pro Subscription Payment' : 'Credit Top-Up';
 

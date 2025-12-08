@@ -1,6 +1,5 @@
-
 import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
-import { supabase } from '../services/supabase';
+import { supabase, isSupabaseConfigured } from '../services/supabase';
 import { useAuth } from '../hooks/useAuth';
 import type { User } from '../types';
 import type { AuthPage, AuthFlow } from '../AppContent';
@@ -42,6 +41,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [onboardingSkipped, setOnboardingSkipped] = useState(false);
 
   const handleLogin = async (email: string, pass: string) => {
+    if (!isSupabaseConfigured) {
+        throw new Error("Configuration Error: Supabase variables (VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY) are missing in .env file.");
+    }
     const { error } = await (supabase.auth as any).signInWithPassword({
       email,
       password: pass,
@@ -50,7 +52,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const handleLogout = async () => {
-    await (supabase.auth as any).signOut();
+    if (isSupabaseConfigured) {
+        await (supabase.auth as any).signOut();
+    }
     setUser(null);
     setAuthPage('login');
     // Clear local storage or state if needed
@@ -58,6 +62,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const handleForgotPassword = async (email: string) => {
+    if (!isSupabaseConfigured) {
+        throw new Error("Configuration Error: Supabase variables are missing.");
+    }
     const { error } = await (supabase.auth as any).resetPasswordForEmail(email, {
       redirectTo: `${window.location.origin}/#/reset-password`,
     });
@@ -65,6 +72,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const handleStartAuthFlow = async (flow: AuthFlow, email: string, details: any) => {
+    if (!isSupabaseConfigured) {
+        throw new Error("Configuration Error: Supabase variables are missing in .env file.");
+    }
+
     setAuthEmail(email);
     setAuthFlow(flow);
     
@@ -127,11 +138,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // HIGH-6 FIX: Ensure global loading state waits for profile hydration.
   // If we have a user object but the profile is empty AND we aren't in "needsOnboarding" state (which is a valid state where profile is empty),
   // then we are likely still fetching the profile details from DB.
-  // We check keys of user.profile. If empty, and we didn't explicitly flag 'needsOnboarding', assume fetching.
   const isProfileHydrating = !!user && 
                              user.profile && 
-                             Object.keys(user.profile).length <= 1 && // companyName/industry often defaults
-                             !user.profile.companyName && // Critical field check
+                             Object.keys(user.profile).length <= 1 && 
+                             !user.profile.companyName && 
                              !needsOnboarding;
 
   const combinedLoading = isLoading || isProfileHydrating;
