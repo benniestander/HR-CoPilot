@@ -9,11 +9,11 @@ import type {
     Coupon, 
     CompanyProfile, 
     PolicyDraft,
-    DocumentPrice,
-    AppSetting
+    Policy, 
+    Form
 } from '../types';
 
-// ... (User & Profile functions remain unchanged) ...
+// ... (Existing User & Profile functions remain unchanged)
 
 export const getUserProfile = async (uid: string): Promise<User | null> => {
     const { data: profile, error } = await supabase
@@ -148,7 +148,7 @@ export const saveGeneratedDocument = async (uid: string, doc: GeneratedDocument)
         content: doc.content || "",
         created_at: doc.createdAt, 
         company_profile: doc.companyProfile || {},
-        question_answers: doc.questionAnswers || {},
+        question_answers: doc.question_answers || {},
         output_format: doc.outputFormat || 'word',
         sources: doc.sources || [],
         version: doc.version,
@@ -211,6 +211,26 @@ export const addTransactionToUser = async (uid: string, transaction: Partial<Tra
     }
 };
 
+// --- INVOICE REQUESTS (New) ---
+
+export const requestInvoice = async (userId: string, type: 'pro' | 'payg', amountInCents: number, description: string) => {
+    const { data: user } = await supabase.from('profiles').select('email, full_name').eq('id', userId).single();
+    const userEmail = user?.email || 'Unknown';
+    const amountRands = (amountInCents / 100).toFixed(2);
+
+    const message = `INVOICE REQUEST: ${userEmail} requests a ${type === 'pro' ? 'Pro Plan Subscription' : 'Credit Top-Up'} of R${amountRands}. ${description}`;
+
+    const { error } = await supabase.from('admin_notifications').insert({
+        type: 'payment_failed', // Reusing this type or 'important_update' for visibility
+        message: message,
+        is_read: false,
+        related_user_id: userId
+    });
+
+    if (error) throw error;
+    return true;
+};
+
 // --- Admin Features (Pagination) ---
 
 export const getAllUsers = async (pageSize: number, lastVisible?: number): Promise<{ data: User[], lastVisible: number | null }> => {
@@ -270,8 +290,6 @@ export const getAllDocumentsForAllUsers = async (pageSize: number, lastVisible?:
 
     return { data: docs, lastVisible: offset + pageSize };
 };
-
-// ... (Rest of the file remains unchanged: logs, admin actions, notifications, files, photos, coupons, pricing, drafts) ...
 
 export const getAdminActionLogs = async (pageSize: number, lastVisible?: number): Promise<{ data: AdminActionLog[], lastVisible: number | null }> => {
     let query = supabase.from('admin_action_logs').select('*').order('created_at', { ascending: false });
