@@ -15,28 +15,11 @@ import type {
     InvoiceRequest
 } from '../types';
 
-// --- User & Profile ---
-
+// ... (User & Profile Functions Omitted for Brevity - they remain unchanged)
 export const getUserProfile = async (uid: string): Promise<User | null> => {
-    const { data: profile, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', uid)
-        .single();
-
-    if (error) {
-        // Only log real errors, not "row not found" which is handled by returning null
-        if (error.code !== 'PGRST116') console.error('Error fetching profile:', error);
-        return null;
-    }
-
-    const { data: transactions } = await supabase
-        .from('transactions')
-        .select('*')
-        .eq('user_id', uid)
-        .order('date', { ascending: false })
-        .limit(50);
-
+    const { data: profile, error } = await supabase.from('profiles').select('*').eq('id', uid).single();
+    if (error) { if (error.code !== 'PGRST116') console.error('Error fetching profile:', error); return null; }
+    const { data: transactions } = await supabase.from('transactions').select('*').eq('user_id', uid).order('date', { ascending: false }).limit(50);
     return {
         uid: profile.id,
         email: profile.email,
@@ -60,33 +43,12 @@ export const getUserProfile = async (uid: string): Promise<User | null> => {
 };
 
 export const createUserProfile = async (uid: string, email: string, plan: 'pro' | 'payg', name?: string, contactNumber?: string): Promise<User> => {
-    const { data, error } = await supabase
-        .from('profiles')
-        .insert({
-            id: uid,
-            email,
-            plan,
-            full_name: name,
-            contact_number: contactNumber,
-            credit_balance: 0,
-            created_at: new Date().toISOString(),
-        })
-        .select()
-        .single();
-
+    const { data, error } = await supabase.from('profiles').insert({
+            id: uid, email, plan, full_name: name, contact_number: contactNumber, credit_balance: 0, created_at: new Date().toISOString(),
+        }).select().single();
     if (error) throw error;
-
     return {
-        uid: data.id,
-        email: data.email,
-        name: data.full_name,
-        contactNumber: data.contact_number,
-        plan: data.plan,
-        creditBalance: 0,
-        createdAt: data.created_at,
-        isAdmin: false,
-        profile: { companyName: '', industry: '' },
-        transactions: [],
+        uid: data.id, email: data.email, name: data.full_name, contactNumber: data.contact_number, plan: data.plan, creditBalance: 0, createdAt: data.created_at, isAdmin: false, profile: { companyName: '', industry: '' }, transactions: [],
     };
 };
 
@@ -94,7 +56,6 @@ export const updateUser = async (uid: string, updates: Partial<User>) => {
     const dbUpdates: any = {};
     if (updates.name !== undefined) dbUpdates.full_name = updates.name;
     if (updates.contactNumber !== undefined) dbUpdates.contact_number = updates.contactNumber;
-    
     if (updates.profile) {
         if (updates.profile.companyName !== undefined) dbUpdates.company_name = updates.profile.companyName;
         if (updates.profile.industry !== undefined) dbUpdates.industry = updates.profile.industry;
@@ -103,107 +64,44 @@ export const updateUser = async (uid: string, updates: Partial<User>) => {
         if (updates.profile.summary !== undefined) dbUpdates.summary = updates.profile.summary;
         if (updates.profile.companySize !== undefined) dbUpdates.company_size = updates.profile.companySize;
     }
-
     const { error } = await supabase.from('profiles').update(dbUpdates).eq('id', uid);
     if (error) throw error;
 };
 
-// --- Documents ---
-
+// ... (Documents, Transactions, etc. unchanged)
 export const getGeneratedDocuments = async (uid: string): Promise<GeneratedDocument[]> => {
-    const { data, error } = await supabase
-        .from('generated_documents')
-        .select('*')
-        .eq('user_id', uid)
-        .order('created_at', { ascending: false });
-
+    const { data, error } = await supabase.from('generated_documents').select('*').eq('user_id', uid).order('created_at', { ascending: false });
     if (error) throw error;
-
     return data.map((doc: any) => ({
-        id: doc.id,
-        title: doc.title,
-        kind: doc.kind,
-        type: doc.type,
-        content: doc.content,
-        createdAt: doc.created_at,
-        companyProfile: doc.company_profile,
-        questionAnswers: doc.question_answers,
-        outputFormat: doc.output_format,
-        sources: doc.sources,
-        version: doc.version,
-        history: doc.history,
+        id: doc.id, title: doc.title, kind: doc.kind, type: doc.type, content: doc.content, createdAt: doc.created_at, companyProfile: doc.company_profile, questionAnswers: doc.question_answers, outputFormat: doc.output_format, sources: doc.sources, version: doc.version, history: doc.history,
     }));
 };
 
 export const saveGeneratedDocument = async (uid: string, doc: GeneratedDocument): Promise<GeneratedDocument> => {
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
     const isUpdate = doc.id && uuidRegex.test(doc.id);
-
     const dbDoc: any = {
-        user_id: uid,
-        title: doc.title,
-        kind: doc.kind,
-        type: doc.type,
-        content: doc.content || "",
-        created_at: doc.createdAt, 
-        company_profile: doc.companyProfile || {},
-        question_answers: doc.questionAnswers || {},
-        output_format: doc.outputFormat || 'word',
-        sources: doc.sources || [],
-        version: doc.version,
-        history: doc.history || [],
+        user_id: uid, title: doc.title, kind: doc.kind, type: doc.type, content: doc.content || "", created_at: doc.createdAt, company_profile: doc.companyProfile || {}, question_answers: doc.questionAnswers || {}, output_format: doc.outputFormat || 'word', sources: doc.sources || [], version: doc.version, history: doc.history || [],
     };
-
     let data, error;
-
     if (isUpdate) {
-        const result = await supabase
-            .from('generated_documents')
-            .update(dbDoc)
-            .eq('id', doc.id)
-            .select()
-            .single();
-        data = result.data;
-        error = result.error;
+        const result = await supabase.from('generated_documents').update(dbDoc).eq('id', doc.id).select().single();
+        data = result.data; error = result.error;
     } else {
-        const result = await supabase
-            .from('generated_documents')
-            .insert(dbDoc)
-            .select()
-            .single();
-        data = result.data;
-        error = result.error;
+        const result = await supabase.from('generated_documents').insert(dbDoc).select().single();
+        data = result.data; error = result.error;
     }
-
-    if (error) {
-        console.error("Supabase Save Error:", error); 
-        throw error;
-    }
-
-    return {
-        ...doc,
-        id: data.id,
-        createdAt: data.created_at
-    };
+    if (error) { console.error("Supabase Save Error:", error); throw error; }
+    return { ...doc, id: data.id, createdAt: data.created_at };
 };
-
-// --- Transactions & Credit ---
 
 export const addTransactionToUser = async (uid: string, transaction: Partial<Transaction>, updateBalance: boolean = false) => {
     const { error: txError } = await supabase.from('transactions').insert({
-        user_id: uid,
-        amount: transaction.amount,
-        description: transaction.description,
-        date: new Date().toISOString(),
+        user_id: uid, amount: transaction.amount, description: transaction.description, date: new Date().toISOString(),
     });
-    
     if (txError) throw txError;
-
     if (updateBalance && transaction.amount) {
-        const { error: balanceError } = await supabase.rpc('increment_balance', {
-            user_id: uid,
-            amount: transaction.amount
-        });
+        const { error: balanceError } = await supabase.rpc('increment_balance', { user_id: uid, amount: transaction.amount });
         if (balanceError) throw balanceError;
     }
 };
@@ -217,25 +115,22 @@ export const submitInvoiceRequest = async (
     amountInCents: number,
     description: string
 ) => {
-    // 1. Create a readable reference (e.g. HR-A1B2)
     const reference = `HR-${userId.substring(0, 4).toUpperCase()}-${Date.now().toString().slice(-4)}`;
     const amountRands = (amountInCents / 100).toFixed(2);
 
-    // 2. Log Admin Notification
     const { error } = await supabase.from('admin_notifications').insert({
         type: 'important_update',
-        // Structured message for easier parsing later: TYPE|AMOUNT|REF|DESC
         message: `INVOICE REQUEST: ${userEmail} requests ${description}. Amount: R${amountRands}. Ref: ${reference}`,
         is_read: false,
         related_user_id: userId
     });
 
     if (error) throw error;
-
     return reference;
 };
 
 export const getOpenInvoiceRequests = async (): Promise<InvoiceRequest[]> => {
+    // FIX: Using 'created_at' consistently. If your DB has 'timestamp', run the migration script in services/supabase.ts
     const { data, error } = await supabase
         .from('admin_notifications')
         .select('*')
@@ -243,61 +138,44 @@ export const getOpenInvoiceRequests = async (): Promise<InvoiceRequest[]> => {
         .ilike('message', 'INVOICE REQUEST%')
         .order('created_at', { ascending: false });
 
-    if (error) throw error;
+    if (error) {
+        console.error("Error fetching invoice requests:", error);
+        throw error;
+    }
 
     return data.map((n: any) => {
-        // Parse message: "INVOICE REQUEST: email requests desc. Amount: R100.00. Ref: XYZ"
         const msg = n.message;
         const emailMatch = msg.match(/INVOICE REQUEST: (\S+)/);
         const amountMatch = msg.match(/Amount: R([\d\.]+)/);
         const refMatch = msg.match(/Ref: (\S+)/);
         
-        // Determine type based on description keywords
         const isPro = msg.toLowerCase().includes('pro subscription') || msg.toLowerCase().includes('pro plan');
         
         return {
-            id: n.id, // Notification ID used to mark as read later
-            date: n.created_at,
+            id: n.id, 
+            date: n.created_at || n.timestamp, // Fallback for safety
             userId: n.related_user_id,
             userEmail: emailMatch ? emailMatch[1] : 'Unknown',
             type: isPro ? 'pro' : 'payg',
             amount: amountMatch ? Math.round(parseFloat(amountMatch[1]) * 100) : 0,
             reference: refMatch ? refMatch[1] : 'N/A',
-            description: msg.split('Ref:')[0] // Rough description
+            description: msg.split('Ref:')[0]
         };
     });
 };
 
 export const processManualOrder = async (adminEmail: string, request: InvoiceRequest) => {
-    // 1. Update User
     if (request.type === 'pro') {
         await supabase.from('profiles').update({ plan: 'pro' }).eq('id', request.userId);
-        await addTransactionToUser(request.userId, { 
-            description: `Manual Activation: ${request.description}`, 
-            amount: 0 // Subscription usually doesn't add credit balance, just enables features
-        });
+        await addTransactionToUser(request.userId, { description: `Manual Activation: ${request.description}`, amount: 0 });
     } else {
-        await addTransactionToUser(request.userId, { 
-            description: `Manual Top-Up: ${request.description}`, 
-            amount: request.amount 
-        }, true); // Update balance
+        await addTransactionToUser(request.userId, { description: `Manual Top-Up: ${request.description}`, amount: request.amount }, true);
     }
-
-    // 2. Mark Notification as Read (Archive request)
     await supabase.from('admin_notifications').update({ is_read: true }).eq('id', request.id);
-
-    // 3. Log Admin Action
-    await logAdminAction('Processed Manual Order', request.userId, { 
-        amount: request.amount, 
-        type: request.type, 
-        reference: request.reference 
-    });
-
-    // 4. Send Email
-    // Fetch name first
+    await logAdminAction('Processed Manual Order', request.userId, { amount: request.amount, type: request.type, reference: request.reference });
+    
     const { data: userProfile } = await supabase.from('profiles').select('full_name').eq('id', request.userId).single();
     const userName = userProfile?.full_name || 'Customer';
-    
     await emailService.sendActivationConfirmation(request.userEmail, userName, request.type, request.amount);
 };
 
@@ -306,61 +184,32 @@ export const processManualOrder = async (adminEmail: string, request: InvoiceReq
 const logAdminAction = async (action: string, targetUid: string, details?: any) => {
     const { data: { user } } = await (supabase.auth as any).getUser();
     if (!user) return;
-
     const { data: target } = await supabase.from('profiles').select('email').eq('id', targetUid).single();
-
     await supabase.from('admin_action_logs').insert({
-        admin_email: user.email,
-        action,
-        target_user_id: targetUid,
-        target_user_email: target?.email || 'Unknown',
-        details
+        admin_email: user.email, action, target_user_id: targetUid, target_user_email: target?.email || 'Unknown', details
     });
 };
 
 export const getAllUsers = async (pageSize: number, lastVisible?: number): Promise<{ data: User[], lastVisible: number | null }> => {
     let query = supabase.from('profiles').select('*', { count: 'exact' }).order('created_at', { ascending: false }).limit(pageSize);
-    if (lastVisible) {
-        query = query.range(lastVisible, lastVisible + pageSize - 1);
-    } else {
-        query = query.range(0, pageSize - 1);
-    }
+    if (lastVisible) query = query.range(lastVisible, lastVisible + pageSize - 1);
+    else query = query.range(0, pageSize - 1);
     const { data, error } = await query;
     if (error) throw error;
     const users = data.map((profile: any) => ({
-        uid: profile.id,
-        email: profile.email,
-        name: profile.full_name,
-        contactNumber: profile.contact_number,
-        plan: profile.plan,
-        creditBalance: profile.credit_balance,
-        createdAt: profile.created_at,
-        isAdmin: profile.is_admin,
-        profile: { companyName: profile.company_name, industry: profile.industry },
-        transactions: []
+        uid: profile.id, email: profile.email, name: profile.full_name, contactNumber: profile.contact_number, plan: profile.plan, creditBalance: profile.credit_balance, createdAt: profile.created_at, isAdmin: profile.is_admin, profile: { companyName: profile.company_name, industry: profile.industry }, transactions: []
     }));
     return { data: users, lastVisible: (lastVisible || 0) + pageSize };
 };
 
 export const getAllDocumentsForAllUsers = async (pageSize: number, lastVisible?: number): Promise<{ data: GeneratedDocument[], lastVisible: number | null }> => {
-    let query = supabase
-        .from('generated_documents')
-        .select('*, profiles(company_name)') 
-        .order('created_at', { ascending: false });
+    let query = supabase.from('generated_documents').select('*, profiles(company_name)').order('created_at', { ascending: false });
     const offset = lastVisible || 0;
     query = query.range(offset, offset + pageSize - 1);
     const { data, error } = await query;
     if (error) throw error;
     const docs = data.map((doc: any) => ({
-        id: doc.id,
-        title: doc.title,
-        kind: doc.kind,
-        type: doc.type,
-        content: doc.content,
-        createdAt: doc.created_at,
-        companyProfile: doc.company_profile || { companyName: doc.profiles?.company_name || 'N/A', industry: 'Unknown' },
-        questionAnswers: doc.question_answers,
-        version: doc.version,
+        id: doc.id, title: doc.title, kind: doc.kind, type: doc.type, content: doc.content, createdAt: doc.created_at, companyProfile: doc.company_profile || { companyName: doc.profiles?.company_name || 'N/A', industry: 'Unknown' }, questionAnswers: doc.question_answers, version: doc.version,
     }));
     return { data: docs, lastVisible: offset + pageSize };
 };
@@ -372,13 +221,7 @@ export const getAdminActionLogs = async (pageSize: number, lastVisible?: number)
     const { data, error } = await query;
     if (error) throw error;
     const logs = data.map((log: any) => ({
-        id: log.id,
-        timestamp: log.created_at,
-        adminEmail: log.admin_email,
-        action: log.action,
-        targetUserId: log.target_user_id,
-        targetUserEmail: log.target_user_email,
-        details: log.details
+        id: log.id, timestamp: log.created_at, adminEmail: log.admin_email, action: log.action, targetUserId: log.target_user_id, targetUserEmail: log.target_user_email, details: log.details
     }));
     return { data: logs, lastVisible: offset + pageSize };
 };
@@ -415,8 +258,6 @@ export const simulateFailedPaymentForUser = async (adminEmail: string, targetUid
     await logAdminAction('Simulated Failed Payment', targetUid);
 };
 
-// --- Settings & Pricing ---
-
 export const getPricingSettings = async () => {
     const { data: settings } = await supabase.from('app_settings').select('*');
     const { data: docPrices } = await supabase.from('document_prices').select('*');
@@ -424,76 +265,37 @@ export const getPricingSettings = async () => {
 };
 
 export const updateProPrice = async (priceInCents: number) => {
-    await supabase.from('app_settings').upsert({
-        key: 'pro_plan_yearly',
-        value: priceInCents,
-        description: 'Yearly Pro Plan Price in Cents'
-    });
+    await supabase.from('app_settings').upsert({ key: 'pro_plan_yearly', value: priceInCents, description: 'Yearly Pro Plan Price in Cents' });
     await logAdminAction('Updated Pro Plan Price', 'system', { price: priceInCents });
 };
 
 export const updateDocumentPrice = async (docType: string, priceInCents: number, category: 'policy' | 'form') => {
-    await supabase.from('document_prices').upsert({
-        doc_type: docType,
-        price: priceInCents,
-        category
-    });
+    await supabase.from('document_prices').upsert({ doc_type: docType, price: priceInCents, category });
     await logAdminAction('Updated Document Price', 'system', { docType, price: priceInCents });
 };
 
-// --- Notifications ---
-
 export const getAdminNotifications = async (): Promise<AdminNotification[]> => {
-    const { data, error } = await supabase
-        .from('admin_notifications')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(50);
+    const { data, error } = await supabase.from('admin_notifications').select('*').order('created_at', { ascending: false }).limit(50);
     if (error) return [];
     return data.map((n: any) => ({
-        id: n.id,
-        timestamp: n.created_at,
-        type: n.type,
-        message: n.message,
-        isRead: n.is_read,
-        relatedUserId: n.related_user_id
+        id: n.id, timestamp: n.created_at, type: n.type, message: n.message, isRead: n.is_read, relatedUserId: n.related_user_id
     }));
 };
 
-export const markNotificationAsRead = async (id: string) => {
-    await supabase.from('admin_notifications').update({ is_read: true }).eq('id', id);
-};
-
-export const markAllNotificationsAsRead = async () => {
-    await supabase.from('admin_notifications').update({ is_read: true }).eq('is_read', false);
-};
-
-// --- Files ---
+export const markNotificationAsRead = async (id: string) => { await supabase.from('admin_notifications').update({ is_read: true }).eq('id', id); };
+export const markAllNotificationsAsRead = async () => { await supabase.from('admin_notifications').update({ is_read: true }).eq('is_read', false); };
 
 export const getUserFiles = async (uid: string): Promise<UserFile[]> => {
     const { data, error } = await supabase.from('user_files').select('*').eq('user_id', uid).order('created_at', { ascending: false });
     if (error) return [];
-    return data.map((f: any) => ({
-        id: f.id,
-        name: f.name,
-        notes: f.notes,
-        size: f.size,
-        storagePath: f.storage_path,
-        createdAt: f.created_at
-    }));
+    return data.map((f: any) => ({ id: f.id, name: f.name, notes: f.notes, size: f.size, storagePath: f.storage_path, createdAt: f.created_at }));
 };
 
 export const uploadUserFile = async (uid: string, file: File, notes: string) => {
     const path = `${uid}/${Date.now()}_${file.name}`;
     const { error: uploadError } = await supabase.storage.from('user_docs').upload(path, file);
     if (uploadError) throw uploadError;
-    const { error: dbError } = await supabase.from('user_files').insert({
-        user_id: uid,
-        name: file.name,
-        notes,
-        size: file.size,
-        storage_path: path
-    });
+    const { error: dbError } = await supabase.from('user_files').insert({ user_id: uid, name: file.name, notes, size: file.size, storage_path: path });
     if (dbError) throw dbError;
 };
 
@@ -524,15 +326,9 @@ export const deleteProfilePhoto = async (uid: string) => {
     await supabase.from('profiles').update({ avatar_url: null }).eq('id', uid);
 };
 
-// --- Coupons ---
-
 export const createCoupon = async (coupon: Partial<Coupon>) => {
     const { error } = await supabase.from('coupons').insert({
-        code: coupon.code,
-        discount_type: coupon.discountType,
-        discount_value: coupon.discountValue,
-        max_uses: coupon.maxUses,
-        applicable_to: coupon.applicableTo === 'all' ? null : coupon.applicableTo
+        code: coupon.code, discount_type: coupon.discountType, discount_value: coupon.discountValue, max_uses: coupon.maxUses, applicable_to: coupon.applicableTo === 'all' ? null : coupon.applicableTo
     });
     if (error) throw error;
 };
@@ -541,61 +337,26 @@ export const getCoupons = async (): Promise<Coupon[]> => {
     const { data, error } = await supabase.from('coupons').select('*').order('created_at', { ascending: false });
     if (error) return [];
     return data.map((c: any) => ({
-        id: c.id,
-        code: c.code,
-        discountType: c.discount_type,
-        discountValue: c.discount_value,
-        maxUses: c.max_uses,
-        usedCount: c.used_count,
-        expiryDate: c.expiry_date,
-        active: c.active,
-        applicableTo: c.applicable_to || 'all', 
-        createdAt: c.created_at
+        id: c.id, code: c.code, discountType: c.discount_type, discountValue: c.discount_value, maxUses: c.max_uses, usedCount: c.used_count, expiryDate: c.expiry_date, active: c.active, applicableTo: c.applicable_to || 'all', createdAt: c.created_at
     }));
 };
 
-export const deactivateCoupon = async (id: string) => {
-    await supabase.from('coupons').update({ active: false }).eq('id', id);
-};
+export const deactivateCoupon = async (id: string) => { await supabase.from('coupons').update({ active: false }).eq('id', id); };
 
 export const validateCoupon = async (code: string, planType: 'pro' | 'payg'): Promise<{ valid: boolean; coupon?: Coupon; message?: string }> => {
-    const { data, error } = await supabase
-        .from('coupons')
-        .select('*')
-        .eq('code', code)
-        .eq('active', true)
-        .single();
+    const { data, error } = await supabase.from('coupons').select('*').eq('code', code).eq('active', true).single();
     if (error || !data) return { valid: false, message: 'Invalid or expired coupon.' };
     if (data.max_uses && data.used_count >= data.max_uses) return { valid: false, message: 'Coupon usage limit reached.' };
     if (data.applicable_to && data.applicable_to !== `plan:${planType}`) return { valid: false, message: 'Coupon not applicable for this plan.' };
     const coupon: Coupon = {
-        id: data.id,
-        code: data.code,
-        discountType: data.discount_type,
-        discountValue: data.discount_value,
-        maxUses: data.max_uses,
-        usedCount: data.used_count,
-        expiryDate: data.expiry_date,
-        active: data.active,
-        applicableTo: data.applicable_to || 'all',
-        createdAt: data.created_at
+        id: data.id, code: data.code, discountType: data.discount_type, discountValue: data.discount_value, maxUses: data.max_uses, usedCount: data.used_count, expiryDate: data.expiry_date, active: data.active, applicableTo: data.applicable_to || 'all', createdAt: data.created_at
     };
     return { valid: true, coupon };
 };
 
-// --- Drafts ---
-
 export const savePolicyDraft = async (uid: string, draft: Omit<PolicyDraft, 'id' | 'createdAt' | 'updatedAt'> & { id?: string }): Promise<void> => {
     const data = {
-        id: draft.id,
-        user_id: uid,
-        original_doc_id: draft.originalDocId,
-        original_doc_title: draft.originalDocTitle,
-        original_content: draft.originalContent,
-        update_result: draft.updateResult,
-        selected_indices: draft.selectedIndices,
-        manual_instructions: draft.manualInstructions,
-        updated_at: new Date().toISOString()
+        id: draft.id, user_id: uid, original_doc_id: draft.originalDocId, original_doc_title: draft.originalDocTitle, original_content: draft.originalContent, update_result: draft.updateResult, selected_indices: draft.selectedIndices, manual_instructions: draft.manualInstructions, updated_at: new Date().toISOString()
     };
     const { error } = await supabase.from('policy_drafts').upsert(data);
     if (error) throw error;
@@ -605,15 +366,7 @@ export const getPolicyDrafts = async (uid: string): Promise<PolicyDraft[]> => {
     const { data, error } = await supabase.from('policy_drafts').select('*').eq('user_id', uid).order('updated_at', { ascending: false });
     if (error) return [];
     return data.map((d: any) => ({
-        id: d.id,
-        originalDocId: d.original_doc_id,
-        originalDocTitle: d.original_doc_title,
-        originalContent: d.original_content,
-        updateResult: d.update_result,
-        selectedIndices: d.selected_indices,
-        manual_instructions: d.manual_instructions,
-        updatedAt: d.updated_at,
-        createdAt: d.created_at
+        id: d.id, originalDocId: d.original_doc_id, originalDocTitle: d.original_doc_title, originalContent: d.original_content, updateResult: d.update_result, selectedIndices: d.selected_indices, manualInstructions: d.manual_instructions, updatedAt: d.updated_at, createdAt: d.created_at
     }));
 };
 
