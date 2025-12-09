@@ -1,6 +1,6 @@
 
 import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
-import { supabase } from '../services/supabase';
+import { supabase, isSupabaseConfigured } from '../services/supabase';
 import { useAuth } from '../hooks/useAuth';
 import type { User } from '../types';
 import type { AuthPage, AuthFlow } from '../AppContent';
@@ -42,6 +42,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [onboardingSkipped, setOnboardingSkipped] = useState(false);
 
   const handleLogin = async (email: string, pass: string) => {
+    if (!isSupabaseConfigured) {
+        throw new Error("Configuration Error: VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY is missing in your .env file.");
+    }
     const { error } = await (supabase.auth as any).signInWithPassword({
       email,
       password: pass,
@@ -50,7 +53,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const handleLogout = async () => {
-    await (supabase.auth as any).signOut();
+    if (isSupabaseConfigured) {
+        await (supabase.auth as any).signOut();
+    }
     setUser(null);
     setAuthPage('login');
     // Clear local storage or state if needed
@@ -58,6 +63,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const handleForgotPassword = async (email: string) => {
+    if (!isSupabaseConfigured) {
+        throw new Error("Configuration Error: Supabase variables are missing.");
+    }
     const { error } = await (supabase.auth as any).resetPasswordForEmail(email, {
       redirectTo: `${window.location.origin}/#/reset-password`,
     });
@@ -65,6 +73,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const handleStartAuthFlow = async (flow: AuthFlow, email: string, details: any) => {
+    if (!isSupabaseConfigured) {
+        throw new Error("Configuration Error: VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY is missing in your .env file.");
+    }
+
     setAuthEmail(email);
     setAuthFlow(flow);
     

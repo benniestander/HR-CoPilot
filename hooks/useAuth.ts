@@ -1,6 +1,6 @@
 
 import { useState, useEffect } from 'react';
-import { supabase } from '../services/supabase';
+import { supabase, isSupabaseConfigured } from '../services/supabase';
 import { getUserProfile, createUserProfile } from '../services/dbService';
 import type { User } from '../types';
 import type { AuthFlow } from '../AppContent';
@@ -24,9 +24,23 @@ export const useAuth = () => {
     const [needsOnboarding, setNeedsOnboarding] = useState(false);
 
     useEffect(() => {
+        // Safe check for config to avoid network error spam if env vars missing
+        if (!isSupabaseConfigured) {
+            setIsLoading(false);
+            return;
+        }
+
         // Initial Session Check
-        (supabase.auth as any).getSession().then(({ data: { session } }: any) => {
-            handleSessionChange(session);
+        (supabase.auth as any).getSession().then(({ data, error }: any) => {
+            if (error) {
+                console.warn("Session check error (could be network or auth):", error.message);
+                setIsLoading(false);
+            } else {
+                handleSessionChange(data?.session);
+            }
+        }).catch((err: any) => {
+            console.error("Critical session error:", err);
+            setIsLoading(false);
         });
 
         // Listen for changes

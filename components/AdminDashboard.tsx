@@ -8,8 +8,6 @@ import { POLICIES, FORMS } from '../constants';
 import { getOpenInvoiceRequests, processManualOrder } from '../services/dbService';
 import { useAuthContext } from '../contexts/AuthContext';
 
-// ... (Existing Interfaces & Helper Components StatCard, exportToCsv, PaginationControls, UserList, DocumentAnalytics, TransactionLog, ActivityLog, CouponManager, PricingManager)
-
 // Ensure AdminDashboardProps is fully defined
 interface AdminDashboardProps {
   paginatedUsers: { data: User[]; pageInfo: PageInfo };
@@ -42,9 +40,404 @@ const StatCard: React.FC<{ title: string; value: string | number; icon: React.FC
   </div>
 ));
 
-// ... (Insert previously defined sub-components: exportToCsv, PaginationControls, UserList, DocumentAnalytics, TransactionLog, ActivityLog, CouponManager, PricingManager)
-// NOTE: I am not repeating the full code of unchanged sub-components to save space, but they should be retained in the file.
-// Assuming the user keeps the existing implementations I provided previously for these components.
+const exportToCsv = (filename: string, rows: object[]) => {
+  if (!rows || !rows.length) return;
+  const separator = ',';
+  const keys = Object.keys(rows[0]);
+  const csvContent =
+    keys.join(separator) +
+    '\n' +
+    rows.map(row => {
+      return keys.map(k => {
+        let cell = (row as any)[k] === null || (row as any)[k] === undefined ? '' : (row as any)[k];
+        cell = cell instanceof Date ? cell.toLocaleString() : cell.toString().replace(/"/g, '""');
+        if (cell.search(/("|,|\n)/g) >= 0) cell = `"${cell}"`;
+        return cell;
+      }).join(separator);
+    }).join('\n');
+
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const link = document.createElement('a');
+  if (link.download !== undefined) {
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', filename);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }
+};
+
+const PaginationControls: React.FC<{ pageInfo: PageInfo; onNext: () => void; onPrev: () => void; isLoading: boolean }> = ({ pageInfo, onNext, onPrev, isLoading }) => (
+  <div className="flex justify-between items-center mt-4">
+    <button onClick={onPrev} disabled={pageInfo.pageIndex === 0 || isLoading} className="px-3 py-1 rounded-md bg-gray-100 text-gray-600 disabled:opacity-50 hover:bg-gray-200 text-sm">Previous</button>
+    <span className="text-sm text-gray-500">Page {pageInfo.pageIndex + 1} {isLoading && '(Loading...)'}</span>
+    <button onClick={onNext} disabled={!pageInfo.hasNextPage || isLoading} className="px-3 py-1 rounded-md bg-gray-100 text-gray-600 disabled:opacity-50 hover:bg-gray-200 text-sm">Next</button>
+  </div>
+);
+
+const UserList: React.FC<{ users: User[]; pageInfo: PageInfo; onNext: () => void; onPrev: () => void; onViewUser: (user: User) => void; isLoading: boolean }> = ({ users, pageInfo, onNext, onPrev, onViewUser, isLoading }) => {
+  const [searchTerm, setSearchTerm] = useState('');
+  const filteredUsers = users.filter(u => 
+    u.email.toLowerCase().includes(searchTerm.toLowerCase()) || 
+    (u.name && u.name.toLowerCase().includes(searchTerm.toLowerCase()))
+  );
+
+  return (
+    <div>
+      <div className="flex justify-between items-center mb-4">
+        <div className="relative">
+          <input type="text" placeholder="Search users..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-8 pr-4 py-2 border rounded-md text-sm" />
+          <SearchIcon className="w-4 h-4 absolute left-2.5 top-2.5 text-gray-400" />
+        </div>
+        <button onClick={() => exportToCsv('users.csv', users)} className="text-primary text-sm flex items-center hover:underline"><DownloadIcon className="w-4 h-4 mr-1" /> Export CSV</button>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="min-w-full divide-y divide-gray-200">
+          <thead className="bg-gray-50">
+            <tr>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Plan</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Credits</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Joined</th>
+              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+            </tr>
+          </thead>
+          <tbody className="bg-white divide-y divide-gray-200">
+            {filteredUsers.map(user => (
+              <tr key={user.uid} className="hover:bg-gray-50">
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <div className="text-sm font-medium text-gray-900">{user.name || 'No Name'}</div>
+                  <div className="text-sm text-gray-500">{user.email}</div>
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${user.plan === 'pro' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>
+                    {user.plan === 'pro' ? 'Pro' : 'PAYG'}
+                  </span>
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  R{(user.creditBalance / 100).toFixed(2)}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  {new Date(user.createdAt).toLocaleDateString()}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                  <button onClick={() => onViewUser(user)} className="text-indigo-600 hover:text-indigo-900">View</button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <PaginationControls pageInfo={pageInfo} onNext={onNext} onPrev={onPrev} isLoading={isLoading} />
+    </div>
+  );
+};
+
+const DocumentAnalytics: React.FC<{ documents: GeneratedDocument[]; pageInfo: PageInfo; onNext: () => void; onPrev: () => void; isLoading: boolean }> = ({ documents, pageInfo, onNext, onPrev, isLoading }) => {
+  return (
+    <div>
+      <div className="flex justify-end mb-4">
+        <button onClick={() => exportToCsv('documents.csv', documents)} className="text-primary text-sm flex items-center hover:underline"><DownloadIcon className="w-4 h-4 mr-1" /> Export CSV</button>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="min-w-full divide-y divide-gray-200">
+          <thead className="bg-gray-50">
+            <tr>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Title</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Company</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+            </tr>
+          </thead>
+          <tbody className="bg-white divide-y divide-gray-200">
+            {documents.map(doc => (
+              <tr key={doc.id} className="hover:bg-gray-50">
+                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{doc.title}</td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{doc.kind}</td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{doc.companyProfile?.companyName || 'N/A'}</td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{new Date(doc.createdAt).toLocaleDateString()}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <PaginationControls pageInfo={pageInfo} onNext={onNext} onPrev={onPrev} isLoading={isLoading} />
+    </div>
+  );
+};
+
+const TransactionLog: React.FC<{ transactions: Transaction[]; usersPageInfo: PageInfo; onNext: () => void; onPrev: () => void; isLoading: boolean }> = ({ transactions, usersPageInfo, onNext, onPrev, isLoading }) => {
+  return (
+    <div>
+      <div className="flex justify-end mb-4">
+        <button onClick={() => exportToCsv('transactions.csv', transactions)} className="text-primary text-sm flex items-center hover:underline"><DownloadIcon className="w-4 h-4 mr-1" /> Export CSV</button>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="min-w-full divide-y divide-gray-200">
+          <thead className="bg-gray-50">
+            <tr>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+            </tr>
+          </thead>
+          <tbody className="bg-white divide-y divide-gray-200">
+            {transactions.map(tx => (
+              <tr key={tx.id} className="hover:bg-gray-50">
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{tx.userEmail}</td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{tx.description}</td>
+                <td className={`px-6 py-4 whitespace-nowrap text-sm font-medium ${tx.amount > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  R{(tx.amount / 100).toFixed(2)}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{new Date(tx.date).toLocaleDateString()}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <PaginationControls pageInfo={usersPageInfo} onNext={onNext} onPrev={onPrev} isLoading={isLoading} />
+    </div>
+  );
+};
+
+const PricingManager: React.FC = () => {
+    const { proPlanPrice, getDocPrice, adminActions } = useDataContext();
+    const [proPrice, setProPrice] = useState((proPlanPrice / 100).toString());
+    const [updating, setUpdating] = useState<string | null>(null);
+
+    const policies = Object.values(POLICIES);
+    const forms = Object.values(FORMS);
+
+    const handleUpdatePro = async () => {
+        setUpdating('pro');
+        await adminActions.setProPrice(Math.round(Number(proPrice) * 100));
+        setUpdating(null);
+    };
+
+    const handleUpdateDoc = async (docType: string, priceStr: string, category: 'policy' | 'form') => {
+        setUpdating(docType);
+        await adminActions.setDocPrice(docType, Math.round(Number(priceStr) * 100), category);
+        setUpdating(null);
+    };
+
+    return (
+        <div className="space-y-8">
+            <div className="bg-gray-50 p-6 rounded-lg border border-gray-200">
+                <h3 className="text-lg font-bold text-secondary mb-4">Subscription Pricing</h3>
+                <div className="flex items-center max-w-md">
+                    <label className="w-32 text-sm font-medium text-gray-700">Pro Plan (Yearly)</label>
+                    <div className="flex-1 flex items-center">
+                        <span className="text-gray-500 mr-2">R</span>
+                        <input 
+                            type="number" 
+                            value={proPrice} 
+                            onChange={(e) => setProPrice(e.target.value)} 
+                            className="w-full p-2 border rounded-md"
+                        />
+                    </div>
+                    <button 
+                        onClick={handleUpdatePro} 
+                        disabled={!!updating}
+                        className="ml-4 px-4 py-2 bg-primary text-white rounded-md text-sm hover:bg-opacity-90 disabled:opacity-50"
+                    >
+                        {updating === 'pro' ? 'Saving...' : 'Update'}
+                    </button>
+                </div>
+            </div>
+
+            <div>
+                <h3 className="text-lg font-bold text-secondary mb-4">Document Pricing (Pay-As-You-Go)</h3>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <div>
+                        <h4 className="font-semibold text-gray-600 mb-3">Policies</h4>
+                        <div className="space-y-2 max-h-96 overflow-y-auto pr-2">
+                            {policies.map(p => (
+                                <PricingRow 
+                                    key={p.type} 
+                                    label={p.title} 
+                                    currentPrice={getDocPrice(p)} 
+                                    onUpdate={(price) => handleUpdateDoc(p.type, price, 'policy')} 
+                                    isUpdating={updating === p.type}
+                                />
+                            ))}
+                        </div>
+                    </div>
+                    <div>
+                        <h4 className="font-semibold text-gray-600 mb-3">Forms</h4>
+                        <div className="space-y-2 max-h-96 overflow-y-auto pr-2">
+                            {forms.map(f => (
+                                <PricingRow 
+                                    key={f.type} 
+                                    label={f.title} 
+                                    currentPrice={getDocPrice(f)} 
+                                    onUpdate={(price) => handleUpdateDoc(f.type, price, 'form')} 
+                                    isUpdating={updating === f.type}
+                                />
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+const PricingRow: React.FC<{ label: string; currentPrice: number; onUpdate: (price: string) => void; isUpdating: boolean }> = ({ label, currentPrice, onUpdate, isUpdating }) => {
+    const [price, setPrice] = useState((currentPrice / 100).toString());
+    const hasChanged = Math.round(Number(price) * 100) !== currentPrice;
+
+    return (
+        <div className="flex items-center justify-between bg-white p-2 border rounded-md shadow-sm">
+            <span className="text-sm text-gray-700 truncate mr-2 flex-1" title={label}>{label}</span>
+            <div className="flex items-center space-x-2">
+                <span className="text-gray-500 text-xs">R</span>
+                <input 
+                    type="number" 
+                    value={price} 
+                    onChange={(e) => setPrice(e.target.value)} 
+                    className="w-20 p-1 text-sm border rounded"
+                />
+                <button 
+                    onClick={() => onUpdate(price)}
+                    disabled={!hasChanged || isUpdating}
+                    className={`px-2 py-1 text-xs rounded ${hasChanged ? 'bg-primary text-white' : 'bg-gray-100 text-gray-400'}`}
+                >
+                    {isUpdating ? '...' : 'Save'}
+                </button>
+            </div>
+        </div>
+    );
+};
+
+const CouponManager: React.FC<{ coupons: Coupon[]; adminActions: any }> = ({ coupons, adminActions }) => {
+    const [newCoupon, setNewCoupon] = useState({ code: '', discountType: 'fixed', discountValue: 0, maxUses: 0, applicableTo: 'all' });
+    const [loading, setLoading] = useState(false);
+
+    const handleCreate = async () => {
+        if (!newCoupon.code) return;
+        setLoading(true);
+        try {
+            await adminActions.createCoupon({
+                ...newCoupon,
+                discountValue: newCoupon.discountType === 'fixed' ? newCoupon.discountValue * 100 : newCoupon.discountValue
+            });
+            setNewCoupon({ code: '', discountType: 'fixed', discountValue: 0, maxUses: 0, applicableTo: 'all' });
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    return (
+        <div>
+            <div className="bg-gray-50 p-6 rounded-lg border border-gray-200 mb-8">
+                <h3 className="text-lg font-bold text-secondary mb-4">Create New Coupon</h3>
+                <div className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
+                    <div className="md:col-span-1">
+                        <label className="block text-xs font-medium text-gray-700">Code</label>
+                        <input type="text" value={newCoupon.code} onChange={e => setNewCoupon({...newCoupon, code: e.target.value.toUpperCase()})} className="w-full p-2 border rounded-md" placeholder="SAVE20" />
+                    </div>
+                    <div>
+                        <label className="block text-xs font-medium text-gray-700">Type</label>
+                        <select value={newCoupon.discountType} onChange={e => setNewCoupon({...newCoupon, discountType: e.target.value})} className="w-full p-2 border rounded-md">
+                            <option value="fixed">Fixed Amount (R)</option>
+                            <option value="percentage">Percentage (%)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label className="block text-xs font-medium text-gray-700">Value</label>
+                        <input type="number" value={newCoupon.discountValue} onChange={e => setNewCoupon({...newCoupon, discountValue: Number(e.target.value)})} className="w-full p-2 border rounded-md" />
+                    </div>
+                    <div>
+                        <label className="block text-xs font-medium text-gray-700">Target</label>
+                        <select value={newCoupon.applicableTo} onChange={e => setNewCoupon({...newCoupon, applicableTo: e.target.value})} className="w-full p-2 border rounded-md">
+                            <option value="all">All Plans</option>
+                            <option value="plan:pro">Pro Plan Only</option>
+                            <option value="plan:payg">PAYG Only</option>
+                        </select>
+                    </div>
+                    <button onClick={handleCreate} disabled={loading} className="w-full bg-green-600 text-white font-bold py-2 px-4 rounded-md hover:bg-green-700 disabled:opacity-50">
+                        {loading ? 'Creating...' : 'Create'}
+                    </button>
+                </div>
+            </div>
+
+            <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                        <tr>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Code</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Discount</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Usage</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                            <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                        {coupons.map(coupon => (
+                            <tr key={coupon.id} className="hover:bg-gray-50">
+                                <td className="px-6 py-4 font-bold text-gray-800">{coupon.code}</td>
+                                <td className="px-6 py-4 text-sm text-gray-600">
+                                    {coupon.discountType === 'percentage' ? `${coupon.discountValue}%` : `R${(coupon.discountValue/100).toFixed(0)}`}
+                                </td>
+                                <td className="px-6 py-4 text-sm text-gray-600">
+                                    {coupon.usedCount} / {coupon.maxUses || '∞'}
+                                </td>
+                                <td className="px-6 py-4">
+                                    <span className={`px-2 py-1 text-xs rounded-full ${coupon.active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                                        {coupon.active ? 'Active' : 'Inactive'}
+                                    </span>
+                                </td>
+                                <td className="px-6 py-4 text-right">
+                                    {coupon.active && (
+                                        <button onClick={() => adminActions.deactivateCoupon(coupon.id)} className="text-red-600 hover:underline text-sm">Deactivate</button>
+                                    )}
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    );
+};
+
+const ActivityLog: React.FC<{ logs: AdminActionLog[]; pageInfo: PageInfo; onNext: () => void; onPrev: () => void; isLoading: boolean }> = ({ logs, pageInfo, onNext, onPrev, isLoading }) => {
+  return (
+    <div>
+      <div className="flex justify-end mb-4">
+        <button onClick={() => exportToCsv('admin_logs.csv', logs)} className="text-primary text-sm flex items-center hover:underline"><DownloadIcon className="w-4 h-4 mr-1" /> Export CSV</button>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="min-w-full divide-y divide-gray-200">
+          <thead className="bg-gray-50">
+            <tr>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Admin</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Target</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Details</th>
+            </tr>
+          </thead>
+          <tbody className="bg-white divide-y divide-gray-200">
+            {logs.map(log => (
+              <tr key={log.id} className="hover:bg-gray-50">
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{new Date(log.timestamp).toLocaleString()}</td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{log.adminEmail}</td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-800">{log.action}</td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{log.targetUserEmail}</td>
+                <td className="px-6 py-4 text-sm text-gray-500 max-w-xs truncate">{JSON.stringify(log.details)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <PaginationControls pageInfo={pageInfo} onNext={onNext} onPrev={onPrev} isLoading={isLoading} />
+    </div>
+  );
+};
 
 const OrderRequestList: React.FC<{ userEmail: string }> = ({ userEmail }) => {
     const [requests, setRequests] = useState<InvoiceRequest[]>([]);
