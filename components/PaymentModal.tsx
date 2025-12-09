@@ -1,7 +1,9 @@
 
 import React, { useState } from 'react';
-import { LoadingIcon, CreditCardIcon } from './Icons';
-import { processPayment } from '../services/paymentService';
+import { LoadingIcon, FileIcon, CheckIcon } from './Icons';
+import { submitInvoiceRequest } from '../services/dbService';
+import { emailService } from '../services/emailService';
+import { useAuthContext } from '../contexts/AuthContext';
 
 interface PaymentModalProps {
   isOpen: boolean;
@@ -12,80 +14,69 @@ interface PaymentModalProps {
 }
 
 const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onSuccess, amountInCents, itemName }) => {
-  const [formData, setFormData] = useState({ name: '', surname: '', email: '' });
-  const [errors, setErrors] = useState({ name: '', surname: '', email: '' });
+  const { user } = useAuthContext();
   const [isLoading, setIsLoading] = useState(false);
+  const [isSuccess, setIsSuccess] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
 
   if (!isOpen) return null;
   
-  const validateField = (name: keyof typeof formData, value: string) => {
-    let error = '';
-    switch (name) {
-        case 'name':
-            if (!value.trim()) error = 'First name is required.';
-            break;
-        case 'surname':
-            if (!value.trim()) error = 'Last name is required.';
-            break;
-        case 'email':
-            if (!value.trim()) {
-                error = 'Email is required.';
-            } else if (!/\S+@\S+\.\S+/.test(value)) {
-                error = 'Please enter a valid email address.';
-            }
-            break;
-        default:
-            break;
-    }
-    setErrors(prev => ({ ...prev, [name]: error }));
-    return !error;
-  };
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target as { name: keyof typeof formData; value: string };
-    setFormData(prev => ({ ...prev, [name]: value }));
-    validateField(name, value);
-  };
-  
-  const handlePayment = async (e: React.FormEvent) => {
+  const handleRequestInvoice = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    const isNameValid = validateField('name', formData.name);
-    const isSurnameValid = validateField('surname', formData.surname);
-    const isEmailValid = validateField('email', formData.email);
-    
-    if (!isNameValid || !isSurnameValid || !isEmailValid) {
-        return;
-    }
+    if (!user) return;
 
     setIsLoading(true);
     setApiError(null);
 
-    const result = await processPayment({
-        amountInCents,
-        name: itemName,
-        description: 'Service from HR CoPilot',
-        customer: {
-            name: formData.name,
-            surname: formData.surname,
-            email: formData.email
-        }
-    });
+    try {
+        // 1. Create Admin Notification
+        const reference = await submitInvoiceRequest(
+            user.uid,
+            user.email,
+            'payg',
+            amountInCents,
+            itemName
+        );
 
-    setIsLoading(false);
+        // 2. Send Email
+        await emailService.sendInvoiceInstructions(
+            user.email,
+            user.name || 'Customer',
+            amountInCents,
+            reference,
+            itemName
+        );
 
-    if (result.success) {
-        onSuccess();
-    } else if (result.error && result.error !== "User cancelled") {
-        setApiError(`Payment failed: ${result.error}`);
-    } else if (result.error === "User cancelled") {
-        // Optionally close modal on cancel
-        // onClose(); 
+        setIsSuccess(true);
+        // We do NOT call onSuccess() immediately because that triggers the "Document Generated" flow.
+        // The user must wait for credits to be added manually.
+
+    } catch (error: any) {
+        console.error("Invoice request error:", error);
+        setApiError("Failed to request invoice. Please try again.");
+    } finally {
+        setIsLoading(false);
     }
   };
-  
-  const isFormValid = Object.values(formData).every(val => typeof val === 'string' && val.trim() !== '') && Object.values(errors).every(err => err === '');
+
+  if (isSuccess) {
+      return (
+        <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center p-4">
+            <div className="bg-white rounded-lg shadow-xl w-full max-w-sm flex flex-col p-6 text-center">
+                <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-green-100 mb-4">
+                    <CheckIcon className="h-6 w-6 text-green-600" />
+                </div>
+                <h2 className="text-xl font-bold text-secondary mb-2">Request Sent</h2>
+                <p className="text-gray-600 text-sm mb-6">
+                    Please check your email for the invoice and banking details. Your credits will be added once payment is received.
+                </p>
+                <button onClick={onClose} className="w-full bg-primary text-white font-bold py-2 px-4 rounded-md hover:bg-opacity-90">
+                    Close
+                </button>
+            </div>
+        </div>
+      );
+  }
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center p-4" onClick={onClose}>
@@ -97,100 +88,45 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onSuccess,
         aria-labelledby="payment-title"
       >
         <div className="p-6 border-b border-gray-200 text-center flex-shrink-0">
-          <h2 id="payment-title" className="text-xl font-bold text-secondary">Complete Your Purchase</h2>
-          <p className="text-gray-600 mt-1">Fill in your details to proceed.</p>
+          <h2 id="payment-title" className="text-xl font-bold text-secondary">One-Time Purchase</h2>
+          <p className="text-gray-600 mt-1 text-sm">Request an invoice to pay via EFT.</p>
         </div>
         
-        <form onSubmit={handlePayment} className="flex flex-col flex-1 overflow-hidden">
-            <div className="p-6 md:p-8 overflow-y-auto">
-                <h3 className="text-lg font-semibold text-secondary mb-4 text-left">Your Details</h3>
-                <div className="space-y-5 text-left">
-                    <div>
-                        <label htmlFor="name" className="block text-sm font-medium text-gray-700">
-                            First Name
-                        </label>
-                        <div className="mt-1">
-                            <input
-                                type="text"
-                                id="name"
-                                name="name"
-                                value={formData.name}
-                                onChange={handleChange}
-                                required
-                                className={`block w-full p-3 border rounded-md shadow-sm focus:ring-primary focus:border-primary sm:text-sm ${errors.name ? 'border-red-500' : 'border-gray-300'}`}
-                            />
-                            {errors.name && <p className="text-red-600 text-xs mt-1">{errors.name}</p>}
-                        </div>
-                    </div>
-                    <div>
-                        <label htmlFor="surname" className="block text-sm font-medium text-gray-700">
-                            Last Name
-                        </label>
-                        <div className="mt-1">
-                            <input
-                                type="text"
-                                id="surname"
-                                name="surname"
-                                value={formData.surname}
-                                onChange={handleChange}
-                                required
-                                className={`block w-full p-3 border rounded-md shadow-sm focus:ring-primary focus:border-primary sm:text-sm ${errors.surname ? 'border-red-500' : 'border-gray-300'}`}
-                            />
-                            {errors.surname && <p className="text-red-600 text-xs mt-1">{errors.surname}</p>}
-                        </div>
-                    </div>
-                    <div>
-                        <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-                            Email Address
-                        </label>
-                        <div className="mt-1">
-                            <input
-                                type="email"
-                                id="email"
-                                name="email"
-                                value={formData.email}
-                                onChange={handleChange}
-                                required
-                                className={`block w-full p-3 border rounded-md shadow-sm focus:ring-primary focus:border-primary sm:text-sm ${errors.email ? 'border-red-500' : 'border-gray-300'}`}
-                            />
-                            {errors.email && <p className="text-red-600 text-xs mt-1">{errors.email}</p>}
-                        </div>
-                    </div>
-                </div>
-
-                <div className="mt-8 pt-6 border-t border-gray-200 text-center">
-                    <p className="text-sm text-gray-500">{itemName}</p>
-                    <p className="text-4xl sm:text-5xl font-bold text-secondary my-2">
-                        R{(amountInCents / 100).toFixed(2)}
-                    </p>
-                    <p className="text-xs text-gray-500">Billed once for 12 months access.</p>
-                </div>
+        <div className="p-6 md:p-8 overflow-y-auto">
+            <div className="text-center mb-6">
+                <p className="text-sm text-gray-500">{itemName}</p>
+                <p className="text-4xl font-bold text-secondary my-2">
+                    R{(amountInCents / 100).toFixed(2)}
+                </p>
             </div>
-            
-            <div className="p-6 bg-gray-50 border-t border-gray-200 flex-shrink-0">
+
+            <div className="bg-gray-50 p-4 rounded-md text-left text-sm text-gray-600 mb-4 border border-gray-200">
+                <p><strong>Note:</strong> Since this is a manual EFT payment, your credits will not reflect immediately.</p>
+            </div>
+
+            {apiError && <p className="text-xs text-red-600 text-center mb-4">{apiError}</p>}
+
             <button
-                type="submit"
-                disabled={isLoading || !isFormValid}
+                onClick={handleRequestInvoice}
+                disabled={isLoading}
                 className="w-full bg-primary text-white font-bold py-3 px-4 rounded-md hover:bg-opacity-90 disabled:bg-gray-400 transition-colors flex items-center justify-center"
             >
                 {isLoading ? (
                 <>
                     <LoadingIcon className="animate-spin -ml-1 mr-3 h-5 w-5" />
-                    Processing...
+                    Sending Request...
                 </>
                 ) : (
                     <>
-                        <CreditCardIcon className="w-5 h-5 mr-2" />
-                        Pay Now with Yoco
+                        <FileIcon className="w-5 h-5 mr-2" />
+                        Request Invoice
                     </>
                 )}
             </button>
-            {apiError && <p className="text-xs text-red-600 text-center mt-3">{apiError}</p>}
-            <p className="text-xs text-gray-400 text-center mt-4">
-                Secure payments are processed by Yoco.
-            </p>
-            </div>
-        </form>
+            <button onClick={onClose} className="mt-3 text-sm text-gray-500 hover:text-gray-800 w-full text-center">
+                Cancel
+            </button>
+        </div>
       </div>
     </div>
   );

@@ -1,3 +1,4 @@
+
 import { supabase } from './supabase';
 import type { 
     User, 
@@ -9,11 +10,11 @@ import type {
     Coupon, 
     CompanyProfile, 
     PolicyDraft,
-    DocumentPrice,
-    AppSetting
+    Policy, 
+    Form
 } from '../types';
 
-// ... (User & Profile functions remain unchanged) ...
+// ... (Existing User & Profile functions remain unchanged)
 
 export const getUserProfile = async (uid: string): Promise<User | null> => {
     const { data: profile, error } = await supabase
@@ -211,6 +212,32 @@ export const addTransactionToUser = async (uid: string, transaction: Partial<Tra
     }
 };
 
+// --- Manual Invoice Requests ---
+
+export const submitInvoiceRequest = async (
+    userId: string, 
+    userEmail: string, 
+    requestType: 'pro' | 'payg', 
+    amountInCents: number,
+    description: string
+) => {
+    // 1. Create a readable reference (e.g. HR-A1B2)
+    const reference = `HR-${userId.substring(0, 4).toUpperCase()}-${Date.now().toString().slice(-4)}`;
+    const amountRands = (amountInCents / 100).toFixed(2);
+
+    // 2. Log Admin Notification
+    const { error } = await supabase.from('admin_notifications').insert({
+        type: 'important_update', // Reusing this type to flag it to admin
+        message: `INVOICE REQUEST: ${userEmail} requests ${description}. Amount: R${amountRands}. Ref: ${reference}`,
+        is_read: false,
+        related_user_id: userId
+    });
+
+    if (error) throw error;
+
+    return reference;
+};
+
 // --- Admin Features (Pagination) ---
 
 export const getAllUsers = async (pageSize: number, lastVisible?: number): Promise<{ data: User[], lastVisible: number | null }> => {
@@ -270,8 +297,6 @@ export const getAllDocumentsForAllUsers = async (pageSize: number, lastVisible?:
 
     return { data: docs, lastVisible: offset + pageSize };
 };
-
-// ... (Rest of the file remains unchanged: logs, admin actions, notifications, files, photos, coupons, pricing, drafts) ...
 
 export const getAdminActionLogs = async (pageSize: number, lastVisible?: number): Promise<{ data: AdminActionLog[], lastVisible: number | null }> => {
     let query = supabase.from('admin_action_logs').select('*').order('created_at', { ascending: false });

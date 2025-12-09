@@ -1,10 +1,10 @@
 
 import React, { useState } from 'react';
-import { CheckIcon, CreditCardIcon, LoadingIcon, CouponIcon } from './Icons';
+import { CheckIcon, LoadingIcon, CouponIcon, FileIcon, ShieldCheckIcon } from './Icons';
 import type { User } from '../types';
 import { useAuthContext } from '../contexts/AuthContext';
-import { processPayment } from '../services/paymentService';
-import { validateCoupon } from '../services/dbService';
+import { submitInvoiceRequest, validateCoupon } from '../services/dbService';
+import { emailService } from '../services/emailService';
 import { useDataContext } from '../contexts/DataContext';
 
 interface SubscriptionPageProps {
@@ -15,13 +15,8 @@ interface SubscriptionPageProps {
 const SubscriptionPage: React.FC<SubscriptionPageProps> = ({ onSuccess, onCancel }) => {
   const { user } = useAuthContext();
   const { proPlanPrice } = useDataContext(); // Dynamic Price
-  const [formData, setFormData] = useState({ 
-    firstName: user?.name?.split(' ')[0] || '', 
-    lastName: user?.name?.split(' ').slice(1).join(' ') || '', 
-    email: user?.email || '' 
-  });
-  const [errors, setErrors] = useState({ firstName: '', lastName: '', email: '' });
   const [isLoading, setIsLoading] = useState(false);
+  const [isRequestSent, setIsRequestSent] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
 
   // Coupon State
@@ -41,24 +36,6 @@ const SubscriptionPage: React.FC<SubscriptionPageProps> = ({ onSuccess, onCancel
     'Secure Document History',
     'Priority Support',
   ];
-
-  const validateField = (name: keyof typeof formData, value: string) => {
-    let error = '';
-    if (!value.trim()) {
-        const fieldName = String(name).replace(/([A-Z])/g, ' $1').toLowerCase();
-        error = `${fieldName.charAt(0).toUpperCase() + fieldName.slice(1)} is required.`;
-    } else if (name === 'email' && !/\S+@\S+\.\S+/.test(value)) {
-        error = 'Please enter a valid email address.';
-    }
-    setErrors(prev => ({ ...prev, [name]: error }));
-    return !error;
-  };
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target as { name: keyof typeof formData; value: string };
-    setFormData(prev => ({ ...prev, [name]: value }));
-    validateField(name, value);
-  };
 
   const handleApplyCoupon = async () => {
       if (!couponCode.trim()) return;
@@ -85,41 +62,67 @@ const SubscriptionPage: React.FC<SubscriptionPageProps> = ({ onSuccess, onCancel
       }
   };
 
-  const isFormValid = Object.values(formData).every(val => typeof val === 'string' && val.trim() !== '') && Object.values(errors).every(err => err === '');
-
-  const handlePayment = async (e: React.FormEvent) => {
+  const handleRequestInvoice = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!isFormValid) return;
+    if (!user) return;
 
     setIsLoading(true);
     setApiError(null);
 
-    const result = await processPayment({
-        amountInCents: Math.round(finalAmount),
-        name: 'HR CoPilot Pro (12 Months)',
-        // Ensure description contains 'Subscription' to pass AuthContext validation
-        description: 'HR CoPilot Pro Subscription - 12 Months Access',
-        customer: {
-            name: formData.firstName,
-            surname: formData.lastName,
-            email: formData.email
-        },
-        metadata: {
-            userId: user?.uid,
-            type: 'subscription',
-            couponCode: appliedCouponCode || undefined
-        }
-    });
+    try {
+        const description = `Pro Subscription (12 Months)`;
+        
+        // 1. Create Admin Notification via DB
+        const reference = await submitInvoiceRequest(
+            user.uid,
+            user.email,
+            'pro',
+            finalAmount,
+            description
+        );
 
-    setIsLoading(false);
+        // 2. Send Email to User
+        await emailService.sendInvoiceInstructions(
+            user.email,
+            user.name || 'Valued Customer',
+            finalAmount,
+            reference,
+            description
+        );
 
-    if (result.success) {
-        onSuccess();
-    } else if (result.error && result.error !== "User cancelled") {
-        setApiError(`Payment failed: ${result.error}`);
+        setIsRequestSent(true);
+
+    } catch (error: any) {
+        console.error("Invoice request failed:", error);
+        setApiError("Failed to submit request. Please check your internet connection.");
+    } finally {
+        setIsLoading(false);
     }
   };
+
+  if (isRequestSent) {
+      return (
+        <div className="min-h-screen bg-light font-sans flex items-center justify-center p-4">
+            <div className="bg-white p-8 rounded-lg shadow-md max-w-md w-full text-center border border-gray-200">
+                <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-green-100 mb-6">
+                    <CheckIcon className="h-10 w-10 text-green-600" />
+                </div>
+                <h2 className="text-2xl font-bold text-secondary mb-2">Request Received</h2>
+                <p className="text-gray-600 mb-6">
+                    We have received your request for <strong>HR CoPilot Pro</strong>.
+                    <br/><br/>
+                    An invoice for <strong>R{(finalAmount / 100).toFixed(2)}</strong> has been sent to <strong>{user?.email}</strong>. 
+                </p>
+                <p className="text-xs text-gray-500 mb-6">
+                    Your account will be upgraded immediately once proof of payment is verified.
+                </p>
+                <button onClick={onCancel} className="w-full bg-primary text-white font-bold py-3 px-4 rounded-md hover:bg-opacity-90 transition-colors">
+                    Back to Dashboard
+                </button>
+            </div>
+        </div>
+      );
+  }
 
   return (
     <div className="min-h-screen bg-light font-sans">
@@ -136,11 +139,11 @@ const SubscriptionPage: React.FC<SubscriptionPageProps> = ({ onSuccess, onCancel
         </header>
 
       <main className="container mx-auto p-4 md:p-8">
-        <form onSubmit={handlePayment} className="grid grid-cols-1 lg:grid-cols-5 gap-8 lg:gap-16">
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-8 lg:gap-16">
           
           <div className="lg:col-span-3 space-y-10">
             <div>
-              <h2 className="text-3xl font-bold text-secondary mb-6">Choose your plan</h2>
+              <h2 className="text-3xl font-bold text-secondary mb-6">Upgrade to Pro</h2>
               <div className="border-2 border-primary rounded-lg p-6 bg-primary/5 relative flex items-center">
                 <div className="w-5 h-5 rounded-full border-2 border-primary flex items-center justify-center mr-4">
                     <div className="w-2.5 h-2.5 bg-primary rounded-full"></div>
@@ -153,25 +156,14 @@ const SubscriptionPage: React.FC<SubscriptionPageProps> = ({ onSuccess, onCancel
               </div>
             </div>
 
-            <div>
-              <h2 className="text-3xl font-bold text-secondary mb-6">Pay with</h2>
-              <div className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm space-y-5">
-                <div>
-                  <label htmlFor="firstName" className="block text-sm font-medium text-gray-700">First Name</label>
-                  <input type="text" id="firstName" name="firstName" value={formData.firstName} onChange={handleChange} required className={`mt-1 block w-full p-3 border rounded-md shadow-sm focus:ring-primary focus:border-primary sm:text-sm ${errors.firstName ? 'border-red-500' : 'border-gray-300'}`} />
-                  {errors.firstName && <p className="text-red-600 text-xs mt-1">{errors.firstName}</p>}
+            <div className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm space-y-5">
+                <div className="flex items-center text-secondary">
+                    <ShieldCheckIcon className="w-6 h-6 mr-3 text-primary" />
+                    <div>
+                        <h3 className="font-bold">Secure Invoice Request</h3>
+                        <p className="text-sm text-gray-500">We will email an invoice to <strong>{user?.email}</strong>. You can pay via EFT.</p>
+                    </div>
                 </div>
-                <div>
-                  <label htmlFor="lastName" className="block text-sm font-medium text-gray-700">Last Name</label>
-                  <input type="text" id="lastName" name="lastName" value={formData.lastName} onChange={handleChange} required className={`mt-1 block w-full p-3 border rounded-md shadow-sm focus:ring-primary focus:border-primary sm:text-sm ${errors.lastName ? 'border-red-500' : 'border-gray-300'}`} />
-                  {errors.lastName && <p className="text-red-600 text-xs mt-1">{errors.lastName}</p>}
-                </div>
-                <div>
-                  <label htmlFor="email" className="block text-sm font-medium text-gray-700">Email Address</label>
-                  <input type="email" id="email" name="email" value={formData.email} onChange={handleChange} required className={`mt-1 block w-full p-3 border rounded-md shadow-sm focus:ring-primary focus:border-primary sm:text-sm ${errors.email ? 'border-red-500' : 'border-gray-300'}`} />
-                  {errors.email && <p className="text-red-600 text-xs mt-1">{errors.email}</p>}
-                </div>
-              </div>
             </div>
 
              {/* Coupon Section */}
@@ -207,17 +199,19 @@ const SubscriptionPage: React.FC<SubscriptionPageProps> = ({ onSuccess, onCancel
             </div>
 
              <div className="pt-4">
-                <p className="text-xs text-gray-500 mb-4">By providing your details, you allow HR CoPilot to charge your card via our secure payment partner, Yoco.</p>
-                 <button type="submit" disabled={isLoading || !isFormValid} className="w-full bg-primary text-white font-bold py-4 px-4 rounded-lg text-lg hover:bg-opacity-90 disabled:bg-gray-400 transition-colors flex items-center justify-center">
+                 <button onClick={handleRequestInvoice} disabled={isLoading} className="w-full bg-primary text-white font-bold py-4 px-4 rounded-lg text-lg hover:bg-opacity-90 disabled:bg-gray-400 transition-colors flex items-center justify-center">
                     {isLoading ? (
-                        <><LoadingIcon className="animate-spin -ml-1 mr-3 h-5 w-5" /> Opening payment gateway...</>
+                        <><LoadingIcon className="animate-spin -ml-1 mr-3 h-5 w-5" /> Sending Request...</>
                     ) : (
-                        `Confirm & Subscribe - R${(finalAmount / 100).toFixed(2)}`
+                        <>
+                        <FileIcon className="w-6 h-6 mr-3" />
+                        Request Invoice - R{(finalAmount / 100).toFixed(2)}
+                        </>
                     )}
                 </button>
                 {apiError && <p className="text-xs text-red-600 text-center mt-3">{apiError}</p>}
                 <p className="text-xs text-gray-400 text-center mt-4">
-                    You will be redirected to a secure payment page.
+                    Your plan will be activated once payment is confirmed by our team.
                 </p>
             </div>
           </div>
@@ -246,7 +240,7 @@ const SubscriptionPage: React.FC<SubscriptionPageProps> = ({ onSuccess, onCancel
                     </div>
                 )}
                 <div className="flex justify-between items-center font-bold text-xl mt-4">
-                    <span>Total Due Today (ZAR)</span>
+                    <span>Total Due</span>
                     <span>R{(finalAmount / 100).toFixed(2)}</span>
                 </div>
               </div>

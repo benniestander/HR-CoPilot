@@ -5,77 +5,7 @@ import { supabase } from './supabase';
    ==============================================================================
    CRITICAL: EMAIL EDGE FUNCTION SETUP (RESEND)
    ==============================================================================
-   
-   1. Create an account at https://resend.com and get an API Key.
-   2. Verify your domain in Resend.
-   3. Run: supabase functions new send-email
-   4. Paste the code below into supabase/functions/send-email/index.ts
-   5. Run: supabase secrets set RESEND_API_KEY=re_123...
-   6. Run: supabase functions deploy send-email
-
-   --- EDGE FUNCTION CODE START (Copy into index.ts) ---
-   
-   import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-   
-   const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY');
-   
-   const corsHeaders = {
-     'Access-Control-Allow-Origin': '*',
-     'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-   };
-   
-   interface EmailRequest {
-     to: string;
-     subject: string;
-     html: string;
-     from?: string;
-   }
-   
-   serve(async (req) => {
-     if (req.method === 'OPTIONS') {
-       return new Response('ok', { headers: corsHeaders });
-     }
-   
-     try {
-       const { to, subject, html, from } = await req.json() as EmailRequest;
-       
-       if (!RESEND_API_KEY) {
-         throw new Error("Missing RESEND_API_KEY");
-       }
-   
-       const res = await fetch('https://api.resend.com/emails', {
-         method: 'POST',
-         headers: {
-           'Content-Type': 'application/json',
-           'Authorization': `Bearer ${RESEND_API_KEY}`,
-         },
-         body: JSON.stringify({
-           from: from || 'HR CoPilot <system@hrcopilot.co.za>', // Replace with your verified domain
-           to,
-           subject,
-           html,
-         }),
-       });
-   
-       const data = await res.json();
-   
-       if (!res.ok) {
-         return new Response(JSON.stringify(data), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-       }
-   
-       return new Response(JSON.stringify(data), {
-         status: 200,
-         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-       });
-     } catch (error: any) {
-       return new Response(JSON.stringify({ error: error.message }), {
-         status: 500,
-         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-       });
-     }
-   });
-   
-   --- EDGE FUNCTION CODE END ---
+   Ensure your 'send-email' Edge Function is deployed as per previous instructions.
 */
 
 // --- Frontend Service ---
@@ -121,6 +51,42 @@ export const emailService = {
             </div>
         `;
         return sendEmail(email, "Welcome to HR CoPilot", html);
+    },
+
+    /**
+     * Sends an Invoice Request confirmation with Banking Details.
+     */
+    sendInvoiceInstructions: async (email: string, name: string, amountInCents: number, reference: string, itemDescription: string) => {
+        const amount = (amountInCents / 100).toFixed(2);
+        const html = `
+            <div style="font-family: sans-serif; color: #333; max-width: 600px; margin: 0 auto;">
+                <h2 style="color: #188693;">Invoice Request Received</h2>
+                <p>Hi ${name},</p>
+                <p>Thank you for your request for: <strong>${itemDescription}</strong>.</p>
+                <p>To activate your product/credits, please make an EFT payment of <strong>R${amount}</strong> to the account below.</p>
+                
+                <div style="background-color: #f3f4f6; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                    <h3 style="margin-top: 0; color: #143a67;">Banking Details</h3>
+                    <p style="margin: 5px 0;"><strong>Bank:</strong> FNB (First National Bank)</p>
+                    <p style="margin: 5px 0;"><strong>Account Name:</strong> HR CoPilot</p>
+                    <p style="margin: 5px 0;"><strong>Account Number:</strong> 62123456789</p>
+                    <p style="margin: 5px 0;"><strong>Branch Code:</strong> 250655</p>
+                    <p style="margin: 5px 0; font-size: 1.1em; color: #188693;"><strong>Reference:</strong> ${reference}</p>
+                </div>
+
+                <p><strong>Next Steps:</strong></p>
+                <ol>
+                    <li>Make the payment using the reference above.</li>
+                    <li>Email your Proof of Payment to <a href="mailto:admin@hrcopilot.co.za">admin@hrcopilot.co.za</a>.</li>
+                    <li>Your account will be activated/credited immediately upon receipt.</li>
+                </ol>
+                
+                <p style="font-size: 0.9em; color: #666;">Note: Payments from FNB reflect immediately. Other banks may take up to 24 hours.</p>
+                <br/>
+                <p>Regards,<br/>The HR CoPilot Team</p>
+            </div>
+        `;
+        return sendEmail(email, `Invoice Request: ${reference}`, html);
     },
 
     /**
