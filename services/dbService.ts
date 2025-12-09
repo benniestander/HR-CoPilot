@@ -1,5 +1,5 @@
-
 import { supabase } from './supabase';
+import { emailService } from './emailService';
 import type { 
     User, 
     GeneratedDocument, 
@@ -11,10 +11,11 @@ import type {
     CompanyProfile, 
     PolicyDraft,
     Policy, 
-    Form
+    Form,
+    InvoiceRequest
 } from '../types';
 
-// ... (Existing User & Profile functions remain unchanged)
+// --- User & Profile ---
 
 export const getUserProfile = async (uid: string): Promise<User | null> => {
     const { data: profile, error } = await supabase
@@ -24,7 +25,8 @@ export const getUserProfile = async (uid: string): Promise<User | null> => {
         .single();
 
     if (error) {
-        console.error('Error fetching profile:', error);
+        // Only log real errors, not "row not found" which is handled by returning null
+        if (error.code !== 'PGRST116') console.error('Error fetching profile:', error);
         return null;
     }
 
@@ -133,13 +135,9 @@ export const getGeneratedDocuments = async (uid: string): Promise<GeneratedDocum
     }));
 };
 
-const isValidUUID = (id: string) => {
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-    return uuidRegex.test(id);
-};
-
 export const saveGeneratedDocument = async (uid: string, doc: GeneratedDocument): Promise<GeneratedDocument> => {
-    const isUpdate = doc.id && isValidUUID(doc.id);
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    const isUpdate = doc.id && uuidRegex.test(doc.id);
 
     const dbDoc: any = {
         user_id: uid,
@@ -159,7 +157,6 @@ export const saveGeneratedDocument = async (uid: string, doc: GeneratedDocument)
     let data, error;
 
     if (isUpdate) {
-        // UPDATE existing
         const result = await supabase
             .from('generated_documents')
             .update(dbDoc)
@@ -169,7 +166,6 @@ export const saveGeneratedDocument = async (uid: string, doc: GeneratedDocument)
         data = result.data;
         error = result.error;
     } else {
-        // INSERT new (Let DB generate ID)
         const result = await supabase
             .from('generated_documents')
             .insert(dbDoc)
@@ -212,7 +208,7 @@ export const addTransactionToUser = async (uid: string, transaction: Partial<Tra
     }
 };
 
-// --- Manual Invoice Requests ---
+// --- INVOICE REQUESTS ---
 
 export const submitInvoiceRequest = async (
     userId: string, 
@@ -227,7 +223,8 @@ export const submitInvoiceRequest = async (
 
     // 2. Log Admin Notification
     const { error } = await supabase.from('admin_notifications').insert({
-        type: 'important_update', // Reusing this type to flag it to admin
+        type: 'important_update',
+        // Structured message for easier parsing later: TYPE|AMOUNT|REF|DESC
         message: `INVOICE REQUEST: ${userEmail} requests ${description}. Amount: R${amountRands}. Ref: ${reference}`,
         is_read: false,
         related_user_id: userId
@@ -238,87 +235,73 @@ export const submitInvoiceRequest = async (
     return reference;
 };
 
-// --- Admin Features (Pagination) ---
+export const getOpenInvoiceRequests = async (): Promise<InvoiceRequest[]> => {
+    const { data, error } = await supabase
+        .from('admin_notifications')
+        .select('*')
+        .eq('is_read', false)
+        .ilike('message', 'INVOICE REQUEST%')
+        .order('created_at', { ascending: false });
 
-export const getAllUsers = async (pageSize: number, lastVisible?: number): Promise<{ data: User[], lastVisible: number | null }> => {
-    let query = supabase.from('profiles').select('*', { count: 'exact' }).order('created_at', { ascending: false }).limit(pageSize);
-    
-    if (lastVisible) {
-        query = query.range(lastVisible, lastVisible + pageSize - 1);
+    if (error) throw error;
+
+    return data.map((n: any) => {
+        // Parse message: "INVOICE REQUEST: email requests desc. Amount: R100.00. Ref: XYZ"
+        const msg = n.message;
+        const emailMatch = msg.match(/INVOICE REQUEST: (\S+)/);
+        const amountMatch = msg.match(/Amount: R([\d\.]+)/);
+        const refMatch = msg.match(/Ref: (\S+)/);
+        
+        // Determine type based on description keywords
+        const isPro = msg.toLowerCase().includes('pro subscription') || msg.toLowerCase().includes('pro plan');
+        
+        return {
+            id: n.id, // Notification ID used to mark as read later
+            date: n.created_at,
+            userId: n.related_user_id,
+            userEmail: emailMatch ? emailMatch[1] : 'Unknown',
+            type: isPro ? 'pro' : 'payg',
+            amount: amountMatch ? Math.round(parseFloat(amountMatch[1]) * 100) : 0,
+            reference: refMatch ? refMatch[1] : 'N/A',
+            description: msg.split('Ref:')[0] // Rough description
+        };
+    });
+};
+
+export const processManualOrder = async (adminEmail: string, request: InvoiceRequest) => {
+    // 1. Update User
+    if (request.type === 'pro') {
+        await supabase.from('profiles').update({ plan: 'pro' }).eq('id', request.userId);
+        await addTransactionToUser(request.userId, { 
+            description: `Manual Activation: ${request.description}`, 
+            amount: 0 // Subscription usually doesn't add credit balance, just enables features
+        });
     } else {
-        query = query.range(0, pageSize - 1);
+        await addTransactionToUser(request.userId, { 
+            description: `Manual Top-Up: ${request.description}`, 
+            amount: request.amount 
+        }, true); // Update balance
     }
 
-    const { data, error, count } = await query;
+    // 2. Mark Notification as Read (Archive request)
+    await supabase.from('admin_notifications').update({ is_read: true }).eq('id', request.id);
+
+    // 3. Log Admin Action
+    await logAdminAction('Processed Manual Order', request.userId, { 
+        amount: request.amount, 
+        type: request.type, 
+        reference: request.reference 
+    });
+
+    // 4. Send Email
+    // Fetch name first
+    const { data: userProfile } = await supabase.from('profiles').select('full_name').eq('id', request.userId).single();
+    const userName = userProfile?.full_name || 'Customer';
     
-    if (error) throw error;
-
-    const users = data.map((profile: any) => ({
-        uid: profile.id,
-        email: profile.email,
-        name: profile.full_name,
-        contactNumber: profile.contact_number,
-        plan: profile.plan,
-        creditBalance: profile.credit_balance,
-        createdAt: profile.created_at,
-        isAdmin: profile.is_admin,
-        profile: { companyName: profile.company_name, industry: profile.industry },
-        transactions: []
-    }));
-
-    return { data: users, lastVisible: (lastVisible || 0) + pageSize };
+    await emailService.sendActivationConfirmation(request.userEmail, userName, request.type, request.amount);
 };
 
-export const getAllDocumentsForAllUsers = async (pageSize: number, lastVisible?: number): Promise<{ data: GeneratedDocument[], lastVisible: number | null }> => {
-    // Join with profiles table to get current company name as fallback
-    let query = supabase
-        .from('generated_documents')
-        .select('*, profiles(company_name)') 
-        .order('created_at', { ascending: false });
-    
-    const offset = lastVisible || 0;
-    query = query.range(offset, offset + pageSize - 1);
-
-    const { data, error } = await query;
-    if (error) throw error;
-
-    const docs = data.map((doc: any) => ({
-        id: doc.id,
-        title: doc.title,
-        kind: doc.kind,
-        type: doc.type,
-        content: doc.content,
-        createdAt: doc.created_at,
-        // Fallback to joined profile company_name if doc.company_profile is missing/incomplete
-        companyProfile: doc.company_profile || { companyName: doc.profiles?.company_name || 'N/A', industry: 'Unknown' },
-        questionAnswers: doc.question_answers,
-        version: doc.version,
-    }));
-
-    return { data: docs, lastVisible: offset + pageSize };
-};
-
-export const getAdminActionLogs = async (pageSize: number, lastVisible?: number): Promise<{ data: AdminActionLog[], lastVisible: number | null }> => {
-    let query = supabase.from('admin_action_logs').select('*').order('created_at', { ascending: false });
-    
-    const offset = lastVisible || 0;
-    query = query.range(offset, offset + pageSize - 1);
-
-    const { data, error } = await query;
-    if (error) throw error;
-
-    const logs = data.map((log: any) => ({
-        id: log.id,
-        timestamp: log.created_at,
-        adminEmail: log.admin_email,
-        action: log.action,
-        targetUserId: log.target_user_id,
-        targetUserEmail: log.target_user_email,
-        details: log.details
-    }));
-
-    return { data: logs, lastVisible: offset + pageSize };
-};
+// --- Admin Features ---
 
 const logAdminAction = async (action: string, targetUid: string, details?: any) => {
     const { data: { user } } = await (supabase.auth as any).getUser();
@@ -333,6 +316,71 @@ const logAdminAction = async (action: string, targetUid: string, details?: any) 
         target_user_email: target?.email || 'Unknown',
         details
     });
+};
+
+export const getAllUsers = async (pageSize: number, lastVisible?: number): Promise<{ data: User[], lastVisible: number | null }> => {
+    let query = supabase.from('profiles').select('*', { count: 'exact' }).order('created_at', { ascending: false }).limit(pageSize);
+    if (lastVisible) {
+        query = query.range(lastVisible, lastVisible + pageSize - 1);
+    } else {
+        query = query.range(0, pageSize - 1);
+    }
+    const { data, error } = await query;
+    if (error) throw error;
+    const users = data.map((profile: any) => ({
+        uid: profile.id,
+        email: profile.email,
+        name: profile.full_name,
+        contactNumber: profile.contact_number,
+        plan: profile.plan,
+        creditBalance: profile.credit_balance,
+        createdAt: profile.created_at,
+        isAdmin: profile.is_admin,
+        profile: { companyName: profile.company_name, industry: profile.industry },
+        transactions: []
+    }));
+    return { data: users, lastVisible: (lastVisible || 0) + pageSize };
+};
+
+export const getAllDocumentsForAllUsers = async (pageSize: number, lastVisible?: number): Promise<{ data: GeneratedDocument[], lastVisible: number | null }> => {
+    let query = supabase
+        .from('generated_documents')
+        .select('*, profiles(company_name)') 
+        .order('created_at', { ascending: false });
+    const offset = lastVisible || 0;
+    query = query.range(offset, offset + pageSize - 1);
+    const { data, error } = await query;
+    if (error) throw error;
+    const docs = data.map((doc: any) => ({
+        id: doc.id,
+        title: doc.title,
+        kind: doc.kind,
+        type: doc.type,
+        content: doc.content,
+        createdAt: doc.created_at,
+        companyProfile: doc.company_profile || { companyName: doc.profiles?.company_name || 'N/A', industry: 'Unknown' },
+        questionAnswers: doc.question_answers,
+        version: doc.version,
+    }));
+    return { data: docs, lastVisible: offset + pageSize };
+};
+
+export const getAdminActionLogs = async (pageSize: number, lastVisible?: number): Promise<{ data: AdminActionLog[], lastVisible: number | null }> => {
+    let query = supabase.from('admin_action_logs').select('*').order('created_at', { ascending: false });
+    const offset = lastVisible || 0;
+    query = query.range(offset, offset + pageSize - 1);
+    const { data, error } = await query;
+    if (error) throw error;
+    const logs = data.map((log: any) => ({
+        id: log.id,
+        timestamp: log.created_at,
+        adminEmail: log.admin_email,
+        action: log.action,
+        targetUserId: log.target_user_id,
+        targetUserEmail: log.target_user_email,
+        details: log.details
+    }));
+    return { data: logs, lastVisible: offset + pageSize };
 };
 
 export const updateUserByAdmin = async (adminEmail: string, targetUid: string, updates: Partial<User>) => {
@@ -367,14 +415,12 @@ export const simulateFailedPaymentForUser = async (adminEmail: string, targetUid
     await logAdminAction('Simulated Failed Payment', targetUid);
 };
 
+// --- Settings & Pricing ---
+
 export const getPricingSettings = async () => {
     const { data: settings } = await supabase.from('app_settings').select('*');
     const { data: docPrices } = await supabase.from('document_prices').select('*');
-    
-    return {
-        settings: settings || [],
-        docPrices: docPrices || []
-    };
+    return { settings: settings || [], docPrices: docPrices || [] };
 };
 
 export const updateProPrice = async (priceInCents: number) => {
@@ -395,15 +441,15 @@ export const updateDocumentPrice = async (docType: string, priceInCents: number,
     await logAdminAction('Updated Document Price', 'system', { docType, price: priceInCents });
 };
 
+// --- Notifications ---
+
 export const getAdminNotifications = async (): Promise<AdminNotification[]> => {
     const { data, error } = await supabase
         .from('admin_notifications')
         .select('*')
         .order('created_at', { ascending: false })
         .limit(50);
-        
     if (error) return [];
-    
     return data.map((n: any) => ({
         id: n.id,
         timestamp: n.created_at,
@@ -422,10 +468,11 @@ export const markAllNotificationsAsRead = async () => {
     await supabase.from('admin_notifications').update({ is_read: true }).eq('is_read', false);
 };
 
+// --- Files ---
+
 export const getUserFiles = async (uid: string): Promise<UserFile[]> => {
     const { data, error } = await supabase.from('user_files').select('*').eq('user_id', uid).order('created_at', { ascending: false });
     if (error) return [];
-    
     return data.map((f: any) => ({
         id: f.id,
         name: f.name,
@@ -438,10 +485,8 @@ export const getUserFiles = async (uid: string): Promise<UserFile[]> => {
 
 export const uploadUserFile = async (uid: string, file: File, notes: string) => {
     const path = `${uid}/${Date.now()}_${file.name}`;
-    
     const { error: uploadError } = await supabase.storage.from('user_docs').upload(path, file);
     if (uploadError) throw uploadError;
-
     const { error: dbError } = await supabase.from('user_files').insert({
         user_id: uid,
         name: file.name,
@@ -465,13 +510,10 @@ export const deleteUserFile = async (uid: string, fileId: string, path: string) 
 
 export const uploadProfilePhoto = async (uid: string, file: File) => {
     const path = `${uid}/profile_photo`;
-    
     const { error: uploadError } = await supabase.storage.from('avatars').upload(path, file, { upsert: true });
     if (uploadError) throw uploadError;
-
     const { data } = supabase.storage.from('avatars').getPublicUrl(path);
     const publicUrl = data.publicUrl;
-
     await supabase.from('profiles').update({ avatar_url: publicUrl }).eq('id', uid);
     return publicUrl;
 };
@@ -481,6 +523,8 @@ export const deleteProfilePhoto = async (uid: string) => {
     await supabase.storage.from('avatars').remove([path]);
     await supabase.from('profiles').update({ avatar_url: null }).eq('id', uid);
 };
+
+// --- Coupons ---
 
 export const createCoupon = async (coupon: Partial<Coupon>) => {
     const { error } = await supabase.from('coupons').insert({
@@ -496,7 +540,6 @@ export const createCoupon = async (coupon: Partial<Coupon>) => {
 export const getCoupons = async (): Promise<Coupon[]> => {
     const { data, error } = await supabase.from('coupons').select('*').order('created_at', { ascending: false });
     if (error) return [];
-    
     return data.map((c: any) => ({
         id: c.id,
         code: c.code,
@@ -522,17 +565,9 @@ export const validateCoupon = async (code: string, planType: 'pro' | 'payg'): Pr
         .eq('code', code)
         .eq('active', true)
         .single();
-
     if (error || !data) return { valid: false, message: 'Invalid or expired coupon.' };
-
-    if (data.max_uses && data.used_count >= data.max_uses) {
-        return { valid: false, message: 'Coupon usage limit reached.' };
-    }
-
-    if (data.applicable_to && data.applicable_to !== `plan:${planType}`) {
-        return { valid: false, message: 'Coupon not applicable for this plan.' };
-    }
-
+    if (data.max_uses && data.used_count >= data.max_uses) return { valid: false, message: 'Coupon usage limit reached.' };
+    if (data.applicable_to && data.applicable_to !== `plan:${planType}`) return { valid: false, message: 'Coupon not applicable for this plan.' };
     const coupon: Coupon = {
         id: data.id,
         code: data.code,
@@ -545,9 +580,10 @@ export const validateCoupon = async (code: string, planType: 'pro' | 'payg'): Pr
         applicableTo: data.applicable_to || 'all',
         createdAt: data.created_at
     };
-
     return { valid: true, coupon };
 };
+
+// --- Drafts ---
 
 export const savePolicyDraft = async (uid: string, draft: Omit<PolicyDraft, 'id' | 'createdAt' | 'updatedAt'> & { id?: string }): Promise<void> => {
     const data = {
@@ -561,7 +597,6 @@ export const savePolicyDraft = async (uid: string, draft: Omit<PolicyDraft, 'id'
         manual_instructions: draft.manualInstructions,
         updated_at: new Date().toISOString()
     };
-
     const { error } = await supabase.from('policy_drafts').upsert(data);
     if (error) throw error;
 };
@@ -569,7 +604,6 @@ export const savePolicyDraft = async (uid: string, draft: Omit<PolicyDraft, 'id'
 export const getPolicyDrafts = async (uid: string): Promise<PolicyDraft[]> => {
     const { data, error } = await supabase.from('policy_drafts').select('*').eq('user_id', uid).order('updated_at', { ascending: false });
     if (error) return [];
-
     return data.map((d: any) => ({
         id: d.id,
         originalDocId: d.original_doc_id,

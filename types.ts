@@ -1,5 +1,6 @@
-
 import type React from 'react';
+
+// ... (Existing types remain unchanged)
 
 export type PolicyType =
   | 'leave'
@@ -327,3 +328,15 @@ export type DocumentPrice = {
   price: number; // in cents
   category: 'policy' | 'form';
 };
+
+// INVOICE REQUEST TYPE
+export interface InvoiceRequest {
+    id: string; // Notification ID
+    date: string;
+    userId: string;
+    userEmail: string; // Extracted from message or fetched
+    type: 'pro' | 'payg';
+    amount: number; // in cents
+    reference: string;
+    description: string;
+}

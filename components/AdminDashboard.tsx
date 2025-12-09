@@ -1,10 +1,11 @@
-
-import React, { useState, useMemo } from 'react';
-import type { User, GeneratedDocument, Transaction, AdminActionLog, AdminNotification, Coupon } from '../types';
-import { UserIcon, MasterPolicyIcon, FormsIcon, SearchIcon, CreditCardIcon, HistoryIcon, DownloadIcon, LoadingIcon, CouponIcon } from './Icons';
+import React, { useState, useMemo, useEffect } from 'react';
+import type { User, GeneratedDocument, Transaction, AdminActionLog, AdminNotification, Coupon, InvoiceRequest } from '../types';
+import { UserIcon, MasterPolicyIcon, FormsIcon, SearchIcon, CreditCardIcon, HistoryIcon, DownloadIcon, LoadingIcon, CouponIcon, CheckIcon, FileIcon } from './Icons';
 import AdminUserDetailModal from './AdminUserDetailModal';
 import { PageInfo, useDataContext } from '../contexts/DataContext';
 import { POLICIES, FORMS } from '../constants';
+import { getOpenInvoiceRequests, processManualOrder } from '../services/dbService';
+import { useAuthContext } from '../contexts/AuthContext';
 
 interface AdminDashboardProps {
   // ... (Existing Props)
@@ -168,8 +169,104 @@ const UserList: React.FC<{ users: User[], pageInfo: PageInfo, onNext: () => void
     );
 };
 
+// ... (Other sub-components like DocumentAnalytics, TransactionLog etc. stay here)
+// Simplified here for brevity but assuming they exist as per your provided file.
+
+// --- NEW COMPONENT: OrderRequestList ---
+const OrderRequestList: React.FC<{ userEmail: string }> = ({ userEmail }) => {
+    const [requests, setRequests] = useState<InvoiceRequest[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [processingId, setProcessingId] = useState<string | null>(null);
+
+    const loadRequests = async () => {
+        setLoading(true);
+        try {
+            const data = await getOpenInvoiceRequests();
+            setRequests(data);
+        } catch (e) {
+            console.error("Failed to load requests", e);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        loadRequests();
+    }, []);
+
+    const handleActivate = async (request: InvoiceRequest) => {
+        if (!confirm(`Are you sure you want to activate this order for ${request.userEmail}? This will grant access/credits immediately.`)) return;
+        
+        setProcessingId(request.id);
+        try {
+            await processManualOrder(userEmail, request);
+            // Remove from list
+            setRequests(prev => prev.filter(r => r.id !== request.id));
+            alert("Order activated and user notified via email.");
+        } catch (error: any) {
+            alert(`Failed to activate: ${error.message}`);
+        } finally {
+            setProcessingId(null);
+        }
+    };
+
+    if (loading) return <div className="p-8 flex justify-center"><LoadingIcon className="w-8 h-8 animate-spin text-primary" /></div>;
+
+    if (requests.length === 0) {
+        return (
+            <div className="text-center p-12 bg-gray-50 rounded-lg border border-gray-200">
+                <CheckIcon className="w-12 h-12 text-green-500 mx-auto mb-4" />
+                <h3 className="text-lg font-bold text-gray-700">All caught up!</h3>
+                <p className="text-gray-500">No pending invoice requests found.</p>
+                <button onClick={loadRequests} className="mt-4 text-primary text-sm hover:underline">Refresh</button>
+            </div>
+        );
+    }
+
+    return (
+        <div className="space-y-4">
+            <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-bold text-secondary">Pending Invoices ({requests.length})</h3>
+                <button onClick={loadRequests} className="text-sm text-primary hover:underline flex items-center"><HistoryIcon className="w-4 h-4 mr-1"/> Refresh</button>
+            </div>
+            <div className="grid gap-4">
+                {requests.map(req => (
+                    <div key={req.id} className="bg-white p-4 rounded-lg shadow-sm border border-gray-200 flex flex-col md:flex-row justify-between items-start md:items-center">
+                        <div className="mb-4 md:mb-0">
+                            <div className="flex items-center mb-1">
+                                <span className={`px-2 py-0.5 rounded text-xs font-bold mr-2 ${req.type === 'pro' ? 'bg-purple-100 text-purple-800' : 'bg-blue-100 text-blue-800'}`}>
+                                    {req.type === 'pro' ? 'PRO PLAN' : 'CREDITS'}
+                                </span>
+                                <span className="text-sm text-gray-500">{new Date(req.date).toLocaleString()}</span>
+                            </div>
+                            <h4 className="font-bold text-gray-800">{req.userEmail}</h4>
+                            <p className="text-sm text-gray-600">{req.description}</p>
+                            <p className="text-xs text-gray-400 mt-1">Ref: {req.reference}</p>
+                        </div>
+                        <div className="flex items-center space-x-4 w-full md:w-auto">
+                            <div className="text-right mr-4 hidden md:block">
+                                <p className="text-xl font-bold text-gray-800">R{(req.amount / 100).toFixed(2)}</p>
+                                <p className="text-xs text-gray-500">Amount Due</p>
+                            </div>
+                            <button 
+                                onClick={() => handleActivate(req)}
+                                disabled={!!processingId}
+                                className="flex-1 md:flex-none bg-green-600 text-white font-bold py-2 px-6 rounded-md hover:bg-green-700 transition-colors disabled:opacity-50 flex items-center justify-center min-w-[140px]"
+                            >
+                                {processingId === req.id ? <LoadingIcon className="w-5 h-5 animate-spin text-white" /> : 'Activate'}
+                            </button>
+                        </div>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+};
+
+// ... (PricingManager, CouponManager, etc. assumed to be here or imported)
+// Re-declaring components if they were inline in the provided file to ensure compilation.
 const DocumentAnalytics: React.FC<{ documents: GeneratedDocument[], pageInfo: PageInfo, onNext: () => void, onPrev: () => void, isLoading: boolean }> = ({ documents, pageInfo, onNext, onPrev, isLoading }) => {
-  // ... (DocumentAnalytics Implementation unchanged)
+  // ... (Same as provided file)
   const safeDocs = documents || [];
   const handleExport = () => {
       const exportData = safeDocs.map(d => ({
@@ -230,7 +327,7 @@ const DocumentAnalytics: React.FC<{ documents: GeneratedDocument[], pageInfo: Pa
 };
 
 const TransactionLog: React.FC<{ transactions: Transaction[], usersPageInfo: PageInfo, onNext: () => void, onPrev: () => void, isLoading: boolean }> = ({ transactions, usersPageInfo, onNext, onPrev, isLoading }) => {
-  // ... (TransactionLog Implementation unchanged)
+  // ... (Same as provided file)
   const safeTransactions = transactions || [];
   const handleExport = () => {
       const exportData = safeTransactions.map(t => ({
@@ -299,7 +396,7 @@ const TransactionLog: React.FC<{ transactions: Transaction[], usersPageInfo: Pag
 };
 
 const ActivityLog: React.FC<{ logs: AdminActionLog[], pageInfo: PageInfo, onNext: () => void, onPrev: () => void, isLoading: boolean }> = ({ logs, pageInfo, onNext, onPrev, isLoading }) => {
-  // ... (ActivityLog Implementation unchanged)
+  // ... (Same as provided file)
   const safeLogs = logs || [];
   return (
     <div>
@@ -344,7 +441,7 @@ const ActivityLog: React.FC<{ logs: AdminActionLog[], pageInfo: PageInfo, onNext
 };
 
 const CouponManager: React.FC<{ coupons: Coupon[], adminActions: any }> = ({ coupons, adminActions }) => {
-    // ... (CouponManager implementation unchanged)
+    // ... (Same as provided file)
     const [newCoupon, setNewCoupon] = React.useState({ code: '', discountType: 'fixed', discountValue: '', maxUses: '', applicableTo: 'plan:pro' });
     const [isCreating, setIsCreating] = React.useState(false);
     const safeCoupons = coupons || [];
@@ -404,13 +501,12 @@ const CouponManager: React.FC<{ coupons: Coupon[], adminActions: any }> = ({ cou
     );
 };
 
-// --- New Pricing Manager Component ---
 const PricingManager: React.FC = () => {
+    // ... (Same as provided file)
     const { proPlanPrice, adminActions, getDocPrice } = useDataContext();
     const [proPriceInput, setProPriceInput] = useState((proPlanPrice / 100).toString());
     const [isUpdatingPro, setIsUpdatingPro] = useState(false);
     
-    // Manage local state for list of docs to avoid re-renders on every keystroke
     const allDocs = useMemo(() => [
         ...Object.values(POLICIES).map(p => ({ ...p, category: 'policy' })),
         ...Object.values(FORMS).map(f => ({ ...f, category: 'form' }))
@@ -445,7 +541,6 @@ const PricingManager: React.FC = () => {
 
     return (
         <div className="space-y-8">
-            {/* Pro Plan Pricing */}
             <div className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
                 <h3 className="text-lg font-bold text-secondary mb-4">Subscription Pricing</h3>
                 <div className="flex items-end gap-4 max-w-md">
@@ -468,7 +563,6 @@ const PricingManager: React.FC = () => {
                 </div>
             </div>
 
-            {/* Document Pricing */}
             <div className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
                 <div className="flex justify-between items-center mb-6">
                     <h3 className="text-lg font-bold text-secondary">Document Pricing (PAYG)</h3>
@@ -547,8 +641,9 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
   adminNotifications,
   coupons
 }) => {
-  type AdminTab = 'users' | 'analytics' | 'transactions' | 'logs' | 'coupons' | 'pricing';
-  const [activeTab, setActiveTab] = useState<AdminTab>('users');
+  type AdminTab = 'requests' | 'users' | 'analytics' | 'transactions' | 'logs' | 'coupons' | 'pricing';
+  const { user } = useAuthContext();
+  const [activeTab, setActiveTab] = useState<AdminTab>('requests'); // Default to requests
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
 
   const activeUser = useMemo(() => {
@@ -568,6 +663,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const handleViewUser = (user: User) => { setSelectedUser(user); };
 
   const tabs: { id: AdminTab, name: string, icon: React.FC<{className?:string}> }[] = [
+    { id: 'requests', name: 'Order Requests', icon: FileIcon },
     { id: 'users', name: 'User Management', icon: UserIcon },
     { id: 'analytics', name: 'Document Analytics', icon: FormsIcon },
     { id: 'transactions', name: 'Transaction Log', icon: CreditCardIcon },
@@ -578,6 +674,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
   const renderTabContent = () => {
     switch(activeTab) {
+      case 'requests': return <OrderRequestList userEmail={user?.email || ''} />;
       case 'users': return <UserList users={paginatedUsers.data} pageInfo={paginatedUsers.pageInfo} onNext={onNextUsers} onPrev={onPrevUsers} onViewUser={handleViewUser} isLoading={isFetchingUsers} />;
       case 'analytics': return <DocumentAnalytics documents={paginatedDocuments.data} pageInfo={paginatedDocuments.pageInfo} onNext={onNextDocs} onPrev={onPrevDocs} isLoading={isFetchingDocs} />;
       case 'transactions': return <TransactionLog transactions={transactionsForUserPage} usersPageInfo={paginatedUsers.pageInfo} onNext={onNextUsers} onPrev={onPrevUsers} isLoading={isFetchingUsers} />;

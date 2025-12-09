@@ -1,4 +1,3 @@
-
 import { supabase } from './supabase';
 
 /* 
@@ -90,39 +89,38 @@ export const emailService = {
     },
 
     /**
-     * Sends a receipt/confirmation for a Pro subscription.
+     * Sends a confirmation when Admin manually activates an order.
      */
-    sendSubscriptionReceipt: async (email: string, name: string, amountInCents: number) => {
+    sendActivationConfirmation: async (email: string, name: string, type: 'pro' | 'payg', amountInCents: number) => {
+        const isPro = type === 'pro';
         const amount = (amountInCents / 100).toFixed(2);
+        
         const html = `
-            <div style="font-family: sans-serif; color: #333;">
-                <h2>Payment Receipt</h2>
+            <div style="font-family: sans-serif; color: #333; max-width: 600px; margin: 0 auto;">
+                <h2 style="color: #188693; text-align: center;">Payment Received & Order Activated!</h2>
                 <p>Hi ${name},</p>
-                <p>Thank you for upgrading to <strong>HR CoPilot Pro</strong>.</p>
-                <p>We have received your payment of <strong>R${amount}</strong>.</p>
-                <p>Your account has been upgraded and you now have unlimited access for 12 months.</p>
-                <br/>
-                <p>Regards,<br/>The HR CoPilot Team</p>
-            </div>
-        `;
-        return sendEmail(email, "Payment Receipt - HR CoPilot Pro", html);
-    },
+                <p>Great news! We have received your payment of <strong>R${amount}</strong>.</p>
+                
+                <div style="background-color: #ecfdf5; padding: 15px; border-radius: 8px; border: 1px solid #d1fae5; margin: 20px 0;">
+                    <h3 style="margin-top: 0; color: #065f46;">${isPro ? 'Pro Membership Active' : 'Credits Added'}</h3>
+                    <p style="margin: 5px 0; color: #064e3b;">
+                        ${isPro 
+                            ? 'Your account has been upgraded to HR CoPilot Pro. You now have unlimited access for 12 months.' 
+                            : `R${amount} credit has been added to your balance. You can now generate documents.`
+                        }
+                    </p>
+                </div>
 
-    /**
-     * Sends a receipt for a PAYG top-up.
-     */
-    sendTopUpReceipt: async (email: string, name: string, amountInCents: number) => {
-        const amount = (amountInCents / 100).toFixed(2);
-        const html = `
-            <div style="font-family: sans-serif; color: #333;">
-                <h2>Credit Top-Up Successful</h2>
-                <p>Hi ${name},</p>
-                <p>You have successfully added <strong>R${amount}</strong> to your HR CoPilot credit balance.</p>
-                <p>You can now use these credits to generate documents.</p>
-                <br/>
+                <p>You can login to your dashboard immediately to start using your new features.</p>
+                
+                <div style="text-align: center; margin: 30px 0;">
+                    <a href="https://app.hrcopilot.co.za" style="background-color: #188693; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; font-weight: bold;">Go to Dashboard</a>
+                </div>
+                
+                <p>Thank you for choosing HR CoPilot.</p>
                 <p>Regards,<br/>The HR CoPilot Team</p>
             </div>
         `;
-        return sendEmail(email, "Credit Top-Up Receipt", html);
+        return sendEmail(email, "Payment Confirmed - Order Activated", html);
     }
 };
