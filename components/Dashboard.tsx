@@ -54,8 +54,8 @@ const Dashboard: React.FC<DashboardProps> = ({
   };
 
   return (
-    <div className="max-w-7xl mx-auto">
-      <div className="mb-8">
+    <div className="max-w-7xl mx-auto relative">
+      <div className="mb-8" id="tour-welcome">
         <div className="mb-6">
             <h1 className="text-3xl font-bold text-secondary">
             Welcome back, {user?.name ? user.name.split(' ')[0] : 'HR Hero'}!
@@ -74,16 +74,19 @@ const Dashboard: React.FC<DashboardProps> = ({
         </div>
 
         {user?.profile && (
-            <ComplianceScore 
-                profile={user.profile} 
-                documents={generatedDocuments} 
-                onGenerateSuggestion={onSelectDocument} 
-            />
+            <div id="tour-compliance">
+                <ComplianceScore 
+                    profile={user.profile} 
+                    documents={generatedDocuments} 
+                    onGenerateSuggestion={onSelectDocument} 
+                />
+            </div>
         )}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
           <div
+            id="tour-roadmap"
             onClick={onStartChecklist}
             className="bg-white p-6 rounded-lg shadow-sm border border-gray-200 cursor-pointer hover:shadow-md transition-all flex items-center group"
           >
@@ -97,6 +100,7 @@ const Dashboard: React.FC<DashboardProps> = ({
           </div>
 
           <div
+            id="tour-updater"
             onClick={onStartUpdate}
             className="bg-white p-6 rounded-lg shadow-sm border border-gray-200 cursor-pointer hover:shadow-md transition-all flex items-center group"
           >
@@ -110,7 +114,7 @@ const Dashboard: React.FC<DashboardProps> = ({
           </div>
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden" id="tour-generator">
         <div className="flex border-b border-gray-200 overflow-x-auto">
           <button
             onClick={() => setActiveTab('policies')}

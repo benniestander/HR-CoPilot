@@ -1,106 +1,224 @@
 
-import React, { useState } from 'react';
-import { MasterPolicyIcon, ComplianceIcon, UpdateIcon } from './Icons';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useFocusTrap } from '../hooks/useFocusTrap';
 
 interface OnboardingWalkthroughProps {
   onClose: () => void;
 }
 
-const tourSteps = [
+interface TourStep {
+  targetId: string;
+  title: string;
+  content: string;
+  position?: 'top' | 'bottom' | 'left' | 'right';
+}
+
+const TOUR_STEPS: TourStep[] = [
   {
-    icon: MasterPolicyIcon,
-    title: 'Welcome to HR CoPilot!',
-    content: "Let's take a quick tour to show you how to get the most out of your HR CoPilot.",
+    targetId: 'tour-welcome',
+    title: 'Welcome to HR CoPilot',
+    content: 'This is your Dashboard. From here you can access all tools, view your credit balance, and see your compliance status at a glance.',
+    position: 'bottom'
   },
   {
-    icon: MasterPolicyIcon,
-    title: 'Generate Policies & Forms',
-    content: 'Start by selecting a document from the lists below. The Ingcweti AI will guide you through a few questions to create a customized, compliant document in minutes.',
+    targetId: 'tour-compliance',
+    title: 'Your Compliance Score',
+    content: 'We analyze your generated documents against your industry profile to give you a real-time compliance score. It updates automatically as you create more documents.',
+    position: 'bottom'
   },
   {
-    icon: ComplianceIcon,
-    title: 'Get a Compliance Checklist',
-    content: "Not sure where to begin? Use the Compliance Checklist tool. It analyzes your company profile and provides a personalized action plan of essential HR documents.",
+    targetId: 'tour-roadmap',
+    title: 'Compliance Roadmap',
+    content: "Not sure what you need? Click here to see a prioritized checklist of mandatory and recommended documents specific to your business size and sector.",
+    position: 'top'
   },
   {
-    icon: UpdateIcon,
-    title: 'Keep Your Documents Current',
-    content: "Labour laws change. Use the Ingcweti AI Policy Updater to scan your existing documents for compliance, ensuring your business stays protected.",
+    targetId: 'tour-updater',
+    title: 'Policy Updater',
+    content: 'Have existing policies from elsewhere? Upload them here. Our AI will scan them against current labour laws and suggest improvements.',
+    position: 'top'
   },
+  {
+    targetId: 'tour-generator',
+    title: 'Document Generator',
+    content: 'Use these tabs to switch between generating Policies (like Disciplinary Codes) and Forms (like Contracts). Just click an item to start the wizard.',
+    position: 'top'
+  }
 ];
 
 const OnboardingWalkthrough: React.FC<OnboardingWalkthroughProps> = ({ onClose }) => {
-  const [step, setStep] = useState(0);
-  const modalRef = useFocusTrap<HTMLDivElement>(true, onClose);
-  const currentStep = tourSteps[step];
+  const [currentStepIndex, setCurrentStepIndex] = useState(0);
+  const [targetRect, setTargetRect] = useState<DOMRect | null>(null);
+  const modalRef = useRef<HTMLDivElement>(null);
+
+  // Hook to handle window resize recalculations
+  useEffect(() => {
+    const handleResize = () => updateTargetPosition();
+    window.addEventListener('resize', handleResize);
+    window.addEventListener('scroll', handleResize, true);
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      window.removeEventListener('scroll', handleResize, true);
+    };
+  }, [currentStepIndex]);
+
+  const updateTargetPosition = useCallback(() => {
+    const step = TOUR_STEPS[currentStepIndex];
+    const element = document.getElementById(step.targetId);
+    
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      // Small delay to allow scroll to finish before calculating rect
+      setTimeout(() => {
+          const rect = element.getBoundingClientRect();
+          setTargetRect(rect);
+      }, 400);
+    } else {
+      // If target not found (e.g. mobile view hiding elements), skip or close
+      if (currentStepIndex < TOUR_STEPS.length - 1) {
+          setCurrentStepIndex(prev => prev + 1);
+      } else {
+          onClose();
+      }
+    }
+  }, [currentStepIndex, onClose]);
+
+  useEffect(() => {
+    updateTargetPosition();
+  }, [updateTargetPosition]);
 
   const handleNext = () => {
-    if (step < tourSteps.length - 1) {
-      setStep(s => s + 1);
+    if (currentStepIndex < TOUR_STEPS.length - 1) {
+      setCurrentStepIndex(prev => prev + 1);
     } else {
       onClose();
     }
   };
 
   const handleBack = () => {
-    if (step > 0) {
-      setStep(s => s - 1);
+    if (currentStepIndex > 0) {
+      setCurrentStepIndex(prev => prev - 1);
     }
   };
 
+  if (!targetRect) return null;
+
+  const currentStep = TOUR_STEPS[currentStepIndex];
+  const isLastStep = currentStepIndex === TOUR_STEPS.length - 1;
+
+  // Calculate tooltip position logic
+  // Default to bottom if not specified or if logic gets complex
+  let tooltipStyle: React.CSSProperties = {
+      position: 'absolute',
+      width: '320px',
+      zIndex: 60,
+  };
+
+  const isMobile = window.innerWidth < 768;
+  const margin = 12;
+
+  if (isMobile) {
+      // Simplified mobile positioning: always centered bottom or top based on target Y
+      tooltipStyle.left = '50%';
+      tooltipStyle.transform = 'translateX(-50%)';
+      if (targetRect.bottom > window.innerHeight / 2) {
+          tooltipStyle.bottom = window.innerHeight - targetRect.top + margin;
+      } else {
+          tooltipStyle.top = targetRect.bottom + margin;
+      }
+  } else {
+      // Desktop positioning
+      tooltipStyle.left = targetRect.left;
+      
+      if (currentStep.position === 'top') {
+          tooltipStyle.bottom = window.innerHeight - targetRect.top + margin;
+      } else {
+          tooltipStyle.top = targetRect.bottom + margin;
+      }
+
+      // Edge detection fix
+      if (targetRect.left + 320 > window.innerWidth) {
+          tooltipStyle.left = 'auto';
+          tooltipStyle.right = window.innerWidth - targetRect.right;
+      }
+  }
+
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 overflow-hidden">
+      {/* 
+        The Spotlight Effect using Box Shadow. 
+        This is a classic CSS trick: a huge box-shadow creates the dim overlay, 
+        leaving the content inside the div "cut out".
+      */}
+      <div 
+        className="absolute transition-all duration-500 ease-in-out pointer-events-none rounded-lg"
+        style={{
+          top: targetRect.top - 4, // Slight padding
+          left: targetRect.left - 4,
+          width: targetRect.width + 8,
+          height: targetRect.height + 8,
+          boxShadow: '0 0 0 9999px rgba(0, 0, 0, 0.75)'
+        }}
+      />
+
+      {/* Tooltip Card */}
       <div 
         ref={modalRef}
-        className="bg-white rounded-lg shadow-xl w-full max-w-md flex flex-col"
+        className="bg-white rounded-lg shadow-2xl p-6 transition-all duration-300 animate-fade-in border border-gray-100"
+        style={tooltipStyle}
         role="dialog"
         aria-modal="true"
-        aria-labelledby="walkthrough-title"
+        aria-labelledby="tour-title"
       >
-        <div className="p-6 text-center border-b border-gray-200">
-          <currentStep.icon className="w-12 h-12 text-primary mx-auto mb-4" />
-          <h2 id="walkthrough-title" className="text-2xl font-bold text-secondary">{currentStep.title}</h2>
+        <div className="flex justify-between items-center mb-2">
+            <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">
+                Step {currentStepIndex + 1} of {TOUR_STEPS.length}
+            </span>
+            <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            </button>
         </div>
-        <div className="p-6 text-center">
-            <p className="text-gray-600">{currentStep.content}</p>
-        </div>
-        <div className="p-6 bg-gray-50 border-t border-gray-200">
-            <div className="flex items-center justify-center mb-4">
-              {tourSteps.map((_, index) => (
-                <div
-                  key={index}
-                  className={`w-2 h-2 rounded-full mx-1 transition-colors ${
-                    index === step ? 'bg-primary' : 'bg-gray-300'
-                  }`}
-                />
-              ))}
-            </div>
-            <div className="flex justify-between items-center">
-                <button
-                    onClick={onClose}
-                    className="text-sm font-semibold text-gray-600 hover:text-primary"
+        
+        <h3 id="tour-title" className="text-lg font-bold text-secondary mb-2">
+            {currentStep.title}
+        </h3>
+        <p className="text-gray-600 text-sm mb-6 leading-relaxed">
+            {currentStep.content}
+        </p>
+
+        <div className="flex justify-between items-center">
+            {currentStepIndex > 0 ? (
+                <button 
+                    onClick={handleBack}
+                    className="text-sm font-semibold text-gray-500 hover:text-gray-800"
                 >
-                    Skip Tour
+                    Back
                 </button>
-                <div className="flex space-x-2">
-                     {step > 0 && (
-                        <button
-                            onClick={handleBack}
-                            className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300"
-                        >
-                            Back
-                        </button>
-                    )}
-                    <button
-                        onClick={handleNext}
-                        className="px-6 py-2 text-sm font-medium text-white bg-primary rounded-md hover:bg-opacity-90"
-                    >
-                        {step === tourSteps.length - 1 ? "Let's Go!" : 'Next'}
-                    </button>
-                </div>
-            </div>
+            ) : (
+                <button onClick={onClose} className="text-sm font-semibold text-gray-400 hover:text-gray-600">Skip Tour</button>
+            )}
+
+            <button
+                onClick={handleNext}
+                className="bg-primary text-white text-sm font-bold py-2 px-6 rounded-md hover:bg-opacity-90 shadow-sm transition-transform active:scale-95"
+            >
+                {isLastStep ? 'Finish' : 'Next'}
+            </button>
         </div>
+        
+        {/* Little arrow pointing to target */}
+        {!isMobile && (
+            <div 
+                className="absolute w-4 h-4 bg-white transform rotate-45"
+                style={{
+                    ...(currentStep.position === 'top' 
+                        ? { bottom: -6, left: 20 } 
+                        : { top: -6, left: 20 }
+                    ),
+                    ...(targetRect.left + 320 > window.innerWidth ? { left: 'auto', right: 20 } : {})
+                }}
+            />
+        )}
       </div>
     </div>
   );
