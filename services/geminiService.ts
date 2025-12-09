@@ -1,31 +1,8 @@
-// NOTE: This is a TypeScript file. Do not run this in a SQL Editor.
+
 import { GoogleGenAI } from "@google/genai";
 import type { FormAnswers, PolicyUpdateResult } from '../types';
 
-// Helper to safely get the API Key without crashing if 'process' is undefined
-const getApiKey = () => {
-  try {
-    // Primary method as per guidelines
-    if (process.env.API_KEY) return process.env.API_KEY;
-  } catch (e) {
-    // Ignore ReferenceError if process is not defined
-  }
-  
-  // Fallback for Vite environments if process.env isn't polyfilled
-  try {
-    const env = (import.meta as any).env;
-    if (env && env.API_KEY) return env.API_KEY;
-  } catch (e) {
-    // Ignore
-  }
-  
-  return undefined;
-};
-
-// Initialize Gemini Client
-// We use a dummy key if missing to prevent 'new GoogleGenAI' from throwing on load.
-// Actual calls will fail gracefully with the specific error in the functions below.
-const ai = new GoogleGenAI({ apiKey: getApiKey() || 'MISSING_API_KEY' });
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 const INDUSTRY_SPECIFIC_GUIDANCE: Record<string, Record<string, string>> = {
   'Professional Services': {
@@ -38,11 +15,6 @@ const INDUSTRY_SPECIFIC_GUIDANCE: Record<string, Record<string, string>> = {
 };
 
 export const generatePolicyStream = async function* (type: string, answers: FormAnswers) {
-  const apiKey = getApiKey();
-  if (!apiKey) {
-      throw new Error("Client Configuration Error: Missing API_KEY. Please check your .env file.");
-  }
-
   const model = 'gemini-2.5-flash';
   const industry = answers.industry || 'General';
   const companyName = answers.companyName || 'the Company';
@@ -62,33 +34,23 @@ export const generatePolicyStream = async function* (type: string, answers: Form
   Use a professional yet accessible tone.
   Format with Markdown.`;
 
-  try {
-    const response = await ai.models.generateContentStream({
-        model: model,
-        contents: prompt,
-        config: {
-            tools: [{ googleSearch: {} }]
-        }
-    });
-
-    for await (const chunk of response) {
-        yield {
-            text: chunk.text,
-            groundingMetadata: chunk.candidates?.[0]?.groundingMetadata
-        };
+  const response = await ai.models.generateContentStream({
+    model: model,
+    contents: prompt,
+    config: {
+        tools: [{ googleSearch: {} }]
     }
-  } catch (error: any) {
-    console.error("Gemini Generation Error:", error);
-    throw new Error(error.message || "Failed to generate policy. Please check your internet connection.");
+  });
+
+  for await (const chunk of response) {
+    yield {
+        text: chunk.text,
+        groundingMetadata: chunk.candidates?.[0]?.groundingMetadata
+    };
   }
 };
 
 export const generateFormStream = async function* (type: string, answers: FormAnswers) {
-    const apiKey = getApiKey();
-    if (!apiKey) {
-        throw new Error("Client Configuration Error: Missing API_KEY.");
-    }
-
     const model = 'gemini-2.5-flash';
     
     const prompt = `Generate a professional HR Form for "${type}".
@@ -104,27 +66,17 @@ export const generateFormStream = async function* (type: string, answers: FormAn
     3. Ensure it looks professional and is ready to print.
     `;
   
-    try {
-        const response = await ai.models.generateContentStream({
-            model: model,
-            contents: prompt
-        });
+    const response = await ai.models.generateContentStream({
+        model: model,
+        contents: prompt
+    });
 
-        for await (const chunk of response) {
-            if (chunk.text) yield chunk.text;
-        }
-    } catch (error: any) {
-        console.error("Gemini Generation Error:", error);
-        throw new Error(error.message || "Failed to generate form.");
+    for await (const chunk of response) {
+        if (chunk.text) yield chunk.text;
     }
 };
 
 export const updatePolicy = async (content: string, instructions?: string): Promise<PolicyUpdateResult> => {
-    const apiKey = getApiKey();
-    if (!apiKey) {
-        throw new Error("Client Configuration Error: Missing API_KEY.");
-    }
-
     const model = 'gemini-2.5-flash'; 
     const prompt = `Analyze the following HR policy document against current South African Labour Law.
     
@@ -142,74 +94,47 @@ export const updatePolicy = async (content: string, instructions?: string): Prom
        - updatedText: The new snippet.
     `;
 
-    try {
-        const response = await ai.models.generateContent({
-            model: model,
-            contents: prompt,
-            config: {
-                responseMimeType: "application/json"
-            }
-        });
-        
-        const text = response.text;
-        
-        if (!text) throw new Error("No response from Ingcweti AI");
-        
-        // Clean markdown code blocks if present
-        const jsonStr = text.replace(/```json\n?|\n?```/g, '').trim();
-        return JSON.parse(jsonStr) as PolicyUpdateResult;
-    } catch (error: any) {
-        console.error("Gemini Update Error:", error);
-        throw new Error(error.message || "Failed to update policy.");
-    }
+    const response = await ai.models.generateContent({
+        model: model,
+        contents: prompt,
+        config: {
+            responseMimeType: "application/json"
+        }
+    });
+    
+    const text = response.text;
+    
+    if (!text) throw new Error("No response from Ingcweti AI");
+    
+    // Clean markdown code blocks if present
+    const jsonStr = text.replace(/```json\n?|\n?```/g, '').trim();
+    return JSON.parse(jsonStr) as PolicyUpdateResult;
 };
 
 export const explainPolicyTypeStream = async function* (title: string) {
-    const apiKey = getApiKey();
-    if (!apiKey) {
-        yield "Configuration Error: API Key missing.";
-        return;
-    }
-
     const model = 'gemini-2.5-flash';
     const prompt = `Explain the purpose and key components of a "${title}" in the context of South African HR law. Keep it brief and informative for a business owner.`;
     
-    try {
-        const response = await ai.models.generateContentStream({
-            model: model,
-            contents: prompt
-        });
+    const response = await ai.models.generateContentStream({
+        model: model,
+        contents: prompt
+    });
 
-        for await (const chunk of response) {
-            if (chunk.text) yield chunk.text;
-        }
-    } catch (error) {
-        console.error("Explanation Error:", error);
-        yield "Could not generate explanation at this time.";
+    for await (const chunk of response) {
+        if (chunk.text) yield chunk.text;
     }
 }
 
 export const explainFormTypeStream = async function* (title: string) {
-    const apiKey = getApiKey();
-    if (!apiKey) {
-        yield "Configuration Error: API Key missing.";
-        return;
-    }
-
     const model = 'gemini-2.5-flash';
     const prompt = `Explain the purpose of a "${title}" form in South African HR management. Keep it brief.`;
     
-    try {
-        const response = await ai.models.generateContentStream({
-            model: model,
-            contents: prompt
-        });
+    const response = await ai.models.generateContentStream({
+        model: model,
+        contents: prompt
+    });
 
-        for await (const chunk of response) {
-            if (chunk.text) yield chunk.text;
-        }
-    } catch (error) {
-        console.error("Explanation Error:", error);
-        yield "Could not generate explanation at this time.";
+    for await (const chunk of response) {
+        if (chunk.text) yield chunk.text;
     }
 }

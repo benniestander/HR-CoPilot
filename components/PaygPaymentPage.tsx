@@ -1,7 +1,9 @@
+
 import React, { useState } from 'react';
-import { CreditCardIcon, LoadingIcon, ShieldCheckIcon, CouponIcon, FileIcon, CheckIcon } from './Icons';
+import { CreditCardIcon, LoadingIcon, ShieldCheckIcon, CouponIcon } from './Icons';
 import { useAuthContext } from '../contexts/AuthContext';
-import { requestInvoice, validateCoupon } from '../services/dbService';
+import { processPayment } from '../services/paymentService';
+import { validateCoupon } from '../services/dbService';
 import { useDataContext } from '../contexts/DataContext';
 
 interface PaygPaymentPageProps {
@@ -16,8 +18,14 @@ const PaygPaymentPage: React.FC<PaygPaymentPageProps> = ({ onTopUpSuccess, onCan
   const [selectedAmount, setSelectedAmount] = useState<number | null>(10000); // Default to R100
   const [customAmount, setCustomAmount] = useState('');
   const [isCustom, setIsCustom] = useState(false);
+
+  const [formData, setFormData] = useState({ 
+    firstName: user?.name?.split(' ')[0] || '', 
+    lastName: user?.name?.split(' ').slice(1).join(' ') || '', 
+  });
+  const [errors, setErrors] = useState({ firstName: '', lastName: '' });
+  
   const [isLoading, setIsLoading] = useState(false);
-  const [isRequestSent, setIsRequestSent] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
 
   // Coupon State
@@ -35,7 +43,7 @@ const PaygPaymentPage: React.FC<PaygPaymentPageProps> = ({ onTopUpSuccess, onCan
       setSelectedAmount(amount);
       setCustomAmount('');
     }
-    // Reset coupon logic
+    // Reset coupon on amount change to force re-validation logic and prevent stale discounts
     setDiscount(0);
     setAppliedCouponCode(null);
     setCouponMessage(null);
@@ -44,6 +52,22 @@ const PaygPaymentPage: React.FC<PaygPaymentPageProps> = ({ onTopUpSuccess, onCan
 
   const baseAmount = isCustom ? (Number(customAmount) * 100) : selectedAmount;
   const finalAmount = baseAmount ? Math.max(0, baseAmount - discount) : 0;
+
+  const validateField = (name: keyof typeof formData, value: string) => {
+    let error = '';
+    if (!value.trim()) {
+        const fieldName = (name as string).replace(/([A-Z])/g, ' $1').toLowerCase();
+        error = `${fieldName.charAt(0).toUpperCase() + fieldName.slice(1)} is required.`;
+    }
+    setErrors(prev => ({ ...prev, [name]: error }));
+    return !error;
+  };
+  
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target as { name: keyof typeof formData; value: string };
+    setFormData(prev => ({ ...prev, [name]: value }));
+    validateField(name, value);
+  };
 
   const handleApplyCoupon = async () => {
       if (!couponCode.trim() || !baseAmount) return;
@@ -57,11 +81,13 @@ const PaygPaymentPage: React.FC<PaygPaymentPageProps> = ({ onTopUpSuccess, onCan
               } else {
                   calculatedDiscount = (baseAmount * result.coupon.discountValue) / 100;
               }
+              
+              // Cap discount at 100%
               if (calculatedDiscount > baseAmount) calculatedDiscount = baseAmount;
 
               setDiscount(calculatedDiscount);
               setAppliedCouponCode(result.coupon.code);
-              setCouponMessage({ type: 'success', text: `Coupon applied! R${(calculatedDiscount / 100).toFixed(2)} off invoice.` });
+              setCouponMessage({ type: 'success', text: `Coupon applied! You save R${(calculatedDiscount / 100).toFixed(2)}` });
           } else {
               setDiscount(0);
               setAppliedCouponCode(null);
@@ -72,51 +98,48 @@ const PaygPaymentPage: React.FC<PaygPaymentPageProps> = ({ onTopUpSuccess, onCan
       }
   };
 
+  const isUserDetailsValid = Object.values(formData).every(val => typeof val === 'string' && val.trim() !== '') && Object.values(errors).every(err => err === '');
   const isAmountValid = baseAmount !== null && baseAmount >= 5000; // Min R50
   
-  const handleRequestInvoice = async (e: React.FormEvent) => {
+  const handlePayment = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!isAmountValid || !baseAmount || !user) return;
+
+    const isFirstNameValid = validateField('firstName', formData.firstName);
+    const isLastNameValid = validateField('lastName', formData.lastName);
+
+    if (!isAmountValid || !isFirstNameValid || !isLastNameValid || !baseAmount || !user) return;
 
     setIsLoading(true);
     setApiError(null);
 
-    try {
-        await requestInvoice(
-            user.uid,
-            'payg',
-            Math.round(finalAmount),
-            `Credit Top-Up Request via Portal. Coupon: ${appliedCouponCode || 'None'}`
-        );
-        setIsRequestSent(true);
-    } catch (error: any) {
-        console.error("Invoice request failed:", error);
-        setApiError("Failed to send request. Please check your connection.");
-    } finally {
-        setIsLoading(false);
+    // Trigger the payment portal (Yoco SDK Popup)
+    const result = await processPayment({
+        amountInCents: Math.round(finalAmount), // Amount to charge card
+        name: `Credit Top-Up R${(finalAmount / 100).toFixed(2)}`,
+        description: 'Credit for HR CoPilot',
+        customer: {
+            name: formData.firstName,
+            surname: formData.lastName,
+            email: user.email
+        },
+        metadata: {
+            userId: user.uid,
+            type: 'topup',
+            couponCode: appliedCouponCode || undefined
+            // Note: Server calculates credit amount to add based on payment + coupon to ensure security
+        }
+    });
+
+    setIsLoading(false);
+
+    if (result.success) {
+        // Payment successful - update credit balance in UI
+        // We pass the *baseAmount* (the value the user gets) to the optimistic update
+        onTopUpSuccess(baseAmount); 
+    } else if (result.error && result.error !== "User cancelled") {
+        setApiError(`Payment failed: ${result.error}`);
     }
   };
-
-  if (isRequestSent) {
-      return (
-        <div className="min-h-screen bg-light font-sans flex items-center justify-center p-4">
-            <div className="bg-white p-8 rounded-lg shadow-md max-w-md w-full text-center border border-gray-200">
-                <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-green-100 mb-6">
-                    <CheckIcon className="h-10 w-10 text-green-600" />
-                </div>
-                <h2 className="text-2xl font-bold text-secondary mb-2">Request Received</h2>
-                <p className="text-gray-600 mb-6">
-                    We have received your request for a top-up of <strong>R{(finalAmount / 100).toFixed(2)}</strong>.
-                    <br/><br/>
-                    An invoice has been sent to <strong>{user?.email}</strong>. Once payment is received, your credits will be loaded automatically.
-                </p>
-                <button onClick={onCancel} className="w-full bg-primary text-white font-bold py-3 px-4 rounded-md hover:bg-opacity-90 transition-colors">
-                    Back to Dashboard
-                </button>
-            </div>
-        </div>
-      );
-  }
 
   return (
     <div className="min-h-screen bg-light font-sans">
@@ -131,14 +154,14 @@ const PaygPaymentPage: React.FC<PaygPaymentPageProps> = ({ onTopUpSuccess, onCan
         <div className="max-w-2xl mx-auto">
             <div className="bg-white p-8 rounded-lg shadow-md border border-gray-200">
                 <h1 className="text-3xl font-bold text-secondary mb-2 text-center">Top Up Your Credit</h1>
-                <p className="text-gray-600 mb-6 text-center">Add funds to generate documents. We'll send you an invoice.</p>
+                <p className="text-gray-600 mb-6 text-center">Add funds to your account to generate documents.</p>
                 
                 <div className="p-4 bg-green-50 border border-green-200 rounded-lg text-center mb-6">
                     <p className="text-sm text-green-800">Your current balance is</p>
                     <p className="text-4xl font-bold text-green-900">R{(Number(user?.creditBalance) / 100).toFixed(2)}</p>
                 </div>
 
-                <form onSubmit={handleRequestInvoice} className="space-y-6">
+                <form onSubmit={handlePayment} className="space-y-6">
                     <div>
                         <h3 className="text-lg font-semibold text-secondary mb-3">Choose an amount:</h3>
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -160,9 +183,25 @@ const PaygPaymentPage: React.FC<PaygPaymentPageProps> = ({ onTopUpSuccess, onCan
                         )}
                     </div>
 
+                    <div>
+                      <h3 className="text-lg font-semibold text-secondary mb-3">Your Payment Details</h3>
+                      <div className="space-y-4">
+                        <div>
+                          <label htmlFor="firstName" className="block text-sm font-medium text-gray-700">First Name</label>
+                          <input type="text" id="firstName" name="firstName" value={formData.firstName} onChange={handleChange} required className={`mt-1 block w-full p-3 border rounded-md shadow-sm focus:ring-primary focus:border-primary sm:text-sm ${errors.firstName ? 'border-red-500' : 'border-gray-300'}`} />
+                          {errors.firstName && <p className="text-red-600 text-xs mt-1">{errors.firstName}</p>}
+                        </div>
+                        <div>
+                          <label htmlFor="lastName" className="block text-sm font-medium text-gray-700">Last Name</label>
+                          <input type="text" id="lastName" name="lastName" value={formData.lastName} onChange={handleChange} required className={`mt-1 block w-full p-3 border rounded-md shadow-sm focus:ring-primary focus:border-primary sm:text-sm ${errors.lastName ? 'border-red-500' : 'border-gray-300'}`} />
+                          {errors.lastName && <p className="text-red-600 text-xs mt-1">{errors.lastName}</p>}
+                        </div>
+                      </div>
+                    </div>
+
                     {/* Coupon Section */}
                     <div className="pt-2">
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Have a coupon code?</label>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Have a coupon?</label>
                         <div className="flex space-x-2">
                             <div className="relative flex-grow">
                                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -195,22 +234,22 @@ const PaygPaymentPage: React.FC<PaygPaymentPageProps> = ({ onTopUpSuccess, onCan
 
                     <div className="pt-6 border-t border-gray-200">
                         <div className="flex justify-between items-center mb-4 font-bold text-lg text-secondary">
-                            <span>Invoice Total</span>
+                            <span>Total to Pay</span>
                             <span>R{(finalAmount / 100).toFixed(2)}</span>
                         </div>
-                        <button type="submit" disabled={isLoading || !isAmountValid} className="w-full bg-primary text-white font-bold py-4 px-4 rounded-lg text-lg hover:bg-opacity-90 disabled:bg-gray-400 transition-colors flex items-center justify-center">
+                        <button type="submit" disabled={isLoading || !isAmountValid || !isUserDetailsValid} className="w-full bg-primary text-white font-bold py-4 px-4 rounded-lg text-lg hover:bg-opacity-90 disabled:bg-gray-400 transition-colors flex items-center justify-center">
                             {isLoading ? (
-                                <><LoadingIcon className="animate-spin -ml-1 mr-3 h-5 w-5" /> Sending Request...</>
+                                <><LoadingIcon className="animate-spin -ml-1 mr-3 h-5 w-5" /> Opening Payment Portal...</>
                             ) : (
                                 <>
-                                <FileIcon className="w-6 h-6 mr-3" />
-                                Request Invoice
+                                <CreditCardIcon className="w-6 h-6 mr-3" />
+                                Proceed to Pay
                                 </>
                             )}
                         </button>
                         {apiError && <p className="text-xs text-red-600 text-center mt-3">{apiError}</p>}
                         <p className="text-xs text-gray-400 text-center mt-4">
-                            You will receive an email with payment instructions (EFT/Card).
+                            You will be redirected to the secure Yoco payment gateway.
                         </p>
                     </div>
                 </form>
@@ -218,10 +257,10 @@ const PaygPaymentPage: React.FC<PaygPaymentPageProps> = ({ onTopUpSuccess, onCan
 
             <div className="mt-8 p-6 border-2 border-dashed border-accent rounded-lg bg-accent/10 text-center">
                  <h3 className="text-2xl font-bold text-accent-800">Go Unlimited!</h3>
-                 <p className="text-accent-700 my-3 max-w-md mx-auto">Tired of topping up? Upgrade to HR CoPilot Pro for R{(proPlanPrice / 100).toFixed(0)} and get unlimited document generation for a full year.</p>
+                 <p className="text-accent-700 my-3 max-w-md mx-auto">Tired of topping up? Upgrade to HR CoPilot Pro for R{(proPlanPrice / 100).toFixed(0)} and get unlimited document generation for a full year, plus access to all premium features.</p>
                  <button onClick={onUpgrade} className="bg-primary text-white font-bold py-3 px-6 rounded-md hover:bg-opacity-90 transition-colors inline-flex items-center">
                     <ShieldCheckIcon className="w-5 h-5 mr-2" />
-                    Request Upgrade Invoice
+                    Upgrade to Pro Now
                  </button>
             </div>
         </div>

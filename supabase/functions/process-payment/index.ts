@@ -1,3 +1,4 @@
+
 // @ts-ignore
 declare const Deno: any;
 
@@ -14,104 +15,116 @@ Deno.serve(async (req: any) => {
   }
 
   try {
-    // Retrieve and sanitise secrets
-    const rawYocoKey = Deno.env.get('YOCO_SECRET_KEY');
-    const YOCO_SECRET_KEY = rawYocoKey ? rawYocoKey.trim() : ''; // TRIM WHITESPACE
+    const YOCO_SECRET_KEY = Deno.env.get('YOCO_SECRET_KEY');
     const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 
     if (!YOCO_SECRET_KEY || !SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
-      console.error("Missing Secrets - Yoco Key Length:", YOCO_SECRET_KEY.length);
-      throw new Error("Server configuration error: Missing YOCO_SECRET_KEY or Supabase secrets.");
+      throw new Error("Server configuration error (Missing Secrets).");
     }
 
-    const { amountInCents, currency, description, metadata, returnUrl } = await req.json()
-    
-    // Ensure amount is an integer
-    const finalAmount = Math.round(amountInCents);
+    const { token, amountInCents, currency, description, metadata } = await req.json()
     
     const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
     
-    // Server-Side Price Validation
+    // CRIT-1 FIX: Server-Side Price Validation
+    let finalAmount = amountInCents;
+    
     if (metadata?.type === 'subscription') {
-        try {
-            const { data: setting, error } = await supabaseAdmin
-                .from('app_settings')
-                .select('value')
-                .eq('key', 'pro_plan_yearly')
-                .single();
-                
-            if (!error && setting && setting.value) {
-                // Check if coupon is applied (if not, amount must match setting)
-                if (!metadata.couponCode && finalAmount !== setting.value) {
-                     // Sanity Check: Pro plan shouldn't be less than R100 without a coupon
-                     if (finalAmount < 10000) {
-                         return new Response(
-                            JSON.stringify({ error: "Invalid subscription amount detected." }), 
-                            { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
-                         );
-                     }
-                }
+        const { data: setting } = await supabaseAdmin
+            .from('app_settings')
+            .select('value')
+            .eq('key', 'pro_plan_yearly')
+            .single();
+            
+        if (setting && setting.value) {
+            // Check if coupon is applied
+            if (!metadata.couponCode && amountInCents !== setting.value) {
+                 // Sanity Check: Pro plan shouldn't be less than R100 without a coupon
+                 if (amountInCents < 10000) {
+                     throw new Error("Invalid subscription amount detected. Potential tampering.");
+                 }
             }
-        } catch (dbErr) {
-            console.warn("DB Price Check Warning (Proceeding):", dbErr);
         }
     }
 
-    // Sanitize Metadata (Yoco requires string values)
-    const safeMetadata: Record<string, string> = {};
-    if (metadata) {
-        Object.entries(metadata).forEach(([key, value]) => {
-            if (value !== undefined && value !== null) {
-                safeMetadata[key] = String(value);
-            }
-        });
-    }
-
-    console.log(`Initiating Yoco Checkout for R${(finalAmount/100).toFixed(2)}...`);
-
-    // Call Yoco Checkout API
-    const response = await fetch('https://payments.yoco.com/api/checkouts', {
+    // 1. Charge the card via Yoco API
+    const response = await fetch('https://online.yoco.com/v1/charges/', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Secret ${YOCO_SECRET_KEY}`
       },
       body: JSON.stringify({
-        amount: finalAmount,
+        token,
+        amountInCents: finalAmount,
         currency: currency || 'ZAR',
-        successUrl: `${returnUrl}payment-success`, 
-        cancelUrl: `${returnUrl}payment-cancel`,
-        metadata: safeMetadata
+        metadata: metadata
       })
     })
 
-    const data = await response.json();
+    const data = await response.json()
 
     if (!response.ok) {
-      console.error('Yoco Checkout API Error Response:', JSON.stringify(data));
+      console.error('Yoco Error:', data);
       return new Response(
-        JSON.stringify({ 
-            error: data.message || 'Payment Gateway Error. Please contact support.', 
-            details: data,
-            code: data.code
-        }), 
+        JSON.stringify({ error: data.displayMessage || 'Payment Declined by Gateway' }), 
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
       )
     }
 
-    console.log("Yoco Checkout Created:", data.id);
+    if (data.status === 'successful') {
+      const userId = metadata?.userId;
+      const type = metadata?.type; // 'subscription' | 'topup'
+      const couponCode = metadata?.couponCode;
+      
+      let creditToAdd = finalAmount; 
 
-    // Return the redirect URL to the frontend
-    return new Response(
-      JSON.stringify({ redirectUrl: data.redirectUrl, id: data.id }), 
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
-    )
+      // Handle Coupons Server-Side Logic for credit calculation
+      if (couponCode) {
+          const { data: coupon } = await supabaseAdmin.from('coupons').select('*').eq('code', couponCode).single();
+          if (coupon && coupon.active) {
+              if (coupon.discount_type === 'fixed') {
+                  creditToAdd = finalAmount + coupon.discount_value;
+              } else if (coupon.discount_type === 'percentage') {
+                  const factor = 1 - (coupon.discount_value / 100);
+                  if (factor > 0) creditToAdd = Math.round(finalAmount / factor);
+              }
+              await supabaseAdmin.rpc('increment_coupon_uses', { coupon_code: couponCode });
+          }
+      }
 
+      if (userId && type) {
+         const txAmount = type === 'subscription' ? -finalAmount : creditToAdd;
+         
+         await supabaseAdmin.from('transactions').insert({
+             user_id: userId,
+             amount: txAmount,
+             description: description || 'Payment',
+             date: new Date().toISOString()
+         });
+
+         if (type === 'topup') {
+             await supabaseAdmin.rpc('increment_balance', { user_id: userId, amount: creditToAdd });
+         } else if (type === 'subscription') {
+             await supabaseAdmin.from('profiles').update({ plan: 'pro' }).eq('id', userId);
+         }
+      }
+
+      return new Response(
+        JSON.stringify({ success: true, id: data.id }), 
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+      )
+    } else {
+      return new Response(
+        JSON.stringify({ error: 'Payment status not successful' }), 
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+      )
+    }
   } catch (error: any) {
-    console.error("Edge Function Critical Exception:", error);
+    console.error("Edge Function Exception:", error);
     return new Response(
-      JSON.stringify({ error: error.message || "Internal Server Error" }), 
+      JSON.stringify({ error: error.message }), 
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
     )
   }

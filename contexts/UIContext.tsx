@@ -2,7 +2,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import type { Policy, Form, GeneratedDocument } from '../types';
 
-type View = 'dashboard' | 'generator' | 'updater' | 'checklist' | 'profile' | 'upgrade' | 'topup' | 'knowledge-base' | 'payment-success' | 'payment-cancel';
+type View = 'dashboard' | 'generator' | 'updater' | 'checklist' | 'profile' | 'upgrade' | 'topup' | 'knowledge-base';
 
 interface UIContextType {
     currentView: View;
@@ -26,12 +26,7 @@ const UIContext = createContext<UIContextType | undefined>(undefined);
 
 const getViewFromHash = (): View => {
     const hash = window.location.hash.slice(2); // Remove #/
-    const view = hash.split('?')[0]; // Simple split to ignore query params
-    
-    // Check if it matches any known view, default to dashboard if empty or unknown (though simplified here for type safety)
-    if (!view) return 'dashboard';
-    
-    return view as View;
+    return (hash || 'dashboard') as View;
 };
 
 export const UIProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {

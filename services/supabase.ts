@@ -1,51 +1,274 @@
-// NOTE: This is a TypeScript file. Do not run this in a SQL Editor.
 import { createClient } from '@supabase/supabase-js';
+
+/* 
+   ==========================================================================
+   SUPABASE MASTER FIX SCRIPT (RUN THIS IN SQL EDITOR)
+   ==========================================================================
+   
+   1. Copy this entire block (between the start/end comments).
+   2. Paste into Supabase SQL Editor (https://supabase.com/dashboard/project/_/sql).
+   3. Run it.
+   4. IMPORTANT: After running, execute this command to make yourself admin:
+      UPDATE profiles SET is_admin = true WHERE email = 'YOUR_EMAIL_ADDRESS_HERE';
+
+   ==========================================================================
+
+   -- 0. REPAIR SCHEMA (CRITICAL FIXES)
+   ALTER TABLE coupons DROP COLUMN IF EXISTS "type";
+   
+   -- Repair generated_documents (Fixing 400 Bad Request on Save)
+   CREATE TABLE IF NOT EXISTS generated_documents (
+     id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+     user_id uuid REFERENCES auth.users(id) NOT NULL,
+     title text,
+     content text,
+     created_at timestamptz DEFAULT now()
+   );
+
+   ALTER TABLE generated_documents ADD COLUMN IF NOT EXISTS kind text;
+   ALTER TABLE generated_documents ADD COLUMN IF NOT EXISTS type text;
+   ALTER TABLE generated_documents ADD COLUMN IF NOT EXISTS output_format text;
+   ALTER TABLE generated_documents ADD COLUMN IF NOT EXISTS sources jsonb DEFAULT '[]'::jsonb;
+   ALTER TABLE generated_documents ADD COLUMN IF NOT EXISTS version int DEFAULT 1;
+   ALTER TABLE generated_documents ADD COLUMN IF NOT EXISTS history jsonb DEFAULT '[]'::jsonb;
+   ALTER TABLE generated_documents ADD COLUMN IF NOT EXISTS company_profile jsonb DEFAULT '{}'::jsonb;
+   ALTER TABLE generated_documents ADD COLUMN IF NOT EXISTS question_answers jsonb DEFAULT '{}'::jsonb;
+
+   -- Repair profiles (Fixing 400 Bad Request on Profile Update)
+   CREATE TABLE IF NOT EXISTS profiles (
+     id uuid REFERENCES auth.users(id) PRIMARY KEY,
+     email text,
+     full_name text,
+     created_at timestamptz DEFAULT now()
+   );
+
+   ALTER TABLE profiles ADD COLUMN IF NOT EXISTS plan text DEFAULT 'payg';
+   ALTER TABLE profiles ADD COLUMN IF NOT EXISTS credit_balance int DEFAULT 0;
+   ALTER TABLE profiles ADD COLUMN IF NOT EXISTS is_admin boolean DEFAULT false;
+   ALTER TABLE profiles ADD COLUMN IF NOT EXISTS contact_number text;
+   ALTER TABLE profiles ADD COLUMN IF NOT EXISTS avatar_url text;
+   ALTER TABLE profiles ADD COLUMN IF NOT EXISTS company_name text;
+   ALTER TABLE profiles ADD COLUMN IF NOT EXISTS industry text;
+   ALTER TABLE profiles ADD COLUMN IF NOT EXISTS address text;
+   ALTER TABLE profiles ADD COLUMN IF NOT EXISTS website text;
+   ALTER TABLE profiles ADD COLUMN IF NOT EXISTS summary text;
+   ALTER TABLE profiles ADD COLUMN IF NOT EXISTS company_size text;
+
+   -- 1. Create Tables (IF NOT EXISTS)
+   CREATE TABLE IF NOT EXISTS coupons (
+     id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+     code text UNIQUE NOT NULL,
+     discount_type text CHECK (discount_type IN ('percentage', 'fixed')),
+     discount_value int NOT NULL DEFAULT 0,
+     max_uses int,
+     used_count int DEFAULT 0,
+     expiry_date timestamptz,
+     active boolean DEFAULT true,
+     applicable_to text,
+     created_at timestamptz DEFAULT now()
+   );
+   
+   CREATE TABLE IF NOT EXISTS policy_drafts (
+     id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+     user_id uuid REFERENCES auth.users(id) NOT NULL,
+     original_doc_id text,
+     original_doc_title text,
+     original_content text,
+     update_result jsonb,
+     selected_indices jsonb,
+     manual_instructions text,
+     updated_at timestamptz DEFAULT now(),
+     created_at timestamptz DEFAULT now()
+   );
+
+   -- NEW TABLES FOR DYNAMIC PRICING --
+   CREATE TABLE IF NOT EXISTS app_settings (
+     key text PRIMARY KEY,
+     value jsonb NOT NULL,
+     description text
+   );
+
+   CREATE TABLE IF NOT EXISTS document_prices (
+     doc_type text PRIMARY KEY,
+     price int NOT NULL, -- in cents
+     category text CHECK (category IN ('policy', 'form'))
+   );
+
+   -- 2. ENSURE COLUMNS EXIST & FIX TYPES (Coupons)
+   ALTER TABLE coupons ADD COLUMN IF NOT EXISTS code text;
+   ALTER TABLE coupons ADD COLUMN IF NOT EXISTS discount_type text;
+   ALTER TABLE coupons ADD COLUMN IF NOT EXISTS discount_value int DEFAULT 0;
+   ALTER TABLE coupons ADD COLUMN IF NOT EXISTS max_uses int;
+   ALTER TABLE coupons ADD COLUMN IF NOT EXISTS used_count int DEFAULT 0;
+   ALTER TABLE coupons ADD COLUMN IF NOT EXISTS expiry_date timestamptz;
+   ALTER TABLE coupons ADD COLUMN IF NOT EXISTS active boolean DEFAULT true;
+   ALTER TABLE coupons ADD COLUMN IF NOT EXISTS applicable_to text;
+
+   -- 3. Enable RLS on All Tables
+   ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
+   ALTER TABLE generated_documents ENABLE ROW LEVEL SECURITY;
+   ALTER TABLE transactions ENABLE ROW LEVEL SECURITY;
+   ALTER TABLE user_files ENABLE ROW LEVEL SECURITY;
+   ALTER TABLE admin_action_logs ENABLE ROW LEVEL SECURITY;
+   ALTER TABLE admin_notifications ENABLE ROW LEVEL SECURITY;
+   ALTER TABLE coupons ENABLE ROW LEVEL SECURITY;
+   ALTER TABLE policy_drafts ENABLE ROW LEVEL SECURITY;
+   ALTER TABLE app_settings ENABLE ROW LEVEL SECURITY;
+   ALTER TABLE document_prices ENABLE ROW LEVEL SECURITY;
+
+   -- 4. Cleanup Old Policies
+   DROP POLICY IF EXISTS "Users can read own profile" ON profiles;
+   DROP POLICY IF EXISTS "Users can update own profile" ON profiles;
+   DROP POLICY IF EXISTS "Users can insert own profile" ON profiles;
+   DROP POLICY IF EXISTS "Admins can read all profiles" ON profiles;
+   DROP POLICY IF EXISTS "Admins can update all profiles" ON profiles;
+   
+   DROP POLICY IF EXISTS "Users can read own documents" ON generated_documents;
+   DROP POLICY IF EXISTS "Users can create documents" ON generated_documents;
+   DROP POLICY IF EXISTS "Users can update own documents" ON generated_documents;
+   DROP POLICY IF EXISTS "Admins can read all documents" ON generated_documents;
+   
+   DROP POLICY IF EXISTS "Users can read own transactions" ON transactions;
+   DROP POLICY IF EXISTS "Admins can read all transactions" ON transactions;
+   DROP POLICY IF EXISTS "Admins can create transactions" ON transactions;
+   DROP POLICY IF EXISTS "Users can create transactions (Legacy)" ON transactions;
+   
+   DROP POLICY IF EXISTS "Users can read own files" ON user_files;
+   DROP POLICY IF EXISTS "Users can upload own files" ON user_files;
+   DROP POLICY IF EXISTS "Users can delete own files" ON user_files;
+   DROP POLICY IF EXISTS "Admins can read all files" ON user_files;
+   
+   DROP POLICY IF EXISTS "Admins can read logs" ON admin_action_logs;
+   DROP POLICY IF EXISTS "Admins can create logs" ON admin_action_logs;
+   
+   DROP POLICY IF EXISTS "Admins can read notifications" ON admin_notifications;
+   DROP POLICY IF EXISTS "Admins can update notifications" ON admin_notifications;
+   DROP POLICY IF EXISTS "Anyone can create notifications" ON admin_notifications;
+
+   DROP POLICY IF EXISTS "Admins can read coupons" ON coupons;
+   DROP POLICY IF EXISTS "Admins can insert coupons" ON coupons;
+   DROP POLICY IF EXISTS "Admins can update coupons" ON coupons;
+   DROP POLICY IF EXISTS "Admins can delete coupons" ON coupons;
+   DROP POLICY IF EXISTS "Anyone can read coupons" ON coupons;
+
+   DROP POLICY IF EXISTS "Users can manage own drafts" ON policy_drafts;
+
+   -- CLEANUP for Settings & Prices (Fixing 'policy already exists' error)
+   DROP POLICY IF EXISTS "Everyone can read settings" ON app_settings;
+   DROP POLICY IF EXISTS "Admins can update settings" ON app_settings;
+   DROP POLICY IF EXISTS "Everyone can read prices" ON document_prices;
+   DROP POLICY IF EXISTS "Admins can update prices" ON document_prices;
+
+   -- 5. Functions
+   DROP FUNCTION IF EXISTS is_admin() CASCADE;
+   DROP FUNCTION IF EXISTS increment_balance(uuid, int) CASCADE;
+   DROP FUNCTION IF EXISTS increment_coupon_uses(text) CASCADE;
+
+   CREATE OR REPLACE FUNCTION is_admin()
+   RETURNS boolean
+   LANGUAGE sql
+   SECURITY DEFINER 
+   AS $$
+     SELECT COALESCE(
+       (SELECT is_admin FROM profiles WHERE id = auth.uid()), 
+       false
+     );
+   $$;
+
+   CREATE OR REPLACE FUNCTION increment_balance(user_id uuid, amount int)
+   RETURNS void
+   LANGUAGE plpgsql
+   SECURITY DEFINER
+   AS $$
+   BEGIN
+     UPDATE profiles
+     SET credit_balance = COALESCE(credit_balance, 0) + amount
+     WHERE id = user_id;
+   END;
+   $$;
+
+   CREATE OR REPLACE FUNCTION increment_coupon_uses(coupon_code text)
+   RETURNS void
+   LANGUAGE plpgsql
+   SECURITY DEFINER
+   AS $$
+   BEGIN
+     UPDATE coupons
+     SET used_count = used_count + 1
+     WHERE code = coupon_code;
+   END;
+   $$;
+
+   GRANT EXECUTE ON FUNCTION is_admin TO authenticated;
+   GRANT EXECUTE ON FUNCTION increment_balance TO authenticated;
+   GRANT EXECUTE ON FUNCTION increment_balance TO service_role;
+   GRANT EXECUTE ON FUNCTION increment_coupon_uses TO authenticated;
+   GRANT EXECUTE ON FUNCTION increment_coupon_uses TO service_role;
+
+   -- 6. Create Policies
+
+   -- PROFILES
+   CREATE POLICY "Users can read own profile" ON profiles FOR SELECT USING (auth.uid() = id);
+   CREATE POLICY "Users can update own profile" ON profiles FOR UPDATE USING (auth.uid() = id);
+   CREATE POLICY "Users can insert own profile" ON profiles FOR INSERT WITH CHECK (auth.uid() = id);
+   CREATE POLICY "Admins can read all profiles" ON profiles FOR SELECT USING (is_admin());
+   CREATE POLICY "Admins can update all profiles" ON profiles FOR UPDATE USING (is_admin());
+
+   -- GENERATED DOCUMENTS
+   CREATE POLICY "Users can read own documents" ON generated_documents FOR SELECT USING (auth.uid() = user_id);
+   CREATE POLICY "Users can create documents" ON generated_documents FOR INSERT WITH CHECK (auth.uid() = user_id);
+   CREATE POLICY "Users can update own documents" ON generated_documents FOR UPDATE USING (auth.uid() = user_id);
+   CREATE POLICY "Admins can read all documents" ON generated_documents FOR SELECT USING (is_admin());
+
+   -- TRANSACTIONS
+   CREATE POLICY "Users can read own transactions" ON transactions FOR SELECT USING (auth.uid() = user_id);
+   CREATE POLICY "Admins can read all transactions" ON transactions FOR SELECT USING (is_admin());
+   CREATE POLICY "Admins can create transactions" ON transactions FOR INSERT WITH CHECK (is_admin());
+   CREATE POLICY "Users can create transactions (Legacy)" ON transactions FOR INSERT WITH CHECK (auth.uid() = user_id); 
+
+   -- USER FILES
+   CREATE POLICY "Users can read own files" ON user_files FOR SELECT USING (auth.uid() = user_id);
+   CREATE POLICY "Users can upload own files" ON user_files FOR INSERT WITH CHECK (auth.uid() = user_id);
+   CREATE POLICY "Users can delete own files" ON user_files FOR DELETE USING (auth.uid() = user_id);
+   CREATE POLICY "Admins can read all files" ON user_files FOR SELECT USING (is_admin());
+
+   -- ADMIN LOGS & NOTIFICATIONS
+   CREATE POLICY "Admins can read logs" ON admin_action_logs FOR SELECT USING (is_admin());
+   CREATE POLICY "Admins can create logs" ON admin_action_logs FOR INSERT WITH CHECK (is_admin());
+   
+   CREATE POLICY "Admins can read notifications" ON admin_notifications FOR SELECT USING (is_admin());
+   CREATE POLICY "Admins can update notifications" ON admin_notifications FOR UPDATE USING (is_admin());
+   CREATE POLICY "Anyone can create notifications" ON admin_notifications FOR INSERT WITH CHECK (auth.role() = 'authenticated');
+
+   -- COUPONS
+   CREATE POLICY "Admins can read coupons" ON coupons FOR SELECT USING (is_admin());
+   CREATE POLICY "Admins can insert coupons" ON coupons FOR INSERT WITH CHECK (is_admin());
+   CREATE POLICY "Admins can update coupons" ON coupons FOR UPDATE USING (is_admin());
+   CREATE POLICY "Admins can delete coupons" ON coupons FOR DELETE USING (is_admin());
+   CREATE POLICY "Anyone can read coupons" ON coupons FOR SELECT USING (true);
+   
+   -- DRAFTS
+   CREATE POLICY "Users can manage own drafts" ON policy_drafts FOR ALL USING (auth.uid() = user_id);
+
+   -- SETTINGS & PRICES (Everyone can read, only Admin can write)
+   CREATE POLICY "Everyone can read settings" ON app_settings FOR SELECT USING (true);
+   CREATE POLICY "Admins can update settings" ON app_settings FOR ALL USING (is_admin());
+   
+   CREATE POLICY "Everyone can read prices" ON document_prices FOR SELECT USING (true);
+   CREATE POLICY "Admins can update prices" ON document_prices FOR ALL USING (is_admin());
+   
+   -- Force Schema Cache Reload
+   NOTIFY pgrst, 'reload config';
+
+*/
 
 // ------------------------------------------------------------------
 // CONFIGURATION
 // ------------------------------------------------------------------
 
-// Helper to safely get env vars from either Vite's import.meta.env or Node's process.env
-const getEnvVar = (key: string): string | undefined => {
-    // 1. Try Vite's import.meta.env
-    try {
-        // @ts-ignore
-        if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env[key]) {
-            // @ts-ignore
-            return import.meta.env[key];
-        }
-    } catch (e) {
-        // Ignore
-    }
+// Standard Vite env access with safe property access
+const env = (import.meta as any).env || {};
+const SUPABASE_URL = env.VITE_SUPABASE_URL || "https://cljhzqmssrgynlpgpogi.supabase.co"; 
+const SUPABASE_ANON_KEY = env.VITE_SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsamh6cW1zc3JneW5scGdwb2dpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM2Mzg4NTksImV4cCI6MjA3OTIxNDg1OX0.Qj91RwqFJhvnFpT9g4b69pVoVMPb1z4pLX5a9nJmzTk";
 
-    // 2. Try Standard process.env (for tests or some bundlers)
-    try {
-        // @ts-ignore
-        if (typeof process !== 'undefined' && process.env && process.env[key]) {
-            // @ts-ignore
-            return process.env[key];
-        }
-    } catch (e) {
-        // Ignore
-    }
-
-    return undefined;
-}
-
-const SUPABASE_URL = getEnvVar('VITE_SUPABASE_URL');
-const SUPABASE_ANON_KEY = getEnvVar('VITE_SUPABASE_ANON_KEY');
-
-export const isSupabaseConfigured = !!(SUPABASE_URL && SUPABASE_ANON_KEY && SUPABASE_URL.startsWith('http'));
-
-// Log a warning if missing, but allow the app to initialize with placeholders.
-// This prevents immediate crashes (White Screen of Death).
-if (!isSupabaseConfigured) {
-    console.warn("WARNING: Supabase Environment Variables are missing or invalid. The app is running in placeholder mode. Please check your .env file.");
-}
-
-// Fallback to placeholder values.
-// createClient throws an error if the URL is empty/null, so we ensure a valid string exists.
-export const supabase = createClient(
-    (isSupabaseConfigured && SUPABASE_URL) ? SUPABASE_URL : "https://placeholder.supabase.co", 
-    (isSupabaseConfigured && SUPABASE_ANON_KEY) ? SUPABASE_ANON_KEY : "placeholder-key"
-);
+export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
