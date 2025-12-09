@@ -14,7 +14,6 @@ import { createClient } from '@supabase/supabase-js';
    ==========================================================================
 
    -- 0. REPAIR SCHEMA (CRITICAL FIXES - RENAMING TIMESTAMP TO CREATED_AT)
-   -- If you have tables with 'timestamp' column, we rename/add created_at to be consistent
    
    DO $$
    BEGIN
@@ -73,8 +72,7 @@ import { createClient } from '@supabase/supabase-js';
      details jsonb
    );
 
-   -- 2. ENSURE OTHER TABLES EXIST (generated_documents, profiles, transactions, etc)
-   -- (Assuming these exist from previous runs, but adding column checks just in case)
+   -- 2. ENSURE OTHER TABLES EXIST
    CREATE TABLE IF NOT EXISTS generated_documents (
      id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
      user_id uuid REFERENCES auth.users(id) NOT NULL,
@@ -106,9 +104,7 @@ import { createClient } from '@supabase/supabase-js';
    ALTER TABLE app_settings ENABLE ROW LEVEL SECURITY;
    ALTER TABLE document_prices ENABLE ROW LEVEL SECURITY;
 
-   -- 4. RE-APPLY POLICIES (To ensure "Anyone can create notifications" exists)
-   
-   -- NOTIFICATIONS
+   -- 4. RE-APPLY POLICIES
    DROP POLICY IF EXISTS "Admins can read notifications" ON admin_notifications;
    DROP POLICY IF EXISTS "Admins can update notifications" ON admin_notifications;
    DROP POLICY IF EXISTS "Anyone can create notifications" ON admin_notifications;
@@ -117,7 +113,6 @@ import { createClient } from '@supabase/supabase-js';
    CREATE POLICY "Admins can update notifications" ON admin_notifications FOR UPDATE USING (is_admin());
    CREATE POLICY "Anyone can create notifications" ON admin_notifications FOR INSERT WITH CHECK (auth.role() = 'authenticated');
 
-   -- LOGS
    DROP POLICY IF EXISTS "Admins can read logs" ON admin_action_logs;
    DROP POLICY IF EXISTS "Admins can create logs" ON admin_action_logs;
    CREATE POLICY "Admins can read logs" ON admin_action_logs FOR SELECT USING (is_admin());
@@ -153,30 +148,38 @@ import { createClient } from '@supabase/supabase-js';
 
    -- Force Schema Cache Reload
    NOTIFY pgrst, 'reload config';
-
 */
 
 // ------------------------------------------------------------------
 // CONFIGURATION
 // ------------------------------------------------------------------
 
-// Helper to safely get env vars
-const getEnvVar = (key: string): string | undefined => {
-    try {
-        const viteEnv = (import.meta as any).env;
-        if (viteEnv && viteEnv[key]) return viteEnv[key];
-    } catch (e) {}
-    try {
-        // @ts-ignore
-        if (typeof process !== 'undefined' && process.env && process.env[key]) return process.env[key];
-    } catch (e) {}
+// Fallback credentials if environment variables are missing
+const FALLBACK_URL = "https://cljhzqmssrgynlpgpogi.supabase.co";
+const FALLBACK_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsamh6cW1zc3JneW5scGdwb2dpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM2Mzg4NTksImV4cCI6MjA3OTIxNDg1OX0.Qj91RwqFJhvnFpT9g4b69pVoVMPb1z4pLX5a9nJmzTk";
+
+// Helper to safely get env vars checking multiple naming conventions
+const getEnvVar = (keys: string[]): string | undefined => {
+    for (const key of keys) {
+        try {
+            // @ts-ignore
+            if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env[key]) {
+                // @ts-ignore
+                return import.meta.env[key];
+            }
+        } catch (e) {}
+        try {
+            // @ts-ignore
+            if (typeof process !== 'undefined' && process.env && process.env[key]) return process.env[key];
+        } catch (e) {}
+    }
     return undefined;
 }
 
-const SUPABASE_URL = getEnvVar('VITE_SUPABASE_URL');
-const SUPABASE_ANON_KEY = getEnvVar('VITE_SUPABASE_ANON_KEY');
+const SUPABASE_URL = getEnvVar(['VITE_SUPABASE_URL', 'NEXT_PUBLIC_SUPABASE_URL', 'SUPABASE_URL']) || FALLBACK_URL;
+const SUPABASE_ANON_KEY = getEnvVar(['VITE_SUPABASE_ANON_KEY', 'NEXT_PUBLIC_SUPABASE_ANON_KEY', 'SUPABASE_KEY']) || FALLBACK_KEY;
 
-export const isSupabaseConfigured = !!(SUPABASE_URL && SUPABASE_ANON_KEY && SUPABASE_URL.startsWith('http'));
+export const isSupabaseConfigured = !!(SUPABASE_URL && SUPABASE_ANON_KEY && SUPABASE_URL.startsWith('http') && SUPABASE_URL !== "https://placeholder.supabase.co");
 
 if (!isSupabaseConfigured) {
     console.warn("WARNING: Supabase Environment Variables are missing or invalid. The app is running in placeholder mode.");

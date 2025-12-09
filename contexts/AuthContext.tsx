@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
 import { supabase, isSupabaseConfigured } from '../services/supabase';
 import { useAuth } from '../hooks/useAuth';
@@ -43,7 +42,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const handleLogin = async (email: string, pass: string) => {
     if (!isSupabaseConfigured) {
-        throw new Error("Configuration Error: VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY is missing in your .env file.");
+        throw new Error("Configuration Error: Database connection details are missing.");
     }
     const { error } = await (supabase.auth as any).signInWithPassword({
       email,
@@ -64,7 +63,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const handleForgotPassword = async (email: string) => {
     if (!isSupabaseConfigured) {
-        throw new Error("Configuration Error: Supabase variables are missing.");
+        throw new Error("Configuration Error: Database connection details are missing.");
     }
     const { error } = await (supabase.auth as any).resetPasswordForEmail(email, {
       redirectTo: `${window.location.origin}/#/reset-password`,
@@ -74,7 +73,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const handleStartAuthFlow = async (flow: AuthFlow, email: string, details: any) => {
     if (!isSupabaseConfigured) {
-        throw new Error("Configuration Error: VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY is missing in your .env file.");
+        throw new Error("Configuration Error: Database connection details are missing.");
     }
 
     setAuthEmail(email);
