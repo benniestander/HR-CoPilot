@@ -125,6 +125,15 @@ export const commonPolicyMetadataQuestions: Question[] = [
 ];
 
 export const POLICIES: Record<string, Policy> = {
+  'paia-manual': {
+    kind: 'policy',
+    type: 'paia-manual',
+    title: 'PAIA Manual',
+    description: 'Manual as required by the Promotion of Access to Information Act.',
+    icon: MasterPolicyIcon,
+    price: 3500,
+    questions: commonQuestions,
+  },
   'expense-reimbursement': {
     kind: 'policy',
     type: 'expense-reimbursement',

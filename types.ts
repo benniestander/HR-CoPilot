@@ -62,7 +62,9 @@ export type PolicyType =
   | 'records-retention-destruction'
   | 'salary-structure-guide'
   | 'workplace-language'
-  | 'family-responsibility-leave';
+  | 'family-responsibility-leave'
+  // Roadmap updates
+  | 'paia-manual';
 
 export type FormType =
   | 'job-application'

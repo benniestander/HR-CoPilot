@@ -1,8 +1,7 @@
-
 import React, { useState, useMemo } from 'react';
-import { getComplianceRoadmap } from '../utils/compliance';
-import type { Policy, Form, CompanyProfile, GeneratedDocument } from '../types';
-import { ComplianceIcon, MasterPolicyIcon, FormsIcon, CheckIcon, ShieldCheckIcon, InfoIcon } from './Icons';
+import { getComplianceRoadmap, RoadmapItem } from '../utils/compliance';
+import type { Policy, Form, CompanyProfile } from '../types';
+import { ComplianceIcon, MasterPolicyIcon, FormsIcon, CheckIcon, ShieldCheckIcon, InfoIcon, BellIcon } from './Icons';
 import { POLICIES, FORMS } from '../constants';
 import { useDataContext } from '../contexts/DataContext';
 import { useUIContext } from '../contexts/UIContext';
@@ -23,15 +22,11 @@ const ComplianceChecklist: React.FC<ComplianceChecklistProps> = ({ userProfile, 
       return getComplianceRoadmap(userProfile, generatedDocuments);
   }, [userProfile, generatedDocuments]);
 
-  const filteredRoadmap = useMemo(() => {
-      if (filter === 'missing') {
-          return roadmap.filter(item => item.status === 'missing');
-      }
-      return roadmap;
-  }, [roadmap, filter]);
+  const phase1Items = roadmap.filter(i => i.phase === 1 && (filter === 'all' || i.status === 'missing'));
+  const phase2Items = roadmap.filter(i => i.phase === 2 && (filter === 'all' || i.status === 'missing'));
+  const phase3Items = roadmap.filter(i => i.phase === 3 && (filter === 'all' || i.status === 'missing'));
 
-  const criticalItems = filteredRoadmap.filter(i => i.priority === 'critical');
-  const recommendedItems = filteredRoadmap.filter(i => i.priority === 'recommended');
+  const completedCount = roadmap.filter(i => i.status === 'completed').length;
 
   const onSelectItem = (type: PolicyType | FormType, isPolicy: boolean) => {
     const item = isPolicy ? POLICIES[type as PolicyType] : FORMS[type as FormType];
@@ -50,7 +45,7 @@ const ComplianceChecklist: React.FC<ComplianceChecklistProps> = ({ userProfile, 
     }
   };
 
-  const renderRoadmapItem = (item: any) => {
+  const renderRoadmapItem = (item: RoadmapItem) => {
       const isPolicy = item.type === 'policy';
       const isCompleted = item.status === 'completed';
 
@@ -60,11 +55,6 @@ const ComplianceChecklist: React.FC<ComplianceChecklistProps> = ({ userProfile, 
                 <div className="flex items-center mb-1">
                     {isPolicy ? <MasterPolicyIcon className="w-4 h-4 text-gray-400 mr-2" /> : <FormsIcon className="w-4 h-4 text-gray-400 mr-2" />}
                     <h4 className={`font-bold text-lg ${isCompleted ? 'text-green-800' : 'text-secondary'}`}>{item.title}</h4>
-                    {item.priority === 'critical' && (
-                        <span className="ml-3 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800">
-                            Statutory
-                        </span>
-                    )}
                 </div>
                 <p className="text-sm text-gray-600">{item.reason}</p>
             </div>
@@ -103,9 +93,9 @@ const ComplianceChecklist: React.FC<ComplianceChecklistProps> = ({ userProfile, 
             <div className="inline-block p-3 bg-blue-50 rounded-full mb-4">
                 <ComplianceIcon className="w-10 h-10 text-primary" />
             </div>
-            <h2 className="text-3xl font-bold text-secondary">Compliance Roadmap</h2>
+            <h2 className="text-3xl font-bold text-secondary">Optimized Audit Checklist</h2>
             <p className="text-gray-600 mt-2 max-w-2xl mx-auto">
-                Based on your profile (<strong>{userProfile.companyName}</strong> - {userProfile.industry}), here is your prioritized list of essential HR documents.
+                Based on your profile (<strong>{userProfile.companyName}</strong> - {userProfile.industry}), here is your prioritized roadmap to full compliance.
             </p>
         </div>
 
@@ -125,40 +115,66 @@ const ComplianceChecklist: React.FC<ComplianceChecklistProps> = ({ userProfile, 
                 </button>
             </div>
             <div className="text-sm text-gray-500 hidden sm:block">
-                <span className="font-bold text-green-600">{roadmap.filter(i => i.status === 'completed').length}</span> of <span className="font-bold text-secondary">{roadmap.length}</span> completed
+                <span className="font-bold text-green-600">{completedCount}</span> of <span className="font-bold text-secondary">{roadmap.length}</span> completed
             </div>
         </div>
 
-        <div className="space-y-8">
-            {/* Critical Section */}
-            {criticalItems.length > 0 && (
+        <div className="space-y-10">
+            {/* Phase 1 */}
+            {phase1Items.length > 0 && (
                 <div>
-                    <h3 className="text-xl font-bold text-red-600 mb-4 flex items-center">
-                        <ShieldCheckIcon className="w-6 h-6 mr-2" />
-                        Critical / Statutory Requirements
-                    </h3>
-                    <p className="text-sm text-gray-500 mb-4 ml-1">These documents are legally mandatory for your business type.</p>
-                    <div className="space-y-3">
-                        {criticalItems.map(renderRoadmapItem)}
+                    <div className="mb-4">
+                        <div className="flex items-center">
+                            <span className="flex items-center justify-center w-8 h-8 rounded-full bg-red-600 text-white font-bold mr-3">1</span>
+                            <h3 className="text-xl font-bold text-red-700">Statutory Requirements (Inspector Ready)</h3>
+                        </div>
+                        <p className="text-sm text-gray-500 ml-11 mt-1">
+                            <span className="font-bold text-red-600">Immediate Fines Risk:</span> Failure to produce these documents during an inspection can result in immediate compliance orders or fines.
+                        </p>
+                    </div>
+                    <div className="space-y-3 ml-0 sm:ml-11">
+                        {phase1Items.map(renderRoadmapItem)}
                     </div>
                 </div>
             )}
 
-            {/* Recommended Section */}
-            {recommendedItems.length > 0 && (
+            {/* Phase 2 */}
+            {phase2Items.length > 0 && (
                 <div>
-                    <h3 className="text-xl font-bold text-blue-600 mb-4 flex items-center mt-8">
-                        <InfoIcon className="w-6 h-6 mr-2" />
-                        Recommended Best Practice
-                    </h3>
-                    <p className="text-sm text-gray-500 mb-4 ml-1">Highly recommended to reduce risk and improve governance.</p>
-                    <div className="space-y-3">
-                        {recommendedItems.map(renderRoadmapItem)}
+                    <div className="mb-4">
+                        <div className="flex items-center">
+                            <span className="flex items-center justify-center w-8 h-8 rounded-full bg-orange-500 text-white font-bold mr-3">2</span>
+                            <h3 className="text-xl font-bold text-orange-700">Critical Risk Mitigators (CCMA Defence)</h3>
+                        </div>
+                        <p className="text-sm text-gray-500 ml-11 mt-1">
+                            <span className="font-bold text-orange-600">Liability Risk:</span> These documents are your legal shield against unfair dismissal claims and financial liability at the CCMA.
+                        </p>
+                    </div>
+                    <div className="space-y-3 ml-0 sm:ml-11">
+                        {phase2Items.map(renderRoadmapItem)}
                     </div>
                 </div>
             )}
 
-            {criticalItems.length === 0 && recommendedItems.length === 0 && (
+            {/* Phase 3 */}
+            {phase3Items.length > 0 && (
+                <div>
+                    <div className="mb-4">
+                        <div className="flex items-center">
+                            <span className="flex items-center justify-center w-8 h-8 rounded-full bg-blue-600 text-white font-bold mr-3">3</span>
+                            <h3 className="text-xl font-bold text-blue-700">Good Governance (Clarity & Culture)</h3>
+                        </div>
+                        <p className="text-sm text-gray-500 ml-11 mt-1">
+                            <span className="font-bold text-blue-600">Operational Efficiency:</span> Best practices that reduce friction, clarify rules, and improve company culture.
+                        </p>
+                    </div>
+                    <div className="space-y-3 ml-0 sm:ml-11">
+                        {phase3Items.map(renderRoadmapItem)}
+                    </div>
+                </div>
+            )}
+
+            {phase1Items.length === 0 && phase2Items.length === 0 && phase3Items.length === 0 && (
                 <div className="text-center py-12 bg-gray-50 rounded-lg">
                     <CheckIcon className="w-12 h-12 text-green-500 mx-auto mb-3" />
                     <h3 className="text-lg font-bold text-gray-800">All Clear!</h3>

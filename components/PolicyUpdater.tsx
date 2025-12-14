@@ -13,6 +13,7 @@ import * as pdfjsLib from 'pdfjs-dist';
 
 const INTERNAL_UPDATE_COST_CENTS = 2500; // R25.00
 const EXTERNAL_UPDATE_COST_CENTS = 5000; // R50.00
+const FREE_UPDATE_WINDOW_DAYS = 7;
 
 // --- HIGH-4: Web Worker for Diffing (Performance Fix) ---
 const WORKER_CODE = `
@@ -182,6 +183,24 @@ const PolicyUpdater: React.FC<PolicyUpdaterProps> = ({ onBack }) => {
     }
     return generatedDocuments.find(d => d.id === selectedDocId);
   }, [selectedDocId, generatedDocuments, externalDocument]);
+
+  const calculateUpdateCost = (doc: GeneratedDocument | null | undefined) => {
+      if (!doc) return 0;
+      if (doc.id.startsWith('external-')) {
+          return EXTERNAL_UPDATE_COST_CENTS;
+      }
+      
+      const createdDate = new Date(doc.createdAt);
+      const now = new Date();
+      const diffTime = Math.abs(now.getTime() - createdDate.getTime());
+      const diffDays = diffTime / (1000 * 60 * 60 * 24); 
+
+      if (diffDays <= FREE_UPDATE_WINDOW_DAYS) {
+          return 0;
+      }
+
+      return INTERNAL_UPDATE_COST_CENTS;
+  };
 
   useEffect(() => {
       if (updateResult?.changes) {
@@ -366,7 +385,7 @@ const PolicyUpdater: React.FC<PolicyUpdaterProps> = ({ onBack }) => {
     if (updateMethod === 'manual' && !manualInstructions.trim()) return;
 
     const isExternal = selectedDocument.id.startsWith('external-');
-    const cost = isExternal ? EXTERNAL_UPDATE_COST_CENTS : INTERNAL_UPDATE_COST_CENTS;
+    const cost = calculateUpdateCost(selectedDocument);
 
     if (currentDraftId) {
         executeUpdate();
@@ -375,6 +394,12 @@ const PolicyUpdater: React.FC<PolicyUpdaterProps> = ({ onBack }) => {
 
     if (user?.plan === 'payg') {
         const balance = Number(user.creditBalance || 0);
+        
+        if (cost === 0) {
+             executeUpdate();
+             return;
+        }
+
         if (balance < cost) {
             setConfirmation({
                 title: "Insufficient Credit",
@@ -671,7 +696,10 @@ const PolicyUpdater: React.FC<PolicyUpdaterProps> = ({ onBack }) => {
     </div>
   );
 
-  const renderChooseMethodStep = () => (
+  const renderChooseMethodStep = () => {
+    const updateCost = calculateUpdateCost(selectedDocument);
+    
+    return (
     <div className="bg-white p-8 rounded-lg shadow-md border border-gray-200">
       <h2 className="text-2xl font-bold text-secondary mb-1">Update: <span className="text-primary">{selectedDocument?.title}</span></h2>
       <p className="text-gray-600 mb-6">How would you like to update this document?</p>
@@ -708,7 +736,14 @@ const PolicyUpdater: React.FC<PolicyUpdaterProps> = ({ onBack }) => {
           <div className="mt-6 p-3 bg-blue-50 border border-blue-200 rounded-md flex items-center justify-center text-sm text-blue-800">
               <CreditCardIcon className="w-5 h-5 mr-2" />
               <span>
-                  Update Cost: <strong>R{((selectedDocument?.id.startsWith('external-') ? EXTERNAL_UPDATE_COST_CENTS : INTERNAL_UPDATE_COST_CENTS) / 100).toFixed(2)}</strong> (Deducted from credit)
+                  {updateCost === 0 ? (
+                      <strong>Update is Free</strong>
+                  ) : (
+                      <>Update Cost: <strong>R{(updateCost / 100).toFixed(2)}</strong> (Deducted from credit)</>
+                  )}
+                  {updateCost === 0 && !selectedDocument?.id.startsWith('external-') && (
+                      <span className="ml-2 text-xs text-green-600 bg-green-100 px-2 py-0.5 rounded-full">Within 7-day window</span>
+                  )}
               </span>
           </div>
       )}
@@ -748,11 +783,12 @@ const PolicyUpdater: React.FC<PolicyUpdaterProps> = ({ onBack }) => {
           className="bg-primary text-white font-bold py-3 px-6 rounded-md hover:bg-opacity-90 disabled:bg-gray-400 transition-colors flex items-center justify-center"
         >
           <UpdateIcon className="w-5 h-5 mr-2" />
-          {user?.plan === 'payg' ? 'Pay & Update' : 'Analyze & Update'}
+          {user?.plan === 'payg' && updateCost > 0 ? 'Pay & Update' : 'Analyze & Update'}
         </button>
       </div>
     </div>
   );
+  };
   
   const renderReviewStep = () => {
     if (status === 'loading') {
