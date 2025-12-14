@@ -203,6 +203,9 @@ const AppContent: React.FC = () => {
                         <p className="text-sm text-gray-600">
                             This amount will be deducted from your credit balance immediately.
                         </p>
+                        <p className="text-xs text-green-600 mt-3 font-semibold bg-green-50 p-2 rounded border border-green-100">
+                            ✨ Includes free AI updates for 7 days.
+                        </p>
                     </div>
                 ),
                 confirmText: "Confirm & Generate",
