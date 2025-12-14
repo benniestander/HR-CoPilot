@@ -1,7 +1,8 @@
+
 import React, { useState } from 'react';
 import type { Policy, Form, CompanyProfile } from '../types';
 import { INDUSTRIES } from '../constants';
-import { InfoIcon } from './Icons';
+import { InfoIcon, ShieldCheckIcon, CreditCardIcon, UserIcon, ComplianceIcon, ChevronRightIcon } from './Icons';
 
 interface CompanyProfileSetupProps {
   item: Policy | Form;
@@ -23,35 +24,46 @@ const LabelWithTooltip: React.FC<{ htmlFor: string; label: string; tooltip: stri
     </div>
 );
 
+const DiagnosticSection: React.FC<{ title: string; icon: React.FC<{className?: string}>; children: React.ReactNode }> = ({ title, icon: Icon, children }) => {
+    const [isOpen, setIsOpen] = useState(false);
+    return (
+        <div className="border border-gray-200 rounded-lg overflow-hidden bg-white mb-4">
+            <button 
+                type="button"
+                onClick={() => setIsOpen(!isOpen)}
+                className="w-full flex items-center justify-between p-4 bg-gray-50 hover:bg-gray-100 transition-colors"
+            >
+                <div className="flex items-center">
+                    <Icon className="w-5 h-5 text-primary mr-3" />
+                    <span className="font-semibold text-secondary">{title}</span>
+                </div>
+                <ChevronRightIcon className={`w-5 h-5 text-gray-400 transform transition-transform ${isOpen ? 'rotate-90' : ''}`} />
+            </button>
+            {isOpen && <div className="p-6 space-y-6 border-t border-gray-200 animate-fade-in">{children}</div>}
+        </div>
+    );
+}
 
 const CompanyProfileSetup: React.FC<CompanyProfileSetupProps> = ({ item, initialProfile, onProfileSubmit, onBack }) => {
-  const [companyName, setCompanyName] = useState(initialProfile.companyName || '');
-  const [industry, setIndustry] = useState(initialProfile.industry || '');
-  const [address, setAddress] = useState(initialProfile.address || '');
-  const [companyUrl, setCompanyUrl] = useState(initialProfile.companyUrl || '');
-  const [summary, setSummary] = useState(initialProfile.summary || '');
-  const [companySize, setCompanySize] = useState(initialProfile.companySize || '');
+  const [profileData, setProfileData] = useState<CompanyProfile>(initialProfile);
+  const [showDiagnostics, setShowDiagnostics] = useState(false);
 
   const isPolicy = item.kind === 'policy';
-  const isContinueDisabled = !companyName || (isPolicy && !industry);
+  const isContinueDisabled = !profileData.companyName || (isPolicy && !profileData.industry);
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+      const { name, value } = e.target;
+      setProfileData(prev => ({ ...prev, [name]: value }));
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (isContinueDisabled) return;
-    const newProfile: CompanyProfile = {
-      ...initialProfile,
-      companyName,
-      industry,
-      address,
-      companyUrl,
-      summary,
-      companySize,
-    };
-    onProfileSubmit(newProfile);
+    onProfileSubmit(profileData);
   };
 
   return (
-    <div className="max-w-2xl mx-auto">
+    <div className="max-w-3xl mx-auto">
        <button
         onClick={onBack}
         className="mb-6 text-primary font-semibold hover:underline flex items-center"
@@ -67,7 +79,7 @@ const CompanyProfileSetup: React.FC<CompanyProfileSetupProps> = ({ item, initial
           <item.icon className="w-12 h-12 text-primary mb-4 mx-auto" />
           <h2 className="text-2xl font-bold text-secondary">Generating: {item.title}</h2>
           <p className="text-gray-600 mt-2">
-            First, let's gather some basic company details.
+            First, let's confirm your company details.
           </p>
         </div>
         
@@ -83,8 +95,8 @@ const CompanyProfileSetup: React.FC<CompanyProfileSetupProps> = ({ item, initial
                 id="companyName"
                 name="companyName"
                 type="text"
-                value={companyName}
-                onChange={(e) => setCompanyName(e.target.value)}
+                value={profileData.companyName || ''}
+                onChange={handleInputChange}
                 placeholder="e.g., ABC (Pty) Ltd"
                 required
                 className="w-full p-3 border border-gray-300 rounded-md shadow-sm focus:ring-primary focus:border-primary"
@@ -95,14 +107,14 @@ const CompanyProfileSetup: React.FC<CompanyProfileSetupProps> = ({ item, initial
               <div className="space-y-2">
                 <LabelWithTooltip
                     htmlFor="industry"
-                    label="Which industry best describes your business?"
+                    label="Industry"
                     tooltip="Selecting your industry allows the AI to add specific clauses relevant to your sector (e.g., safety rules for construction)."
                 />
                 <select
                   id="industry"
                   name="industry"
-                  value={industry}
-                  onChange={(e) => setIndustry(e.target.value)}
+                  value={profileData.industry || ''}
+                  onChange={handleInputChange}
                   required
                   className="w-full p-3 border border-gray-300 rounded-md shadow-sm focus:ring-primary focus:border-primary"
                 >
@@ -111,85 +123,203 @@ const CompanyProfileSetup: React.FC<CompanyProfileSetupProps> = ({ item, initial
                     <option key={ind} value={ind}>{ind}</option>
                   ))}
                 </select>
-                 <p className="text-xs text-gray-500 mt-1">This helps tailor the policy to your specific sector.</p>
               </div>
             )}
           </div>
 
           <div className="pt-6 border-t border-gray-200">
-             <h3 className="text-lg font-semibold text-gray-800">Optional Details</h3>
-             <p className="text-sm text-gray-500 mb-4">Providing more details helps the AI generate more personalized and context-aware documents.</p>
-             <div className="space-y-6">
-                <div className="space-y-2">
-                    <LabelWithTooltip
-                        htmlFor="address"
-                        label="Company Address"
-                        tooltip="Your official address will be included in the header or footer of your documents for a professional look."
-                    />
-                    <input
-                    id="address"
-                    name="address"
-                    type="text"
-                    value={address}
-                    onChange={(e) => setAddress(e.target.value)}
-                    placeholder="e.g., 123 Tech Street, Cape Town, 8001"
-                    className="w-full p-3 border border-gray-300 rounded-md shadow-sm focus:ring-primary focus:border-primary"
-                    />
-                </div>
-                <div className="space-y-2">
-                    <LabelWithTooltip
-                        htmlFor="companyUrl"
-                        label="Company Website"
-                        tooltip="Your website can be added to document footers, reinforcing your company's brand and contact information."
-                    />
-                    <input
-                    id="companyUrl"
-                    name="companyUrl"
-                    type="url"
-                    value={companyUrl}
-                    onChange={(e) => setCompanyUrl(e.target.value)}
-                    placeholder="e.g., https://www.yourcompany.co.za"
-                    className="w-full p-3 border border-gray-300 rounded-md shadow-sm focus:ring-primary focus:border-primary"
-                    />
-                </div>
-                <div className="space-y-2">
-                    <LabelWithTooltip
-                        htmlFor="summary"
-                        label="Brief Company Summary"
-                        tooltip="This summary helps the AI understand your business's mission and tone, which can be reflected in introductions or preambles."
-                    />
-                    <textarea
-                    id="summary"
-                    name="summary"
-                    rows={3}
-                    value={summary}
-                    onChange={(e) => setSummary(e.target.value)}
-                    placeholder="e.g., A leading provider of widgets in the manufacturing sector."
-                    className="w-full p-3 border border-gray-300 rounded-md shadow-sm focus:ring-primary focus:border-primary"
-                    />
-                </div>
-                <div className="space-y-2">
-                    <LabelWithTooltip
-                        htmlFor="companySize"
-                        label="Company Size (Number of Employees)"
-                        tooltip="Some legal requirements (like Employment Equity) depend on your number of employees. This helps ensure compliance."
-                    />
-                    <select
-                        id="companySize"
-                        name="companySize"
-                        value={companySize}
-                        onChange={(e) => setCompanySize(e.target.value)}
-                        className="w-full p-3 border border-gray-300 rounded-md shadow-sm focus:ring-primary focus:border-primary bg-white"
-                    >
-                        <option value="">Select a size...</option>
-                        <option value="1-10">1-10 employees</option>
-                        <option value="11-50">11-50 employees</option>
-                        <option value="51-200">51-200 employees</option>
-                        <option value="201-500">201-500 employees</option>
-                        <option value="500+">500+ employees</option>
-                    </select>
-                </div>
+             <div className="flex justify-between items-center mb-4">
+                 <div>
+                    <h3 className="text-lg font-semibold text-gray-800">HR Compliance Diagnostic</h3>
+                    <p className="text-sm text-gray-500">Provide operational details for a watertight legal document.</p>
+                 </div>
+                 <button 
+                    type="button"
+                    onClick={() => setShowDiagnostics(!showDiagnostics)}
+                    className="text-sm font-semibold text-primary hover:underline"
+                 >
+                    {showDiagnostics ? 'Hide Questions' : 'Show Questions'}
+                 </button>
              </div>
+
+             {showDiagnostics && (
+                 <div className="animate-fade-in">
+                     <p className="text-sm text-amber-700 bg-amber-50 p-3 rounded mb-6 border border-amber-100">
+                         <strong>Why answer these?</strong> These 19 questions map your specific operational reality against the BCEA, LRA, and EEA. Answering them helps the AI generate a policy that is not just a template, but a customized legal shield.
+                     </p>
+
+                     <DiagnosticSection title="Jurisdiction & Structure" icon={ShieldCheckIcon}>
+                        <div className="space-y-4">
+                            <div>
+                                <LabelWithTooltip htmlFor="bargainingCouncil" label="Bargaining Council / Sectoral Determination?" tooltip="If yes, Main Agreements override the BCEA. The policy MUST align with the Council rules to be valid." />
+                                <input type="text" name="bargainingCouncil" placeholder="e.g. MEIBC, MIBCO, or 'No'" value={profileData.bargainingCouncil || ''} onChange={handleInputChange} className="w-full p-2 border rounded-md mt-1" />
+                            </div>
+                            <div>
+                                <LabelWithTooltip htmlFor="companySize" label="Employee Headcount" tooltip="50+ employees makes you a Designated Employer under the EEA, requiring specific affirmative action clauses." />
+                                <select name="companySize" value={profileData.companySize || ''} onChange={handleInputChange} className="w-full p-2 border rounded-md mt-1">
+                                    <option value="">Select...</option>
+                                    <option value="1-10">1-10</option>
+                                    <option value="11-50">11-50</option>
+                                    <option value="51-200">51-200 (Designated)</option>
+                                    <option value="201-500">201-500 (Designated)</option>
+                                    <option value="500+">500+ (Designated)</option>
+                                </select>
+                            </div>
+                            <div>
+                                <LabelWithTooltip htmlFor="unionized" label="Active Union Recognition?" tooltip="If yes, you cannot change policies without consultation. The AI will add consultation clauses." />
+                                <select name="unionized" value={profileData.unionized || ''} onChange={handleInputChange} className="w-full p-2 border rounded-md mt-1">
+                                    <option value="">Select...</option>
+                                    <option value="Yes">Yes</option>
+                                    <option value="No">No</option>
+                                </select>
+                            </div>
+                        </div>
+                     </DiagnosticSection>
+
+                     <DiagnosticSection title="Operational Reality" icon={ComplianceIcon}>
+                        <div className="space-y-4">
+                            <div>
+                                <LabelWithTooltip htmlFor="annualShutdown" label="Annual Dec/Jan Shutdown?" tooltip="If yes, leave policy MUST mandate saving leave. Otherwise, you risk double payments." />
+                                <select name="annualShutdown" value={profileData.annualShutdown || ''} onChange={handleInputChange} className="w-full p-2 border rounded-md mt-1">
+                                    <option value="">Select...</option>
+                                    <option value="Yes">Yes</option>
+                                    <option value="No">No</option>
+                                </select>
+                            </div>
+                            <div>
+                                <LabelWithTooltip htmlFor="overtimePayment" label="Overtime Structure" tooltip="Define how overtime is handled. Staff over the threshold (approx R254k/yr) aren't automatically entitled to pay." />
+                                <select name="overtimePayment" value={profileData.overtimePayment || ''} onChange={handleInputChange} className="w-full p-2 border rounded-md mt-1">
+                                    <option value="">Select...</option>
+                                    <option value="Paid">Paid (1.5x)</option>
+                                    <option value="Time Off">Time Off in Lieu</option>
+                                    <option value="None/Above Threshold">None / Above Threshold</option>
+                                </select>
+                            </div>
+                            <div>
+                                <LabelWithTooltip htmlFor="workModel" label="Remote / Hybrid Work?" tooltip="Affects OHSA liability (home safety) and IT security policies." />
+                                <select name="workModel" value={profileData.workModel || ''} onChange={handleInputChange} className="w-full p-2 border rounded-md mt-1">
+                                    <option value="">Select...</option>
+                                    <option value="On-site">On-site Only</option>
+                                    <option value="Remote">Fully Remote</option>
+                                    <option value="Hybrid">Hybrid</option>
+                                </select>
+                            </div>
+                        </div>
+                     </DiagnosticSection>
+
+                     <DiagnosticSection title="Financial Discipline" icon={CreditCardIcon}>
+                        <div className="space-y-4">
+                            <div>
+                                <LabelWithTooltip htmlFor="salaryAdvances" label="Allow Salary Advances/Loans?" tooltip="Illegal to deduct from salary without specific written agreement (AOD). Policy must specify this." />
+                                <select name="salaryAdvances" value={profileData.salaryAdvances || ''} onChange={handleInputChange} className="w-full p-2 border rounded-md mt-1">
+                                    <option value="">Select...</option>
+                                    <option value="Yes">Yes</option>
+                                    <option value="No">No</option>
+                                </select>
+                            </div>
+                            <div>
+                                <LabelWithTooltip htmlFor="deductionLiability" label="Liability for Damages (Negligence)?" tooltip="Can you deduct for lost laptops/crashes? Only if policy sets procedure for proving negligence." />
+                                <select name="deductionLiability" value={profileData.deductionLiability || ''} onChange={handleInputChange} className="w-full p-2 border rounded-md mt-1">
+                                    <option value="">Select...</option>
+                                    <option value="Yes">Yes</option>
+                                    <option value="No">No</option>
+                                </select>
+                            </div>
+                            <div>
+                                <LabelWithTooltip htmlFor="paidMaternityTraining" label="Funded Maternity or External Training?" tooltip="If yes, you need Work-Back Clauses to retain staff or recover costs upon resignation." />
+                                <select name="paidMaternityTraining" value={profileData.paidMaternityTraining || ''} onChange={handleInputChange} className="w-full p-2 border rounded-md mt-1">
+                                    <option value="">Select...</option>
+                                    <option value="Yes">Yes</option>
+                                    <option value="No">No</option>
+                                </select>
+                            </div>
+                            <div>
+                                <LabelWithTooltip htmlFor="retirementAge" label="Mandatory Retirement Age" tooltip="Forced retirement is Unfair Dismissal unless an age is agreed in policy/contract." />
+                                <input type="text" name="retirementAge" placeholder="e.g. 65, or 'None'" value={profileData.retirementAge || ''} onChange={handleInputChange} className="w-full p-2 border rounded-md mt-1" />
+                            </div>
+                        </div>
+                     </DiagnosticSection>
+
+                     <DiagnosticSection title="Discipline & Conduct" icon={UserIcon}>
+                        <div className="space-y-4">
+                            <div>
+                                <LabelWithTooltip htmlFor="criticalOffenses" label="Critical 'Cardinal Sins'?" tooltip="What specific offenses warrant dismissal in YOUR business? (e.g. Dishonesty in Bank vs Safety in Factory)." />
+                                <textarea name="criticalOffenses" rows={2} placeholder="e.g. Theft, Safety Violations, Intoxication" value={profileData.criticalOffenses || ''} onChange={handleInputChange} className="w-full p-2 border rounded-md mt-1" />
+                            </div>
+                            <div>
+                                <LabelWithTooltip htmlFor="probationPeriod" label="Probation Period" tooltip="Probation requires specific review meetings. Missing these makes dismissal difficult." />
+                                <input type="text" name="probationPeriod" placeholder="e.g. 3 months" value={profileData.probationPeriod || ''} onChange={handleInputChange} className="w-full p-2 border rounded-md mt-1" />
+                            </div>
+                            <div>
+                                <LabelWithTooltip htmlFor="disciplinaryAuthority" label="Who handles Discipline?" tooltip="If Line Managers, the policy flow must be simple to avoid procedural errors." />
+                                <select name="disciplinaryAuthority" value={profileData.disciplinaryAuthority || ''} onChange={handleInputChange} className="w-full p-2 border rounded-md mt-1">
+                                    <option value="">Select...</option>
+                                    <option value="HR">HR Dept</option>
+                                    <option value="Line Managers">Line Managers</option>
+                                    <option value="Owner">Owner/Director</option>
+                                </select>
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <LabelWithTooltip htmlFor="officeRomanceDisclosure" label="Office Romances?" tooltip="Require disclosure to prevent harassment claims." />
+                                    <select name="officeRomanceDisclosure" value={profileData.officeRomanceDisclosure || ''} onChange={handleInputChange} className="w-full p-2 border rounded-md mt-1">
+                                        <option value="">Select...</option>
+                                        <option value="Yes">Disclosure Required</option>
+                                        <option value="No">No Policy</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <LabelWithTooltip htmlFor="familyEmployment" label="Family Employed?" tooltip="Prevents 'Inconsistent Discipline' claims by non-family staff." />
+                                    <select name="familyEmployment" value={profileData.familyEmployment || ''} onChange={handleInputChange} className="w-full p-2 border rounded-md mt-1">
+                                        <option value="">Select...</option>
+                                        <option value="Yes">Yes</option>
+                                        <option value="No">No</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                     </DiagnosticSection>
+
+                     <DiagnosticSection title="Tech & Privacy" icon={ShieldCheckIcon}>
+                        <div className="space-y-4">
+                            <div>
+                                <LabelWithTooltip htmlFor="surveillanceMonitoring" label="Monitor Emails/Calls/Cams?" tooltip="RICA requires written consent. The IT Policy will serve as this consent." />
+                                <select name="surveillanceMonitoring" value={profileData.surveillanceMonitoring || ''} onChange={handleInputChange} className="w-full p-2 border rounded-md mt-1">
+                                    <option value="">Select...</option>
+                                    <option value="Yes">Yes</option>
+                                    <option value="No">No</option>
+                                </select>
+                            </div>
+                            <div>
+                                <LabelWithTooltip htmlFor="byodPolicy" label="BYOD (Personal Phones)?" tooltip="Crucial for claiming ownership of client data (IP) on personal devices." />
+                                <select name="byodPolicy" value={profileData.byodPolicy || ''} onChange={handleInputChange} className="w-full p-2 border rounded-md mt-1">
+                                    <option value="">Select...</option>
+                                    <option value="Yes">Yes</option>
+                                    <option value="No">No</option>
+                                </select>
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <LabelWithTooltip htmlFor="socialMediaRestrictions" label="Social Media Links?" tooltip="Regulate conduct if staff link profile to company." />
+                                    <select name="socialMediaRestrictions" value={profileData.socialMediaRestrictions || ''} onChange={handleInputChange} className="w-full p-2 border rounded-md mt-1">
+                                        <option value="">Select...</option>
+                                        <option value="Yes">Restrict</option>
+                                        <option value="No">Allow</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <LabelWithTooltip htmlFor="moonlightingAllowed" label="Moonlighting?" tooltip="Define 'conflict of interest' for second jobs." />
+                                    <select name="moonlightingAllowed" value={profileData.moonlightingAllowed || ''} onChange={handleInputChange} className="w-full p-2 border rounded-md mt-1">
+                                        <option value="">Select...</option>
+                                        <option value="Yes">Allowed</option>
+                                        <option value="No">Prohibited/Permission Req</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                     </DiagnosticSection>
+                 </div>
+             )}
           </div>
 
           <button

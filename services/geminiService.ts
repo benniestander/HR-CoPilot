@@ -1,6 +1,6 @@
 
 import { GoogleGenAI } from "@google/genai";
-import type { FormAnswers, PolicyUpdateResult } from '../types';
+import type { FormAnswers, PolicyUpdateResult, CompanyProfile } from '../types';
 
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
@@ -14,6 +14,76 @@ const INDUSTRY_SPECIFIC_GUIDANCE: Record<string, Record<string, string>> = {
   }
 };
 
+const formatDiagnosticContext = (profile: CompanyProfile): string => {
+    let context = "CRITICAL HR DIAGNOSTIC CONTEXT (MUST BE REFLECTED IN POLICY WHERE RELEVANT):\n";
+    
+    // Part 1: Jurisdictional
+    if (profile.bargainingCouncil && profile.bargainingCouncil !== 'No') {
+        context += `- JURISDICTION: User falls under a Bargaining Council (${profile.bargainingCouncil}). WARNING: Sectoral Determination/Main Agreement overrides BCEA. Ensure policy aligns with Council rules.\n`;
+    }
+    if (profile.unionized === 'Yes') {
+        context += `- UNIONS: Active Union Recognition. Changes to conditions of employment require consultation. Include consultation clauses where applicable.\n`;
+    }
+    
+    // Part 2: Operational
+    if (profile.annualShutdown === 'Yes') {
+        context += `- LEAVE: Company has Annual Shutdown (Dec/Jan). Policy MUST mandate employees save leave for this period to avoid double payment liability.\n`;
+    }
+    if (profile.overtimePayment) {
+        context += `- OVERTIME: Structure is '${profile.overtimePayment}'. If 'None/Above Threshold', clarify earnings threshold exclusion. If 'Time Off', specify time-off-in-lieu rules.\n`;
+    }
+    if (profile.workModel) {
+        context += `- REMOTE WORK: Model is '${profile.workModel}'. If Remote/Hybrid, OHSA clause must mention home office safety and IT policy must cover remote data security.\n`;
+    }
+
+    // Part 3: Financial
+    if (profile.salaryAdvances === 'Yes') {
+        context += `- LOANS: Company allows salary advances. Policy MUST enforce written AODs per BCEA Sec 34.\n`;
+    }
+    if (profile.deductionLiability === 'Yes') {
+        context += `- DEDUCTIONS: Policy MUST state employees are liable for negligence (lost laptops/crashes) ONLY if a fair procedure is followed and written consent obtained.\n`;
+    }
+    if (profile.paidMaternityTraining === 'Yes') {
+        context += `- RETENTION: Company funds training/maternity. Include Work-Back/Retention clauses to recover costs if employee resigns shortly after.\n`;
+    }
+    if (profile.retirementAge && profile.retirementAge !== 'None') {
+        context += `- RETIREMENT: Mandatory retirement age is ${profile.retirementAge}. This MUST be explicit to avoid Unfair Dismissal claims.\n`;
+    }
+
+    // Part 4: Discipline
+    if (profile.criticalOffenses) {
+        context += `- DISCIPLINE: Critical 'Cardinal Sins' for this business: ${profile.criticalOffenses}. These should be listed as dismissible offenses in the code.\n`;
+    }
+    if (profile.probationPeriod) {
+        context += `- PROBATION: Probation period is ${profile.probationPeriod}. Policy must mandate performance reviews during this time.\n`;
+    }
+    if (profile.disciplinaryAuthority) {
+        context += `- AUTHORITY: Disciplinary process is handled by ${profile.disciplinaryAuthority}. Workflow must reflect this.\n`;
+    }
+    if (profile.officeRomanceDisclosure === 'Yes') {
+        context += `- CONDUCT: Office romances must be disclosed to HR to prevent conflict of interest/harassment claims.\n`;
+    }
+    if (profile.familyEmployment === 'Yes') {
+        context += `- NEPOTISM: Family members are employed. Policy must explicitly state rules apply equally to all to prevent inconsistency claims.\n`;
+    }
+
+    // Part 5: Tech
+    if (profile.surveillanceMonitoring === 'Yes') {
+        context += `- PRIVACY: Company monitors emails/calls/vehicles. Policy must serve as RICA 'Written Consent'.\n`;
+    }
+    if (profile.byodPolicy === 'Yes') {
+        context += `- BYOD: Staff use personal devices. Policy must claim ownership of company data (e.g., client lists on WhatsApp) on these devices.\n`;
+    }
+    if (profile.socialMediaRestrictions === 'Yes') {
+        context += `- SOCIAL MEDIA: Strict rules required for conduct linking back to employer on personal accounts.\n`;
+    }
+    if (profile.moonlightingAllowed === 'No') {
+        context += `- MOONLIGHTING: Secondary employment strictly prohibited or requires written permission.\n`;
+    }
+
+    return context;
+};
+
 export const generatePolicyStream = async function* (type: string, answers: FormAnswers) {
   const model = 'gemini-2.5-flash';
   const industry = answers.industry || 'General';
@@ -24,10 +94,16 @@ export const generatePolicyStream = async function* (type: string, answers: Form
       specificGuidance = `\n\nIndustry Specific Instruction for ${industry}: ${INDUSTRY_SPECIFIC_GUIDANCE[industry][type]}`;
   }
 
+  // Inject HR Diagnostic Context
+  const diagnosticContext = formatDiagnosticContext(answers as CompanyProfile);
+
   const prompt = `Generate a comprehensive HR Policy for "${type}".
   Company Name: ${companyName}
   Industry: ${industry}
-  Details: ${JSON.stringify(answers)}
+  
+  ${diagnosticContext}
+  
+  Additional User Details: ${JSON.stringify(answers)}
   ${specificGuidance}
   
   Ensure it complies with South African Labour Law (BCEA, LRA, EEA, POPIA).
@@ -53,8 +129,14 @@ export const generatePolicyStream = async function* (type: string, answers: Form
 export const generateFormStream = async function* (type: string, answers: FormAnswers) {
     const model = 'gemini-2.5-flash';
     
+    // Inject HR Diagnostic Context for Forms too (e.g. contracts needing retirement age)
+    const diagnosticContext = formatDiagnosticContext(answers as CompanyProfile);
+
     const prompt = `Generate a professional HR Form for "${type}".
     Company Name: ${answers.companyName}
+    
+    ${diagnosticContext}
+    
     Details: ${JSON.stringify(answers)}
     
     Context:

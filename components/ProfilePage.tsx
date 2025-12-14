@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { UserIcon, ShieldCheckIcon, EditIcon, MasterPolicyIcon, FormsIcon, WordIcon, ExcelIcon, CheckIcon, CreditCardIcon, LoadingIcon, HistoryIcon, FileUploadIcon, FileIcon, TrashIcon } from './Icons';
+import { UserIcon, ShieldCheckIcon, EditIcon, MasterPolicyIcon, FormsIcon, WordIcon, ExcelIcon, CheckIcon, CreditCardIcon, LoadingIcon, HistoryIcon, FileUploadIcon, FileIcon, TrashIcon, ComplianceIcon } from './Icons';
 import type { CompanyProfile, GeneratedDocument, UserFile, Policy, Form, PolicyType, FormType } from '../types';
 import { INDUSTRIES, POLICIES, FORMS } from '../constants';
 import { useAuthContext } from '../contexts/AuthContext';
@@ -309,7 +309,7 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
 
             <div className="p-6 border border-gray-200 rounded-lg">
                 <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-xl font-semibold text-secondary">Company Profile</h3>
+                    <h3 className="text-xl font-semibold text-secondary">Company Profile & Diagnostics</h3>
                     {!isEditing && (
                     <button onClick={() => setIsEditing(true)} className="flex items-center text-sm font-semibold text-primary hover:underline">
                         <EditIcon className="w-4 h-4 mr-1" />
@@ -351,6 +351,44 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
                                 <option value="500+">500+ employees</option>
                             </select>
                         </div>
+                        
+                        {/* Diagnostics Subset for Editing */}
+                        <div className="border-t border-gray-100 pt-4 mt-4">
+                            <h4 className="font-semibold text-gray-700 mb-2">Operational Details</h4>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-xs text-gray-500">Bargaining Council</label>
+                                    <input type="text" name="bargainingCouncil" value={profileData.bargainingCouncil || ''} onChange={handleInputChange} className="w-full p-2 border rounded-md" />
+                                </div>
+                                <div>
+                                    <label className="block text-xs text-gray-500">Annual Shutdown</label>
+                                    <select name="annualShutdown" value={profileData.annualShutdown || ''} onChange={handleInputChange} className="w-full p-2 border rounded-md bg-white">
+                                        <option value="">Select...</option>
+                                        <option value="Yes">Yes</option>
+                                        <option value="No">No</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-xs text-gray-500">Overtime Structure</label>
+                                    <select name="overtimePayment" value={profileData.overtimePayment || ''} onChange={handleInputChange} className="w-full p-2 border rounded-md bg-white">
+                                        <option value="">Select...</option>
+                                        <option value="Paid">Paid</option>
+                                        <option value="Time Off">Time Off</option>
+                                        <option value="None/Above Threshold">None</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-xs text-gray-500">Work Model</label>
+                                    <select name="workModel" value={profileData.workModel || ''} onChange={handleInputChange} className="w-full p-2 border rounded-md bg-white">
+                                        <option value="">Select...</option>
+                                        <option value="On-site">On-site</option>
+                                        <option value="Remote">Remote</option>
+                                        <option value="Hybrid">Hybrid</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
                         <div>
                             <label className="block text-sm font-medium text-gray-700">Company Address</label>
                             <input type="text" name="address" placeholder="e.g., 123 Main St, Johannesburg, 2000" value={profileData.address || ''} onChange={handleInputChange} className="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-primary focus:border-primary" />
@@ -360,14 +398,10 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
                             <input type="url" name="companyUrl" placeholder="https://www.example.com" value={profileData.companyUrl || ''} onChange={handleInputChange} className={`mt-1 block w-full p-2 border rounded-md shadow-sm focus:ring-primary focus:border-primary ${errors.companyUrl ? 'border-red-500' : 'border-gray-300'}`} />
                             {errors.companyUrl && <p className="text-red-600 text-xs mt-1">{errors.companyUrl}</p>}
                         </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700">Company Summary</label>
-                            <textarea name="summary" value={profileData.summary || ''} onChange={handleInputChange} rows={3} placeholder="Briefly describe what your company does." className="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-primary focus:border-primary" />
-                        </div>
                         <div className="flex justify-end space-x-2 pt-2">
                             <button type="button" onClick={handleCancel} disabled={isSaving} className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300 disabled:bg-gray-100">Cancel</button>
                             <button type="submit" disabled={Object.values(errors).some(e => e) || isSaving} className="px-4 py-2 text-sm font-medium text-white bg-primary rounded-md hover:bg-opacity-90 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center">
-                                {isSaving ? <><LoadingIcon className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" /> Saving...</> : 'Save Changes'}
+                                {isSaving ? <LoadingIcon className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" /> : 'Save Changes'}
                             </button>
                         </div>
                     </form>
@@ -379,9 +413,13 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
                         <div className="flex items-start"><span className="text-gray-500 w-32 flex-shrink-0">Company Name:</span><span className="font-medium text-secondary">{user.profile.companyName || 'Not set'}</span></div>
                         <div className="flex items-start"><span className="text-gray-500 w-32 flex-shrink-0">Industry:</span><span className="font-medium text-secondary">{user.profile.industry || 'Not set'}</span></div>
                         <div className="flex items-start"><span className="text-gray-500 w-32 flex-shrink-0">Company Size:</span><span className="font-medium text-secondary">{user.profile.companySize ? `${user.profile.companySize} employees` : 'Not set'}</span></div>
+                        
+                        {/* Diagnostic Summary */}
+                        <div className="flex items-start"><span className="text-gray-500 w-32 flex-shrink-0">Council:</span><span className="font-medium text-secondary">{user.profile.bargainingCouncil || 'N/A'}</span></div>
+                        <div className="flex items-start"><span className="text-gray-500 w-32 flex-shrink-0">Shutdown:</span><span className="font-medium text-secondary">{user.profile.annualShutdown || 'N/A'}</span></div>
+                        
                         <div className="flex items-start"><span className="text-gray-500 w-32 flex-shrink-0">Address:</span><span className="font-medium text-secondary">{user.profile.address || 'Not set'}</span></div>
                         <div className="flex items-start"><span className="text-gray-500 w-32 flex-shrink-0">Website:</span>{user.profile.companyUrl ? <a href={user.profile.companyUrl} target="_blank" rel="noopener noreferrer" className="font-medium text-primary hover:underline break-all">{user.profile.companyUrl}</a> : <span className="font-medium text-secondary">Not set</span>}</div>
-                        <div className="flex items-start"><span className="text-gray-500 w-32 flex-shrink-0">Summary:</span><span className="font-medium text-secondary">{user.profile.summary || 'Not set'}</span></div>
                     </div>
                 )}
             </div>

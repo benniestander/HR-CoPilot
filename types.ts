@@ -1,3 +1,4 @@
+
 import type React from 'react';
 
 // ... (Existing types remain unchanged)
@@ -186,6 +187,26 @@ export type CompanyProfile = {
   companyUrl?: string;
   summary?: string;
   companySize?: string;
+  
+  // HR Diagnostic Fields
+  bargainingCouncil?: string; // Yes/No or Name
+  unionized?: string; // Yes/No
+  annualShutdown?: string; // Yes/No
+  overtimePayment?: string; // 'Paid', 'Time Off', 'None'
+  workModel?: string; // 'On-site', 'Remote', 'Hybrid'
+  salaryAdvances?: string; // Yes/No
+  deductionLiability?: string; // Yes/No (negligence)
+  paidMaternityTraining?: string; // Yes/No (Retention clauses)
+  retirementAge?: string; // Age or 'None'
+  criticalOffenses?: string; // Text
+  probationPeriod?: string; // e.g. "3 months"
+  disciplinaryAuthority?: string; // 'HR', 'Line Managers', 'Owner'
+  officeRomanceDisclosure?: string; // Yes/No
+  familyEmployment?: string; // Yes/No
+  surveillanceMonitoring?: string; // Yes/No
+  byodPolicy?: string; // Yes/No
+  socialMediaRestrictions?: string; // Yes/No
+  moonlightingAllowed?: string; // Yes/No
 }
 
 export type Transaction = {
