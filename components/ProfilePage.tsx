@@ -309,7 +309,7 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
 
             <div className="p-6 border border-gray-200 rounded-lg">
                 <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-xl font-semibold text-secondary">Company Profile & Diagnostics</h3>
+                    <h3 className="text-xl font-semibold text-secondary">Company Profile</h3>
                     {!isEditing && (
                     <button onClick={() => setIsEditing(true)} className="flex items-center text-sm font-semibold text-primary hover:underline">
                         <EditIcon className="w-4 h-4 mr-1" />
@@ -319,27 +319,33 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
                 </div>
                 {isEditing ? (
                     <form onSubmit={handleSave} className="space-y-4">
-                         <div>
-                            <label className="block text-sm font-medium text-gray-700">Your Name</label>
-                            <input type="text" name="name" value={userData.name} onChange={handleInputChange} className="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-primary focus:border-primary" />
+                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                             <div>
+                                <label className="block text-sm font-medium text-gray-700">Your Name</label>
+                                <input type="text" name="name" value={userData.name} onChange={handleInputChange} className="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-primary focus:border-primary" />
+                            </div>
+                             <div>
+                                <label className="block text-sm font-medium text-gray-700">Contact Number</label>
+                                <input type="text" name="contactNumber" value={userData.contactNumber} onChange={handleInputChange} className="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-primary focus:border-primary" />
+                            </div>
+                         </div>
+                         
+                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                             <div>
+                                <label className="block text-sm font-medium text-gray-700">Company Name</label>
+                                <input type="text" name="companyName" value={profileData.companyName || ''} onChange={handleInputChange} className={`mt-1 block w-full p-2 border rounded-md shadow-sm focus:ring-primary focus:border-primary ${errors.companyName ? 'border-red-500' : 'border-gray-300'}`} />
+                                {errors.companyName && <p className="text-red-600 text-xs mt-1">{errors.companyName}</p>}
+                            </div>
+                             <div>
+                                <label className="block text-sm font-medium text-gray-700">Industry</label>
+                                <select name="industry" value={profileData.industry || ''} onChange={handleInputChange} className={`mt-1 block w-full p-2 border rounded-md shadow-sm bg-white focus:ring-primary focus:border-primary ${errors.industry ? 'border-red-500' : 'border-gray-300'}`}>
+                                    <option value="" disabled>Select an industry...</option>
+                                    {INDUSTRIES.map(ind => <option key={ind} value={ind}>{ind}</option>)}
+                                </select>
+                                {errors.industry && <p className="text-red-600 text-xs mt-1">{errors.industry}</p>}
+                            </div>
                         </div>
-                         <div>
-                            <label className="block text-sm font-medium text-gray-700">Contact Number</label>
-                            <input type="text" name="contactNumber" value={userData.contactNumber} onChange={handleInputChange} className="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-primary focus:border-primary" />
-                        </div>
-                         <div>
-                            <label className="block text-sm font-medium text-gray-700">Company Name</label>
-                            <input type="text" name="companyName" value={profileData.companyName || ''} onChange={handleInputChange} className={`mt-1 block w-full p-2 border rounded-md shadow-sm focus:ring-primary focus:border-primary ${errors.companyName ? 'border-red-500' : 'border-gray-300'}`} />
-                            {errors.companyName && <p className="text-red-600 text-xs mt-1">{errors.companyName}</p>}
-                        </div>
-                         <div>
-                            <label className="block text-sm font-medium text-gray-700">Industry</label>
-                            <select name="industry" value={profileData.industry || ''} onChange={handleInputChange} className={`mt-1 block w-full p-2 border rounded-md shadow-sm bg-white focus:ring-primary focus:border-primary ${errors.industry ? 'border-red-500' : 'border-gray-300'}`}>
-                                <option value="" disabled>Select an industry...</option>
-                                {INDUSTRIES.map(ind => <option key={ind} value={ind}>{ind}</option>)}
-                            </select>
-                            {errors.industry && <p className="text-red-600 text-xs mt-1">{errors.industry}</p>}
-                        </div>
+
                         <div>
                             <label className="block text-sm font-medium text-gray-700">Company Size</label>
                             <select name="companySize" value={profileData.companySize || ''} onChange={handleInputChange} className={`mt-1 block w-full p-2 border rounded-md shadow-sm bg-white focus:ring-primary focus:border-primary border-gray-300`}>
@@ -354,12 +360,39 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
                         
                         {/* Diagnostics Subset for Editing */}
                         <div className="border-t border-gray-100 pt-4 mt-4">
-                            <h4 className="font-semibold text-gray-700 mb-2">Operational Details</h4>
+                            <h4 className="font-semibold text-secondary mb-3 text-sm uppercase tracking-wide">Structure & Jurisdiction</h4>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div>
                                     <label className="block text-xs text-gray-500">Bargaining Council</label>
                                     <input type="text" name="bargainingCouncil" value={profileData.bargainingCouncil || ''} onChange={handleInputChange} className="w-full p-2 border rounded-md" />
                                 </div>
+                                <div>
+                                    <label className="block text-xs text-gray-500">Union Status</label>
+                                    <select name="unionized" value={profileData.unionized || ''} onChange={handleInputChange} className="w-full p-2 border rounded-md bg-white">
+                                        <option value="">Select...</option>
+                                        <option value="Yes">Yes</option>
+                                        <option value="No">No</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-xs text-gray-500">Retirement Age</label>
+                                    <input type="text" name="retirementAge" value={profileData.retirementAge || ''} onChange={handleInputChange} className="w-full p-2 border rounded-md" />
+                                </div>
+                                <div>
+                                    <label className="block text-xs text-gray-500">Disciplinary Authority</label>
+                                    <select name="disciplinaryAuthority" value={profileData.disciplinaryAuthority || ''} onChange={handleInputChange} className="w-full p-2 border rounded-md bg-white">
+                                        <option value="">Select...</option>
+                                        <option value="HR">HR Dept</option>
+                                        <option value="Line Managers">Line Managers</option>
+                                        <option value="Owner">Owner/Director</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="border-t border-gray-100 pt-4 mt-4">
+                            <h4 className="font-semibold text-secondary mb-3 text-sm uppercase tracking-wide">Default Operational Settings</h4>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div>
                                     <label className="block text-xs text-gray-500">Annual Shutdown</label>
                                     <select name="annualShutdown" value={profileData.annualShutdown || ''} onChange={handleInputChange} className="w-full p-2 border rounded-md bg-white">
@@ -389,16 +422,21 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
                             </div>
                         </div>
 
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700">Company Address</label>
-                            <input type="text" name="address" placeholder="e.g., 123 Main St, Johannesburg, 2000" value={profileData.address || ''} onChange={handleInputChange} className="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-primary focus:border-primary" />
+                        <div className="border-t border-gray-100 pt-4 mt-4">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700">Company Address</label>
+                                    <input type="text" name="address" placeholder="e.g., 123 Main St, Johannesburg, 2000" value={profileData.address || ''} onChange={handleInputChange} className="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-primary focus:border-primary" />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700">Company Website</label>
+                                    <input type="url" name="companyUrl" placeholder="https://www.example.com" value={profileData.companyUrl || ''} onChange={handleInputChange} className={`mt-1 block w-full p-2 border rounded-md shadow-sm focus:ring-primary focus:border-primary ${errors.companyUrl ? 'border-red-500' : 'border-gray-300'}`} />
+                                    {errors.companyUrl && <p className="text-red-600 text-xs mt-1">{errors.companyUrl}</p>}
+                                </div>
+                            </div>
                         </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700">Company Website</label>
-                            <input type="url" name="companyUrl" placeholder="https://www.example.com" value={profileData.companyUrl || ''} onChange={handleInputChange} className={`mt-1 block w-full p-2 border rounded-md shadow-sm focus:ring-primary focus:border-primary ${errors.companyUrl ? 'border-red-500' : 'border-gray-300'}`} />
-                            {errors.companyUrl && <p className="text-red-600 text-xs mt-1">{errors.companyUrl}</p>}
-                        </div>
-                        <div className="flex justify-end space-x-2 pt-2">
+
+                        <div className="flex justify-end space-x-2 pt-4">
                             <button type="button" onClick={handleCancel} disabled={isSaving} className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300 disabled:bg-gray-100">Cancel</button>
                             <button type="submit" disabled={Object.values(errors).some(e => e) || isSaving} className="px-4 py-2 text-sm font-medium text-white bg-primary rounded-md hover:bg-opacity-90 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center">
                                 {isSaving ? <LoadingIcon className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" /> : 'Save Changes'}
@@ -406,20 +444,32 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
                         </div>
                     </form>
                 ) : (
-                    <div className="space-y-3 text-sm">
-                        <div className="flex items-start"><span className="text-gray-500 w-32 flex-shrink-0">Your Name:</span><span className="font-medium text-secondary">{user.name || 'Not set'}</span></div>
-                        <div className="flex items-start"><span className="text-gray-500 w-32 flex-shrink-0">Contact Number:</span><span className="font-medium text-secondary">{user.contactNumber || 'Not set'}</span></div>
-                        <div className="border-t border-gray-100 my-2 pt-2"></div>
-                        <div className="flex items-start"><span className="text-gray-500 w-32 flex-shrink-0">Company Name:</span><span className="font-medium text-secondary">{user.profile.companyName || 'Not set'}</span></div>
-                        <div className="flex items-start"><span className="text-gray-500 w-32 flex-shrink-0">Industry:</span><span className="font-medium text-secondary">{user.profile.industry || 'Not set'}</span></div>
-                        <div className="flex items-start"><span className="text-gray-500 w-32 flex-shrink-0">Company Size:</span><span className="font-medium text-secondary">{user.profile.companySize ? `${user.profile.companySize} employees` : 'Not set'}</span></div>
+                    <div className="space-y-4 text-sm">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div><span className="block text-gray-500 text-xs uppercase font-semibold mb-1">Company Name</span><span className="text-secondary font-medium">{user.profile.companyName || 'Not set'}</span></div>
+                            <div><span className="block text-gray-500 text-xs uppercase font-semibold mb-1">Industry</span><span className="text-secondary font-medium">{user.profile.industry || 'Not set'}</span></div>
+                            <div><span className="block text-gray-500 text-xs uppercase font-semibold mb-1">Company Size</span><span className="text-secondary font-medium">{user.profile.companySize ? `${user.profile.companySize} employees` : 'Not set'}</span></div>
+                            <div><span className="block text-gray-500 text-xs uppercase font-semibold mb-1">Your Name</span><span className="text-secondary font-medium">{user.name || 'Not set'}</span></div>
+                        </div>
                         
-                        {/* Diagnostic Summary */}
-                        <div className="flex items-start"><span className="text-gray-500 w-32 flex-shrink-0">Council:</span><span className="font-medium text-secondary">{user.profile.bargainingCouncil || 'N/A'}</span></div>
-                        <div className="flex items-start"><span className="text-gray-500 w-32 flex-shrink-0">Shutdown:</span><span className="font-medium text-secondary">{user.profile.annualShutdown || 'N/A'}</span></div>
+                        <div className="border-t border-gray-100 pt-4">
+                            <h4 className="font-semibold text-primary mb-3">Structural & Legal Profile</h4>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                                <div className="flex items-center"><span className="text-gray-500 w-32 flex-shrink-0">Bargaining Council:</span><span className="font-medium text-secondary">{user.profile.bargainingCouncil || 'N/A'}</span></div>
+                                <div className="flex items-center"><span className="text-gray-500 w-32 flex-shrink-0">Union Status:</span><span className="font-medium text-secondary">{user.profile.unionized || 'N/A'}</span></div>
+                                <div className="flex items-center"><span className="text-gray-500 w-32 flex-shrink-0">Retirement Age:</span><span className="font-medium text-secondary">{user.profile.retirementAge || 'N/A'}</span></div>
+                                <div className="flex items-center"><span className="text-gray-500 w-32 flex-shrink-0">Discipline:</span><span className="font-medium text-secondary">{user.profile.disciplinaryAuthority || 'N/A'}</span></div>
+                            </div>
+                        </div>
                         
-                        <div className="flex items-start"><span className="text-gray-500 w-32 flex-shrink-0">Address:</span><span className="font-medium text-secondary">{user.profile.address || 'Not set'}</span></div>
-                        <div className="flex items-start"><span className="text-gray-500 w-32 flex-shrink-0">Website:</span>{user.profile.companyUrl ? <a href={user.profile.companyUrl} target="_blank" rel="noopener noreferrer" className="font-medium text-primary hover:underline break-all">{user.profile.companyUrl}</a> : <span className="font-medium text-secondary">Not set</span>}</div>
+                        <div className="border-t border-gray-100 pt-4">
+                            <h4 className="font-semibold text-primary mb-3">Contact Info</h4>
+                            <div className="grid grid-cols-1 gap-2">
+                                <div className="flex items-start"><span className="text-gray-500 w-24 flex-shrink-0">Address:</span><span className="font-medium text-secondary">{user.profile.address || 'Not set'}</span></div>
+                                <div className="flex items-start"><span className="text-gray-500 w-24 flex-shrink-0">Website:</span>{user.profile.companyUrl ? <a href={user.profile.companyUrl} target="_blank" rel="noopener noreferrer" className="font-medium text-primary hover:underline break-all">{user.profile.companyUrl}</a> : <span className="font-medium text-secondary">Not set</span>}</div>
+                                <div className="flex items-start"><span className="text-gray-500 w-24 flex-shrink-0">Phone:</span><span className="font-medium text-secondary">{user.contactNumber || 'Not set'}</span></div>
+                            </div>
+                        </div>
                     </div>
                 )}
             </div>
