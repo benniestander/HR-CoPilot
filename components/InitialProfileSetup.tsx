@@ -4,12 +4,14 @@ import { INDUSTRIES } from '../constants';
 import type { CompanyProfile } from '../types';
 import { useUIContext } from '../contexts/UIContext';
 import { LoadingIcon, CheckIcon, InfoIcon } from './Icons';
+import { trackEvent } from '../utils/analytics';
+
 
 interface InitialProfileSetupProps {
-  onProfileSubmit: (profileData: CompanyProfile, name: string) => Promise<void>;
-  userEmail: string;
-  userName?: string;
-  onSkip: () => void;
+    onProfileSubmit: (profileData: CompanyProfile, name: string) => Promise<void>;
+    userEmail: string;
+    userName?: string;
+    onSkip: () => void;
 }
 
 const InitialProfileSetup: React.FC<InitialProfileSetupProps> = ({ onProfileSubmit, userEmail, userName, onSkip }) => {
@@ -39,7 +41,7 @@ const InitialProfileSetup: React.FC<InitialProfileSetupProps> = ({ onProfileSubm
         if (fieldName === 'name' && !value.trim()) error = 'Your name is required.';
         if (fieldName === 'companyName' && !value.trim()) error = 'Company name is required.';
         if (fieldName === 'industry' && !value) error = 'Please select an industry.';
-        
+
         setErrors(prev => ({ ...prev, [fieldName]: error }));
         return !error;
     };
@@ -58,12 +60,12 @@ const InitialProfileSetup: React.FC<InitialProfileSetupProps> = ({ onProfileSubm
             const fieldName = name as keyof CompanyProfile;
             setFormData(prev => ({ ...prev, [fieldName]: value }));
         }
-        
+
         if (touched[name]) {
             validateField(name, value);
         }
     };
-    
+
     const handleNext = () => {
         const allTouched: Record<string, boolean> = { name: true, companyName: true, industry: true };
         setTouched(allTouched);
@@ -82,6 +84,7 @@ const InitialProfileSetup: React.FC<InitialProfileSetupProps> = ({ onProfileSubm
         setIsSaving(true);
         try {
             await onProfileSubmit(formData, name);
+            trackEvent('onboarding_profile_complete', { industry: formData.industry, size: formData.companySize });
         } catch (error: any) {
             console.error("Error saving profile:", error);
             setToastMessage("Failed to save profile. Please try again.");
@@ -130,7 +133,7 @@ const InitialProfileSetup: React.FC<InitialProfileSetupProps> = ({ onProfileSubm
             <main className="flex-grow container mx-auto flex items-center justify-center px-6 py-8">
                 <div className="w-full max-w-xl">
                     <div className="bg-white p-8 rounded-lg shadow-md border border-gray-200">
-                        
+
                         {step === 1 && (
                             <>
                                 <div className="text-center">
@@ -153,7 +156,7 @@ const InitialProfileSetup: React.FC<InitialProfileSetupProps> = ({ onProfileSubm
                                         </ValidatedInputWrapper>
                                         {errors.companyName && touched.companyName && <p className="text-red-600 text-sm mt-1">{errors.companyName}</p>}
                                     </div>
-                                    
+
                                     <div>
                                         <label htmlFor="industry" className="block text-sm font-medium text-gray-700 mb-1">Industry</label>
                                         <ValidatedInputWrapper error={errors.industry} touched={touched.industry} value={formData.industry}>
@@ -189,7 +192,7 @@ const InitialProfileSetup: React.FC<InitialProfileSetupProps> = ({ onProfileSubm
                                             <LabelWithTooltip htmlFor="bargainingCouncil" label="Bargaining Council / Sectoral Determination?" tooltip="If you fall under a Council (e.g. MEIBC), their agreements override the BCEA." />
                                             <input type="text" id="bargainingCouncil" name="bargainingCouncil" placeholder="e.g. MIBCO, or 'No'" value={formData.bargainingCouncil || ''} onChange={handleInputChange} className="w-full p-2.5 border border-gray-300 rounded-md focus:ring-primary focus:border-primary" />
                                         </div>
-                                        
+
                                         <div className="grid grid-cols-2 gap-4">
                                             <div>
                                                 <LabelWithTooltip htmlFor="unionized" label="Union Recognition?" tooltip="Recognized unions require consultation for policy changes." />

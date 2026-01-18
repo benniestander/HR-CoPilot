@@ -1,5 +1,6 @@
 
 import React, { useRef, useEffect, lazy, Suspense } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import Dashboard from './components/Dashboard';
 import FullPageLoader from './components/FullPageLoader';
 import Login from './components/Login';
@@ -18,6 +19,10 @@ import { useUIContext } from './contexts/UIContext';
 import { useModalContext } from './contexts/ModalContext';
 import { PRIVACY_POLICY_CONTENT, TERMS_OF_USE_CONTENT } from './legalContent';
 import type { Policy, Form } from './types';
+import { trackEvent } from './utils/analytics';
+import { emailService } from './services/emailService';
+import { logMarketingEvent } from './services/dbService';
+
 
 export type AuthPage = 'landing' | 'login' | 'email-sent' | 'verify-email';
 export type AuthFlow = 'signup' | 'login' | 'payg_signup';
@@ -140,12 +145,15 @@ const AppContent: React.FC = () => {
 
     const handleSelectDocument = (item: Policy | Form) => {
         if (!user) return;
-    
+
+        trackEvent('document_category_interest', { title: item.title, kind: item.kind, price: item.price });
+
         // 1. Pro User Profile Check
+
         if (user.plan === 'pro') {
             // Ensure basic profile data exists before generating
             if (!user.profile.companyName || (item.kind === 'policy' && !user.profile.industry)) {
-                 showConfirmationModal({
+                showConfirmationModal({
                     title: "Complete Your Profile",
                     message: "To generate documents with your Pro plan, please complete your company profile details first.",
                     confirmText: "Go to Profile Setup",
@@ -157,21 +165,39 @@ const AppContent: React.FC = () => {
                 });
                 return;
             }
-            
+
             setSelectedItem(item);
             setDocumentToView(null);
             setIsPrePaid(false); // Not relevant for Pro, but good hygiene
             navigateTo('generator');
             return;
         }
-    
+
         // 2. PAYG Checks
         if (user.plan === 'payg') {
             const price = item.price;
             const balance = user.creditBalance || 0;
-    
+
             if (balance < price) {
-                 showConfirmationModal({
+                trackEvent('generator_intent_insufficient_credit', { title: item.title, balance, price });
+
+                // --- MARKETING AUTOMATION: Nudge Email ---
+                if (user.email && user.name) {
+                    emailService.sendInsufficientCreditNudge(
+                        user.email,
+                        user.name,
+                        item.title,
+                        balance,
+                        price
+                    );
+                    logMarketingEvent(user.uid, 'Insufficient Credit Nudge', {
+                        document: item.title,
+                        balance,
+                        required: price
+                    });
+                }
+
+                showConfirmationModal({
                     title: "Insufficient Credit",
                     message: (
                         <div className="text-center">
@@ -191,7 +217,7 @@ const AppContent: React.FC = () => {
                 });
                 return;
             }
-    
+
             // Confirm Cost AND Deduct immediately
             showConfirmationModal({
                 title: "Confirm Generation",
@@ -212,7 +238,7 @@ const AppContent: React.FC = () => {
                 onConfirm: async () => {
                     // Execute deduction logic HERE
                     const success = await handleDeductCredit(price, `Generated: ${item.title}`);
-                    
+
                     if (success) {
                         hideConfirmationModal();
                         setSelectedItem(item);
@@ -229,73 +255,119 @@ const AppContent: React.FC = () => {
         }
     };
 
+
     const AuthHeader = ({ isAdminHeader = false }: { isAdminHeader?: boolean }) => {
         const unreadCount = adminNotifications.filter(n => !n.isRead).length;
 
         return (
-            <header className="bg-white shadow-sm py-4 sticky top-0 z-40">
+            <motion.header
+                initial={{ y: -20, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ duration: 0.5, ease: "easeOut" }}
+                className="bg-white/80 backdrop-blur-md border-b border-gray-100 sticky top-0 z-40 py-3"
+            >
                 <div className="container mx-auto flex justify-between items-center px-6">
-                    <img
+                    <motion.img
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
                         src="https://i.postimg.cc/h48FMCNY/edited-image-11-removebg-preview.png"
                         alt="HR CoPilot Logo"
-                        className="h-12 cursor-pointer"
+                        className="h-10 cursor-pointer transition-opacity"
                         onClick={handleStartOver}
                     />
                     {isAdminHeader ? (
                         <div className="flex items-center space-x-6">
-                            <span className="font-bold text-red-600">ADMIN PANEL</span>
+                            <span className="px-3 py-1 bg-red-50 text-red-600 text-[10px] font-bold rounded-full tracking-wider uppercase">Admin Panel</span>
                             <div className="relative" ref={notificationPanelRef}>
-                                <button onClick={() => setNotificationPanelOpen(prev => !prev)} className="relative text-gray-600 hover:text-primary">
-                                    <BellIcon className="w-6 h-6" />
-                                    {unreadCount > 0 && <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-xs text-white">{unreadCount}</span>}
-                                </button>
-                                {isNotificationPanelOpen && (
-                                    <AdminNotificationPanel
-                                        notifications={adminNotifications}
-                                        onMarkAsRead={handleMarkNotificationRead}
-                                        onMarkAllAsRead={handleMarkAllNotificationsRead}
-                                    />
-                                )}
+                                <motion.button
+                                    whileHover={{ scale: 1.1 }}
+                                    whileTap={{ scale: 0.9 }}
+                                    onClick={() => setNotificationPanelOpen(prev => !prev)}
+                                    className="relative p-2 text-gray-500 hover:text-primary hover:bg-gray-50 rounded-full transition-all"
+                                >
+                                    <BellIcon className="w-5 h-5" />
+                                    {unreadCount > 0 && <span className="absolute top-1 right-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white ring-2 ring-white">{unreadCount}</span>}
+                                </motion.button>
+                                <AnimatePresence>
+                                    {isNotificationPanelOpen && (
+                                        <motion.div
+                                            initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                                            animate={{ opacity: 1, y: 0, scale: 1 }}
+                                            exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                                            transition={{ duration: 0.2 }}
+                                            className="absolute right-0 mt-2"
+                                        >
+                                            <AdminNotificationPanel
+                                                notifications={adminNotifications}
+                                                onMarkAsRead={handleMarkNotificationRead}
+                                                onMarkAllAsRead={handleMarkAllNotificationsRead}
+                                            />
+                                        </motion.div>
+                                    )}
+                                </AnimatePresence>
                             </div>
-                            <button onClick={handleLogout} className="text-sm font-semibold text-red-600 hover:underline">
+                            <button onClick={handleLogout} className="text-sm font-semibold text-gray-400 hover:text-red-600 transition-colors">
                                 Logout
                             </button>
                         </div>
                     ) : (
-                        <div className="flex items-center space-x-4">
-                            <button 
+                        <div className="flex items-center space-x-3 sm:space-x-6">
+                            <motion.button
+                                whileHover={{ scale: 1.02 }}
+                                whileTap={{ scale: 0.98 }}
                                 onClick={() => navigateTo('knowledge-base')}
-                                className="flex items-center text-sm font-semibold text-gray-600 hover:text-primary transition-colors bg-gray-50 hover:bg-gray-100 px-3 py-1.5 rounded-md border border-gray-200"
+                                className="flex items-center text-sm font-medium text-gray-600 hover:text-primary transition-all px-3 py-1.5 rounded-full hover:bg-primary/5"
                                 title="Help & Guides"
                             >
-                                <BookIcon className="w-5 h-5 mr-1.5" />
-                                <span className="hidden sm:inline">Help</span>
-                            </button>
+                                <BookIcon className="w-4 h-4 mr-2" />
+                                <span className="hidden sm:inline">Knowledge Base</span>
+                            </motion.button>
 
-                            <div className="h-6 w-px bg-gray-200 hidden sm:block"></div>
+                            <div className="h-4 w-px bg-gray-200 hidden sm:block"></div>
 
-                            <span className="text-sm text-gray-600 hidden md:block">{user?.email}</span>
-                            
                             {user?.plan === 'payg' && (
-                                <div className="text-sm font-semibold bg-green-100 text-green-800 px-3 py-1 rounded-full whitespace-nowrap">
-                                    Credit: R{(Number(user.creditBalance) / 100).toFixed(2)}
-                                </div>
+                                <motion.div
+                                    initial={{ scale: 0.9, opacity: 0 }}
+                                    animate={{ scale: 1, opacity: 1 }}
+                                    className="hidden xs:flex items-center space-x-2 bg-green-50 text-green-700 px-3 py-1.5 rounded-full border border-green-100/50"
+                                >
+                                    <span className="text-[10px] uppercase font-bold opacity-60">Credits</span>
+                                    <span className="text-sm font-bold leading-none">R{(Number(user.creditBalance) / 100).toFixed(2)}</span>
+                                </motion.div>
                             )}
-                            <button onClick={handleShowProfile} className="flex items-center text-sm font-semibold text-primary hover:underline whitespace-nowrap">
-                                {user?.photoURL ? (
-                                    <img src={user.photoURL} alt="Profile" className="w-6 h-6 rounded-full mr-2 object-cover" />
-                                ) : (
-                                    <UserIcon className="w-5 h-5 mr-1" />
-                                )}
-                                <span className="hidden sm:inline">My Profile</span>
-                            </button>
-                            <button onClick={handleLogout} className="text-sm font-semibold text-red-600 hover:underline whitespace-nowrap">
-                                Logout
-                            </button>
+
+                            <div className="flex items-center space-x-2 sm:space-x-4">
+                                <motion.button
+                                    whileHover={{ x: 2 }}
+                                    onClick={handleShowProfile}
+                                    className="group flex items-center space-x-2 text-sm font-medium text-gray-700 hover:text-primary transition-colors"
+                                >
+                                    <div className="w-8 h-8 rounded-full overflow-hidden border-2 border-transparent group-hover:border-primary/20 transition-all flex items-center justify-center bg-gray-100">
+                                        {user?.photoURL ? (
+                                            <img src={user.photoURL} alt="Profile" className="w-full h-full object-cover" />
+                                        ) : (
+                                            <UserIcon className="w-4 h-4 text-gray-400" />
+                                        )}
+                                    </div>
+                                    <span className="hidden md:inline font-semibold">{user?.name?.split(' ')[0] || 'My Profile'}</span>
+                                </motion.button>
+
+                                <motion.button
+                                    whileHover={{ scale: 1.1, color: '#ef4444' }}
+                                    whileTap={{ scale: 0.9 }}
+                                    onClick={handleLogout}
+                                    className="p-2 text-gray-400 transition-colors"
+                                    title="Logout"
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                                    </svg>
+                                </motion.button>
+                            </div>
                         </div>
                     )}
                 </div>
-            </header>
+            </motion.header>
         );
     };
 
@@ -357,8 +429,8 @@ const AppContent: React.FC = () => {
                     onBack={handleBackToDashboard}
                 />;
             case 'checklist':
-                if (!user) { 
-                     return <Dashboard
+                if (!user) {
+                    return <Dashboard
                         onStartUpdate={() => navigateTo('updater')}
                         onStartChecklist={() => navigateTo('checklist')}
                         showOnboardingWalkthrough={false}
@@ -373,8 +445,8 @@ const AppContent: React.FC = () => {
                     onSelectDocument={handleSelectDocument}
                 />;
             case 'profile':
-                if (!user) { 
-                     return <Dashboard
+                if (!user) {
+                    return <Dashboard
                         onStartUpdate={() => navigateTo('updater')}
                         onStartChecklist={() => navigateTo('checklist')}
                         showOnboardingWalkthrough={false}
@@ -389,8 +461,8 @@ const AppContent: React.FC = () => {
                     onGoToTopUp={() => navigateTo('topup')}
                 />;
             case 'upgrade':
-                if (!user) { 
-                     return <Dashboard
+                if (!user) {
+                    return <Dashboard
                         onStartUpdate={() => navigateTo('updater')}
                         onStartChecklist={() => navigateTo('checklist')}
                         showOnboardingWalkthrough={false}
@@ -407,8 +479,8 @@ const AppContent: React.FC = () => {
                 // FIX: Do not return null or call state setter here. 
                 // Render fallback Dashboard if logic fails. useEffect will handle navigation if needed elsewhere,
                 // or the user sees the dashboard and realizes they can't top up (though button shouldn't be visible).
-                if (!user || user.plan !== 'payg') { 
-                     return <Dashboard
+                if (!user || user.plan !== 'payg') {
+                    return <Dashboard
                         onStartUpdate={() => navigateTo('updater')}
                         onStartChecklist={() => navigateTo('checklist')}
                         showOnboardingWalkthrough={false}
@@ -423,8 +495,8 @@ const AppContent: React.FC = () => {
                     onUpgrade={() => navigateTo('upgrade')}
                 />;
             case 'knowledge-base':
-                if (!user) { 
-                     return <Dashboard
+                if (!user) {
+                    return <Dashboard
                         onStartUpdate={() => navigateTo('updater')}
                         onStartChecklist={() => navigateTo('checklist')}
                         showOnboardingWalkthrough={false}
@@ -433,7 +505,11 @@ const AppContent: React.FC = () => {
                         onSelectDocument={handleSelectDocument}
                     />;
                 }
-                return <KnowledgeBase onBack={handleBackToDashboard} />;
+                return <KnowledgeBase
+                    onBack={handleBackToDashboard}
+                    isPro={user?.plan === 'pro'}
+                    onUpgrade={() => navigateTo('upgrade')}
+                />;
             default:
                 return <Dashboard
                     onStartUpdate={() => navigateTo('updater')}

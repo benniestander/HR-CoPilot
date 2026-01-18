@@ -1,16 +1,16 @@
 import { supabase } from './supabase';
 import { emailService } from './emailService';
-import type { 
-    User, 
-    GeneratedDocument, 
-    Transaction, 
-    AdminActionLog, 
-    AdminNotification, 
-    UserFile, 
-    Coupon, 
-    CompanyProfile, 
+import type {
+    User,
+    GeneratedDocument,
+    Transaction,
+    AdminActionLog,
+    AdminNotification,
+    UserFile,
+    Coupon,
+    CompanyProfile,
     PolicyDraft,
-    Policy, 
+    Policy,
     Form,
     InvoiceRequest
 } from '../types';
@@ -44,8 +44,8 @@ export const getUserProfile = async (uid: string): Promise<User | null> => {
 
 export const createUserProfile = async (uid: string, email: string, plan: 'pro' | 'payg', name?: string, contactNumber?: string): Promise<User> => {
     const { data, error } = await supabase.from('profiles').insert({
-            id: uid, email, plan, full_name: name, contact_number: contactNumber, credit_balance: 0, created_at: new Date().toISOString(),
-        }).select().single();
+        id: uid, email, plan, full_name: name, contact_number: contactNumber, credit_balance: 0, created_at: new Date().toISOString(),
+    }).select().single();
     if (error) throw error;
     return {
         uid: data.id, email: data.email, name: data.full_name, contactNumber: data.contact_number, plan: data.plan, creditBalance: 0, createdAt: data.created_at, isAdmin: false, profile: { companyName: '', industry: '' }, transactions: [],
@@ -109,9 +109,9 @@ export const addTransactionToUser = async (uid: string, transaction: Partial<Tra
 // --- INVOICE REQUESTS ---
 
 export const submitInvoiceRequest = async (
-    userId: string, 
-    userEmail: string, 
-    requestType: 'pro' | 'payg', 
+    userId: string,
+    userEmail: string,
+    requestType: 'pro' | 'payg',
     amountInCents: number,
     description: string
 ) => {
@@ -148,11 +148,11 @@ export const getOpenInvoiceRequests = async (): Promise<InvoiceRequest[]> => {
         const emailMatch = msg.match(/INVOICE REQUEST: (\S+)/);
         const amountMatch = msg.match(/Amount: R([\d\.]+)/);
         const refMatch = msg.match(/Ref: (\S+)/);
-        
+
         const isPro = msg.toLowerCase().includes('pro subscription') || msg.toLowerCase().includes('pro plan');
-        
+
         return {
-            id: n.id, 
+            id: n.id,
             date: n.created_at || n.timestamp, // Fallback for safety
             userId: n.related_user_id,
             userEmail: emailMatch ? emailMatch[1] : 'Unknown',
@@ -173,7 +173,7 @@ export const processManualOrder = async (adminEmail: string, request: InvoiceReq
     }
     await supabase.from('admin_notifications').update({ is_read: true }).eq('id', request.id);
     await logAdminAction('Processed Manual Order', request.userId, { amount: request.amount, type: request.type, reference: request.reference });
-    
+
     const { data: userProfile } = await supabase.from('profiles').select('full_name').eq('id', request.userId).single();
     const userName = userProfile?.full_name || 'Customer';
     await emailService.sendActivationConfirmation(request.userEmail, userName, request.type, request.amount);
@@ -244,7 +244,7 @@ export const changeUserPlanByAdmin = async (adminEmail: string, targetUid: strin
 
 export const grantProPlanByAdmin = async (adminEmail: string, targetUid: string) => {
     await supabase.from('profiles').update({ plan: 'pro' }).eq('id', targetUid);
-    await addTransactionToUser(targetUid, { description: 'Pro Plan (Admin Grant)', amount: 0 }); 
+    await addTransactionToUser(targetUid, { description: 'Pro Plan (Admin Grant)', amount: 0 });
     await logAdminAction('Granted Pro Plan', targetUid);
 };
 
@@ -373,4 +373,44 @@ export const getPolicyDrafts = async (uid: string): Promise<PolicyDraft[]> => {
 export const deletePolicyDraft = async (id: string) => {
     const { error } = await supabase.from('policy_drafts').delete().eq('id', id);
     if (error) throw error;
+};
+
+export const logMarketingEvent = async (userId: string, eventType: string, details: any) => {
+    // We leverage admin_notifications with a special type for now
+    await supabase.from('admin_notifications').insert({
+        type: 'marketing_event',
+        related_user_id: userId,
+        message: `MARKETING: ${eventType} - ${JSON.stringify(details)}`,
+        is_read: true // Mark as read so it doesn't clutter the main notification list
+    });
+};
+
+export const getMarketingEvents = async (): Promise<any[]> => {
+    const { data, error } = await supabase
+        .from('admin_notifications')
+        .select('*, profiles(email, full_name)')
+        .eq('type', 'marketing_event')
+        .order('created_at', { ascending: false })
+        .limit(100);
+
+    if (error) return [];
+    return data.map((n: any) => {
+        // Parse the message back
+        const parts = n.message.replace('MARKETING: ', '').split(' - ');
+        const eventType = parts[0];
+        let details = {};
+        try {
+            details = JSON.parse(parts[1]);
+        } catch (e) { }
+
+        return {
+            id: n.id,
+            timestamp: n.created_at,
+            eventType,
+            details,
+            userId: n.related_user_id,
+            userEmail: n.profiles?.email || 'Unknown',
+            userName: n.profiles?.full_name || 'Customer'
+        };
+    });
 };
