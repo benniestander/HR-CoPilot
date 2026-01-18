@@ -81,6 +81,17 @@ const formatDiagnosticContext = (profile: CompanyProfile): string => {
         context += `- MOONLIGHTING: Secondary employment strictly prohibited or requires written permission.\n`;
     }
 
+    // Part 6: Health & Incapacity
+    if (profile.incapacityApproach === 'Inquiry') {
+        context += `- INCAPACITY: Long-term illness must follow an 'Incapacity Inquiry' (LRA Sched 8 Items 10-11), NOT disciplinary procedures.\n`;
+    }
+    if (profile.substanceAbuseSupport === 'Rehab') {
+        context += `- SUBSTANCE ABUSE: Approach is Rehabilitation. Policy must offer support/counselling before dismissal steps.\n`;
+    }
+    if (profile.drugTestingPolicy && profile.drugTestingPolicy !== 'None') {
+        context += `- TESTING: ${profile.drugTestingPolicy} drug/alcohol testing is in place. Policy must include explicit consent clause for testing.\n`;
+    }
+
     return context;
 };
 
@@ -108,7 +119,25 @@ export const generatePolicyStream = async function* (type: string, answers: Form
   
   Ensure it complies with South African Labour Law (BCEA, LRA, EEA, POPIA).
   Use a professional yet accessible tone.
-  Format with Markdown.`;
+  Format with Markdown.
+
+  *** COMPLIANCE CHECKLIST REQUIREMENT ***
+  At the very end of the document, you MUST append a "Compliance Checklist" table to confirm that general and specific requirements have been met.
+  
+  Please use this exact Markdown table format:
+  
+  ### Compliance Checklist
+  | Aspect                | Status | Notes                                                 |
+  | --------------------- | ------ | ----------------------------------------------------- |
+  | BCEA Alignment        | ✅      | All entitlements/conditions match ss20-25C + Van Wyk. |
+  | POPIA                 | ✅      | Retention, access, security covered.                  |
+  | Discretionary Clauses | ✅      | Balanced with "unreasonable" safeguards.              |
+  | Termination Payments  | ✅      | Pro-rata explicit.                                    |
+  | Notice Periods        | ✅      | Escalation added.                                     |
+  | Inclusivity           | ✅      | Gender-neutral, comprehensive parental leave.         |
+  
+  Note: You may add additional rows for specific diagnostic items if relevant (e.g., Remote Work clause confirmed, RICA consent confirmed).
+  `;
 
   const response = await ai.models.generateContentStream({
     model: model,

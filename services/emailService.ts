@@ -94,7 +94,7 @@ export const emailService = {
     sendActivationConfirmation: async (email: string, name: string, type: 'pro' | 'payg', amountInCents: number) => {
         const isPro = type === 'pro';
         const amount = (amountInCents / 100).toFixed(2);
-
+        
         const html = `
             <div style="font-family: sans-serif; color: #333; max-width: 600px; margin: 0 auto;">
                 <h2 style="color: #188693; text-align: center;">Payment Received & Order Activated!</h2>
@@ -104,10 +104,10 @@ export const emailService = {
                 <div style="background-color: #ecfdf5; padding: 15px; border-radius: 8px; border: 1px solid #d1fae5; margin: 20px 0;">
                     <h3 style="margin-top: 0; color: #065f46;">${isPro ? 'Pro Membership Active' : 'Credits Added'}</h3>
                     <p style="margin: 5px 0; color: #064e3b;">
-                        ${isPro
-                ? 'Your account has been upgraded to HR CoPilot Pro. You now have unlimited access for 12 months.'
-                : `R${amount} credit has been added to your balance. You can now generate documents.`
-            }
+                        ${isPro 
+                            ? 'Your account has been upgraded to HR CoPilot Pro. You now have unlimited access for 12 months.' 
+                            : `R${amount} credit has been added to your balance. You can now generate documents.`
+                        }
                     </p>
                 </div>
 
@@ -122,42 +122,5 @@ export const emailService = {
             </div>
         `;
         return sendEmail(email, "Payment Confirmed - Order Activated", html);
-    },
-
-    /**
-     * Sends a reminder nudge when a PAYG user has insufficient credit to generate a document.
-     */
-    sendInsufficientCreditNudge: async (email: string, name: string, documentTitle: string, currentBalance: number, requiredPrice: number) => {
-        const balance = (currentBalance / 100).toFixed(2);
-        const price = (requiredPrice / 100).toFixed(2);
-
-        const html = `
-            <div style="font-family: sans-serif; color: #333; max-width: 600px; margin: 0 auto; border: 1px solid #eee; border-radius: 12px; overflow: hidden;">
-                <div style="background-color: #188693; padding: 30px; text-align: center;">
-                    <h2 style="color: white; margin: 0;">Don't Leave Your Business Unprotected</h2>
-                </div>
-                <div style="padding: 30px;">
-                    <p>Hi ${name},</p>
-                    <p>We noticed you were trying to generate a <strong>${documentTitle}</strong>, but your credit balance was a bit short.</p>
-                    
-                    <div style="background-color: #f9fafb; padding: 20px; border-radius: 8px; margin: 20px 0; border: 1px dashed #ccc; text-align: center;">
-                        <p style="margin: 0; color: #666; font-size: 0.9em;">Current Balance: <strong>R${balance}</strong></p>
-                        <p style="margin: 5px 0; color: #188693; font-size: 1.2em;"><strong>R${price}</strong> Required</p>
-                    </div>
-
-                    <p>Compliance is the best insurance. Secure your business today by topping up your account in just a few clicks.</p>
-                    
-                    <div style="text-align: center; margin: 30px 0;">
-                        <a href="https://app.hrcopilot.co.za/topup" style="background-color: #143a67; color: white; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block;">Top Up My Account Now</a>
-                    </div>
-                    
-                    <p style="font-size: 0.8em; color: #999; text-align: center;">If you have any questions, simply reply to this email.</p>
-                </div>
-                <div style="background-color: #f3f4f6; padding: 20px; text-align: center; font-size: 0.8em; color: #666;">
-                    © 2026 HR CoPilot • South Africa's #1 AI Compliance Engine
-                </div>
-            </div>
-        `;
-        return sendEmail(email, `Nudge: Secure your ${documentTitle} today`, html);
     }
 };

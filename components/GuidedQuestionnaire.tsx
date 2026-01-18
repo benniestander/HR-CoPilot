@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo } from 'react';
 import type { Policy, Form, FormAnswers, CompanyProfile, Question } from '../types';
 import { InfoIcon, EditIcon } from './Icons';
@@ -9,12 +10,6 @@ interface GuidedQuestionnaireProps {
   onAnswersChange: (answers: FormAnswers) => void;
   onGenerate: () => void;
 }
-
-const COMPANY_VOICES = [
-  'Formal & Corporate',
-  'Modern & Friendly',
-  'Direct & No-Nonsense',
-];
 
 const GuidedQuestionnaire: React.FC<GuidedQuestionnaireProps> = ({
   item,
@@ -34,12 +29,13 @@ const GuidedQuestionnaire: React.FC<GuidedQuestionnaireProps> = ({
   const currentQuestion = visibleQuestions[currentIndex];
 
   useEffect(() => {
+    // Merge initial answers. If companyVoice is not set in 'answers' but exists in profile, use profile.
     const defaultAnswers = { ...initialAnswers };
-    if (isPolicy && !defaultAnswers.companyVoice) {
-      defaultAnswers.companyVoice = COMPANY_VOICES[0];
+    if (!defaultAnswers.companyVoice && companyProfile.companyVoice) {
+        defaultAnswers.companyVoice = companyProfile.companyVoice;
     }
     setAnswers(defaultAnswers);
-  }, [item.type, isPolicy, initialAnswers]);
+  }, [item.type, isPolicy, initialAnswers, companyProfile.companyVoice]);
 
   const validateField = (question: Question | undefined, value: any): boolean => {
     if (!question) return true;
@@ -201,14 +197,7 @@ const GuidedQuestionnaire: React.FC<GuidedQuestionnaireProps> = ({
                 </div>
             ) : (
                 <>
-                    {isPolicy && (
-                        <div className="space-y-2 mb-6 animate-fade-in">
-                        <label htmlFor="companyVoice" className="block text-sm font-medium text-gray-700">Company Voice</label>
-                        <select id="companyVoice" name="companyVoice" value={answers.companyVoice || ''} onChange={(e) => handleInputChange('companyVoice', e.target.value)} className="w-full p-3 border border-gray-300 rounded-md shadow-sm focus:ring-primary focus:border-primary bg-white">
-                            {COMPANY_VOICES.map((voice) => (<option key={voice} value={voice}>{voice}</option>))}
-                        </select>
-                        </div>
-                    )}
+                    {/* Company Voice selector removed here as it is now part of the profile */}
                     {currentQuestion && renderQuestion(currentQuestion)}
                 </>
             )}

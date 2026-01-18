@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { UserIcon, ShieldCheckIcon, EditIcon, MasterPolicyIcon, FormsIcon, WordIcon, ExcelIcon, CheckIcon, CreditCardIcon, LoadingIcon, HistoryIcon, FileUploadIcon, FileIcon, TrashIcon, ComplianceIcon } from './Icons';
+import { UserIcon, ShieldCheckIcon, EditIcon, MasterPolicyIcon, FormsIcon, WordIcon, ExcelIcon, CheckIcon, CreditCardIcon, LoadingIcon, HistoryIcon, FileUploadIcon, FileIcon, TrashIcon, ComplianceIcon, UpdateIcon } from './Icons';
 import type { CompanyProfile, GeneratedDocument, UserFile, Policy, Form, PolicyType, FormType } from '../types';
 import { INDUSTRIES, POLICIES, FORMS } from '../constants';
 import { useAuthContext } from '../contexts/AuthContext';
@@ -12,18 +12,26 @@ interface ProfilePageProps {
   onBack: () => void;
   onUpgrade: () => void;
   onGoToTopUp: () => void;
+  onRedoOnboarding: () => void; // New prop to trigger re-onboarding
 }
+
+const COMPANY_VOICES = [
+  'Formal & Corporate',
+  'Modern & Friendly',
+  'Direct & No-Nonsense',
+];
 
 const ProfilePage: React.FC<ProfilePageProps> = ({ 
     onBack, 
     onUpgrade,
     onGoToTopUp,
+    onRedoOnboarding
 }) => {
   const { user, handleLogout: onLogout } = useAuthContext();
   const { 
     generatedDocuments, 
     userFiles, 
-    isLoadingUserDocs,
+    isLoadingUserDocs, 
     isLoadingUserFiles,
     handleUpdateProfile: onUpdateProfile,
     handleFileUpload: onFileUpload,
@@ -358,7 +366,7 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
                             </select>
                         </div>
                         
-                        {/* Diagnostics Subset for Editing */}
+                        {/* Structural Diagnostics (Profile Level) */}
                         <div className="border-t border-gray-100 pt-4 mt-4">
                             <h4 className="font-semibold text-secondary mb-3 text-sm uppercase tracking-wide">Structure & Jurisdiction</h4>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -387,36 +395,11 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
                                         <option value="Owner">Owner/Director</option>
                                     </select>
                                 </div>
-                            </div>
-                        </div>
-
-                        <div className="border-t border-gray-100 pt-4 mt-4">
-                            <h4 className="font-semibold text-secondary mb-3 text-sm uppercase tracking-wide">Default Operational Settings</h4>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div>
-                                    <label className="block text-xs text-gray-500">Annual Shutdown</label>
-                                    <select name="annualShutdown" value={profileData.annualShutdown || ''} onChange={handleInputChange} className="w-full p-2 border rounded-md bg-white">
+                                    <label className="block text-xs text-gray-500">Company Voice</label>
+                                    <select name="companyVoice" value={profileData.companyVoice || ''} onChange={handleInputChange} className="w-full p-2 border rounded-md bg-white">
                                         <option value="">Select...</option>
-                                        <option value="Yes">Yes</option>
-                                        <option value="No">No</option>
-                                    </select>
-                                </div>
-                                <div>
-                                    <label className="block text-xs text-gray-500">Overtime Structure</label>
-                                    <select name="overtimePayment" value={profileData.overtimePayment || ''} onChange={handleInputChange} className="w-full p-2 border rounded-md bg-white">
-                                        <option value="">Select...</option>
-                                        <option value="Paid">Paid</option>
-                                        <option value="Time Off">Time Off</option>
-                                        <option value="None/Above Threshold">None</option>
-                                    </select>
-                                </div>
-                                <div>
-                                    <label className="block text-xs text-gray-500">Work Model</label>
-                                    <select name="workModel" value={profileData.workModel || ''} onChange={handleInputChange} className="w-full p-2 border rounded-md bg-white">
-                                        <option value="">Select...</option>
-                                        <option value="On-site">On-site</option>
-                                        <option value="Remote">Remote</option>
-                                        <option value="Hybrid">Hybrid</option>
+                                        {COMPANY_VOICES.map(v => <option key={v} value={v}>{v}</option>)}
                                     </select>
                                 </div>
                             </div>
@@ -453,12 +436,24 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
                         </div>
                         
                         <div className="border-t border-gray-100 pt-4">
-                            <h4 className="font-semibold text-primary mb-3">Structural & Legal Profile</h4>
+                            <div className="flex justify-between items-center mb-3">
+                                <h4 className="font-semibold text-primary">Structural & Legal Profile</h4>
+                                {!isEditing && (
+                                    <button 
+                                        onClick={onRedoOnboarding}
+                                        className="text-xs font-semibold text-blue-600 hover:text-blue-800 bg-blue-50 px-2 py-1 rounded border border-blue-200 hover:bg-blue-100 transition-colors flex items-center"
+                                    >
+                                        <UpdateIcon className="w-3 h-3 mr-1" />
+                                        Major Changes? Redo Setup
+                                    </button>
+                                )}
+                            </div>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                                 <div className="flex items-center"><span className="text-gray-500 w-32 flex-shrink-0">Bargaining Council:</span><span className="font-medium text-secondary">{user.profile.bargainingCouncil || 'N/A'}</span></div>
                                 <div className="flex items-center"><span className="text-gray-500 w-32 flex-shrink-0">Union Status:</span><span className="font-medium text-secondary">{user.profile.unionized || 'N/A'}</span></div>
                                 <div className="flex items-center"><span className="text-gray-500 w-32 flex-shrink-0">Retirement Age:</span><span className="font-medium text-secondary">{user.profile.retirementAge || 'N/A'}</span></div>
                                 <div className="flex items-center"><span className="text-gray-500 w-32 flex-shrink-0">Discipline:</span><span className="font-medium text-secondary">{user.profile.disciplinaryAuthority || 'N/A'}</span></div>
+                                <div className="flex items-center"><span className="text-gray-500 w-32 flex-shrink-0">Company Voice:</span><span className="font-medium text-secondary">{user.profile.companyVoice || 'N/A'}</span></div>
                             </div>
                         </div>
                         

@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import type { Policy, Form, CompanyProfile } from '../types';
 import { INDUSTRIES } from '../constants';
-import { InfoIcon, ShieldCheckIcon, CreditCardIcon, UserIcon, ComplianceIcon, ChevronRightIcon } from './Icons';
+import { InfoIcon, ShieldCheckIcon, CreditCardIcon, UserIcon, ComplianceIcon, ChevronRightIcon, HealthSafetyIcon } from './Icons';
 
 interface CompanyProfileSetupProps {
   item: Policy | Form;
@@ -16,7 +16,7 @@ const LabelWithTooltip: React.FC<{ htmlFor: string; label: string; tooltip: stri
         <label htmlFor={htmlFor} className="block text-sm font-medium text-gray-700">{label}</label>
         <div className="relative flex items-center group ml-2">
             <InfoIcon className="w-5 h-5 text-gray-400 cursor-help" />
-            <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 w-max max-w-xs p-3 text-xs text-white bg-gray-900 rounded-md shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300 invisible group-hover:visible pointer-events-none z-10">
+            <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 w-max max-w-xs p-3 text-xs text-white bg-gray-900 rounded-md shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300 invisible group-hover:visible pointer-events-none z-10 text-center">
                 {tooltip}
                 <svg className="absolute text-gray-900 h-2 w-full left-0 top-full" x="0px" y="0px" viewBox="0 0 255 255"><polygon className="fill-current" points="0,0 127.5,127.5 255,0"/></svg>
             </div>
@@ -24,8 +24,8 @@ const LabelWithTooltip: React.FC<{ htmlFor: string; label: string; tooltip: stri
     </div>
 );
 
-const DiagnosticSection: React.FC<{ title: string; icon: React.FC<{className?: string}>; children: React.ReactNode }> = ({ title, icon: Icon, children }) => {
-    const [isOpen, setIsOpen] = useState(false);
+const DiagnosticSection: React.FC<{ title: string; icon: React.FC<{className?: string}>; children: React.ReactNode; defaultOpen?: boolean }> = ({ title, icon: Icon, children, defaultOpen = false }) => {
+    const [isOpen, setIsOpen] = useState(defaultOpen);
     return (
         <div className="border border-gray-200 rounded-lg overflow-hidden bg-white mb-4">
             <button 
@@ -46,7 +46,6 @@ const DiagnosticSection: React.FC<{ title: string; icon: React.FC<{className?: s
 
 const CompanyProfileSetup: React.FC<CompanyProfileSetupProps> = ({ item, initialProfile, onProfileSubmit, onBack }) => {
   const [profileData, setProfileData] = useState<CompanyProfile>(initialProfile);
-  const [showDiagnostics, setShowDiagnostics] = useState(false);
 
   const isPolicy = item.kind === 'policy';
   const isContinueDisabled = !profileData.companyName || (isPolicy && !profileData.industry);
@@ -61,6 +60,13 @@ const CompanyProfileSetup: React.FC<CompanyProfileSetupProps> = ({ item, initial
     if (isContinueDisabled) return;
     onProfileSubmit(profileData);
   };
+
+  // Check for pre-filled data to smart-expand sections
+  const hasOperationalData = !!(profileData.annualShutdown || profileData.overtimePayment || profileData.workModel);
+  const hasFinancialData = !!(profileData.salaryAdvances || profileData.deductionLiability || profileData.paidMaternityTraining);
+  const hasDisciplineData = !!(profileData.criticalOffenses || profileData.probationPeriod || profileData.officeRomanceDisclosure);
+  const hasTechData = !!(profileData.surveillanceMonitoring || profileData.byodPolicy || profileData.socialMediaRestrictions || profileData.moonlightingAllowed);
+  const hasHealthData = !!(profileData.incapacityApproach || profileData.substanceAbuseSupport || profileData.drugTestingPolicy);
 
   return (
     <div className="max-w-3xl mx-auto">
@@ -90,7 +96,7 @@ const CompanyProfileSetup: React.FC<CompanyProfileSetupProps> = ({ item, initial
                     <LabelWithTooltip
                             htmlFor="companyName"
                             label="Company's Legal Name"
-                            tooltip="This is the most important field. Your company's legal name will appear on all official documents."
+                            tooltip="Crucial for legal validity. This name will appear on all contracts and policies as the 'Employer' defined in the BCEA and LRA."
                         />
                     <input
                         id="companyName"
@@ -136,152 +142,172 @@ const CompanyProfileSetup: React.FC<CompanyProfileSetupProps> = ({ item, initial
                     <div><span className="text-blue-700">Union:</span> <span className="font-medium text-blue-900">{profileData.unionized || 'None'}</span></div>
                     <div><span className="text-blue-700">Size:</span> <span className="font-medium text-blue-900">{profileData.companySize || 'N/A'}</span></div>
                     <div><span className="text-blue-700">Retirement:</span> <span className="font-medium text-blue-900">{profileData.retirementAge || 'N/A'}</span></div>
+                    <div><span className="text-blue-700">Tone:</span> <span className="font-medium text-blue-900">{profileData.companyVoice || 'Standard'}</span></div>
                 </div>
             </div>
           </div>
 
           <div className="pt-6 border-t border-gray-200">
-             <div className="flex justify-between items-center mb-4">
-                 <div>
-                    <h3 className="text-lg font-semibold text-gray-800">Policy Context</h3>
-                    <p className="text-sm text-gray-500">Customize operational details for this specific document.</p>
-                 </div>
-                 <button 
-                    type="button"
-                    onClick={() => setShowDiagnostics(!showDiagnostics)}
-                    className="text-sm font-semibold text-primary hover:underline"
-                 >
-                    {showDiagnostics ? 'Hide Context' : 'Show Context'}
-                 </button>
+             <div className="mb-4">
+                <h3 className="text-lg font-semibold text-gray-800">Policy Context</h3>
+                <p className="text-sm text-gray-500">Customize operational details for this specific document.</p>
              </div>
 
-             {showDiagnostics && (
-                 <div className="animate-fade-in">
-                     <p className="text-sm text-amber-700 bg-amber-50 p-3 rounded mb-6 border border-amber-100">
-                         <strong>Why answer these?</strong> These questions define your operational reality (e.g., remote work, overtime rules) so the AI can draft specific clauses correctly.
-                     </p>
+             <div className="animate-fade-in">
+                 <p className="text-sm text-amber-700 bg-amber-50 p-3 rounded mb-6 border border-amber-100">
+                     <strong>Why answer these?</strong> These questions define your operational reality (e.g., remote work, overtime rules) so the AI can draft specific clauses correctly.
+                 </p>
 
-                     <DiagnosticSection title="Operational Reality" icon={ComplianceIcon}>
-                        <div className="space-y-4">
+                 <DiagnosticSection title="Operational Reality" icon={ComplianceIcon} defaultOpen={true}>
+                    <div className="space-y-4">
+                        <div>
+                            <LabelWithTooltip htmlFor="annualShutdown" label="Annual Dec/Jan Shutdown?" tooltip="If yes, leave policy MUST mandate saving leave. Otherwise, you risk double payments (BCEA s20)." />
+                            <select name="annualShutdown" value={profileData.annualShutdown || ''} onChange={handleInputChange} className="w-full p-2 border rounded-md mt-1">
+                                <option value="">Select...</option>
+                                <option value="Yes">Yes</option>
+                                <option value="No">No</option>
+                            </select>
+                        </div>
+                        <div>
+                            <LabelWithTooltip htmlFor="overtimePayment" label="Overtime Structure" tooltip="Define how overtime is handled. Staff over the threshold (approx R254k/yr) aren't automatically entitled to pay (BCEA s6)." />
+                            <select name="overtimePayment" value={profileData.overtimePayment || ''} onChange={handleInputChange} className="w-full p-2 border rounded-md mt-1">
+                                <option value="">Select...</option>
+                                <option value="Paid">Paid (1.5x)</option>
+                                <option value="Time Off">Time Off in Lieu</option>
+                                <option value="None/Above Threshold">None / Above Threshold</option>
+                            </select>
+                        </div>
+                        <div>
+                            <LabelWithTooltip htmlFor="workModel" label="Remote / Hybrid Work?" tooltip="Affects OHSA liability (home safety) and IT security policies (OHSA s8)." />
+                            <select name="workModel" value={profileData.workModel || ''} onChange={handleInputChange} className="w-full p-2 border rounded-md mt-1">
+                                <option value="">Select...</option>
+                                <option value="On-site">On-site Only</option>
+                                <option value="Remote">Fully Remote</option>
+                                <option value="Hybrid">Hybrid</option>
+                            </select>
+                        </div>
+                    </div>
+                 </DiagnosticSection>
+
+                 <DiagnosticSection title="Financial & Benefits" icon={CreditCardIcon} defaultOpen={hasFinancialData}>
+                    <div className="space-y-4">
+                        <div>
+                            <LabelWithTooltip htmlFor="salaryAdvances" label="Allow Salary Advances/Loans?" tooltip="Illegal to deduct from salary without specific written agreement (AOD) per BCEA s34." />
+                            <select name="salaryAdvances" value={profileData.salaryAdvances || ''} onChange={handleInputChange} className="w-full p-2 border rounded-md mt-1">
+                                <option value="">Select...</option>
+                                <option value="Yes">Yes</option>
+                                <option value="No">No</option>
+                            </select>
+                        </div>
+                        <div>
+                            <LabelWithTooltip htmlFor="deductionLiability" label="Liability for Damages?" tooltip="Can you deduct for lost laptops/crashes? Only if policy sets procedure for proving negligence (BCEA s34)." />
+                            <select name="deductionLiability" value={profileData.deductionLiability || ''} onChange={handleInputChange} className="w-full p-2 border rounded-md mt-1">
+                                <option value="">Select...</option>
+                                <option value="Yes">Yes</option>
+                                <option value="No">No</option>
+                            </select>
+                        </div>
+                        <div>
+                            <LabelWithTooltip htmlFor="paidMaternityTraining" label="Funded Maternity/Training?" tooltip="If yes, you need Work-Back Clauses to retain staff or recover costs upon resignation." />
+                            <select name="paidMaternityTraining" value={profileData.paidMaternityTraining || ''} onChange={handleInputChange} className="w-full p-2 border rounded-md mt-1">
+                                <option value="">Select...</option>
+                                <option value="Yes">Yes</option>
+                                <option value="No">No</option>
+                            </select>
+                        </div>
+                    </div>
+                 </DiagnosticSection>
+
+                 <DiagnosticSection title="Discipline & Conduct" icon={UserIcon} defaultOpen={hasDisciplineData}>
+                    <div className="space-y-4">
+                        <div>
+                            <LabelWithTooltip htmlFor="criticalOffenses" label="Critical 'Cardinal Sins'?" tooltip="Establishes 'Substantive Fairness' for dismissal in YOUR specific business context (LRA Sched 8)." />
+                            <textarea name="criticalOffenses" rows={2} placeholder="e.g. Theft, Safety Violations, Intoxication" value={profileData.criticalOffenses || ''} onChange={handleInputChange} className="w-full p-2 border rounded-md mt-1" />
+                        </div>
+                        <div>
+                            <LabelWithTooltip htmlFor="probationPeriod" label="Probation Period" tooltip="Probation requires specific review meetings. Missing these makes dismissal difficult (LRA Sched 8 - Item 8)." />
+                            <input type="text" name="probationPeriod" placeholder="e.g. 3 months" value={profileData.probationPeriod || ''} onChange={handleInputChange} className="w-full p-2 border rounded-md mt-1" />
+                        </div>
+                        <div>
+                            <LabelWithTooltip htmlFor="officeRomanceDisclosure" label="Office Romances?" tooltip="Require disclosure to prevent harassment claims (Code of Good Practice on Harassment)." />
+                            <select name="officeRomanceDisclosure" value={profileData.officeRomanceDisclosure || ''} onChange={handleInputChange} className="w-full p-2 border rounded-md mt-1">
+                                <option value="">Select...</option>
+                                <option value="Yes">Disclosure Required</option>
+                                <option value="No">No Policy</option>
+                            </select>
+                        </div>
+                    </div>
+                 </DiagnosticSection>
+
+                 <DiagnosticSection title="Tech & Privacy" icon={ShieldCheckIcon} defaultOpen={hasTechData}>
+                    <div className="space-y-4">
+                        <div>
+                            <LabelWithTooltip htmlFor="surveillanceMonitoring" label="Monitor Emails/Calls/Cams?" tooltip="RICA requires written consent. The IT Policy will serve as this consent." />
+                            <select name="surveillanceMonitoring" value={profileData.surveillanceMonitoring || ''} onChange={handleInputChange} className="w-full p-2 border rounded-md mt-1">
+                                <option value="">Select...</option>
+                                <option value="Yes">Yes</option>
+                                <option value="No">No</option>
+                            </select>
+                        </div>
+                        <div>
+                            <LabelWithTooltip htmlFor="byodPolicy" label="BYOD (Personal Phones)?" tooltip="Crucial for claiming ownership of client data (IP) on personal devices (POPIA Security Safeguards)." />
+                            <select name="byodPolicy" value={profileData.byodPolicy || ''} onChange={handleInputChange} className="w-full p-2 border rounded-md mt-1">
+                                <option value="">Select...</option>
+                                <option value="Yes">Yes</option>
+                                <option value="No">No</option>
+                            </select>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
                             <div>
-                                <LabelWithTooltip htmlFor="annualShutdown" label="Annual Dec/Jan Shutdown?" tooltip="If yes, leave policy MUST mandate saving leave. Otherwise, you risk double payments." />
-                                <select name="annualShutdown" value={profileData.annualShutdown || ''} onChange={handleInputChange} className="w-full p-2 border rounded-md mt-1">
+                                <LabelWithTooltip htmlFor="socialMediaRestrictions" label="Social Media Links?" tooltip="Regulate conduct if staff link profile to company (Common Law duty of good faith)." />
+                                <select name="socialMediaRestrictions" value={profileData.socialMediaRestrictions || ''} onChange={handleInputChange} className="w-full p-2 border rounded-md mt-1">
                                     <option value="">Select...</option>
-                                    <option value="Yes">Yes</option>
-                                    <option value="No">No</option>
+                                    <option value="Yes">Restrict</option>
+                                    <option value="No">Allow</option>
                                 </select>
                             </div>
                             <div>
-                                <LabelWithTooltip htmlFor="overtimePayment" label="Overtime Structure" tooltip="Define how overtime is handled. Staff over the threshold (approx R254k/yr) aren't automatically entitled to pay." />
-                                <select name="overtimePayment" value={profileData.overtimePayment || ''} onChange={handleInputChange} className="w-full p-2 border rounded-md mt-1">
+                                <LabelWithTooltip htmlFor="moonlightingAllowed" label="Moonlighting?" tooltip="Define 'conflict of interest' for second jobs." />
+                                <select name="moonlightingAllowed" value={profileData.moonlightingAllowed || ''} onChange={handleInputChange} className="w-full p-2 border rounded-md mt-1">
                                     <option value="">Select...</option>
-                                    <option value="Paid">Paid (1.5x)</option>
-                                    <option value="Time Off">Time Off in Lieu</option>
-                                    <option value="None/Above Threshold">None / Above Threshold</option>
-                                </select>
-                            </div>
-                            <div>
-                                <LabelWithTooltip htmlFor="workModel" label="Remote / Hybrid Work?" tooltip="Affects OHSA liability (home safety) and IT security policies." />
-                                <select name="workModel" value={profileData.workModel || ''} onChange={handleInputChange} className="w-full p-2 border rounded-md mt-1">
-                                    <option value="">Select...</option>
-                                    <option value="On-site">On-site Only</option>
-                                    <option value="Remote">Fully Remote</option>
-                                    <option value="Hybrid">Hybrid</option>
+                                    <option value="Yes">Allowed</option>
+                                    <option value="No">Prohibited/Permission Req</option>
                                 </select>
                             </div>
                         </div>
-                     </DiagnosticSection>
+                    </div>
+                 </DiagnosticSection>
 
-                     <DiagnosticSection title="Financial & Benefits" icon={CreditCardIcon}>
-                        <div className="space-y-4">
-                            <div>
-                                <LabelWithTooltip htmlFor="salaryAdvances" label="Allow Salary Advances/Loans?" tooltip="Illegal to deduct from salary without specific written agreement (AOD). Policy must specify this." />
-                                <select name="salaryAdvances" value={profileData.salaryAdvances || ''} onChange={handleInputChange} className="w-full p-2 border rounded-md mt-1">
-                                    <option value="">Select...</option>
-                                    <option value="Yes">Yes</option>
-                                    <option value="No">No</option>
-                                </select>
-                            </div>
-                            <div>
-                                <LabelWithTooltip htmlFor="deductionLiability" label="Liability for Damages?" tooltip="Can you deduct for lost laptops/crashes? Only if policy sets procedure for proving negligence." />
-                                <select name="deductionLiability" value={profileData.deductionLiability || ''} onChange={handleInputChange} className="w-full p-2 border rounded-md mt-1">
-                                    <option value="">Select...</option>
-                                    <option value="Yes">Yes</option>
-                                    <option value="No">No</option>
-                                </select>
-                            </div>
-                            <div>
-                                <LabelWithTooltip htmlFor="paidMaternityTraining" label="Funded Maternity/Training?" tooltip="If yes, you need Work-Back Clauses to retain staff or recover costs upon resignation." />
-                                <select name="paidMaternityTraining" value={profileData.paidMaternityTraining || ''} onChange={handleInputChange} className="w-full p-2 border rounded-md mt-1">
-                                    <option value="">Select...</option>
-                                    <option value="Yes">Yes</option>
-                                    <option value="No">No</option>
-                                </select>
-                            </div>
+                 <DiagnosticSection title="Health & Incapacity" icon={HealthSafetyIcon} defaultOpen={hasHealthData}>
+                    <div className="space-y-4">
+                        <div>
+                            <LabelWithTooltip htmlFor="incapacityApproach" label="Long-term Illness Handling?" tooltip="You cannot 'discipline' for illness. You must follow an 'Incapacity Inquiry' (LRA Sched 8 Items 10-11)." />
+                            <select name="incapacityApproach" value={profileData.incapacityApproach || ''} onChange={handleInputChange} className="w-full p-2 border rounded-md mt-1">
+                                <option value="">Select...</option>
+                                <option value="Inquiry">Incapacity Inquiry Process</option>
+                                <option value="Dismissal">Standard Dismissal (Risk)</option>
+                            </select>
                         </div>
-                     </DiagnosticSection>
-
-                     <DiagnosticSection title="Discipline & Conduct" icon={UserIcon}>
-                        <div className="space-y-4">
-                            <div>
-                                <LabelWithTooltip htmlFor="criticalOffenses" label="Critical 'Cardinal Sins'?" tooltip="What specific offenses warrant dismissal in YOUR business? (e.g. Dishonesty in Bank vs Safety in Factory)." />
-                                <textarea name="criticalOffenses" rows={2} placeholder="e.g. Theft, Safety Violations, Intoxication" value={profileData.criticalOffenses || ''} onChange={handleInputChange} className="w-full p-2 border rounded-md mt-1" />
-                            </div>
-                            <div>
-                                <LabelWithTooltip htmlFor="probationPeriod" label="Probation Period" tooltip="Probation requires specific review meetings. Missing these makes dismissal difficult." />
-                                <input type="text" name="probationPeriod" placeholder="e.g. 3 months" value={profileData.probationPeriod || ''} onChange={handleInputChange} className="w-full p-2 border rounded-md mt-1" />
-                            </div>
-                            <div>
-                                <LabelWithTooltip htmlFor="officeRomanceDisclosure" label="Office Romances?" tooltip="Require disclosure to prevent harassment claims." />
-                                <select name="officeRomanceDisclosure" value={profileData.officeRomanceDisclosure || ''} onChange={handleInputChange} className="w-full p-2 border rounded-md mt-1">
-                                    <option value="">Select...</option>
-                                    <option value="Yes">Disclosure Required</option>
-                                    <option value="No">No Policy</option>
-                                </select>
-                            </div>
+                        <div>
+                            <LabelWithTooltip htmlFor="substanceAbuseSupport" label="Substance Abuse Approach?" tooltip="Addiction is viewed as an illness. Policy should offer rehabilitation before dismissal." />
+                            <select name="substanceAbuseSupport" value={profileData.substanceAbuseSupport || ''} onChange={handleInputChange} className="w-full p-2 border rounded-md mt-1">
+                                <option value="">Select...</option>
+                                <option value="Rehab">Support/Rehabilitation First</option>
+                                <option value="Zero Tolerance">Zero Tolerance / Dismissal</option>
+                            </select>
                         </div>
-                     </DiagnosticSection>
-
-                     <DiagnosticSection title="Tech & Privacy" icon={ShieldCheckIcon}>
-                        <div className="space-y-4">
-                            <div>
-                                <LabelWithTooltip htmlFor="surveillanceMonitoring" label="Monitor Emails/Calls/Cams?" tooltip="RICA requires written consent. The IT Policy will serve as this consent." />
-                                <select name="surveillanceMonitoring" value={profileData.surveillanceMonitoring || ''} onChange={handleInputChange} className="w-full p-2 border rounded-md mt-1">
-                                    <option value="">Select...</option>
-                                    <option value="Yes">Yes</option>
-                                    <option value="No">No</option>
-                                </select>
-                            </div>
-                            <div>
-                                <LabelWithTooltip htmlFor="byodPolicy" label="BYOD (Personal Phones)?" tooltip="Crucial for claiming ownership of client data (IP) on personal devices." />
-                                <select name="byodPolicy" value={profileData.byodPolicy || ''} onChange={handleInputChange} className="w-full p-2 border rounded-md mt-1">
-                                    <option value="">Select...</option>
-                                    <option value="Yes">Yes</option>
-                                    <option value="No">No</option>
-                                </select>
-                            </div>
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <LabelWithTooltip htmlFor="socialMediaRestrictions" label="Social Media Links?" tooltip="Regulate conduct if staff link profile to company." />
-                                    <select name="socialMediaRestrictions" value={profileData.socialMediaRestrictions || ''} onChange={handleInputChange} className="w-full p-2 border rounded-md mt-1">
-                                        <option value="">Select...</option>
-                                        <option value="Yes">Restrict</option>
-                                        <option value="No">Allow</option>
-                                    </select>
-                                </div>
-                                <div>
-                                    <LabelWithTooltip htmlFor="moonlightingAllowed" label="Moonlighting?" tooltip="Define 'conflict of interest' for second jobs." />
-                                    <select name="moonlightingAllowed" value={profileData.moonlightingAllowed || ''} onChange={handleInputChange} className="w-full p-2 border rounded-md mt-1">
-                                        <option value="">Select...</option>
-                                        <option value="Yes">Allowed</option>
-                                        <option value="No">Prohibited/Permission Req</option>
-                                    </select>
-                                </div>
-                            </div>
+                        <div>
+                            <LabelWithTooltip htmlFor="drugTestingPolicy" label="Drug/Alcohol Testing?" tooltip="Bodily fluid testing requires specific consent and protocols in the policy." />
+                            <select name="drugTestingPolicy" value={profileData.drugTestingPolicy || ''} onChange={handleInputChange} className="w-full p-2 border rounded-md mt-1">
+                                <option value="">Select...</option>
+                                <option value="Random">Random Testing</option>
+                                <option value="Incident">Incident-based Only</option>
+                                <option value="None">No Testing</option>
+                            </select>
                         </div>
-                     </DiagnosticSection>
-                 </div>
-             )}
+                    </div>
+                 </DiagnosticSection>
+             </div>
           </div>
 
           <button

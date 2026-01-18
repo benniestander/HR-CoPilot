@@ -187,26 +187,34 @@ export type CompanyProfile = {
   companyUrl?: string;
   summary?: string;
   companySize?: string;
+  companyVoice?: string; // Moved from per-document to profile
   
-  // HR Diagnostic Fields
+  // HR Diagnostic Fields (Structural - In Profile)
   bargainingCouncil?: string; // Yes/No or Name
   unionized?: string; // Yes/No
+  retirementAge?: string; // Age or 'None'
+  disciplinaryAuthority?: string; // 'HR', 'Line Managers', 'Owner'
+  familyEmployment?: string; // Yes/No
+
+  // HR Diagnostic Fields (Operational - In Generator)
   annualShutdown?: string; // Yes/No
   overtimePayment?: string; // 'Paid', 'Time Off', 'None'
   workModel?: string; // 'On-site', 'Remote', 'Hybrid'
   salaryAdvances?: string; // Yes/No
   deductionLiability?: string; // Yes/No (negligence)
   paidMaternityTraining?: string; // Yes/No (Retention clauses)
-  retirementAge?: string; // Age or 'None'
   criticalOffenses?: string; // Text
   probationPeriod?: string; // e.g. "3 months"
-  disciplinaryAuthority?: string; // 'HR', 'Line Managers', 'Owner'
   officeRomanceDisclosure?: string; // Yes/No
-  familyEmployment?: string; // Yes/No
   surveillanceMonitoring?: string; // Yes/No
   byodPolicy?: string; // Yes/No
   socialMediaRestrictions?: string; // Yes/No
   moonlightingAllowed?: string; // Yes/No
+
+  // HR Diagnostic Fields (Health & Incapacity - Part 6)
+  incapacityApproach?: string; // 'Inquiry' vs 'Dismissal'
+  substanceAbuseSupport?: string; // 'Rehab' vs 'Dismissal'
+  drugTestingPolicy?: string; // 'Random', 'Incident', 'None'
 }
 
 export type Transaction = {
