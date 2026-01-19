@@ -2,7 +2,7 @@
 declare const Deno: any;
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-import { GoogleGenAI } from 'npm:@google/genai'
+import { GoogleGenerativeAI } from 'https://esm.sh/@google/generative-ai'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -15,7 +15,6 @@ Deno.serve(async (req: any) => {
   }
 
   try {
-    // 1. Verify User (Security: Key used only on server)
     const authHeader = req.headers.get('Authorization')!;
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
@@ -28,52 +27,36 @@ Deno.serve(async (req: any) => {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
     }
 
-    // 2. Initialize Gemini with Server-Side Key
     const apiKey = Deno.env.get('API_KEY') || Deno.env.get('GEMINI_API_KEY') || Deno.env.get('GOOGLE_API_KEY');
 
     if (!apiKey) {
       return new Response(JSON.stringify({ error: 'Server Configuration Error: Missing API_KEY' }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    // Initialize the new Google GenAI SDK
-    const ai = new GoogleGenAI({ apiKey });
+    // Initialize with safe ESM import
+    const genAI = new GoogleGenerativeAI(apiKey);
 
-    // Parse request body
+    // Parse Request
     const { model, prompt, stream, config } = await req.json();
-
-    // Default to a safe model if none provided, but frontend sends 'gemini-3.5-flash' now
     const targetModel = model || 'gemini-1.5-flash';
 
-    // 3. Call AI
+    console.log(`Generating content using model: ${targetModel}`);
+
+    const generativeModel = genAI.getGenerativeModel({ model: targetModel });
+
     if (stream) {
-      const response = await ai.models.generateContentStream({
-        model: targetModel,
-        contents: prompt,
-        config: config
-      });
+      const result = await generativeModel.generateContentStream(prompt);
+      const response = result.stream;
 
       const readable = new ReadableStream({
         async start(controller) {
           try {
             for await (const chunk of response) {
-              let text = '';
+              const text = chunk.text(); // Old SDK always uses .text()
 
-              // -------- CRITICAL FIX: SDK TEXT EXTRACTION --------
-              // The new SDK can return text as a function OR a property depending on the version/response type.
-              if (typeof chunk.text === 'function') {
-                text = chunk.text();
-              } else if (typeof chunk.text === 'string') {
-                text = chunk.text;
-              } else if (chunk.candidates?.[0]?.content?.parts?.[0]?.text) {
-                text = chunk.candidates[0].content.parts[0].text;
-              }
-              // ----------------------------------------------------
-
-              const groundingMetadata = chunk.candidates?.[0]?.groundingMetadata;
-
-              if (text || groundingMetadata) {
+              if (text) {
                 // Send raw chunks as JSON
-                controller.enqueue(new TextEncoder().encode(JSON.stringify({ text, groundingMetadata }) + '\n'));
+                controller.enqueue(new TextEncoder().encode(JSON.stringify({ text }) + '\n'));
               }
             }
             controller.close();
@@ -90,13 +73,9 @@ Deno.serve(async (req: any) => {
         headers: { ...corsHeaders, 'Content-Type': 'application/x-ndjson' },
       });
     } else {
-      // Non-streaming fallback
-      const response = await ai.models.generateContent({
-        model: targetModel,
-        contents: prompt,
-        config: config
-      });
-      return new Response(JSON.stringify(response), {
+      const result = await generativeModel.generateContent(prompt);
+      const output = result.response;
+      return new Response(JSON.stringify(output), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
