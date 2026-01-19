@@ -23,6 +23,7 @@ const SubscriptionPage: React.FC<SubscriptionPageProps> = ({ onSuccess, onCancel
     const [couponMessage, setCouponMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
     const [discount, setDiscount] = useState(0);
     const [appliedCouponCode, setAppliedCouponCode] = useState<string | null>(null);
+    const [isValidatingCoupon, setIsValidatingCoupon] = useState(false);
 
     // Payment Modal State
     const [showPaymentModal, setShowPaymentModal] = useState(false);
@@ -43,10 +44,14 @@ const SubscriptionPage: React.FC<SubscriptionPageProps> = ({ onSuccess, onCancel
     ];
 
     const handleApplyCoupon = async () => {
-        if (!couponCode.trim()) return;
+        const code = couponCode.trim();
+        if (!code) return;
+
+        setIsValidatingCoupon(true);
         setCouponMessage(null);
+
         try {
-            const result = await validateCoupon(couponCode.trim(), 'pro');
+            const result = await validateCoupon(code, 'pro');
             if (result.valid && result.coupon) {
                 let calculatedDiscount = 0;
                 if (result.coupon.discountType === 'fixed') {
@@ -64,11 +69,13 @@ const SubscriptionPage: React.FC<SubscriptionPageProps> = ({ onSuccess, onCancel
             }
         } catch (error) {
             setCouponMessage({ type: 'error', text: 'Error validating coupon.' });
+        } finally {
+            setIsValidatingCoupon(false);
         }
     };
 
     const handleRequestInvoice = async () => {
-        if (!user) return;
+        if (!user || isLoading) return; // Prevent double-click
         setIsLoading(true);
         setApiError(null);
         try {
@@ -190,10 +197,10 @@ const SubscriptionPage: React.FC<SubscriptionPageProps> = ({ onSuccess, onCancel
                                 <button
                                     type="button"
                                     onClick={handleApplyCoupon}
-                                    disabled={!couponCode}
-                                    className="bg-gray-800 text-white px-4 py-2 rounded-md hover:bg-gray-900 disabled:bg-gray-400 transition-colors text-sm font-medium"
+                                    disabled={!couponCode || isValidatingCoupon}
+                                    className="bg-gray-800 text-white px-4 py-2 rounded-md hover:bg-gray-900 disabled:bg-gray-400 transition-colors text-sm font-medium min-w-[80px]"
                                 >
-                                    Apply
+                                    {isValidatingCoupon ? <LoadingIcon className="w-4 h-4 animate-spin mx-auto" /> : 'Apply'}
                                 </button>
                             </div>
                             {couponMessage && (

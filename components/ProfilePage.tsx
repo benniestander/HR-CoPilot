@@ -107,6 +107,21 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
         }
     };
 
+    const handleProfilePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (!e.target.files?.[0]) return;
+
+        const file = e.target.files[0];
+
+        // Chaos Monkey Fix: 5MB Upload Limit
+        if (file.size > 5 * 1024 * 1024) {
+            alert("The file is too large. Please upload an image smaller than 5MB.");
+            e.target.value = ''; // Reset input
+            setPhotoFile(null); // Clear the selected file state
+            return;
+        }
+        setPhotoFile(file);
+    };
+
     const handlePhotoUpload = async () => {
         if (!photoFile) return;
         setIsPhotoUploading(true);
@@ -193,7 +208,19 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
                                             {user.photoURL ? <img src={user.photoURL} alt="Profile" className="w-full h-full object-cover" /> : <UserIcon className="w-full h-full p-8 text-gray-300" />}
                                         </div>
                                         <button aria-label="Edit Profile Photo" onClick={() => photoInputRef.current?.click()} className="absolute -bottom-2 -right-2 p-2 bg-white text-secondary rounded-xl shadow-lg border border-gray-100"><EditIcon className="w-4 h-4" /></button>
-                                        <input type="file" ref={photoInputRef} onChange={(e) => { if (e.target.files?.[0]) setPhotoFile(e.target.files[0]) }} className="hidden" />
+                                        <input type="file" ref={photoInputRef} onChange={(e) => {
+                                            const file = e.target.files?.[0];
+                                            if (file) {
+                                                // Chaos Monkey Fix: 5MB Limit
+                                                if (file.size > 5 * 1024 * 1024) {
+                                                    alert('Image too large. Max 5MB allowed.');
+                                                    e.target.value = '';
+                                                    setPhotoFile(null);
+                                                } else {
+                                                    setPhotoFile(file);
+                                                }
+                                            }
+                                        }} className="hidden" />
                                     </div>
                                     <div className="text-center md:text-left">
                                         <h2 className="text-3xl font-black text-secondary">{user.name || 'Your Name'}</h2>
@@ -287,7 +314,18 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12">
                                     <div className="p-6 bg-gray-50 rounded-3xl">
                                         <h4 className="text-xs font-black uppercase text-secondary mb-4">Quick Upload</h4>
-                                        <input type="file" onChange={(e) => { if (e.target.files?.[0]) setSelectedFile(e.target.files[0]) }} className="w-full text-xs mb-4" />
+                                        <input type="file" onChange={(e) => {
+                                            const file = e.target.files?.[0];
+                                            if (file) {
+                                                if (file.size > 5 * 1024 * 1024) {
+                                                    alert('File too large. Max 5MB allowed.');
+                                                    e.target.value = '';
+                                                    setSelectedFile(null);
+                                                } else {
+                                                    setSelectedFile(file);
+                                                }
+                                            }
+                                        }} className="w-full text-xs mb-4" />
                                         <button onClick={handleUploadClick} disabled={!selectedFile || isUploading} className="w-full py-3 bg-secondary text-white text-xs font-black rounded-xl">Store File</button>
                                     </div>
                                     <div className="md:col-span-2">
