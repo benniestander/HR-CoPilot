@@ -1,4 +1,3 @@
-
 // @ts-ignore
 declare const Deno: any;
 
@@ -16,7 +15,7 @@ Deno.serve(async (req: any) => {
   }
 
   try {
-    // 1. Verify User (CRIT-2 Security: Key used only on server)
+    // 1. Verify User (Security: Key used only on server)
     const authHeader = req.headers.get('Authorization')!;
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
@@ -30,20 +29,25 @@ Deno.serve(async (req: any) => {
     }
 
     // 2. Initialize Gemini with Server-Side Key
-    // Check multiple common variable names for the API Key
     const apiKey = Deno.env.get('API_KEY') || Deno.env.get('GEMINI_API_KEY') || Deno.env.get('GOOGLE_API_KEY');
 
     if (!apiKey) {
       return new Response(JSON.stringify({ error: 'Server Configuration Error: Missing API_KEY' }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
+    // Initialize the new Google GenAI SDK
     const ai = new GoogleGenAI({ apiKey });
+
+    // Parse request body
     const { model, prompt, stream, config } = await req.json();
+
+    // Default to a safe model if none provided, but frontend sends 'gemini-3.5-flash' now
+    const targetModel = model || 'gemini-1.5-flash';
 
     // 3. Call AI
     if (stream) {
       const response = await ai.models.generateContentStream({
-        model: model || 'gemini-2.5-flash',
+        model: targetModel,
         contents: prompt,
         config: config
       });
@@ -53,7 +57,9 @@ Deno.serve(async (req: any) => {
           try {
             for await (const chunk of response) {
               let text = '';
-              // Handle differentiation between SDK versions (property vs function)
+
+              // -------- CRITICAL FIX: SDK TEXT EXTRACTION --------
+              // The new SDK can return text as a function OR a property depending on the version/response type.
               if (typeof chunk.text === 'function') {
                 text = chunk.text();
               } else if (typeof chunk.text === 'string') {
@@ -61,8 +67,8 @@ Deno.serve(async (req: any) => {
               } else if (chunk.candidates?.[0]?.content?.parts?.[0]?.text) {
                 text = chunk.candidates[0].content.parts[0].text;
               }
+              // ----------------------------------------------------
 
-              // CRITICAL: Extract grounding metadata to pass to client
               const groundingMetadata = chunk.candidates?.[0]?.groundingMetadata;
 
               if (text || groundingMetadata) {
@@ -74,7 +80,6 @@ Deno.serve(async (req: any) => {
           } catch (e) {
             console.error("Stream Error", e);
             const errorMsg = e instanceof Error ? e.message : 'Unknown stream error';
-            // Try to send error as a final chunk if possible
             try { controller.enqueue(new TextEncoder().encode(JSON.stringify({ error: errorMsg }) + '\n')); } catch { }
             controller.error(e);
           }
@@ -85,8 +90,9 @@ Deno.serve(async (req: any) => {
         headers: { ...corsHeaders, 'Content-Type': 'application/x-ndjson' },
       });
     } else {
+      // Non-streaming fallback
       const response = await ai.models.generateContent({
-        model: model || 'gemini-2.5-flash',
+        model: targetModel,
         contents: prompt,
         config: config
       });
