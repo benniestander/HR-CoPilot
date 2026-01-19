@@ -1,25 +1,36 @@
 import { supabase } from './supabase';
 
-interface ProcessPaymentParams {
-    token: string;
-    amountInCents: number;
-    currency?: string;
-    description: string;
-    metadata?: any;
-}
+export const paymentService = {
+    async processPayment(params: {
+        amountInCents: number;
+        currency?: string;
+        description?: string;
+        metadata?: any;
+        successUrl: string;
+        cancelUrl: string;
+    }) {
+        const { data, error } = await supabase.functions.invoke('process-payment', {
+            body: params,
+        });
 
-export const processYocoPayment = async (params: ProcessPaymentParams) => {
-    const { data, error } = await supabase.functions.invoke('process-payment', {
-        body: params,
-    });
+        // Supabase-js returns a generic error for non-2xx. 
+        // We try to get the specific reason from the data body if available.
+        if (error) {
+            const context = data?.error || error.message;
+            throw new Error(context);
+        }
+        return data;
+    },
 
-    if (error) {
-        throw new Error(error.message || 'Payment processing failed');
+    async verifyCheckout(checkoutId: string) {
+        const { data, error } = await supabase.functions.invoke('verify-checkout', {
+            body: { checkoutId },
+        });
+
+        if (error) {
+            const context = data?.error || error.message;
+            throw new Error(context);
+        }
+        return data; // { success: true, id: string }
     }
-
-    if (data.error) {
-        throw new Error(data.error);
-    }
-
-    return data;
 };

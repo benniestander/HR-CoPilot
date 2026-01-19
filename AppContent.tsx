@@ -36,6 +36,8 @@ const PlanSelectionPage = lazy(() => import('./components/PlanSelectionPage'));
 const SubscriptionPage = lazy(() => import('./components/SubscriptionPage'));
 const PaygPaymentPage = lazy(() => import('./components/PaygPaymentPage'));
 const KnowledgeBase = lazy(() => import('./components/KnowledgeBase'));
+const PaymentSuccessPage = lazy(() => import('./components/PaymentSuccessPage'));
+const TransactionsPage = lazy(() => import('./components/TransactionsPage'));
 
 
 const AppContent: React.FC = () => {
@@ -98,6 +100,25 @@ const AppContent: React.FC = () => {
         setShowOnboardingWalkthrough,
         setIsPrePaid
     } = useUIContext();
+
+    // Watch for Yoco Redirects (since standard redirects can't easily append to hash)
+    useEffect(() => {
+        const params = new URLSearchParams(window.location.search);
+        if (params.get('payment') === 'success') {
+            console.log("Detected success redirect from Yoco...");
+            navigateTo('payment-success' as any);
+            // Delay cleaning the URL slightly to let components read it if needed
+            setTimeout(() => {
+                window.history.replaceState({}, document.title, window.location.pathname + window.location.hash);
+            }, 500);
+        } else if (params.get('payment') === 'cancel') {
+            const lastView = window.location.hash.includes('upgrade') ? 'upgrade' : 'topup';
+            navigateTo(lastView as any);
+            setTimeout(() => {
+                window.history.replaceState({}, document.title, window.location.pathname + window.location.hash);
+            }, 500);
+        }
+    }, [navigateTo]);
 
     const { legalModalContent, showLegalModal, confirmation, hideConfirmationModal, showConfirmationModal } = useModalContext();
 
@@ -496,6 +517,19 @@ const AppContent: React.FC = () => {
                     onBack={handleBackToDashboard}
                     isPro={user?.plan === 'pro'}
                     onUpgrade={() => navigateTo('upgrade')}
+                />;
+            case 'transactions':
+                return <TransactionsPage
+                    onBack={() => navigateTo('profile')}
+                />;
+            case 'payment-success':
+                return <PaymentSuccessPage
+                    onVerified={() => {
+                        // Refresh data to show new balance/plan
+                        handleBackToDashboard();
+                        setToastMessage("Payment confirmed! Your account has been updated.");
+                    }}
+                    onBack={handleBackToDashboard}
                 />;
             default:
                 return <Dashboard

@@ -2,7 +2,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import type { Policy, Form, GeneratedDocument } from '../types';
 
-type View = 'dashboard' | 'generator' | 'updater' | 'checklist' | 'profile' | 'upgrade' | 'topup' | 'knowledge-base';
+type View = 'dashboard' | 'generator' | 'updater' | 'checklist' | 'profile' | 'upgrade' | 'topup' | 'knowledge-base' | 'payment-success' | 'transactions';
 
 interface UIContextType {
     currentView: View;

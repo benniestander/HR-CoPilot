@@ -28,12 +28,13 @@ interface AuthContextType {
   // Setters exposed for specific flows
   setUser: React.Dispatch<React.SetStateAction<User | null>>;
   setNeedsOnboarding: React.Dispatch<React.SetStateAction<boolean>>;
+  refetchProfile: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { user, setUser, unverifiedUser, isAdmin, isLoading, needsOnboarding, setNeedsOnboarding } = useAuth();
+  const { user, setUser, unverifiedUser, isAdmin, isLoading, needsOnboarding, setNeedsOnboarding, refetchProfile } = useAuth();
 
   const [authPage, setAuthPage] = useState<AuthPage>('landing');
   const [authEmail, setAuthEmail] = useState<string>('');
@@ -52,19 +53,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         name: 'John Galt',
         plan: 'pro',
         creditBalance: 50000, // R500.00
+        createdAt: new Date().toISOString(),
         profile: {
           companyName: 'Atlas Tech Corp',
           industry: 'Technology',
-          size: '50-100',
+          companySize: '50-100',
           complianceScore: 85,
-        },
+        } as any,
         transactions: [
           {
             id: 'tx-1',
             date: new Date().toISOString(),
             amount: 74700,
             description: 'HR CoPilot Pro Membership (Yearly)',
-            status: 'completed'
           }
         ]
       };
@@ -103,78 +104,38 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (error) throw error;
   };
 
-  const handleStartAuthFlow = async (flow: AuthFlow, email: string, details: any) => {
-    if (!isSupabaseConfigured) {
-      throw new Error("Configuration Error: Database connection details are missing.");
-    }
-
-    setAuthEmail(email);
+  const handleStartAuthFlow = (flow: AuthFlow, email: string, details: any) => {
     setAuthFlow(flow);
-
-    // Store temp details for profile creation after signup
-    window.localStorage.setItem('authFlow', flow);
-    window.localStorage.setItem('authDetails', JSON.stringify(details));
-
-    const { error } = await (supabase.auth as any).signUp({
-      email,
-      password: details.password,
-      options: {
-        data: {
-          full_name: details.name,
-          contact_number: details.contactNumber,
-        }
-      }
-    });
-
-    if (error) throw error;
+    setAuthEmail(email);
     setAuthPage('email-sent');
+
+    // Store details temporarily for profile creation after email verification
+    window.localStorage.setItem('authFlow', flow);
+    if (details) {
+      window.localStorage.setItem('authDetails', JSON.stringify(details));
+    }
   };
 
   const handleSkipOnboarding = () => {
     setOnboardingSkipped(true);
+    setNeedsOnboarding(false);
   };
 
   const handleGoToProfileSetup = () => {
-    setOnboardingSkipped(false);
     setNeedsOnboarding(true);
+    setOnboardingSkipped(false);
+    window.location.hash = '#/dashboard'; // Ensure we are on dashboard to see the setup
   };
 
-  // Calculate subscription status
   const isSubscribed = useMemo(() => {
-    if (!user) return false;
-
-    // Strict check: User must be on 'pro' plan AND have a valid transaction in the last year
-    if (user.plan === 'pro') {
-      const oneYearAgo = new Date();
-      oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
-
-      // If no transactions exist, they cannot be validly subscribed
-      if (!user.transactions || user.transactions.length === 0) {
-        return false;
-      }
-
-      // Find a qualifying transaction
-      const validTransaction = user.transactions.find(tx => {
-        const desc = tx.description ? tx.description.toLowerCase() : '';
-        const isSubTx = /subscription|pro plan|membership/i.test(desc);
-        const txDate = new Date(tx.date);
-        const isValidDate = !isNaN(txDate.getTime()) && txDate > oneYearAgo;
-        return isSubTx && isValidDate;
-      });
-
-      return !!validTransaction;
-    }
-    return false;
+    return user?.plan === 'pro';
   }, [user]);
 
   // HIGH-6 FIX: Ensure global loading state waits for profile hydration.
-  // If we have a user object but the profile is empty AND we aren't in "needsOnboarding" state (which is a valid state where profile is empty),
-  // then we are likely still fetching the profile details from DB.
-  // We check keys of user.profile. If empty, and we didn't explicitly flag 'needsOnboarding', assume fetching.
   const isProfileHydrating = !!user &&
     user.profile &&
-    Object.keys(user.profile).length <= 1 && // companyName/industry often defaults
-    !user.profile.companyName && // Critical field check
+    Object.keys(user.profile).length <= 1 &&
+    !user.profile.companyName &&
     !needsOnboarding;
 
   const combinedLoading = isLoading || isProfileHydrating;
@@ -199,6 +160,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     handleSkipOnboarding,
     handleGoToProfileSetup,
     isSubscribed,
+    refetchProfile,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

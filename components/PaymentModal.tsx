@@ -1,4 +1,8 @@
-import { useEffect, useCallback } from 'react';
+
+import React, { useEffect, useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { LoadingIcon, WarningIcon } from './Icons';
+import { paymentService } from '../services/paymentService';
 
 interface PaymentModalProps {
     amountInCents: number;
@@ -11,118 +15,122 @@ interface PaymentModalProps {
     onError: (error: string) => void;
 }
 
-declare global {
-    interface Window {
-        YocoSDK: any;
-    }
-}
-
 export const PaymentModal: React.FC<PaymentModalProps> = ({
     amountInCents,
     currency = 'ZAR',
     metadata,
-    publicKey,
-    onSuccess,
     onCancel,
     onError,
 }) => {
-
-    const initializePayment = useCallback(() => {
-        if (!window.YocoSDK) {
-            console.error("Yoco SDK not available");
-            onError("Payment system failed to load. Please refresh and try again.");
-            onCancel();
-            return;
-        }
-
-        try {
-            console.log("Initializing Yoco with key:", publicKey.substring(0, 15) + "...");
-
-            const yoco = new window.YocoSDK({
-                publicKey: publicKey,
-            });
-
-            yoco.showPopup({
-                amountInCents: amountInCents,
-                currency: currency,
-                name: 'HR CoPilot',
-                description: 'Payment',
-                metadata: metadata || {},
-                callback: function (result: any) {
-                    if (result.error) {
-                        console.error("Yoco Error:", result.error);
-                        onError(result.error.message || "Payment was declined.");
-                        onCancel();
-                    } else {
-                        console.log("Yoco Success, token:", result.id);
-                        onSuccess(result);
-                    }
-                },
-                onClose: function () {
-                    console.log("Yoco popup closed by user");
-                    onCancel();
-                }
-            });
-
-        } catch (err: any) {
-            console.error("Yoco Init Error:", err);
-            onError("Could not initialize payment: " + err.message);
-            onCancel();
-        }
-    }, [amountInCents, currency, metadata, publicKey, onSuccess, onCancel, onError]);
+    const [status, setStatus] = useState<'initializing' | 'error'>('initializing');
+    const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
     useEffect(() => {
-        // Load SDK or use existing
-        const loadAndInit = () => {
-            if (window.YocoSDK) {
-                console.log("Yoco SDK already loaded");
-                initializePayment();
-                return;
-            }
+        const startCheckout = async () => {
+            try {
+                // Construct success/cancel URLs based on current location
+                const baseUrl = window.location.origin + window.location.pathname;
+                // Yoco Checkout API will redirect to these URLs. 
+                // We use standard query params for the initial redirect to avoid 400 errors from Yoco regarding '#' or '{ }' characters.
+                const successUrl = `${baseUrl}?payment=success`;
+                const cancelUrl = `${baseUrl}?payment=cancel`;
 
-            // Check if script is already in DOM
-            const existingScript = document.querySelector('script[src*="yoco-sdk"]');
-            if (existingScript) {
-                // Script exists, check if SDK is available
-                const checkSDK = setInterval(() => {
-                    if (window.YocoSDK) {
-                        clearInterval(checkSDK);
-                        initializePayment();
+                console.log("Creating checkout session with URLs:", { successUrl, cancelUrl });
+                const result = await paymentService.processPayment({
+                    amountInCents,
+                    currency,
+                    metadata: {
+                        userId: metadata?.userId, // Explicitly pass userId
+                        type: metadata?.type,
+                        description: metadata?.type === 'topup' ? `Credit Top-up: R${(amountInCents / 100).toFixed(2)}` : 'Pro Subscription'
+                    },
+                    successUrl,
+                    cancelUrl
+                });
+
+                if (result.redirectUrl) {
+                    console.log("Redirecting to Yoco Checkout:", result.redirectUrl);
+                    // Store the ID locally so we can verify it on return (since Yoco hates { } in URLs)
+                    if (result.checkoutId) {
+                        localStorage.setItem('pendingCheckoutId', result.checkoutId);
                     }
-                }, 100);
-
-                // Timeout after 5 seconds
-                setTimeout(() => {
-                    clearInterval(checkSDK);
-                    if (!window.YocoSDK) {
-                        onError("Payment gateway timed out. Please try again.");
-                        onCancel();
-                    }
-                }, 5000);
-                return;
+                    // Small delay so user sees we are doing something
+                    setTimeout(() => {
+                        window.location.href = result.redirectUrl;
+                    }, 800);
+                } else {
+                    throw new Error("No redirect URL received from Yoco.");
+                }
+            } catch (err: any) {
+                console.error("Checkout Error:", err);
+                setStatus('error');
+                setErrorMessage(err.message || "Failed to start payment session. Please try again.");
+                onError(err.message || "Checkout failed");
             }
-
-            // Load fresh
-            const script = document.createElement('script');
-            script.src = "https://js.yoco.com/sdk/v1/yoco-sdk-web.js";
-            script.async = true;
-            script.onload = () => {
-                console.log("Yoco SDK loaded");
-                // Small delay to ensure SDK is ready
-                setTimeout(() => initializePayment(), 50);
-            };
-            script.onerror = () => {
-                console.error("Failed to load Yoco SDK");
-                onError("Failed to load payment gateway. Please try again.");
-                onCancel();
-            };
-            document.head.appendChild(script);
         };
 
-        loadAndInit();
-    }, [initializePayment, onCancel, onError]);
+        startCheckout();
+    }, [amountInCents, currency, metadata, onError]);
 
-    // DON'T render any overlay - let Yoco's popup be the only visible element
-    // This prevents our backdrop from blocking Yoco's input fields
-    return null;
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-secondary/40 backdrop-blur-sm">
+            <AnimatePresence mode="wait">
+                {status === 'initializing' && (
+                    <motion.div
+                        key="init"
+                        initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        exit={{ opacity: 0, scale: 1.1 }}
+                        className="bg-white p-10 rounded-3xl shadow-2xl max-w-sm w-full text-center"
+                    >
+                        <div className="flex justify-center mb-8">
+                            <div className="relative">
+                                <LoadingIcon className="w-16 h-16 text-primary animate-spin" />
+                                <div className="absolute inset-0 flex items-center justify-center">
+                                    <div className="w-8 h-8 bg-white rounded-full" />
+                                </div>
+                            </div>
+                        </div>
+                        <h3 className="text-xl font-bold text-secondary mb-2">Preparing Payment</h3>
+                        <p className="text-gray-500 mb-6">Securing your session with Yoco. You will be redirected to their payment page in a moment...</p>
+                        <div className="flex items-center space-x-2 justify-center text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                            <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+                            <span>Secure Connection</span>
+                        </div>
+                    </motion.div>
+                )}
+
+                {status === 'error' && (
+                    <motion.div
+                        key="error"
+                        initial={{ opacity: 0, scale: 0.9 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        className="bg-white p-10 rounded-3xl shadow-2xl max-w-sm w-full text-center border border-red-100"
+                    >
+                        <div className="flex justify-center mb-6">
+                            <WarningIcon className="w-16 h-16 text-red-500" />
+                        </div>
+                        <h3 className="text-xl font-bold text-secondary mb-2">Checkout Error</h3>
+                        <p className="text-red-500 text-sm mb-6">{errorMessage}</p>
+                        <div className="flex flex-col space-y-3">
+                            <button
+                                onClick={() => window.location.reload()}
+                                className="w-full py-3 bg-primary text-white font-bold rounded-xl shadow-lg hover:shadow-primary/20 transition-all"
+                            >
+                                Refresh Page
+                            </button>
+                            <button
+                                onClick={onCancel}
+                                className="w-full py-3 bg-gray-100 text-gray-600 font-bold rounded-xl hover:bg-gray-200 transition-all"
+                            >
+                                Cancel
+                            </button>
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+        </div>
+    );
 };
+
+export default PaymentModal;

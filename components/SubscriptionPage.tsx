@@ -3,7 +3,6 @@ import { CheckIcon, LoadingIcon, CouponIcon, FileIcon, ShieldCheckIcon, CreditCa
 import { useAuthContext } from '../contexts/AuthContext';
 import { submitInvoiceRequest, validateCoupon } from '../services/dbService';
 import { emailService } from '../services/emailService';
-import { processYocoPayment } from '../services/paymentService';
 import { PaymentModal } from './PaymentModal';
 import { useDataContext } from '../contexts/DataContext';
 
@@ -85,26 +84,9 @@ const SubscriptionPage: React.FC<SubscriptionPageProps> = ({ onSuccess, onCancel
         }
     };
 
-    const handlePaymentSuccess = async (result: any) => {
-        try {
-            await processYocoPayment({
-                token: result.id,
-                amountInCents: finalAmount,
-                description: `Pro Subscription (12 Months)`,
-                metadata: {
-                    userId: user?.uid,
-                    type: 'subscription',
-                    couponCode: appliedCouponCode,
-                }
-            });
-            setShowPaymentModal(false);
-            onSuccess();
-        } catch (err: any) {
-            console.error("Pro Payment Failed", err);
-            setPaymentError(err.message || "Payment failed.");
-            alert(`Payment failed: ${err.message}`);
-            setShowPaymentModal(false);
-        }
+    const handlePaymentSuccess = (result: any) => {
+        setShowPaymentModal(false);
+        onSuccess();
     };
 
     if (isRequestSent) {

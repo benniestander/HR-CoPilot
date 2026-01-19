@@ -3,7 +3,6 @@ import { CreditCardIcon, LoadingIcon, ShieldCheckIcon, CouponIcon, FileIcon, Che
 import { useAuthContext } from '../contexts/AuthContext';
 import { submitInvoiceRequest, validateCoupon } from '../services/dbService';
 import { emailService } from '../services/emailService';
-import { processYocoPayment } from '../services/paymentService';
 import { PaymentModal } from './PaymentModal';
 import { useDataContext } from '../contexts/DataContext';
 
@@ -99,27 +98,9 @@ const PaygPaymentPage: React.FC<PaygPaymentPageProps> = ({ onTopUpSuccess, onCan
         }
     };
 
-    const handlePaymentSuccess = async (result: any) => {
-        try {
-            await processYocoPayment({
-                token: result.id,
-                amountInCents: finalAmount,
-                description: `Credit Top-Up (PAYG)`,
-                metadata: {
-                    userId: user?.uid,
-                    type: 'topup',
-                    couponCode: appliedCouponCode,
-                    description: `Credit Top-Up (PAYG)`
-                }
-            });
-            setShowPaymentModal(false);
-            onTopUpSuccess(finalAmount);
-        } catch (err: any) {
-            console.error("Payment Verification Failed", err);
-            setPaymentError(err.message || "Payment verification failed.");
-            alert(`Payment failed: ${err.message}`);
-            setShowPaymentModal(false);
-        }
+    const handlePaymentSuccess = (result: any) => {
+        setShowPaymentModal(false);
+        onTopUpSuccess(finalAmount);
     };
 
     if (isRequestSent) {

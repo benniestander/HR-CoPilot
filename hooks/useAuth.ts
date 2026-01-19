@@ -17,7 +17,7 @@ export const useAuth = () => {
             return null;
         }
     });
-    
+
     const [unverifiedUser, setUnverifiedUser] = useState<any | null>(null);
     const [isAdmin, setIsAdmin] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
@@ -83,7 +83,7 @@ export const useAuth = () => {
                 setUser(appUser);
                 setIsAdmin(!!appUser.isAdmin);
                 window.localStorage.setItem(USER_CACHE_KEY, JSON.stringify(appUser));
-                
+
                 if (!appUser.profile.companyName) setNeedsOnboarding(true);
                 else setNeedsOnboarding(false);
 
@@ -92,24 +92,24 @@ export const useAuth = () => {
                 const flow = window.localStorage.getItem('authFlow') as AuthFlow | null;
                 const detailsJson = window.localStorage.getItem('authDetails');
                 const details = detailsJson ? JSON.parse(detailsJson) : null;
-                
+
                 let plan: 'pro' | 'payg' = 'payg';
                 if (flow === 'signup') plan = 'pro';
 
                 try {
                     appUser = await createUserProfile(
-                        sbUser.id, 
-                        sbUser.email!, 
-                        plan, 
-                        details?.name || sbUser.user_metadata?.full_name, 
+                        sbUser.id,
+                        sbUser.email!,
+                        plan,
+                        details?.name || sbUser.user_metadata?.full_name,
                         details?.contactNumber
                     );
-                    
+
                     setUser(appUser);
                     setIsAdmin(false);
                     window.localStorage.setItem(USER_CACHE_KEY, JSON.stringify(appUser));
                     setNeedsOnboarding(true); // New profiles usually need onboarding
-                    
+
                     // Clean up temp storage
                     window.localStorage.removeItem('authFlow');
                     window.localStorage.removeItem('authDetails');
@@ -126,5 +126,18 @@ export const useAuth = () => {
         }
     };
 
-    return { user, setUser, unverifiedUser, isAdmin, isLoading, needsOnboarding, setNeedsOnboarding };
+    const refetchProfile = async () => {
+        if (!user) return;
+        try {
+            const updated = await getUserProfile(user.uid);
+            if (updated) {
+                setUser(updated);
+                window.localStorage.setItem(USER_CACHE_KEY, JSON.stringify(updated));
+            }
+        } catch (error) {
+            console.error("Failed to refetch profile", error);
+        }
+    };
+
+    return { user, setUser, unverifiedUser, isAdmin, isLoading, needsOnboarding, setNeedsOnboarding, refetchProfile };
 };
