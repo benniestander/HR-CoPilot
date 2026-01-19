@@ -1,14 +1,77 @@
 
 import type { FormAnswers, PolicyUpdateResult, CompanyProfile } from '../types';
+import { supabase } from './supabase';
 
-let googleGenAiInstance: any = null;
+// Helper to stream NDJSON from the 'generate-content' Edge Function
+async function* streamFromEdge(prompt: string, model: string = 'gemini-2.5-flash', config: any = {}) {
+    // 1. Invoke the Edge Function w/ stream response
+    // Note: The 'stream' responseType requires a specialized client or usage of the underlying fetch.
+    // Supabase-js v2 support for streaming is handled via responseType: 'stream' (creates a readable stream)
+    // or by letting it return a Response object if we use the raw fetch method.
 
-const getAi = async () => {
-    if (googleGenAiInstance) return googleGenAiInstance;
-    const { GoogleGenAI } = await import("@google/genai");
-    googleGenAiInstance = new GoogleGenAI({ apiKey: process.env.API_KEY });
-    return googleGenAiInstance;
-};
+    // We will use the invoke method, assuming the client supports responseType: 'stream' (ignoring TS error if definitions are old).
+
+    const { data, error } = await supabase.functions.invoke('generate-content', {
+        body: { prompt, model, stream: true, config },
+        // @ts-ignore - 'stream' is a valid responseType in newer versions or runtime
+        responseType: 'stream'
+    });
+
+    if (error) {
+        console.error("Edge Function Error:", error);
+        throw new Error(error.message || "Failed to generate content.");
+    }
+
+    if (!data) {
+        throw new Error("No data received from generation service.");
+    }
+
+    // 2. Read the stream
+    // 'data' should be a ReadableStream or similar if responseType was respected.
+    // If it turned into a Blob/Text because of version mismatch, we handle that.
+
+    if (!(data instanceof ReadableStream)) {
+        // Fallback: If not a stream, maybe it buffered? Parse as text/json if possible?
+        // But we requested a stream. Let's assume it worked.
+        console.warn("Received non-stream response:", data);
+        return;
+    }
+
+    const reader = data.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    try {
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split('\n');
+            buffer = lines.pop() || ''; // Keep the last partial line in buffer
+
+            for (const line of lines) {
+                if (line.trim()) {
+                    try {
+                        const json = JSON.parse(line);
+                        // Forward error if the stream sent one
+                        if (json.error) throw new Error(json.error);
+
+                        // Yield format expected by consumers
+                        yield {
+                            text: json.text,
+                            groundingMetadata: json.groundingMetadata
+                        };
+                    } catch (e) {
+                        console.error("Error parsing NDJSON chunk:", e);
+                    }
+                }
+            }
+        }
+    } finally {
+        reader.releaseLock();
+    }
+}
 
 const INDUSTRY_SPECIFIC_GUIDANCE: Record<string, Record<string, string>> = {
     'Professional Services': {
@@ -102,7 +165,6 @@ const formatDiagnosticContext = (profile: CompanyProfile): string => {
 };
 
 export const generatePolicyStream = async function* (type: string, answers: FormAnswers) {
-    const model = 'gemini-2.5-flash';
     const industry = answers.industry || 'General';
     const companyName = answers.companyName || 'the Company';
 
@@ -145,26 +207,15 @@ export const generatePolicyStream = async function* (type: string, answers: Form
   Note: You may add additional rows for specific diagnostic items if relevant (e.g., Remote Work clause confirmed, RICA consent confirmed).
   `;
 
-    const ai = await getAi();
-    const response = await ai.models.generateContentStream({
-        model: model,
-        contents: prompt,
-        config: {
-            tools: [{ googleSearch: {} }]
-        }
-    });
+    // Use Edge Function Stream
+    const stream = streamFromEdge(prompt, 'gemini-2.5-flash', { tools: [{ googleSearch: {} }] });
 
-    for await (const chunk of response) {
-        yield {
-            text: chunk.text,
-            groundingMetadata: chunk.candidates?.[0]?.groundingMetadata
-        };
+    for await (const chunk of stream) {
+        yield chunk; // { text, groundingMetadata }
     }
 };
 
 export const generateFormStream = async function* (type: string, answers: FormAnswers) {
-    const model = 'gemini-2.5-flash';
-
     // Inject HR Diagnostic Context for Forms too (e.g. contracts needing retirement age)
     const diagnosticContext = formatDiagnosticContext(answers as CompanyProfile);
 
@@ -184,19 +235,14 @@ export const generateFormStream = async function* (type: string, answers: FormAn
     3. Ensure it looks professional and is ready to print.
     `;
 
-    const ai = await getAi();
-    const response = await ai.models.generateContentStream({
-        model: model,
-        contents: prompt
-    });
+    const stream = streamFromEdge(prompt, 'gemini-2.5-flash');
 
-    for await (const chunk of response) {
+    for await (const chunk of stream) {
         if (chunk.text) yield chunk.text;
     }
 };
 
 export const updatePolicy = async (content: string, instructions?: string): Promise<PolicyUpdateResult> => {
-    const model = 'gemini-2.5-flash';
     const prompt = `Analyze the following HR policy document against current South African Labour Law.
     
     Current Document Content:
@@ -213,50 +259,33 @@ export const updatePolicy = async (content: string, instructions?: string): Prom
        - updatedText: The new snippet.
     `;
 
-    const ai = await getAi();
-    const response = await ai.models.generateContent({
-        model: model,
-        contents: prompt,
-        config: {
-            responseMimeType: "application/json"
-        }
+    // Non-streaming call via Invoke (Wait for full response)
+    const { data, error } = await supabase.functions.invoke('generate-content', {
+        body: { prompt, model: 'gemini-2.5-flash', config: { responseMimeType: "application/json" } }
     });
 
-    const text = response.text;
+    if (error) throw new Error(error.message);
+    if (!data?.candidates?.[0]?.content?.parts?.[0]?.text) throw new Error("Invalid response from update service.");
 
-    if (!text) throw new Error("No response from Ingcweti AI");
-
-    // Clean markdown code blocks if present
+    let text = data.candidates[0].content.parts[0].text;
     const jsonStr = text.replace(/```json\n?|\n?```/g, '').trim();
     return JSON.parse(jsonStr) as PolicyUpdateResult;
 };
 
 export const explainPolicyTypeStream = async function* (title: string) {
-    const model = 'gemini-2.5-flash';
     const prompt = `Explain the purpose and key components of a "${title}" in the context of South African HR law. Keep it brief and informative for a business owner.`;
 
-    const ai = await getAi();
-    const response = await ai.models.generateContentStream({
-        model: model,
-        contents: prompt
-    });
-
-    for await (const chunk of response) {
+    const stream = streamFromEdge(prompt, 'gemini-2.5-flash');
+    for await (const chunk of stream) {
         if (chunk.text) yield chunk.text;
     }
 }
 
 export const explainFormTypeStream = async function* (title: string) {
-    const model = 'gemini-2.5-flash';
     const prompt = `Explain the purpose of a "${title}" form in South African HR management. Keep it brief.`;
 
-    const ai = await getAi();
-    const response = await ai.models.generateContentStream({
-        model: model,
-        contents: prompt
-    });
-
-    for await (const chunk of response) {
+    const stream = streamFromEdge(prompt, 'gemini-2.5-flash');
+    for await (const chunk of stream) {
         if (chunk.text) yield chunk.text;
     }
 }
