@@ -3,7 +3,7 @@ import type { FormAnswers, PolicyUpdateResult, CompanyProfile } from '../types';
 import { supabase } from './supabase';
 
 // Helper to stream NDJSON from the 'generate-content' Edge Function
-async function* streamFromEdge(prompt: string, model: string = 'gemini-1.5-pro', config: any = {}) {
+async function* streamFromEdge(prompt: string, model: string = 'gemini-3.5-flash', config: any = {}) {
     // 1. Invoke the Edge Function w/ stream response
     // Note: The 'stream' responseType requires a specialized client or usage of the underlying fetch.
     // Supabase-js v2 support for streaming is handled via responseType: 'stream' (creates a readable stream)
@@ -208,7 +208,7 @@ export const generatePolicyStream = async function* (type: string, answers: Form
   `;
 
     // Use Edge Function Stream
-    const stream = streamFromEdge(prompt, 'gemini-1.5-pro', { tools: [{ googleSearch: {} }] });
+    const stream = streamFromEdge(prompt, 'gemini-3.5-flash', { tools: [{ googleSearch: {} }] });
 
     for await (const chunk of stream) {
         yield chunk; // { text, groundingMetadata }
@@ -235,7 +235,7 @@ export const generateFormStream = async function* (type: string, answers: FormAn
     3. Ensure it looks professional and is ready to print.
     `;
 
-    const stream = streamFromEdge(prompt, 'gemini-1.5-pro');
+    const stream = streamFromEdge(prompt, 'gemini-3.5-flash');
 
     for await (const chunk of stream) {
         if (chunk.text) yield chunk.text;
@@ -261,7 +261,7 @@ export const updatePolicy = async (content: string, instructions?: string): Prom
 
     // Non-streaming call via Invoke (Wait for full response)
     const { data, error } = await supabase.functions.invoke('generate-content', {
-        body: { prompt, model: 'gemini-1.5-pro', config: { responseMimeType: "application/json" } }
+        body: { prompt, model: 'gemini-3.5-flash', config: { responseMimeType: "application/json" } }
     });
 
     if (error) throw new Error(error.message);
