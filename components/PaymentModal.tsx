@@ -1,135 +1,126 @@
-
-import React, { useState } from 'react';
-import { LoadingIcon, FileIcon, CheckIcon } from './Icons';
-import { submitInvoiceRequest } from '../services/dbService';
-import { emailService } from '../services/emailService';
-import { useAuthContext } from '../contexts/AuthContext';
+import React, { useEffect, useRef, useState } from 'react';
+import { LoadingIcon, LockIcon } from './Icons';
 
 interface PaymentModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  onSuccess: () => void;
-  amountInCents: number;
-  itemName: string;
+    amountInCents: number;
+    currency?: string;
+    metadata?: any;
+    userEmail: string;
+    publicKey: string;
+    onSuccess: (result: any) => void;
+    onCancel: () => void;
+    onError: (error: string) => void;
 }
 
-const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onSuccess, amountInCents, itemName }) => {
-  const { user } = useAuthContext();
-  const [isLoading, setIsLoading] = useState(false);
-  const [isSuccess, setIsSuccess] = useState(false);
-  const [apiError, setApiError] = useState<string | null>(null);
-
-  if (!isOpen) return null;
-  
-  const handleRequestInvoice = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!user) return;
-
-    setIsLoading(true);
-    setApiError(null);
-
-    try {
-        // 1. Create Admin Notification
-        const reference = await submitInvoiceRequest(
-            user.uid,
-            user.email,
-            'payg',
-            amountInCents,
-            itemName
-        );
-
-        // 2. Send Email
-        await emailService.sendInvoiceInstructions(
-            user.email,
-            user.name || 'Customer',
-            amountInCents,
-            reference,
-            itemName
-        );
-
-        setIsSuccess(true);
-        // We do NOT call onSuccess() immediately because that triggers the "Document Generated" flow.
-        // The user must wait for credits to be added manually.
-
-    } catch (error: any) {
-        console.error("Invoice request error:", error);
-        setApiError("Failed to request invoice. Please try again.");
-    } finally {
-        setIsLoading(false);
+declare global {
+    interface Window {
+        YocoSDK: any;
     }
-  };
+}
 
-  if (isSuccess) {
-      return (
-        <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-lg shadow-xl w-full max-w-sm flex flex-col p-6 text-center">
-                <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-green-100 mb-4">
-                    <CheckIcon className="h-6 w-6 text-green-600" />
-                </div>
-                <h2 className="text-xl font-bold text-secondary mb-2">Request Sent</h2>
-                <p className="text-gray-600 text-sm mb-6">
-                    Please check your email for the invoice and banking details. Your credits will be added once payment is received.
-                </p>
-                <button onClick={onClose} className="w-full bg-primary text-white font-bold py-2 px-4 rounded-md hover:bg-opacity-90">
-                    Close
-                </button>
-            </div>
-        </div>
-      );
-  }
+export const PaymentModal: React.FC<PaymentModalProps> = ({
+    amountInCents,
+    currency = 'ZAR',
+    metadata,
+    userEmail,
+    publicKey,
+    onSuccess,
+    onCancel,
+    onError,
+}) => {
+    const [sdkLoaded, setSdkLoaded] = useState(false);
+    const [processing, setProcessing] = useState(false);
+    const yocoContainerRef = useRef<HTMLDivElement>(null);
 
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center p-4" onClick={onClose}>
-      <div 
-        className="bg-white rounded-lg shadow-xl w-full max-w-sm flex flex-col max-h-[90vh]"
-        onClick={(e) => e.stopPropagation()}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="payment-title"
-      >
-        <div className="p-6 border-b border-gray-200 text-center flex-shrink-0">
-          <h2 id="payment-title" className="text-xl font-bold text-secondary">One-Time Purchase</h2>
-          <p className="text-gray-600 mt-1 text-sm">Request an invoice to pay via EFT.</p>
-        </div>
-        
-        <div className="p-6 md:p-8 overflow-y-auto">
-            <div className="text-center mb-6">
-                <p className="text-sm text-gray-500">{itemName}</p>
-                <p className="text-4xl font-bold text-secondary my-2">
-                    R{(amountInCents / 100).toFixed(2)}
-                </p>
-            </div>
+    useEffect(() => {
+        // Check if script is already loaded
+        if (window.YocoSDK) {
+            setSdkLoaded(true);
+            return;
+        }
 
-            <div className="bg-gray-50 p-4 rounded-md text-left text-sm text-gray-600 mb-4 border border-gray-200">
-                <p><strong>Note:</strong> Since this is a manual EFT payment, your credits will not reflect immediately.</p>
-            </div>
+        // Load Yoco SDK
+        const script = document.createElement('script');
+        script.src = "https://js.yoco.com/sdk/v1/yoco-sdk-web.js";
+        script.async = true;
+        script.onload = () => setSdkLoaded(true);
+        script.onerror = () => onError("Failed to load payment gateway.");
+        document.body.appendChild(script);
 
-            {apiError && <p className="text-xs text-red-600 text-center mb-4">{apiError}</p>}
+        return () => {
+            // Cleanup if needed
+        };
+    }, [onError]);
 
-            <button
-                onClick={handleRequestInvoice}
-                disabled={isLoading}
-                className="w-full bg-primary text-white font-bold py-3 px-4 rounded-md hover:bg-opacity-90 disabled:bg-gray-400 transition-colors flex items-center justify-center"
-            >
-                {isLoading ? (
-                <>
-                    <LoadingIcon className="animate-spin -ml-1 mr-3 h-5 w-5" />
-                    Sending Request...
-                </>
+    useEffect(() => {
+        if (sdkLoaded && yocoContainerRef.current && !processing) {
+            try {
+                const yoco = new window.YocoSDK({
+                    publicKey: publicKey,
+                });
+
+                yoco.showPopup({
+                    amountInCents: amountInCents,
+                    currency: currency,
+                    name: 'HR CoPilot',
+                    description: metadata?.description || 'Payment',
+                    email: userEmail,
+                    metadata: metadata,
+                    callback: async (result: any) => {
+                        if (result.error) {
+                            onError(result.error.message);
+                            // Don't close immediately on error, allow retry? 
+                            // Yoco popup handles retries usually, but if callback fires with error it usually closes.
+                            onCancel();
+                        } else {
+                            setProcessing(true);
+                            // Token received, now verify on backend
+                            onSuccess(result);
+                        }
+                    },
+                });
+
+                // Note: Yoco Inline is different from Popup. 
+                // If we want Inline we target a Div. 
+                // For Popup, the showPopup method handles UI. 
+                // This component essentially just triggers the popup.
+
+            } catch (err: any) {
+                console.error("Yoco Init Error:", err);
+                onError("Could not initialize payment system.");
+            }
+        }
+    }, [sdkLoaded, publicKey, amountInCents, currency, userEmail, metadata, onSuccess, onError, onCancel, processing]);
+
+    // Since Yoco Popup manages its own UI overlay, we might just want to show a backdrop 
+    // or a "Waiting for payment" state if the popup is active.
+    // However, calling showPopup usually creates an iframe/overlay.
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+            <div className="bg-white p-8 rounded-xl shadow-2xl max-w-sm w-full text-center">
+                {processing ? (
+                    <>
+                        <LoadingIcon className="w-12 h-12 text-primary mx-auto animate-spin mb-4" />
+                        <h3 className="text-xl font-bold text-gray-900">Processing Payment...</h3>
+                        <p className="text-gray-500 mt-2">Please wait while we confirm your transaction securely.</p>
+                    </>
                 ) : (
                     <>
-                        <FileIcon className="w-5 h-5 mr-2" />
-                        Request Invoice
+                        <div className="bg-primary/10 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <LockIcon className="w-8 h-8 text-primary" />
+                        </div>
+                        <h3 className="text-xl font-bold text-gray-900">Secure Payment</h3>
+                        <p className="text-gray-500 mt-2 mb-6">Connecting to Yoco Secure Gateway...</p>
+                        <button
+                            onClick={onCancel}
+                            className="text-gray-400 hover:text-gray-600 text-sm font-medium underline"
+                        >
+                            Cancel Transaction
+                        </button>
                     </>
                 )}
-            </button>
-            <button onClick={onClose} className="mt-3 text-sm text-gray-500 hover:text-gray-800 w-full text-center">
-                Cancel
-            </button>
+            </div>
         </div>
-      </div>
-    </div>
-  );
+    );
 };
-
-export default PaymentModal;

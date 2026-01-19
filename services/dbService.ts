@@ -1,16 +1,16 @@
 import { supabase } from './supabase';
 import { emailService } from './emailService';
-import type { 
-    User, 
-    GeneratedDocument, 
-    Transaction, 
-    AdminActionLog, 
-    AdminNotification, 
-    UserFile, 
-    Coupon, 
-    CompanyProfile, 
+import type {
+    User,
+    GeneratedDocument,
+    Transaction,
+    AdminActionLog,
+    AdminNotification,
+    UserFile,
+    Coupon,
+    CompanyProfile,
     PolicyDraft,
-    Policy, 
+    Policy,
     Form,
     InvoiceRequest
 } from '../types';
@@ -44,8 +44,8 @@ export const getUserProfile = async (uid: string): Promise<User | null> => {
 
 export const createUserProfile = async (uid: string, email: string, plan: 'pro' | 'payg', name?: string, contactNumber?: string): Promise<User> => {
     const { data, error } = await supabase.from('profiles').insert({
-            id: uid, email, plan, full_name: name, contact_number: contactNumber, credit_balance: 0, created_at: new Date().toISOString(),
-        }).select().single();
+        id: uid, email, plan, full_name: name, contact_number: contactNumber, credit_balance: 0, created_at: new Date().toISOString(),
+    }).select().single();
     if (error) throw error;
     return {
         uid: data.id, email: data.email, name: data.full_name, contactNumber: data.contact_number, plan: data.plan, creditBalance: 0, createdAt: data.created_at, isAdmin: false, profile: { companyName: '', industry: '' }, transactions: [],
@@ -109,9 +109,9 @@ export const addTransactionToUser = async (uid: string, transaction: Partial<Tra
 // --- INVOICE REQUESTS ---
 
 export const submitInvoiceRequest = async (
-    userId: string, 
-    userEmail: string, 
-    requestType: 'pro' | 'payg', 
+    userId: string,
+    userEmail: string,
+    requestType: 'pro' | 'payg',
     amountInCents: number,
     description: string
 ) => {
@@ -148,11 +148,11 @@ export const getOpenInvoiceRequests = async (): Promise<InvoiceRequest[]> => {
         const emailMatch = msg.match(/INVOICE REQUEST: (\S+)/);
         const amountMatch = msg.match(/Amount: R([\d\.]+)/);
         const refMatch = msg.match(/Ref: (\S+)/);
-        
+
         const isPro = msg.toLowerCase().includes('pro subscription') || msg.toLowerCase().includes('pro plan');
-        
+
         return {
-            id: n.id, 
+            id: n.id,
             date: n.created_at || n.timestamp, // Fallback for safety
             userId: n.related_user_id,
             userEmail: emailMatch ? emailMatch[1] : 'Unknown',
@@ -173,7 +173,7 @@ export const processManualOrder = async (adminEmail: string, request: InvoiceReq
     }
     await supabase.from('admin_notifications').update({ is_read: true }).eq('id', request.id);
     await logAdminAction('Processed Manual Order', request.userId, { amount: request.amount, type: request.type, reference: request.reference });
-    
+
     const { data: userProfile } = await supabase.from('profiles').select('full_name').eq('id', request.userId).single();
     const userName = userProfile?.full_name || 'Customer';
     await emailService.sendActivationConfirmation(request.userEmail, userName, request.type, request.amount);
@@ -244,7 +244,7 @@ export const changeUserPlanByAdmin = async (adminEmail: string, targetUid: strin
 
 export const grantProPlanByAdmin = async (adminEmail: string, targetUid: string) => {
     await supabase.from('profiles').update({ plan: 'pro' }).eq('id', targetUid);
-    await addTransactionToUser(targetUid, { description: 'Pro Plan (Admin Grant)', amount: 0 }); 
+    await addTransactionToUser(targetUid, { description: 'Pro Plan (Admin Grant)', amount: 0 });
     await logAdminAction('Granted Pro Plan', targetUid);
 };
 
@@ -262,6 +262,30 @@ export const getPricingSettings = async () => {
     const { data: settings } = await supabase.from('app_settings').select('*');
     const { data: docPrices } = await supabase.from('document_prices').select('*');
     return { settings: settings || [], docPrices: docPrices || [] };
+};
+
+export const getAppSetting = async (key: string): Promise<any> => {
+    const { data, error } = await supabase
+        .from('app_settings')
+        .select('value')
+        .eq('key', key)
+        .single();
+
+    if (error && error.code !== 'PGRST116') { // PGRST116 = no rows found
+        console.error(`Error fetching setting '${key}':`, error);
+    }
+    return data?.value ?? null;
+};
+
+export const setAppSetting = async (key: string, value: any, description?: string): Promise<void> => {
+    const { error } = await supabase
+        .from('app_settings')
+        .upsert({ key, value, description: description || `Setting: ${key}` }, { onConflict: 'key' });
+
+    if (error) {
+        throw new Error(`Failed to set setting '${key}': ${error.message}`);
+    }
+    await logAdminAction(`Updated App Setting: ${key}`, 'system', { key, value });
 };
 
 export const updateProPrice = async (priceInCents: number) => {
@@ -373,4 +397,37 @@ export const getPolicyDrafts = async (uid: string): Promise<PolicyDraft[]> => {
 export const deletePolicyDraft = async (id: string) => {
     const { error } = await supabase.from('policy_drafts').delete().eq('id', id);
     if (error) throw error;
+};
+
+// --- MARKETING & CONVERSION FLOWS ---
+
+/**
+ * Logs a marketing event to Supabase for analysis in the admin dashboard.
+ */
+export const logMarketingEvent = async (userId: string | undefined, eventType: string, metadata: any = {}) => {
+    try {
+        const { error } = await supabase.from('marketing_events').insert({
+            user_id: userId || null,
+            event_type: eventType,
+            metadata: metadata,
+            timestamp: new Date().toISOString()
+        });
+        if (error) console.error("Error logging marketing event:", error);
+    } catch (err) {
+        console.error("Marketing log exception:", err);
+    }
+};
+
+/**
+ * Retrieves marketing events for the admin dashboard.
+ */
+export const getMarketingEvents = async (limit: number = 100) => {
+    const { data, error } = await supabase
+        .from('marketing_events')
+        .select('*, profiles(email, full_name)')
+        .order('timestamp', { ascending: false })
+        .limit(limit);
+
+    if (error) throw error;
+    return data;
 };

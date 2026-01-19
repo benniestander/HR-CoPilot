@@ -1,0 +1,26 @@
+# Build artifacts
+dist
+node_modules
+
+# Environment
+.env
+.env.local
+.env.*
+
+# Git
+.git
+.gitignore
+
+# Agent & AI
+.agent
+.gemini
+
+# Docs & Tests
+docs
+tests
+coverage
+
+# IDE
+.vscode
+.idea
+

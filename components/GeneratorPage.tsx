@@ -1,6 +1,8 @@
 
 import React, { useState, useCallback, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import Stepper from './Stepper';
+
 import CompanyProfileSetup from './CompanyProfileSetup';
 import GuidedQuestionnaire from './GuidedQuestionnaire';
 import PolicyPreview from './PolicyPreview';
@@ -38,7 +40,7 @@ const GeneratorPage: React.FC<GeneratorPageProps> = ({ selectedItem, initialData
     const { user } = useAuthContext();
     const { handleDeductCredit, getDocPrice } = useDataContext();
     const { isPrePaid, setIsPrePaid, setToastMessage } = useUIContext();
-    
+
     const isPolicy = selectedItem.kind === 'policy';
     const isProfileSufficient = userProfile && userProfile.companyName && (!isPolicy || userProfile.industry);
 
@@ -60,18 +62,18 @@ const GeneratorPage: React.FC<GeneratorPageProps> = ({ selectedItem, initialData
     const [finalizedDoc, setFinalizedDoc] = useState<GeneratedDocument | null>(initialData);
     const [isSaving, setIsSaving] = useState(false);
     const [isDeducting, setIsDeducting] = useState(false);
-    
+
     // Manage document ID locally to handle transition from Temp ID -> Real DB UUID
     const [docId, setDocId] = useState<string | undefined>(initialData?.id);
-    
+
     const [hasPaidSession, setHasPaidSession] = useState(isPrePaid);
 
     useEffect(() => {
         if (isPrePaid) {
-            setIsPrePaid(false); 
+            setIsPrePaid(false);
         }
     }, []);
-    
+
     const handleProfileSubmit = (profile: CompanyProfile) => {
         setCompanyProfile(profile);
         setCurrentStep(2);
@@ -85,17 +87,17 @@ const GeneratorPage: React.FC<GeneratorPageProps> = ({ selectedItem, initialData
         // 1. Handle PAYG Credit Deduction (CRIT-3 Safe Logic)
         if (user.plan === 'payg' && !initialData && !hasPaidSession) {
             setIsDeducting(true);
-            
+
             const price = getDocPrice(selectedItem);
 
             if (price > 0) {
                 const success = await handleDeductCredit(price, `Generated: ${selectedItem.title}`);
                 setIsDeducting(false);
                 if (!success) {
-                    return; 
+                    return;
                 }
                 deductedAmount = price;
-                setHasPaidSession(true); 
+                setHasPaidSession(true);
             } else {
                 setIsDeducting(false);
             }
@@ -125,7 +127,7 @@ const GeneratorPage: React.FC<GeneratorPageProps> = ({ selectedItem, initialData
                         const uniqueNewSources: Source[] = newSources
                             .filter((s: any) => s.web?.uri)
                             .map((s: any) => ({ web: { uri: s.web!.uri!, title: s.web!.title || s.web!.uri! } }));
-                        
+
                         finalSources = [...finalSources, ...uniqueNewSources].reduce((acc, current) => {
                             if (!acc.find(item => item.web?.uri === current.web?.uri)) {
                                 acc.push(current);
@@ -146,7 +148,7 @@ const GeneratorPage: React.FC<GeneratorPageProps> = ({ selectedItem, initialData
                 }
             }
             setStatus('success');
-            
+
             const newDoc: GeneratedDocument = {
                 id: docId || `${selectedItem.type}-${Date.now()}`,
                 title: selectedItem.title,
@@ -158,7 +160,7 @@ const GeneratorPage: React.FC<GeneratorPageProps> = ({ selectedItem, initialData
                 questionAnswers,
                 outputFormat: selectedItem.kind === 'form' ? selectedItem.outputFormat : 'word',
                 sources: finalSources,
-                version: initialData?.version || 0 
+                version: initialData?.version || 0
             };
             setFinalizedDoc(newDoc);
 
@@ -166,7 +168,7 @@ const GeneratorPage: React.FC<GeneratorPageProps> = ({ selectedItem, initialData
                 const savedDoc = await onDocumentGenerated(newDoc, docId, false);
                 if (savedDoc) {
                     setFinalizedDoc(savedDoc);
-                    setDocId(savedDoc.id); 
+                    setDocId(savedDoc.id);
                     setToastMessage("Auto-saved to documents.");
                 }
             } catch (err) {
@@ -177,7 +179,7 @@ const GeneratorPage: React.FC<GeneratorPageProps> = ({ selectedItem, initialData
             console.error('Failed to generate document:', error);
             setStatus('error');
             setErrorMessage(error.message || 'An unexpected error occurred. Please try again.');
-            
+
             // CRIT-3 FIX: Compensating Transaction (Refund)
             if (deductedAmount > 0) {
                 try {
@@ -214,12 +216,23 @@ const GeneratorPage: React.FC<GeneratorPageProps> = ({ selectedItem, initialData
     const renderStepContent = () => {
         switch (currentStep) {
             case 1:
-                return <CompanyProfileSetup 
+                return (
+                    <motion.div
+                        key="step1"
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: 20 }}
+                        transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                    >
+                        <CompanyProfileSetup
                             item={selectedItem}
                             initialProfile={userProfile}
-                            onProfileSubmit={handleProfileSubmit} 
-                            onBack={onBack} 
-                        />;
+                            onProfileSubmit={handleProfileSubmit}
+                            onBack={onBack}
+                        />
+                    </motion.div>
+                );
+
             case 2:
                 if (!companyProfile) {
                     setCurrentStep(1);
@@ -235,21 +248,36 @@ const GeneratorPage: React.FC<GeneratorPageProps> = ({ selectedItem, initialData
                     )
                 }
                 return (
-                    <GuidedQuestionnaire
-                        item={selectedItem}
-                        companyProfile={companyProfile}
-                        initialAnswers={questionAnswers}
-                        onAnswersChange={setQuestionAnswers}
-                        onGenerate={handleGenerate}
-                    />
+                    <motion.div
+                        key="step2"
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: 20 }}
+                        transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                    >
+                        <GuidedQuestionnaire
+                            item={selectedItem}
+                            companyProfile={companyProfile}
+                            initialAnswers={questionAnswers}
+                            onAnswersChange={setQuestionAnswers}
+                            onGenerate={handleGenerate}
+                        />
+                    </motion.div>
                 );
+
             case 3:
-                 if (!companyProfile) { 
+                if (!companyProfile) {
                     setCurrentStep(1);
                     return null;
                 }
                 return (
-                    <div>
+                    <motion.div
+                        key="step3"
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: 20 }}
+                        transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                    >
                         <PolicyPreview
                             policyText={generatedDocument}
                             status={status}
@@ -262,30 +290,32 @@ const GeneratorPage: React.FC<GeneratorPageProps> = ({ selectedItem, initialData
                             onContentChange={handleContentChange}
                         />
                         {status === 'success' && (
-                             <div className="mt-8 flex flex-col sm:flex-row justify-between items-center bg-white p-6 rounded-lg shadow-md border border-gray-200 gap-4">
-                                <div className="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-4 w-full sm:w-auto">
-                                    <button onClick={onBack} disabled={isSaving} className="text-sm font-semibold text-gray-600 hover:text-red-600 transition-colors disabled:opacity-50 whitespace-nowrap">
-                                        Cancel & Start Over
+                            <div className="mt-8 flex flex-col sm:flex-row justify-between items-center bg-white/70 backdrop-blur-xl p-8 rounded-[2.5rem] shadow-2xl shadow-gray-200/50 border border-white/40 gap-6">
+                                <div className="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-6 w-full sm:w-auto">
+                                    <button onClick={onBack} disabled={isSaving} className="text-xs font-black uppercase tracking-[0.2em] text-gray-400 hover:text-red-500 transition-colors disabled:opacity-50 whitespace-nowrap">
+                                        Discard
                                     </button>
-                                    <button 
-                                        onClick={() => setCurrentStep(2)} 
+                                    <button
+                                        onClick={() => setCurrentStep(2)}
                                         disabled={isSaving}
-                                        className="text-sm font-bold text-primary hover:underline flex items-center disabled:opacity-50 whitespace-nowrap"
+                                        className="text-xs font-black uppercase tracking-[0.2em] text-primary hover:text-secondary flex items-center disabled:opacity-50 whitespace-nowrap transition-colors"
                                     >
-                                        <EditIcon className="w-4 h-4 mr-1" />
-                                        Edit Details & Regenerate
+                                        <EditIcon className="w-4 h-4 mr-2" />
+                                        Refine Answers
                                     </button>
                                 </div>
-                                <button
+                                <motion.button
+                                    whileHover={{ scale: 1.02, y: -2 }}
+                                    whileTap={{ scale: 0.98 }}
                                     onClick={handleSaveDocument}
                                     disabled={isSaving}
-                                    className="w-full sm:w-auto bg-green-600 text-white font-bold py-3 px-6 rounded-md hover:bg-green-700 transition-colors flex items-center justify-center disabled:bg-gray-400 disabled:cursor-not-allowed"
+                                    className="w-full sm:w-auto bg-primary text-white font-black text-xs uppercase tracking-[0.25em] py-5 px-10 rounded-2xl shadow-xl shadow-primary/20 hover:bg-primary/90 transition-all flex items-center justify-center disabled:bg-gray-300 disabled:shadow-none disabled:cursor-not-allowed"
                                 >
-                                    {isSaving ? <><LoadingIcon className="animate-spin -ml-1 mr-2 h-5 w-5 text-white" /> Saving...</> : <><CheckIcon className="w-5 h-5 mr-2" /> Save Document</>}
-                                </button>
+                                    {isSaving ? <><LoadingIcon className="animate-spin -ml-1 mr-3 h-4 w-4 text-white" /> Saving...</> : <><CheckIcon className="w-4 h-4 mr-3" /> Secure to Vault</>}
+                                </motion.button>
                             </div>
                         )}
-                    </div>
+                    </motion.div>
                 );
             default:
                 return null;
@@ -296,8 +326,11 @@ const GeneratorPage: React.FC<GeneratorPageProps> = ({ selectedItem, initialData
         <div className="max-w-7xl mx-auto">
             <Stepper steps={STEPS} currentStep={currentStep} onStepClick={setCurrentStep} isStepClickable={!!companyProfile && !isSaving && !isDeducting} />
             <div className="mt-8">
-                {renderStepContent()}
+                <AnimatePresence mode="wait">
+                    {renderStepContent()}
+                </AnimatePresence>
             </div>
+
         </div>
     );
 };

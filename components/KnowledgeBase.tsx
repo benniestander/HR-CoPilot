@@ -1,5 +1,5 @@
-
 import React, { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { BookIcon, ChevronRightIcon, MasterPolicyIcon, FormsIcon, UpdateIcon, ComplianceIcon, CreditCardIcon, UserIcon, ShieldCheckIcon } from './Icons';
 
 interface Article {
@@ -67,6 +67,36 @@ const KNOWLEDGE_BASE_DATA: Category[] = [
                 </ul>
               </div>
             </div>
+          </div>
+        )
+      },
+      {
+        id: 'bcea-survival-guide',
+        title: 'BCEA Survival Guide for Founders',
+        content: (
+          <div className="space-y-6">
+            <p className="text-lg leading-relaxed">Most South African business owners inadvertently break the Basic Conditions of Employment Act (BCEA) every single month. Ignorance isn't just risky—it's expensive.</p>
+
+            <div className="bg-red-50 p-6 rounded-2xl border border-red-100">
+              <h4 className="font-black text-red-800 uppercase tracking-widest text-xs mb-4">The Top 3 Silent Killers:</h4>
+              <ul className="space-y-4">
+                <li className="flex gap-4">
+                  <span className="flex-shrink-0 w-6 h-6 bg-red-600 text-white rounded-full flex items-center justify-center text-xs font-bold">1</span>
+                  <p className="text-sm font-medium text-red-900"><strong>The 45-Hour trap:</strong> Expecting staff to work "standard" hours without realizing where BCEA mandatory overtime kicks in.</p>
+                </li>
+                <li className="flex gap-4">
+                  <span className="flex-shrink-0 w-6 h-6 bg-red-600 text-white rounded-full flex items-center justify-center text-xs font-bold">2</span>
+                  <p className="text-sm font-medium text-red-900"><strong>Verbal "Warnings":</strong> In South Africa, if it isn't documented on a compliant form, it never happened in the eyes of the CCMA.</p>
+                </li>
+                <li className="flex gap-4">
+                  <span className="flex-shrink-0 w-6 h-6 bg-red-600 text-white rounded-full flex items-center justify-center text-xs font-bold">3</span>
+                  <p className="text-sm font-medium text-red-900"><strong>Generic Contracts:</strong> Using a template from the internet that doesn't account for Sectoral Determinations or Bargaining Councils.</p>
+                </li>
+              </ul>
+            </div>
+
+            <h4 className="font-bold text-secondary text-xl">The Solution: Automatic Compliance</h4>
+            <p>Your HR CoPilot is designed to be your shield. By generating your documents through our platform, you ensure that every contract, policy, and disciplinary form is built on a foundation of current South African law.</p>
           </div>
         )
       }
@@ -138,7 +168,7 @@ const KNOWLEDGE_BASE_DATA: Category[] = [
               <li><strong>Save:</strong> Click "Confirm & Save". This creates a new version of your document.</li>
             </ol>
             <div className="bg-yellow-50 p-4 rounded-md border border-yellow-200 text-sm">
-                <strong>Note for PAYG Users:</strong> Running an AI update costs a reduced fee (typically R25.00). This is deducted from your credit balance before the analysis starts.
+              <strong>Note for PAYG Users:</strong> Running an AI update costs a reduced fee (typically R25.00). This is deducted from your credit balance before the analysis starts.
             </div>
           </div>
         )
@@ -199,8 +229,8 @@ const KNOWLEDGE_BASE_DATA: Category[] = [
               <li><strong>Continuous Improvement:</strong> Feedback from legal experts is fed back into the system to constantly refine the AI's output.</li>
             </ul>
             <div className="bg-green-50 p-4 rounded-md border border-green-200 text-sm mt-4">
-                <p className="font-semibold text-green-800">Our Commitment</p>
-                <p className="text-green-700">We strive to ensure every policy and form you generate is HR compliant, legally informed, and of real professional quality.</p>
+              <p className="font-semibold text-green-800">Our Commitment</p>
+              <p className="text-green-700">We strive to ensure every policy and form you generate is HR compliant, legally informed, and of real professional quality.</p>
             </div>
           </div>
         )
@@ -235,9 +265,11 @@ const KNOWLEDGE_BASE_DATA: Category[] = [
 
 interface KnowledgeBaseProps {
   onBack: () => void;
+  onUpgrade?: () => void;
+  isPro?: boolean;
 }
 
-const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({ onBack }) => {
+const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({ onBack, onUpgrade, isPro }) => {
   const [activeCategory, setActiveCategory] = useState<string>(KNOWLEDGE_BASE_DATA[0].id);
   const [activeArticle, setActiveArticle] = useState<string>(KNOWLEDGE_BASE_DATA[0].articles[0].id);
 
@@ -256,43 +288,48 @@ const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({ onBack }) => {
       <div className="flex flex-col md:flex-row gap-8">
         {/* Sidebar Navigation */}
         <div className="w-full md:w-1/3 lg:w-1/4">
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden sticky top-6">
-            <div className="p-4 bg-gray-50 border-b border-gray-200">
-              <h2 className="font-bold text-secondary flex items-center">
-                <BookIcon className="w-5 h-5 mr-2 text-primary" />
+          <div className="bg-white rounded-[2rem] shadow-sm border border-gray-100 overflow-hidden sticky top-6">
+            <div className="p-6 bg-gray-50/50 border-b border-gray-100">
+              <h2 className="font-black text-secondary flex items-center uppercase tracking-widest text-xs">
+                <BookIcon className="w-4 h-4 mr-3 text-primary" />
                 Help Center
               </h2>
             </div>
-            <div className="p-2 space-y-1">
+            <div className="p-4 space-y-1">
               {KNOWLEDGE_BASE_DATA.map(category => (
                 <div key={category.id}>
                   <button
-                    onClick={() => setActiveCategory(category.id)}
-                    className={`w-full flex items-center justify-between px-3 py-2.5 text-sm font-medium rounded-md transition-colors ${
-                      activeCategory === category.id 
-                        ? 'bg-primary/10 text-primary' 
-                        : 'text-gray-700 hover:bg-gray-100'
-                    }`}
+                    onClick={() => {
+                      setActiveCategory(category.id);
+                      setActiveArticle(category.articles[0].id);
+                    }}
+                    className={`w-full flex items-center justify-between px-4 py-3 text-xs font-bold rounded-xl transition-all ${activeCategory === category.id
+                      ? 'bg-primary text-white shadow-lg shadow-primary/20'
+                      : 'text-gray-500 hover:bg-gray-50'
+                      }`}
                   >
                     <div className="flex items-center">
-                      <category.icon className={`w-4 h-4 mr-3 ${activeCategory === category.id ? 'text-primary' : 'text-gray-400'}`} />
-                      {category.title}
+                      <category.icon className={`w-4 h-4 mr-3 ${activeCategory === category.id ? 'text-white' : 'text-gray-400'}`} />
+                      <span className="uppercase tracking-widest">{category.title}</span>
                     </div>
-                    {activeCategory === category.id && <ChevronRightIcon className="w-4 h-4" />}
+                    {activeCategory === category.id && (
+                      <motion.div layoutId="active-arrow">
+                        <ChevronRightIcon className="w-4 h-4" />
+                      </motion.div>
+                    )}
                   </button>
-                  
+
                   {/* Expanded Articles for Active Category */}
                   {activeCategory === category.id && (
-                    <div className="ml-9 mt-1 mb-2 space-y-1 border-l-2 border-gray-100 pl-2">
+                    <div className="ml-6 mt-3 mb-4 space-y-1 border-l-2 border-primary/20 pl-4">
                       {category.articles.map(article => (
                         <button
                           key={article.id}
                           onClick={() => setActiveArticle(article.id)}
-                          className={`w-full text-left px-2 py-1.5 text-xs rounded-md transition-colors ${
-                            activeArticle === article.id
-                              ? 'text-primary font-bold bg-primary/5'
-                              : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'
-                          }`}
+                          className={`w-full text-left px-3 py-2 text-xs rounded-lg transition-all ${activeArticle === article.id
+                            ? 'text-primary font-black bg-primary/5'
+                            : 'text-gray-400 hover:text-secondary font-bold'
+                            }`}
                         >
                           {article.title}
                         </button>
@@ -307,27 +344,70 @@ const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({ onBack }) => {
 
         {/* Content Area */}
         <div className="w-full md:w-2/3 lg:w-3/4">
-          <div className="bg-white p-8 rounded-lg shadow-md border border-gray-200 min-h-[500px]">
-            {currentArticle ? (
-              <div className="animate-fade-in">
-                <h1 className="text-3xl font-bold text-secondary mb-2">{currentArticle.title}</h1>
-                <div className="flex items-center text-sm text-gray-500 mb-8 border-b border-gray-100 pb-4">
-                  <span className="font-semibold text-primary">{currentCategory?.title}</span>
-                  <ChevronRightIcon className="w-3 h-3 mx-2" />
-                  <span>SOP & Guide</span>
-                </div>
-                
-                <div className="prose prose-blue max-w-none text-gray-700">
-                  {currentArticle.content}
-                </div>
-              </div>
-            ) : (
-              <div className="flex flex-col items-center justify-center h-full text-gray-400">
-                <BookIcon className="w-16 h-16 mb-4 opacity-20" />
-                <p>Select a topic to view the guide.</p>
-              </div>
-            )}
-          </div>
+          <motion.div
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            className="bg-white p-10 md:p-20 rounded-[3rem] shadow-2xl shadow-gray-200/50 border border-gray-100 min-h-[700px] relative overflow-hidden"
+          >
+            <div className="absolute top-0 right-0 p-10 opacity-[0.03] pointer-events-none">
+              {currentCategory?.icon && <currentCategory.icon className="w-64 h-64" />}
+            </div>
+
+            <AnimatePresence mode="wait">
+              {currentArticle ? (
+                <motion.div
+                  key={currentArticle.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -20 }}
+                  transition={{ type: "spring", stiffness: 100, damping: 20 }}
+                >
+                  <h1 className="text-4xl md:text-5xl font-black text-secondary mb-4 tracking-tight leading-tight">{currentArticle.title}</h1>
+                  <div className="flex items-center text-[10px] font-black uppercase tracking-[0.3em] text-primary/40 mb-12 border-b border-gray-100 pb-8">
+                    <span className="text-primary/60">{currentCategory?.title}</span>
+                    <ChevronRightIcon className="w-3 h-3 mx-4" />
+                    <span>Resource Library</span>
+                  </div>
+
+                  <div className="prose prose-slate max-w-none text-gray-600 leading-relaxed font-medium text-base">
+                    {currentArticle.content}
+                  </div>
+
+                  {/* --- MARKETING CTA: For Non-Pro Users --- */}
+                  {!isPro && currentArticle.id === 'bcea-survival-guide' && (
+                    <div className="mt-16 p-1 bg-gradient-to-br from-primary via-secondary to-primary rounded-[3rem] shadow-2xl shadow-primary/20">
+                      <div className="bg-white p-10 md:p-14 rounded-[2.8rem] flex flex-col md:flex-row items-center gap-10">
+                        <div className="flex-1">
+                          <span className="inline-block bg-primary/10 text-primary text-[10px] font-black uppercase tracking-[0.2em] px-3 py-1 rounded-full mb-4">Pro Feature</span>
+                          <h3 className="text-2xl font-black text-secondary mb-4 leading-tight">Unlock Ultimate Peace of Mind</h3>
+                          <p className="text-gray-500 text-sm font-medium leading-relaxed">
+                            Upgrade to <strong>HR CoPilot Pro</strong> today for unlimited access to every policy, contract, and AI update. Secure your business for a full year with one simple subscription.
+                          </p>
+                        </div>
+                        <div className="shrink-0">
+                          <button
+                            onClick={onUpgrade}
+                            className="bg-primary hover:bg-primary/90 text-white font-black text-xs uppercase tracking-[0.2em] px-10 py-6 rounded-2xl shadow-xl shadow-primary/20 hover:scale-105 active:scale-95 transition-all w-full md:w-auto text-center"
+                          >
+                            Secure My Business Now
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </motion.div>
+              ) : (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="flex flex-col items-center justify-center h-[400px] text-gray-300"
+                >
+                  <BookIcon className="w-16 h-16 mb-4 opacity-20" />
+                  <p className="font-bold uppercase tracking-widest text-xs">Select a guide to begin</p>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </motion.div>
         </div>
       </div>
     </div>

@@ -4,28 +4,28 @@ import { CheckIcon, EyeIcon, EyeOffIcon, ShieldCheckIcon, StarIcon } from './Ico
 import { useDataContext } from '../contexts/DataContext';
 
 interface PlanSelectionPageProps {
-  onStartAuthFlow: (flow: 'signup' | 'payg_signup', email: string, details: { password: string, name?: string, contactNumber?: string }) => void;
-  onShowLogin: () => void;
-  onShowPrivacyPolicy: () => void;
-  onShowTerms: () => void;
+    onStartAuthFlow: (flow: 'signup' | 'payg_signup', email: string, details: { password: string, name?: string, contactNumber?: string }) => void;
+    onShowLogin: () => void;
+    onShowPrivacyPolicy: () => void;
+    onShowTerms: () => void;
 }
 
-const PlanSelectionPage: React.FC<PlanSelectionPageProps> = ({ 
-    onStartAuthFlow, 
-    onShowLogin, 
-    onShowPrivacyPolicy, 
-    onShowTerms 
+const PlanSelectionPage: React.FC<PlanSelectionPageProps> = ({
+    onStartAuthFlow,
+    onShowLogin,
+    onShowPrivacyPolicy,
+    onShowTerms
 }) => {
     const { proPlanPrice } = useDataContext(); // Dynamic Price
     const [selectedPlan, setSelectedPlan] = useState<'pro' | 'payg'>('pro');
     const [isMobile, setIsMobile] = useState(false);
-    
+
     // Unified Form State
     const [formData, setFormData] = useState({ name: '', email: '', password: '', contactNumber: '' });
     const [errors, setErrors] = useState({ name: '', email: '', password: '', contactNumber: '' });
     const [showPassword, setShowPassword] = useState(false);
     const [loading, setLoading] = useState(false);
-    
+
     // Mobile Specific State
     const [showFeatures, setShowFeatures] = useState(false);
 
@@ -45,7 +45,7 @@ const PlanSelectionPage: React.FC<PlanSelectionPageProps> = ({
         'Secure digital document vault',
         'Priority support for critical issues',
     ];
-    
+
     const paygFeatures = [
         'No monthly fees - pay only when you need a document',
         'Instant access to our full library of compliant templates',
@@ -78,7 +78,7 @@ const PlanSelectionPage: React.FC<PlanSelectionPageProps> = ({
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        
+
         let isValid = true;
         isValid = validateField('name', formData.name) && isValid;
         isValid = validateField('email', formData.email) && isValid;
@@ -92,10 +92,10 @@ const PlanSelectionPage: React.FC<PlanSelectionPageProps> = ({
         setLoading(true);
         const flow = selectedPlan === 'pro' ? 'signup' : 'payg_signup';
         try {
-            await onStartAuthFlow(flow, formData.email, { 
-                password: formData.password, 
-                name: formData.name, 
-                contactNumber: selectedPlan === 'payg' ? formData.contactNumber : undefined 
+            await onStartAuthFlow(flow, formData.email, {
+                password: formData.password,
+                name: formData.name,
+                contactNumber: selectedPlan === 'payg' ? formData.contactNumber : undefined
             });
         } catch (error) {
             setLoading(false);
@@ -115,11 +115,10 @@ const PlanSelectionPage: React.FC<PlanSelectionPageProps> = ({
                     onChange={handleInputChange}
                     onBlur={(e) => validateField(name, e.target.value)}
                     placeholder={placeholder}
-                    className={`w-full p-3.5 pl-4 ${icon ? 'pr-12' : ''} bg-gray-50 border rounded-lg text-base text-gray-900 placeholder-gray-400 transition-all focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary ${
-                        errors[name as keyof typeof errors] 
-                        ? 'border-red-300 focus:border-red-500 bg-red-50' 
+                    className={`w-full p-3.5 pl-4 ${icon ? 'pr-12' : ''} bg-gray-50 border rounded-lg text-base text-gray-900 placeholder-gray-400 transition-all focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary ${errors[name as keyof typeof errors]
+                        ? 'border-red-300 focus:border-red-500 bg-red-50'
                         : 'border-gray-300 shadow-sm'
-                    }`}
+                        }`}
                 />
                 {icon && <div className="absolute right-3 top-3.5 text-gray-400">{icon}</div>}
             </div>
@@ -159,16 +158,16 @@ const PlanSelectionPage: React.FC<PlanSelectionPageProps> = ({
 
                     {/* Plan Toggle */}
                     <div className="bg-gray-200 p-1 rounded-full flex relative mb-6">
-                        <div 
+                        <div
                             className={`absolute top-1 bottom-1 w-[calc(50%-4px)] bg-white rounded-full shadow-sm transition-all duration-300 ease-out ${selectedPlan === 'pro' ? 'left-[calc(50%+2px)]' : 'left-1'}`}
                         />
-                        <button 
+                        <button
                             onClick={() => setSelectedPlan('payg')}
                             className={`flex-1 py-2.5 text-sm font-medium z-10 text-center transition-colors ${selectedPlan === 'payg' ? 'text-secondary' : 'text-gray-500'}`}
                         >
                             Pay-As-You-Go
                         </button>
-                        <button 
+                        <button
                             onClick={() => setSelectedPlan('pro')}
                             className={`flex-1 py-2.5 text-sm font-medium z-10 text-center transition-colors ${selectedPlan === 'pro' ? 'text-primary' : 'text-gray-500'}`}
                         >
@@ -198,7 +197,7 @@ const PlanSelectionPage: React.FC<PlanSelectionPageProps> = ({
 
                     {/* Collapsible Features */}
                     <div className="mb-8 bg-white rounded-lg border border-gray-200 overflow-hidden">
-                        <button 
+                        <button
                             onClick={() => setShowFeatures(!showFeatures)}
                             className="w-full px-4 py-3 flex justify-between items-center text-sm font-medium text-gray-600 bg-gray-50"
                         >
@@ -219,9 +218,9 @@ const PlanSelectionPage: React.FC<PlanSelectionPageProps> = ({
                         {selectedPlan === 'payg' && (
                             <InputField name="contactNumber" type="tel" placeholder="e.g. 082 123 4567" label="Mobile Number" />
                         )}
-                        <InputField 
-                            name="password" 
-                            type={showPassword ? "text" : "password"} 
+                        <InputField
+                            name="password"
+                            type={showPassword ? "text" : "password"}
                             placeholder="Min 6 characters"
                             label="Create Password"
                             icon={
@@ -230,7 +229,7 @@ const PlanSelectionPage: React.FC<PlanSelectionPageProps> = ({
                                 </button>
                             }
                         />
-                        
+
                         <div className="text-center mt-2">
                             <p className="text-xs text-gray-400 flex justify-center items-center">
                                 <ShieldCheckIcon className="w-3 h-3 mr-1" /> Encrypted & Secure
@@ -239,7 +238,7 @@ const PlanSelectionPage: React.FC<PlanSelectionPageProps> = ({
 
                         {/* Sticky CTA */}
                         <div className="fixed bottom-0 left-0 right-0 p-4 bg-white border-t border-gray-200 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] z-40">
-                            <button 
+                            <button
                                 type="submit"
                                 disabled={loading}
                                 className="w-full bg-primary text-white font-bold py-3.5 rounded-xl shadow-lg active:scale-[0.98] transition-transform flex justify-center items-center"
@@ -248,7 +247,7 @@ const PlanSelectionPage: React.FC<PlanSelectionPageProps> = ({
                             </button>
                         </div>
                     </form>
-                    
+
                     <div className="text-center text-xs text-gray-400 pb-8">
                         <button onClick={onShowPrivacyPolicy} className="underline mr-4">Privacy</button>
                         <button onClick={onShowTerms} className="underline">Terms</button>
@@ -270,12 +269,12 @@ const PlanSelectionPage: React.FC<PlanSelectionPageProps> = ({
                 <div className="relative z-10 flex flex-col h-full justify-between">
                     <div>
                         <img src="https://i.postimg.cc/h48FMCNY/edited-image-11-removebg-preview.png" alt="HR CoPilot" className="h-10 mb-12 brightness-0 invert" />
-                        
+
                         <h1 className="text-5xl font-bold leading-tight mb-6">
-                            Expert HR Compliance, <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-cyan-300">Automated.</span>
+                            Generate Ironclad HR Contracts & Policies <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-cyan-300">in 60 Seconds</span> — Without Expensive Lawyers.
                         </h1>
                         <p className="text-lg text-blue-100 leading-relaxed mb-10">
-                            Join over 500 South African small businesses using Ingcweti AI to generate compliant contracts, policies, and forms in minutes.
+                            Protect your business from CCMA disputes and fines. Join 500+ SA Business Owners who use our AI to become 100% compliant instantly.
                         </p>
 
                         <div className="bg-white/10 backdrop-blur-md rounded-xl p-6 border border-white/10 shadow-lg max-w-md">
@@ -320,13 +319,12 @@ const PlanSelectionPage: React.FC<PlanSelectionPageProps> = ({
 
                     <div className="grid grid-cols-2 gap-4 mb-8">
                         {/* Pro Card */}
-                        <div 
+                        <div
                             onClick={() => setSelectedPlan('pro')}
-                            className={`p-5 rounded-xl border-2 cursor-pointer transition-all duration-300 relative flex flex-col justify-between h-full ${
-                                selectedPlan === 'pro' 
-                                ? 'border-primary bg-white shadow-xl scale-[1.02] z-10' 
+                            className={`p-5 rounded-xl border-2 cursor-pointer transition-all duration-300 relative flex flex-col justify-between h-full ${selectedPlan === 'pro'
+                                ? 'border-primary bg-white shadow-xl scale-[1.02] z-10'
                                 : 'border-gray-200 bg-gray-50 hover:bg-white hover:border-primary/30'
-                            }`}
+                                }`}
                         >
                             {selectedPlan === 'pro' && (
                                 <div className="absolute -top-3 right-4 bg-accent text-white text-[10px] font-bold px-2 py-1 rounded-full shadow-sm tracking-wide">
@@ -334,7 +332,7 @@ const PlanSelectionPage: React.FC<PlanSelectionPageProps> = ({
                                 </div>
                             )}
                             <div>
-                                <h3 className={`font-bold ${selectedPlan === 'pro' ? 'text-secondary' : 'text-gray-500'}`}>HR CoPilot Pro</h3>
+                                <h3 className={`font-bold ${selectedPlan === 'pro' ? 'text-secondary' : 'text-gray-500'}`}>Unlimited Compliance Vault (Pro)</h3>
                                 <div className="mt-2">
                                     <span className="text-2xl font-bold text-secondary">{formatPrice(proPlanPrice)}</span>
                                     <span className="text-xs text-gray-500"> / year</span>
@@ -346,13 +344,12 @@ const PlanSelectionPage: React.FC<PlanSelectionPageProps> = ({
                         </div>
 
                         {/* PAYG Card */}
-                        <div 
+                        <div
                             onClick={() => setSelectedPlan('payg')}
-                            className={`p-5 rounded-xl border-2 cursor-pointer transition-all duration-300 relative flex flex-col justify-between h-full ${
-                                selectedPlan === 'payg' 
-                                ? 'border-secondary bg-white shadow-xl scale-[1.02] z-10' 
+                            className={`p-5 rounded-xl border-2 cursor-pointer transition-all duration-300 relative flex flex-col justify-between h-full ${selectedPlan === 'payg'
+                                ? 'border-secondary bg-white shadow-xl scale-[1.02] z-10'
                                 : 'border-gray-200 bg-gray-50 hover:bg-white hover:border-gray-300'
-                            }`}
+                                }`}
                         >
                             <div>
                                 <h3 className={`font-bold ${selectedPlan === 'payg' ? 'text-secondary' : 'text-gray-500'}`}>Pay-As-You-Go</h3>
@@ -388,9 +385,9 @@ const PlanSelectionPage: React.FC<PlanSelectionPageProps> = ({
                                 )}
                             </div>
                             <InputField name="email" type="email" placeholder="e.g. john@company.co.za" label="Email Address" />
-                            <InputField 
-                                name="password" 
-                                type={showPassword ? "text" : "password"} 
+                            <InputField
+                                name="password"
+                                type={showPassword ? "text" : "password"}
                                 placeholder="Min 6 characters"
                                 label="Create Password"
                                 icon={
@@ -400,7 +397,7 @@ const PlanSelectionPage: React.FC<PlanSelectionPageProps> = ({
                                 }
                             />
 
-                            <button 
+                            <button
                                 type="submit"
                                 disabled={loading}
                                 className="w-full bg-primary text-white font-bold py-4 rounded-lg shadow-lg hover:bg-secondary hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200 disabled:bg-gray-300 disabled:shadow-none disabled:transform-none mt-4"

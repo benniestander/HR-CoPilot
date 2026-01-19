@@ -99,7 +99,7 @@ interface DataContextType {
     handleDocumentGenerated: (doc: GeneratedDocument, originalId?: string, shouldNavigate?: boolean) => Promise<GeneratedDocument | undefined>;
     handleSaveDraft: (draft: Omit<PolicyDraft, 'id' | 'createdAt' | 'updatedAt'> & { id?: string }) => Promise<void>;
     handleDeleteDraft: (id: string) => Promise<void>;
-    
+
     // Pricing Data
     proPlanPrice: number;
     getDocPrice: (item: Policy | Form) => number;
@@ -150,14 +150,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     ) => async (pageIndex: number) => {
         if (pageIndex < 0) return;
         if (pageIndex >= cursors.length) return;
-        
+
         const cursor = cursors[pageIndex];
         if (cursor === undefined || cursor === null) return;
 
         setLoading(true);
         try {
             const { data, lastVisible } = await fetchFn(PAGE_SIZE, cursor);
-            setData(data || []); 
+            setData(data || []);
             setPageIndex(pageIndex);
 
             if (pageIndex === cursors.length - 1) {
@@ -194,7 +194,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const handlePrevLogs = () => { if (logPageIndex > 0) fetchLogsPage(logPageIndex - 1); };
 
     const transactionsForUserPage = useMemo(() => {
-        return paginatedUsers.flatMap(user => 
+        return paginatedUsers.flatMap(user =>
             (user.transactions || []).map(tx => ({ ...tx, userEmail: user.email }))
         ).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
     }, [paginatedUsers]);
@@ -204,7 +204,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const loadPricing = async () => {
             try {
                 const { settings, docPrices } = await getPricingSettings();
-                
+
                 // Set Pro Price
                 const proSetting = settings.find((s: any) => s.key === 'pro_plan_yearly');
                 if (proSetting) setProPlanPrice(proSetting.value);
@@ -224,6 +224,46 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     useEffect(() => {
         if (user && user.uid) {
+            if (user.uid === 'sandbox-user-123') {
+                console.log("🛠️ SANDBOX MODE: Seeding Mock Data...");
+                const mockDocs: GeneratedDocument[] = [
+                    {
+                        id: 'mock-1',
+                        uid: user.uid,
+                        kind: 'policy',
+                        type: 'disciplinary_code',
+                        content: '# Disciplinary Code\n\nStandard disciplinary procedures for Atlas Tech Corp.',
+                        version: 1,
+                        createdAt: new Date(Date.now() - 86400000 * 2).toISOString(), // 2 days ago
+                        history: []
+                    },
+                    {
+                        id: 'mock-2',
+                        uid: user.uid,
+                        kind: 'policy',
+                        type: 'social_media_policy',
+                        content: '# Social Media Policy\n\nGuidelines for employee conduct on social platforms.',
+                        version: 1,
+                        createdAt: new Date(Date.now() - 86400000 * 5).toISOString(), // 5 days ago
+                        history: []
+                    },
+                    {
+                        id: 'mock-3',
+                        uid: user.uid,
+                        kind: 'form',
+                        type: 'employment_contract_fixed',
+                        content: '# Fixed-Term Employment Contract\n\nAgreement for project-based engineering roles.',
+                        version: 1,
+                        createdAt: new Date(Date.now() - 86400000 * 10).toISOString(), // 10 days ago
+                        history: []
+                    }
+                ];
+                setGeneratedDocuments(mockDocs);
+                setIsLoadingUserDocs(false);
+                setIsLoadingUserFiles(false);
+                return;
+            }
+
             if (isAdmin) {
                 if (userCursors.length > 0) fetchUsersPage(0).catch(e => console.error(e));
                 if (docCursors.length > 0) fetchDocsPage(0).catch(e => console.error(e));
@@ -275,7 +315,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         await updateUser(user.uid, updates);
         setToastMessage("Profile updated successfully!");
     };
-    
+
     const handleInitialProfileSubmit = async (profileData: CompanyProfile, name: string) => {
         if (!user) return;
         const updatedProfile = { ...user.profile, ...profileData };
@@ -296,7 +336,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setToastMessage(`Upload failed: ${error.message}`);
         }
     };
-    
+
     const handleProfilePhotoDelete = async () => {
         if (!user) return;
         try {
@@ -309,7 +349,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setToastMessage(`Deletion failed: ${error.message}`);
         }
     };
-    
+
     const handleFileUpload = async (file: File, notes: string) => {
         if (!user) return;
         try {
@@ -321,7 +361,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setToastMessage(`Upload failed: ${error.message}`);
         }
     };
-    
+
     const handleFileDownload = async (storagePath: string) => {
         try {
             const url = await getDownloadUrlForFile(storagePath);
@@ -330,7 +370,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setToastMessage(`Download failed: ${error.message}`);
         }
     };
-    
+
     const handleDeleteUserFile = (fileId: string, storagePath: string) => {
         if (!user) return;
         const file = userFiles.find(f => f.id === fileId);
@@ -412,7 +452,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setToastMessage("Document price updated.");
         }
     };
-    
+
     const handleMarkNotificationRead = async (notificationId: string) => {
         await markNotificationAsRead(notificationId);
         await getAdminNotifications().then(setAdminNotifications);
@@ -430,16 +470,16 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         navigateTo('dashboard');
         setShowOnboardingWalkthrough(true);
         const updatedUser = await getUserProfile(user.uid);
-        if(updatedUser) setUser(updatedUser);
+        if (updatedUser) setUser(updatedUser);
     };
-    
+
     const handleTopUpSuccess = async (amountInCents: number) => {
         if (!user) return;
         setUser(prev => prev ? ({ ...prev, creditBalance: (prev.creditBalance || 0) + amountInCents }) : null);
         setToastMessage(`Success! R${(amountInCents / 100).toFixed(2)} has been added.`);
         navigateTo('dashboard');
         const updatedUser = await getUserProfile(user.uid);
-        if(updatedUser) setUser(updatedUser);
+        if (updatedUser) setUser(updatedUser);
     };
 
     const handleDeductCredit = async (amountInCents: number, description: string): Promise<boolean> => {
@@ -462,7 +502,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
             return false;
         }
     };
-    
+
     const handleDocumentGenerated = async (doc: GeneratedDocument, originalId?: string, shouldNavigate: boolean = true): Promise<GeneratedDocument | undefined> => {
         if (!user) return undefined;
         let docToSave = { ...doc };
@@ -493,7 +533,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 }
             });
             getGeneratedDocuments(user.uid).then(updatedDocs => { setGeneratedDocuments(updatedDocs); }).catch(err => console.warn(err));
-            
+
             if (shouldNavigate) {
                 navigateTo('dashboard');
             }

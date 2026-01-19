@@ -38,9 +38,9 @@ const OutlineIcon: React.FC<{ path: string, className?: string }> = ({ path, cla
 export const MasterPolicyIcon: React.FC<{ className?: string }> = ({ className }) => (
   <DuotoneIcon className={className} paths={[
     // Soft Fill: The Document shape
-    "M19 3H5a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2V5a2 2 0 00-2-2z", 
+    "M19 3H5a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2V5a2 2 0 00-2-2z",
     // Sharp Detail: The Shield Emblem
-    "M12 7a1 1 0 00-1 1v.5a.5.5 0 00.5.5h1a.5.5 0 00.5-.5V8a1 1 0 00-1-1zm0 0c-2.5 0-4 1.5-4 4v2c0 3.5 2.5 5.5 4 6 1.5-.5 4-2.5 4-6v-2c0-2.5-1.5-4-4-4z" 
+    "M12 7a1 1 0 00-1 1v.5a.5.5 0 00.5.5h1a.5.5 0 00.5-.5V8a1 1 0 00-1-1zm0 0c-2.5 0-4 1.5-4 4v2c0 3.5 2.5 5.5 4 6 1.5-.5 4-2.5 4-6v-2c0-2.5-1.5-4-4-4z"
   ]} />
 );
 
@@ -48,21 +48,23 @@ export const MasterPolicyIcon: React.FC<{ className?: string }> = ({ className }
 export const FormsIcon: React.FC<{ className?: string }> = ({ className }) => (
   <DuotoneIcon className={className} paths={[
     // Soft Fill: Document with a folded corner hint
-    "M16 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V6l-4-4z", 
+    "M16 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V6l-4-4z",
     // Sharp Detail: Input Boxes and Lines
-    "M8 8h8v2H8V8zm0 4h5v2H8v-2zm0 4h8v2H8v-2z" 
+    "M8 8h8v2H8V8zm0 4h5v2H8v-2zm0 4h8v2H8v-2z"
   ]} />
 );
 
 export const AlcoholDrugIcon: React.FC<{ className?: string }> = ({ className }) => (
   <DuotoneIcon className={className} paths={[
-    "M12 22a10 10 0 100-20 10 10 0 000 20z", "M12 16a4 4 0 100-8 4 4 0 000 8zM4.22 4.22l15.56 15.56"
+    "M19 10h-2V7a3 3 0 00-3-3H8a3 3 0 00-3 3v3H3v2h2v7a3 3 0 003 3h8a3 3 0 003-3v-7h2v-2z",
+    "M10 9V7h4v2m-4 4h4m-4 4h4"
   ]} />
 );
 
 export const AntiBriberyCorruptionIcon: React.FC<{ className?: string }> = ({ className }) => (
   <DuotoneIcon className={className} paths={[
-    "M12 22a10 10 0 100-20 10 10 0 000 20z", "M12 16a4 4 0 100-8 4 4 0 000 8zM4.22 4.22l15.56 15.56"
+    "M12 2a5 5 0 100 10 5 5 0 000-10zm0 3a2 2 0 110 4 2 2 0 010-4z",
+    "M19 14h-2.5l-2.5-3-2.5 3H9a2 2 0 00-2 2v6h14v-6a2 2 0 00-2-2zM12 16v2m-2-2h4"
   ]} />
 );
 
@@ -75,13 +77,15 @@ export const AntiBullyingIcon: React.FC<{ className?: string }> = ({ className }
 
 export const AntiHarassmentDiscriminationIcon: React.FC<{ className?: string }> = ({ className }) => (
   <DuotoneIcon className={className} paths={[
-    "M12 22a10 10 0 100-20 10 10 0 000 20z", "M7 12h10M4.22 4.22l15.56 15.56"
+    "M16 11V7a4 4 0 00-8 0v4H6v10h12V11h-2z",
+    "M12 11a2 2 0 100-4 2 2 0 000 4zm-2 6h4"
   ]} />
 );
 
 export const AttendancePunctualityIcon: React.FC<{ className?: string }> = ({ className }) => (
   <DuotoneIcon className={className} paths={[
-    "M12 22a10 10 0 100-20 10 10 0 000 20z", "M12 7v5l3 2"
+    "M12 22a10 10 0 100-20 10 10 0 000 20z",
+    "M12 6v6l4 2"
   ]} />
 );
 
@@ -173,8 +177,8 @@ export const DeductionsIcon: React.FC<{ className?: string }> = ({ className }) 
 
 export const DisciplinaryActionIcon: React.FC<{ className?: string }> = ({ className }) => (
   <DuotoneIcon className={className} paths={[
-    "M21 14H3a1 1 0 00-1 1v2a1 1 0 001 1h18a1 1 0 001-1v-2a1 1 0 00-1-1z",
-    "M12 3.236l8.364 4.182A2 2 0 0121 9.236V12h-3v-2.764l-6-3-6 3V12H3V9.236a2 2 0 01.636-1.818L12 3.236zM13 14v-2a1 1 0 00-2 0v2h2z"
+    "M20 2h-9L4 9l7 7 9-9V2z",
+    "M14 6l-3 3m7 5l-2 2-7-7 2-2 7 7z"
   ]} />
 );
 
@@ -231,8 +235,8 @@ export const ExpenseReimbursementIcon: React.FC<{ className?: string }> = ({ cla
 
 export const GrievanceIcon: React.FC<{ className?: string }> = ({ className }) => (
   <DuotoneIcon className={className} paths={[
-    "M12 21a2 2 0 01-2-2v-2H7a2 2 0 01-2-2V5a2 2 0 012-2h10a2 2 0 012 2v8a2 2 0 01-2 2h-3v2a2 2 0 01-2 2z",
-    "M10 9a1 1 0 100-2 1 1 0 000 2zm4 0a1 1 0 100-2 1 1 0 000 2zm-2 4a3 3 0 00-3 1h6a3 3 0 00-3-1z"
+    "M3 6l9 6 9-6v12H3V6z",
+    "M3 6h18"
   ]} />
 );
 

@@ -1,35 +1,35 @@
-
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>HR CoPilot – SA Small Business HR Policy Generator</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-      tailwind.config = {
-        theme: {
-          extend: {
-            colors: {
-              primary: '#188693',
-              secondary: '#143a67',
-              accent: '#f8b43b',
-              light: '#f9fafb',
-            },
-            fontFamily: {
-              sans: ['Inter', 'sans-serif'],
-            }
+
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>HR CoPilot – SA Small Business HR Policy Generator</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: '#188693',
+            secondary: '#143a67',
+            accent: '#f8b43b',
+            light: '#f9fafb',
+          },
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
           }
         }
       }
-    </script>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    
-    <!-- Yoco SDK Script -->
-    <script src="https://js.yoco.com/sdk/v1/yoco-sdk-web.js"></script>
+    }
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- Yoco SDK Script -->
+  <script src="https://js.yoco.com/sdk/v1/yoco-sdk-web.js"></script>
 
   <script type="importmap">
 {
@@ -45,13 +45,16 @@
     "rehype-sanitize": "https://esm.sh/rehype-sanitize@6?deps=react@^19.2.0",
     "dompurify": "https://aistudiocdn.com/dompurify@^3.3.0",
     "mammoth": "https://esm.sh/mammoth@1.6.0",
-    "pdfjs-dist": "https://esm.sh/pdfjs-dist@3.11.174"
+    "pdfjs-dist": "https://esm.sh/pdfjs-dist@3.11.174",
+    "framer-motion": "https://esm.sh/framer-motion@12?deps=react@^19.2.0"
   }
 }
 </script>
 </head>
-  <body class="bg-light font-sans">
-    <div id="root"></div>
-    <script type="module" src="./index.tsx"></script>
-  </body>
+
+<body class="bg-light font-sans">
+  <div id="root"></div>
+  <script type="module" src="./index.tsx"></script>
+</body>
+
 </html>
