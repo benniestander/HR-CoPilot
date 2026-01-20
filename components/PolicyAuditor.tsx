@@ -40,6 +40,15 @@ const PolicyAuditor: React.FC<PolicyAuditorProps> = ({ onBack }) => {
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const selectedFile = e.target.files?.[0];
         if (selectedFile) {
+            const allowedExtensions = ['pdf', 'docx'];
+            const fileExtension = selectedFile.name.split('.').pop()?.toLowerCase();
+
+            if (!fileExtension || !allowedExtensions.includes(fileExtension)) {
+                setToastMessage("Unsupported format. Please use PDF or DOCX.");
+                if (fileInputRef.current) fileInputRef.current.value = '';
+                return;
+            }
+
             setFile(selectedFile);
         }
     };
@@ -138,7 +147,8 @@ const PolicyAuditor: React.FC<PolicyAuditorProps> = ({ onBack }) => {
                         ) : (
                             <div>
                                 <h3 className="text-2xl font-black text-secondary mb-2">Upload HR Policy or Contract</h3>
-                                <p className="text-gray-500 font-medium">Drag and drop your PDF or Docx file here.</p>
+                                <p className="text-gray-500 font-medium">Drag & drop your <strong>PDF</strong> or <strong>DOCX</strong> file here.</p>
+                                <p className="text-gray-400 text-xs mt-2 font-medium italic">Note: Legacy .doc files are not supported. Please save as .docx first.</p>
                                 <div className="mt-8 flex flex-wrap justify-center gap-4">
                                     <span className="bg-gray-50 text-gray-400 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest">BCEA Check</span>
                                     <span className="bg-gray-50 text-gray-400 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest">LRA Check</span>
