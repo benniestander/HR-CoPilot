@@ -2,7 +2,8 @@
 // @ts-ignore
 declare const Deno: any;
 
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+// @ts-ignore
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.4'
 
 const corsHeaders = {
     'Access-Control-Allow-Origin': '*',

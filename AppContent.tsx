@@ -38,6 +38,8 @@ const PaygPaymentPage = lazy(() => import('./components/PaygPaymentPage'));
 const KnowledgeBase = lazy(() => import('./components/KnowledgeBase'));
 const PaymentSuccessPage = lazy(() => import('./components/PaymentSuccessPage'));
 const TransactionsPage = lazy(() => import('./components/TransactionsPage'));
+const PolicyAuditor = lazy(() => import('./components/PolicyAuditor'));
+
 
 
 const AppContent: React.FC = () => {
@@ -405,7 +407,7 @@ const AppContent: React.FC = () => {
         switch (currentView) {
             case 'dashboard':
                 return <Dashboard
-                    onStartUpdate={() => navigateTo('updater')}
+                    onStartUpdate={() => navigateTo('auditor')}
                     onStartChecklist={() => navigateTo('checklist')}
                     showOnboardingWalkthrough={showOnboardingWalkthrough}
                     onCloseWalkthrough={handleCloseWalkthrough}
@@ -435,6 +437,11 @@ const AppContent: React.FC = () => {
                 return <PolicyUpdater
                     onBack={handleBackToDashboard}
                 />;
+            case 'auditor':
+                return <PolicyAuditor
+                    onBack={handleBackToDashboard}
+                />;
+
             case 'checklist':
                 if (!user) {
                     return <Dashboard

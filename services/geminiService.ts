@@ -3,17 +3,10 @@ import type { FormAnswers, PolicyUpdateResult, CompanyProfile } from '../types';
 import { supabase } from './supabase';
 
 // Helper to stream NDJSON from the 'generate-content' Edge Function
-async function* streamFromEdge(prompt: string, model: string = 'gemini-3-flash', config: any = {}) {
-    // 1. Invoke the Edge Function w/ stream response
-    // Note: The 'stream' responseType requires a specialized client or usage of the underlying fetch.
-    // Supabase-js v2 support for streaming is handled via responseType: 'stream' (creates a readable stream)
-    // or by letting it return a Response object if we use the raw fetch method.
-
-    // We will use the invoke method, assuming the client supports responseType: 'stream' (ignoring TS error if definitions are old).
-
+async function* streamFromEdge(prompt: string, model: string = 'gemini-3-flash-preview', config: any = {}) {
     const { data, error } = await supabase.functions.invoke('generate-content', {
         body: { prompt, model, stream: true, config },
-        // @ts-ignore - 'stream' is a valid responseType in newer versions or runtime
+        // @ts-ignore
         responseType: 'stream'
     });
 
@@ -26,14 +19,28 @@ async function* streamFromEdge(prompt: string, model: string = 'gemini-3-flash',
         throw new Error("No data received from generation service.");
     }
 
-    // 2. Read the stream
-    // 'data' should be a ReadableStream or similar if responseType was respected.
-    // If it turned into a Blob/Text because of version mismatch, we handle that.
-
+    // Robust Fallback: Handle non-stream response (e.g., if it was buffered or intercepted)
     if (!(data instanceof ReadableStream)) {
-        // Fallback: If not a stream, maybe it buffered? Parse as text/json if possible?
-        // But we requested a stream. Let's assume it worked.
-        console.warn("Received non-stream response:", data);
+        console.warn("Received non-stream response, attempting relay...");
+
+        // Handle if data is already a string (possibly NDJSON or raw text)
+        if (typeof data === 'string') {
+            const lines = data.split('\n');
+            for (const line of lines) {
+                if (!line.trim()) continue;
+                try {
+                    const json = JSON.parse(line);
+                    yield { text: json.text, groundingMetadata: json.groundingMetadata };
+                } catch {
+                    yield { text: line };
+                }
+            }
+        }
+        // Handle if it's a structured response object
+        else if (data.text || data.candidates) {
+            const text = data.text ? (typeof data.text === 'function' ? await data.text() : data.text) : data.candidates?.[0]?.content?.parts?.[0]?.text;
+            yield { text };
+        }
         return;
     }
 
@@ -48,22 +55,19 @@ async function* streamFromEdge(prompt: string, model: string = 'gemini-3-flash',
 
             buffer += decoder.decode(value, { stream: true });
             const lines = buffer.split('\n');
-            buffer = lines.pop() || ''; // Keep the last partial line in buffer
+            buffer = lines.pop() || '';
 
             for (const line of lines) {
                 if (line.trim()) {
                     try {
                         const json = JSON.parse(line);
-                        // Forward error if the stream sent one
                         if (json.error) throw new Error(json.error);
-
-                        // Yield format expected by consumers
                         yield {
                             text: json.text,
                             groundingMetadata: json.groundingMetadata
                         };
                     } catch (e) {
-                        console.error("Error parsing NDJSON chunk:", e);
+                        yield { text: line };
                     }
                 }
             }
@@ -208,7 +212,7 @@ export const generatePolicyStream = async function* (type: string, answers: Form
   `;
 
     // Use Edge Function Stream
-    const stream = streamFromEdge(prompt, 'gemini-3-flash', { tools: [{ googleSearch: {} }] });
+    const stream = streamFromEdge(prompt, 'gemini-3-flash-preview', { tools: [{ googleSearch: {} }] });
 
     for await (const chunk of stream) {
         yield chunk; // { text, groundingMetadata }
@@ -235,7 +239,7 @@ export const generateFormStream = async function* (type: string, answers: FormAn
     3. Ensure it looks professional and is ready to print.
     `;
 
-    const stream = streamFromEdge(prompt, 'gemini-3-flash');
+    const stream = streamFromEdge(prompt, 'gemini-3-flash-preview');
 
     for await (const chunk of stream) {
         if (chunk.text) yield chunk.text;
@@ -261,7 +265,7 @@ export const updatePolicy = async (content: string, instructions?: string): Prom
 
     // Non-streaming call via Invoke (Wait for full response)
     const { data, error } = await supabase.functions.invoke('generate-content', {
-        body: { prompt, model: 'gemini-3-flash', config: { responseMimeType: "application/json" } }
+        body: { prompt, model: 'gemini-3-flash-preview', config: { responseMimeType: "application/json" } }
     });
 
     if (error) throw new Error(error.message);
@@ -275,7 +279,7 @@ export const updatePolicy = async (content: string, instructions?: string): Prom
 export const explainPolicyTypeStream = async function* (title: string) {
     const prompt = `Explain the purpose and key components of a "${title}" in the context of South African HR law. Keep it brief and informative for a business owner.`;
 
-    const stream = streamFromEdge(prompt, 'gemini-3-flash');
+    const stream = streamFromEdge(prompt, 'gemini-3-flash-preview');
     for await (const chunk of stream) {
         if (chunk.text) yield chunk.text;
     }
@@ -284,8 +288,20 @@ export const explainPolicyTypeStream = async function* (title: string) {
 export const explainFormTypeStream = async function* (title: string) {
     const prompt = `Explain the purpose of a "${title}" form in South African HR management. Keep it brief.`;
 
-    const stream = streamFromEdge(prompt, 'gemini-3-flash');
+    const stream = streamFromEdge(prompt, 'gemini-3-flash-preview');
     for await (const chunk of stream) {
         if (chunk.text) yield chunk.text;
     }
 }
+
+export const auditPolicy = async (file: File): Promise<any> => {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const { data, error } = await supabase.functions.invoke('policy-auditor', {
+        body: formData,
+    });
+
+    if (error) throw new Error(error.message);
+    return data;
+};
