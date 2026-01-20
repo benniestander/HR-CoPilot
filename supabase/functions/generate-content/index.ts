@@ -38,11 +38,17 @@ Deno.serve(async (req: any) => {
 
     // Parse Request
     const { model, prompt, stream, config } = await req.json();
+
+    // Prioritize the requested model, but fall back to a known stable one if it's missing
+    // We will attempt to use EXACTLY what the client sends.
     const targetModel = model || 'gemini-1.5-flash';
 
     console.log(`Generating content using model: ${targetModel}`);
 
-    const generativeModel = genAI.getGenerativeModel({ model: targetModel });
+    const generativeModel = genAI.getGenerativeModel({
+      model: targetModel,
+      generationConfig: config
+    });
 
     if (stream) {
       const result = await generativeModel.generateContentStream(prompt);
@@ -52,18 +58,19 @@ Deno.serve(async (req: any) => {
         async start(controller) {
           try {
             for await (const chunk of response) {
-              const text = chunk.text(); // Old SDK always uses .text()
+              const text = chunk.text();
 
               if (text) {
-                // Send raw chunks as JSON
                 controller.enqueue(new TextEncoder().encode(JSON.stringify({ text }) + '\n'));
               }
             }
             controller.close();
           } catch (e) {
-            console.error("Stream Error", e);
+            console.error("Stream Runtime Error:", e);
             const errorMsg = e instanceof Error ? e.message : 'Unknown stream error';
-            try { controller.enqueue(new TextEncoder().encode(JSON.stringify({ error: errorMsg }) + '\n')); } catch { }
+            try {
+              controller.enqueue(new TextEncoder().encode(JSON.stringify({ error: errorMsg }) + '\n'));
+            } catch { }
             controller.error(e);
           }
         },
@@ -81,8 +88,12 @@ Deno.serve(async (req: any) => {
     }
 
   } catch (error: any) {
-    console.error("Generate Content Error:", error);
-    return new Response(JSON.stringify({ error: error.message }), {
+    console.error("Generate Content Critical Error:", error);
+    // CRITICAL: Return the actual error message so we can diagnose "Model not found" etc.
+    return new Response(JSON.stringify({
+      error: error.message,
+      details: error.stack
+    }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     })
