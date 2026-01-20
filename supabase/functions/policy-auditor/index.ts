@@ -2,7 +2,6 @@
 declare const Deno: any;
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-import { GoogleGenerativeAI } from 'https://esm.sh/@google/generative-ai'
 
 const corsHeaders = {
     'Access-Control-Allow-Origin': '*',
@@ -10,9 +9,7 @@ const corsHeaders = {
 }
 
 Deno.serve(async (req: any) => {
-    if (req.method === 'OPTIONS') {
-        return new Response('ok', { headers: corsHeaders })
-    }
+    if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
     try {
         const authHeader = req.headers.get('Authorization')!;
@@ -22,96 +19,70 @@ Deno.serve(async (req: any) => {
             { global: { headers: { Authorization: authHeader } } }
         )
 
-        const { data: { user }, error: authError } = await supabaseClient.auth.getUser()
-        if (authError || !user) {
-            return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
-        }
-
+        const { data: { user } } = await supabaseClient.auth.getUser();
         const apiKey = Deno.env.get('GEMINI_API_KEY') || Deno.env.get('GOOGLE_API_KEY');
-        if (!apiKey) {
-            return new Response(JSON.stringify({ error: 'Server Configuration Error: Missing API_KEY' }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-        }
 
-        // Initialize Gemini 1.5 Pro
-        const genAI = new GoogleGenerativeAI(apiKey);
-        const model = genAI.getGenerativeModel({
-            model: 'gemini-1.5-pro',
-            generationConfig: {
-                responseMimeType: "application/json",
-            }
-        });
+        if (!apiKey) throw new Error("GEMINI_API_KEY is not set.");
 
-        // Parse Multi-part Form Data
+        // --- 1. PREPARE FILE ---
         const formData = await req.formData();
         const file = formData.get('file') as File;
-        const documentName = file.name;
+        if (!file) throw new Error("No file uploaded.");
 
-        if (!file) {
-            return new Response(JSON.stringify({ error: 'No file uploaded' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-        }
-
-        // Fetch Law Context from Database
-        const { data: lawModules } = await supabaseClient
-            .from('law_modules')
-            .select('title, category, content');
-
-        const contextString = lawModules?.map(m => `--- ${m.title} (${m.category}) ---\n${m.content}`).join('\n\n') || '';
-
-        // Convert file to Base64 for Gemini
         const arrayBuffer = await file.arrayBuffer();
         const base64Data = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
 
-        // System Persona and Instructions
-        const systemPrompt = `
-      You are an expert South African Labor Law Consultant (Senior SLC) with 20 years of experience in CCMA litigation and BCEA compliance.
-      
-      TASK: Audit the provided HR Policy/Contract against South African Labor Law (LRA, BCEA, POPIA).
-      
-      CORS CONTEXT:
-      ${contextString}
-      
-      DIRECTIVES:
-      1. Identify "Red Flags" (High Risk legal issues).
-      2. Cite specific Act sections (e.g., 'Section 37 of the BCEA').
-      3. Provide a "Correction" for each issue found.
-      4. Rate the document's overall compliance score from 0 to 100.
-      5. Include a Legal Disclaimer.
-      6. POPIA COMPLIANCE: Scrub all Personally Identifiable Information (PII) like specific Names, ID numbers, or Contacts from the 'issue' and 'correction' fields. Use general placeholders like [EMPLOYEE_NAME] if necessary.
+        // --- 2. FETCH RAG CONTEXT ---
+        const { data: lawModules } = await supabaseClient.from('law_modules').select('content');
+        const context = lawModules?.map(m => m.content).join('\n') || '';
 
-      OUTPUT FORMAT:
-      You must return a valid JSON object with this structure:
-      {
-        "score": number,
-        "summary": "overall summary string",
-        "red_flags": [
-          { "issue": "string", "law": "string", "impact": "High/Medium/Low", "correction": "string" }
-        ],
-        "disclaimer": "mandatory legal disclaimer"
-      }
-    `;
+        // --- 3. CALL GEMINI (Direct REST - Fixed Snake_Case) ---
+        console.log("Calling Gemini v1 REST API (Fixed)...");
 
-        // Call Gemini
-        const result = await model.generateContent([
+        const payload = {
+            contents: [{
+                parts: [
+                    { inline_data: { mime_type: file.type || "application/pdf", data: base64Data } },
+                    { text: `System: You are an HR Auditor. Cross-reference this document with SA Law: ${context}. Return valid JSON with: score, summary, red_flags: [{issue, law, impact, correction}], disclaimer.` }
+                ]
+            }],
+            generation_config: {
+                response_mime_type: "application/json",
+                temperature: 0.1
+            }
+        };
+
+        const response = await fetch(
+            `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
             {
-                inlineData: {
-                    data: base64Data,
-                    mimeType: file.type
-                }
-            },
-            systemPrompt
-        ]);
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload)
+            }
+        );
 
-        const responseText = result.response.text();
-        const auditResult = JSON.parse(responseText);
+        const result = await response.json();
 
-        // Save Result to Database
+        if (result.error) {
+            console.error("Gemini API Error Detail:", JSON.stringify(result.error, null, 2));
+            throw new Error(`Google API Error: ${result.error.message}`);
+        }
+
+        // --- 4. PARSE & PROTECT ---
+        let responseText = result.candidates[0].content.parts[0].text;
+
+        // Safety: Sometimes AI still adds markdown blocks even with mimeType set
+        const cleanJson = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
+        const auditResult = JSON.parse(cleanJson);
+
+        // --- 5. SAVE ---
         const { data: report, error: dbError } = await supabaseClient
             .from('auditor_reports')
             .insert({
-                user_id: user.id,
-                document_name: documentName,
+                user_id: user?.id,
+                document_name: file.name,
                 audit_result: auditResult,
-                overall_score: auditResult.score,
+                overall_score: auditResult.score || 0,
                 status: 'completed'
             })
             .select()
@@ -124,12 +95,10 @@ Deno.serve(async (req: any) => {
         });
 
     } catch (error: any) {
-        console.error("Auditor Error:", error);
-        return new Response(JSON.stringify({
-            error: error.message,
-        }), {
+        console.error("Critical Failure:", error.message);
+        return new Response(JSON.stringify({ error: error.message }), {
             status: 500,
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        })
+        });
     }
-})
+});
