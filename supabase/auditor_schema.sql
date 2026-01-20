@@ -1,54 +1,54 @@
--- Policy Auditor Schema
+-- Clean start for Audit System
+DROP TABLE IF EXISTS law_modules CASCADE;
+DROP TABLE IF EXISTS auditor_reports CASCADE;
 
--- 1. Table for storing the actual audit results
-CREATE TABLE IF NOT EXISTS auditor_reports (
-    id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
-    user_id uuid REFERENCES auth.users(id) NOT NULL,
-    document_name text NOT NULL,
-    audit_result jsonb NOT NULL, -- Detailed red flags, suggestions, and corrections
-    overall_score float, -- Optional health score 0-100
-    status text DEFAULT 'completed',
-    created_at timestamptz DEFAULT now()
+-- Law Modules Table (Knowledge Base for RAG)
+CREATE TABLE law_modules (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    title TEXT UNIQUE NOT NULL,
+    category TEXT NOT NULL,
+    content TEXT NOT NULL,
+    version TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- 2. Table for storing South African Law Modules for RAG
-CREATE TABLE IF NOT EXISTS law_modules (
-    id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
-    title text UNIQUE NOT NULL, -- e.g. 'Basic Conditions of Employment Act', 'Labor Relations Act'
-    content text NOT NULL, -- The specific sections or summaries
-    category text, -- e.g. 'BCEA', 'LRA', 'POPIA'
-    version text,
-    updated_at timestamptz DEFAULT now()
+-- Audit Reports Table (Results)
+CREATE TABLE auditor_reports (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID REFERENCES auth.users(id),
+    document_name TEXT NOT NULL,
+    audit_result JSONB NOT NULL,
+    overall_score INTEGER,
+    status TEXT DEFAULT 'completed',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Enable RLS
-ALTER TABLE auditor_reports ENABLE ROW LEVEL SECURITY;
+-- RLS Policies
 ALTER TABLE law_modules ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Public Read Law Modules" ON law_modules FOR SELECT TO authenticated USING (true);
 
--- Policies for auditor_reports
-DROP POLICY IF EXISTS "Users can view own audit reports" ON auditor_reports;
-CREATE POLICY "Users can view own audit reports" 
-ON auditor_reports FOR SELECT 
-USING (auth.uid() = user_id);
-
-DROP POLICY IF EXISTS "Users can create own audit reports" ON auditor_reports;
-CREATE POLICY "Users can create own audit reports" 
-ON auditor_reports FOR INSERT 
-WITH CHECK (auth.uid() = user_id);
-
--- Policies for law_modules (Read-only for all authenticated users)
-DROP POLICY IF EXISTS "Anyone can read law modules" ON law_modules;
-CREATE POLICY "Anyone can read law modules" 
-ON law_modules FOR SELECT 
-USING (auth.role() = 'authenticated');
-
--- Indices for performance
-CREATE INDEX IF NOT EXISTS idx_auditor_reports_user_id ON auditor_reports(user_id);
+ALTER TABLE auditor_reports ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Users view own audits" ON auditor_reports FOR SELECT TO authenticated USING (auth.uid() = user_id);
+CREATE POLICY "Users create own audits" ON auditor_reports FOR INSERT TO authenticated WITH CHECK (auth.uid() = user_id);
 
 -- SEED DATA for South African Law Modules
 INSERT INTO law_modules (title, category, content, version) VALUES 
-('Basic Conditions of Employment Act (BCEA) Summary', 'BCEA', 'The South Africa Basic Conditions of Employment Act (BCEA), Act 75 of 1997... [Summary of working hours, leave, remuneration, and termination notice periods]', '2024.1'),
-('Labour Relations Act (LRA) Summary', 'LRA', 'The South African Labour Relations Act (LRA) 66 of 1995... [Summary of freedom of association, collective bargaining, unfair dismissals, and dispute resolution]', '2024.1'),
-('Protection of Personal Information Act (POPIA) Summary', 'POPIA', 'The POPIA Act of 2013... [Summary of data processing principles, consent requirements, and operator responsibilities]', '2024.1')
+(
+    'Basic Conditions of Employment Act (BCEA) - Key Provisions', 
+    'Labor Law', 
+    'BCEA Act 75 of 1997 regulates: 1. Working Hours (Max 45 hrs/week). 2. Annual Leave (21 days). 3. Sick Leave (30 days/cycle). 4. Maternity Leave (4 months). 5. Notice Periods (4 weeks for >1 year). 6. Section 34 Prohibited Deductions.', 
+    'v1'
+),
+(
+    'Labour Relations Act (LRA) - Dismissal Standards', 
+    'Labor Law', 
+    'LRA Act 66 of 1995: 1. Dismissals must be Substantively Fair (Valid Reason) and Procedurally Fair (Right to Hearing). 2. Schedule 8 Code of Good Practice is the standard for Conduct/Capacity. 3. Section 189 for Retrenchment.', 
+    'v1'
+),
+(
+    'POPIA - Compliance Fundamentals', 
+    'Privacy', 
+    'POPI Act of 2013 requires: 1. Lawfulness (Reasonable processing). 2. Consent for direct marketing. 3. Condition 7: Security Safeguards (Technical and organizational measures). 4. Data Subject rights to access/correction.', 
+    'v1'
+)
 ON CONFLICT (title) DO NOTHING;
-
