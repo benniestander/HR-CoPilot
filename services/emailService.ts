@@ -33,126 +33,141 @@ const sendEmail = async (to: string, subject: string, htmlBody: string) => {
     }
 };
 
-export const emailService = {
-    /**
-     * Sends a welcome email to a new user.
-     */
-    sendWelcomeEmail: async (email: string, name: string) => {
-        const html = `
-            <div style="font-family: sans-serif; color: #333;">
-                <h1 style="color: #188693;">Welcome to HR CoPilot, ${name}!</h1>
-                <p>We are thrilled to have you on board.</p>
-                <p>You now have access to South Africa's smartest HR compliance tool. You can start generating compliant policies and forms immediately.</p>
-                <br/>
-                <a href="https://app.hrcopilot.co.za" style="background-color: #188693; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Go to Dashboard</a>
-                <br/><br/>
-                <p>Regards,<br/>The HR CoPilot Team</p>
-            </div>
-        `;
-        return sendEmail(email, "Welcome to HR CoPilot", html);
-    },
-
-    /**
-     * Sends an Invoice Request confirmation with Banking Details.
-     */
-    sendInvoiceInstructions: async (email: string, name: string, amountInCents: number, reference: string, itemDescription: string) => {
-        const amount = (amountInCents / 100).toFixed(2);
-        const html = `
-            <div style="font-family: sans-serif; color: #333; max-width: 600px; margin: 0 auto;">
-                <h2 style="color: #188693;">Invoice Request Received</h2>
-                <p>Hi ${name},</p>
-                <p>Thank you for your request for: <strong>${itemDescription}</strong>.</p>
-                <p>To activate your product/credits, please make an EFT payment of <strong>R${amount}</strong> to the account below.</p>
-                
-                <div style="background-color: #f3f4f6; padding: 20px; border-radius: 8px; margin: 20px 0;">
-                    <h3 style="margin-top: 0; color: #143a67;">Banking Details</h3>
-                    <p style="margin: 5px 0;"><strong>Bank:</strong> FNB (First National Bank)</p>
-                    <p style="margin: 5px 0;"><strong>Account Name:</strong> HR CoPilot</p>
-                    <p style="margin: 5px 0;"><strong>Account Number:</strong> 62123456789</p>
-                    <p style="margin: 5px 0;"><strong>Branch Code:</strong> 250655</p>
-                    <p style="margin: 5px 0; font-size: 1.1em; color: #188693;"><strong>Reference:</strong> ${reference}</p>
+/**
+ * Enhanced Branded HTML Wrapper
+ * Wraps content in a consistent, premium HR CoPilot design.
+ */
+const getBrandedHtml = (title: string, content: string, ctaLink?: string, ctaText?: string) => {
+    return `
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        </head>
+        <body style="margin: 0; padding: 0; background-color: #f8fafc; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;">
+            <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 20px; overflow: hidden; margin-top: 40px; margin-bottom: 40px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);">
+                <!-- Header -->
+                <div style="background-color: #ffffff; padding: 32px 40px; text-align: center; border-bottom: 1px solid #f1f5f9;">
+                     <img src="https://i.postimg.cc/h48FMCNY/edited-image-11-removebg-preview.png" alt="HR CoPilot" style="height: 48px; width: auto;" />
                 </div>
 
-                <p><strong>Next Steps:</strong></p>
-                <ol>
-                    <li>Make the payment using the reference above.</li>
-                    <li>Email your Proof of Payment to <a href="mailto:admin@hrcopilot.co.za">admin@hrcopilot.co.za</a>.</li>
-                    <li>Your account will be activated/credited immediately upon receipt.</li>
-                </ol>
-                
-                <p style="font-size: 0.9em; color: #666;">Note: Payments from FNB reflect immediately. Other banks may take up to 24 hours.</p>
-                <br/>
-                <p>Regards,<br/>The HR CoPilot Team</p>
+                <!-- Main Content -->
+                <div style="padding: 40px 40px 24px 40px;">
+                    <h1 style="color: #0f172a; font-size: 24px; font-weight: 800; margin: 0 0 24px 0; letter-spacing: -0.5px;">${title}</h1>
+                    <div style="color: #334155; font-size: 16px; line-height: 1.6;">
+                        ${content}
+                    </div>
+
+                    ${ctaLink ? `
+                    <div style="margin-top: 32px; text-align: center;">
+                        <a href="${ctaLink}" style="display: inline-block; background-color: #188693; color: white; text-decoration: none; padding: 14px 32px; border-radius: 12px; font-weight: 600; font-size: 16px; transition: background-color 0.2s;">
+                            ${ctaText || 'Go to Dashboard'}
+                        </a>
+                    </div>
+                    ` : ''}
+                </div>
+
+                <!-- Footer -->
+                <div style="background-color: #f8fafc; padding: 32px 40px; text-align: center; border-top: 1px solid #f1f5f9;">
+                    <p style="margin: 0; color: #64748b; font-size: 14px;">HR CoPilot</p>
+                    <p style="margin: 8px 0 0 0; color: #94a3b8; font-size: 12px;">South Africa's Smartest HR Assistant</p>
+                    <div style="margin-top: 16px;">
+                        <a href="https://app.hrcopilot.co.za" style="color: #cbd5e1; text-decoration: none; font-size: 12px; margin: 0 8px;">Website</a>
+                        <span style="color: #e2e8f0;">|</span>
+                        <a href="mailto:admin@hrcopilot.co.za" style="color: #cbd5e1; text-decoration: none; font-size: 12px; margin: 0 8px;">Support</a>
+                    </div>
+                    <p style="margin: 24px 0 0 0; color: #cbd5e1; font-size: 11px;">
+                        &copy; ${new Date().getFullYear()} HR CoPilot. All rights reserved.
+                    </p>
+                </div>
             </div>
+        </body>
+        </html>
+    `;
+}
+
+export const emailService = {
+    sendWelcomeEmail: async (email: string, name: string) => {
+        const content = `
+            <p>Hi ${name},</p>
+            <p>We are thrilled to have you on board!</p>
+            <p>You now have access to South Africa's smartest HR compliance tool. You can start generating compliant policies and forms immediately.</p>
+            <p>If you need any help getting started, our support team is just an email away.</p>
         `;
-        return sendEmail(email, `Invoice Request: ${reference}`, html);
+        return sendEmail(email, "Welcome to HR CoPilot", getBrandedHtml("Welcome Aboard!", content, "https://app.hrcopilot.co.za", "Start Generating"));
     },
 
-    /**
-     * Sends a confirmation when Admin manually activates an order.
-     */
+    sendInvoiceInstructions: async (email: string, name: string, amountInCents: number, reference: string, itemDescription: string) => {
+        const amount = (amountInCents / 100).toFixed(2);
+        const content = `
+            <p>Hi ${name},</p>
+            <p>Thank you for your request for: <strong>${itemDescription}</strong>.</p>
+            <p>To activate your product, please make an EFT payment of <strong>R${amount}</strong> to the account below.</p>
+            
+            <div style="background-color: #f1f5f9; padding: 24px; border-radius: 12px; margin: 24px 0; border: 1px solid #e2e8f0;">
+                <h3 style="margin: 0 0 16px 0; color: #334155; font-size: 16px; text-transform: uppercase; letter-spacing: 0.05em;">Banking Details</h3>
+                <table style="width: 100%; border-collapse: collapse;">
+                    <tr><td style="padding: 4px 0; color: #64748b; width: 140px;">Bank</td><td style="color: #0f172a; font-weight: 500;">FNB (First National Bank)</td></tr>
+                    <tr><td style="padding: 4px 0; color: #64748b;">Account Name</td><td style="color: #0f172a; font-weight: 500;">HR CoPilot</td></tr>
+                    <tr><td style="padding: 4px 0; color: #64748b;">Account Number</td><td style="color: #0f172a; font-weight: 500;">62123456789</td></tr>
+                     <tr><td style="padding: 4px 0; color: #64748b;">Branch Code</td><td style="color: #0f172a; font-weight: 500;">250655</td></tr>
+                    <tr><td style="padding: 12px 0 0 0; color: #188693; font-weight: 600;">Reference</td><td style="padding: 12px 0 0 0; color: #188693; font-weight: bold; font-size: 18px;">${reference}</td></tr>
+                </table>
+            </div>
+
+            <p><strong>Next Steps:</strong></p>
+            <ol style="margin-bottom: 0;">
+                <li>Make the payment using the reference above.</li>
+                <li>Email your Proof of Payment to <a href="mailto:admin@hrcopilot.co.za" style="color: #188693;">admin@hrcopilot.co.za</a>.</li>
+                <li>Your account will be activated immediately upon receipt.</li>
+            </ol>
+        `;
+        return sendEmail(email, `Invoice Request: ${reference}`, getBrandedHtml("Invoice Details", content));
+    },
+
     sendActivationConfirmation: async (email: string, name: string, type: 'pro' | 'payg', amountInCents: number) => {
         const isPro = type === 'pro';
         const amount = (amountInCents / 100).toFixed(2);
-
-        const html = `
-            <div style="font-family: sans-serif; color: #333; max-width: 600px; margin: 0 auto;">
-                <h2 style="color: #188693; text-align: center;">Payment Received & Order Activated!</h2>
-                <p>Hi ${name},</p>
-                <p>Great news! We have received your payment of <strong>R${amount}</strong>.</p>
-                
-                <div style="background-color: #ecfdf5; padding: 15px; border-radius: 8px; border: 1px solid #d1fae5; margin: 20px 0;">
-                    <h3 style="margin-top: 0; color: #065f46;">${isPro ? 'Pro Membership Active' : 'Credits Added'}</h3>
-                    <p style="margin: 5px 0; color: #064e3b;">
-                        ${isPro
+        const content = `
+            <p>Hi ${name},</p>
+            <p>Great news! We have received your payment of <strong>R${amount}</strong>.</p>
+            
+            <div style="background-color: #ecfdf5; padding: 20px; border-radius: 12px; border: 1px solid #d1fae5; margin: 24px 0;">
+                <h3 style="margin: 0 0 8px 0; color: #065f46; font-size: 16px;">${isPro ? 'Pro Membership Active' : 'Credits Added'}</h3>
+                <p style="margin: 0; color: #064e3b; font-size: 15px;">
+                    ${isPro
                 ? 'Your account has been upgraded to HR CoPilot Pro. You now have unlimited access for 12 months.'
                 : `R${amount} credit has been added to your balance. You can now generate documents.`
             }
-                    </p>
-                </div>
-
-                <p>You can login to your dashboard immediately to start using your new features.</p>
-                
-                <div style="text-align: center; margin: 30px 0;">
-                    <a href="https://app.hrcopilot.co.za" style="background-color: #188693; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; font-weight: bold;">Go to Dashboard</a>
-                </div>
-                
-                <p>Thank you for choosing HR CoPilot.</p>
-                <p>Regards,<br/>The HR CoPilot Team</p>
+                </p>
             </div>
+            <p>You can login to your dashboard immediately to start using your new features.</p>
         `;
-        return sendEmail(email, "Payment Confirmed - Order Activated", html);
+        return sendEmail(email, "Payment Confirmed", getBrandedHtml("Order Activated!", content, "https://app.hrcopilot.co.za", "Go to Dashboard"));
     },
 
-    /**
-     * Sends a marketing nudge when a user tries to generate a document but has no credits.
-     */
     sendInsufficientCreditNudge: async (email: string, name: string, documentTitle: string) => {
-        const html = `
-            <div style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #1e293b; max-width: 600px; margin: 0 auto; padding: 40px; border: 1px solid #e2e8f0; border-radius: 24px;">
-                <div style="text-align: center; margin-bottom: 32px;">
-                    <img src="https://i.postimg.cc/h48FMCNY/edited-image-11-removebg-preview.png" alt="HR CoPilot" style="height: 48px;" />
-                </div>
-                <h2 style="color: #0f172a; font-size: 24px; font-weight: 800; text-align: center; margin-bottom: 16px;">Don't let compliance slip through the cracks!</h2>
-                <p style="font-size: 16px; line-height: 1.6; color: #475569; text-align: center; margin-bottom: 32px;">
-                    Hi ${name || 'there'}, we noticed you were trying to generate a <strong>${documentTitle}</strong>, but your credit balance was too low.
-                </p>
-                <div style="background-color: #f8fafc; border-radius: 16px; padding: 24px; margin-bottom: 32px; border: 1px dashed #cbd5e1;">
-                    <p style="margin: 0; font-size: 14px; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px;">Recommended Action</p>
-                    <p style="margin: 0; font-size: 16px; color: #1e293b; font-weight: 500;">
-                        Top up your credits now to secure your business and stay compliant with South African labour laws.
-                    </p>
-                </div>
-                <div style="text-align: center;">
-                    <a href="https://app.hrcopilot.co.za" style="display: inline-block; background-color: #188693; color: white; padding: 16px 32px; text-decoration: none; border-radius: 12px; font-weight: 700; font-size: 16px; box-shadow: 0 4px 6px -1px rgba(24, 134, 147, 0.2);">Secure My Business Now</a>
-                </div>
-                <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 40px 0;" />
-                <p style="font-size: 12px; color: #94a3b8; text-align: center; line-height: 1.5;">
-                    You received this because you attempted to use a premium feature on HR CoPilot.<br/>
-                    &copy; 2026 HR CoPilot - South Africa's Smartest HR Assistant.
+        const content = `
+            <p>Hi ${name || 'there'},</p> 
+            <p>We noticed you were trying to generate a <strong>${documentTitle}</strong>, but your credit balance was too low.</p>
+            <div style="background-color: #fff7ed; border-radius: 12px; padding: 20px; margin: 24px 0; border: 1px solid #ffedd5;">
+                <p style="margin: 0; font-size: 13px; font-weight: 700; color: #c2410c; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px;">Recommended Action</p>
+                <p style="margin: 0; font-size: 15px; color: #9a3412;">
+                    Top up your credits now to secure your business and stay compliant with South African labour laws.
                 </p>
             </div>
         `;
-        return sendEmail(email, "Quick fix for your HR Compliance", html);
+        return sendEmail(email, "Quick fix for your HR Compliance", getBrandedHtml("Don't let compliance slip!", content, "https://app.hrcopilot.co.za", "Secure My Business Now"));
+    },
+
+    sendSupportAutoReply: async (email: string, name: string, ticketId?: string) => {
+        const content = `
+            <p>Hi ${name},</p>
+            <p>Thanks for reaching out to HR CoPilot. This is an automated reply to confirm we've received your inquiry.</p>
+            <p>Our team is reviewing your message and will get back to you shortly (usually within 24 hours).</p>
+            ${ticketId ? `<p style="color: #64748b; font-size: 14px; margin-top: 24px;">Ticket Reference: <strong>${ticketId}</strong></p>` : ''}
+        `;
+        return sendEmail(email, "Message Received", getBrandedHtml("We're on it", content));
     }
 };

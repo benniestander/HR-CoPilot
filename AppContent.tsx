@@ -86,6 +86,7 @@ const AppContent: React.FC = () => {
         handleDocumentGenerated,
         handleDeductCredit,
         handleSearchUsers,
+        handleRunRetentionCheck,
     } = useDataContext();
 
     const {
@@ -580,6 +581,7 @@ const AppContent: React.FC = () => {
                                 coupons={coupons}
                                 adminActions={adminActions}
                                 onSearchUsers={handleSearchUsers}
+                                onRunRetention={handleRunRetentionCheck}
                             />
                         </Suspense>
                     </main>

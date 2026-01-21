@@ -36,6 +36,7 @@ import {
     updateDocumentPrice,
     searchUsers // Import new function
 } from '../services/dbService';
+import { supabase } from '../services/supabase'; // Add supabase import
 import { useAuthContext } from './AuthContext';
 import { useUIContext } from './UIContext';
 import { useModalContext } from './ModalContext';
@@ -100,7 +101,8 @@ interface DataContextType {
     handleDocumentGenerated: (doc: GeneratedDocument, originalId?: string, shouldNavigate?: boolean) => Promise<GeneratedDocument | undefined>;
     handleSaveDraft: (draft: Omit<PolicyDraft, 'id' | 'createdAt' | 'updatedAt'> & { id?: string }) => Promise<void>;
     handleDeleteDraft: (id: string) => Promise<void>;
-    handleSearchUsers: (query: string) => Promise<void>; // Add to interface
+    handleSearchUsers: (query: string) => Promise<void>;
+    handleRunRetentionCheck: () => Promise<any>; // Add new function // Add to interface
 
     // Pricing Data
     proPlanPrice: number;
@@ -601,6 +603,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
             } finally {
                 setIsFetchingUsers(false);
             }
+        },
+        handleRunRetentionCheck: async () => {
+            // Admin invokes the edge function
+            const { data, error } = await supabase.functions.invoke('check-inactivity');
+            if (error) throw error;
+            return data;
         },
         adminNotifications,
         coupons,

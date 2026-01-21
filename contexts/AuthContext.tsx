@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
 import { supabase, isSupabaseConfigured } from '../services/supabase';
 import { createUserProfile } from '../services/dbService';
+import { emailService } from '../services/emailService';
 import { useAuth } from '../hooks/useAuth';
 import type { User } from '../types';
 import type { AuthPage, AuthFlow } from '../AppContent';
@@ -133,8 +134,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           data.name,
           data.contactNumber
         );
+
+        // 3. Send Welcome Email
+        await emailService.sendWelcomeEmail(email, data.name || 'User');
+
       } catch (profileError) {
-        console.error("Profile creation warning:", profileError);
+        console.error("Profile/Email warning:", profileError);
         // Don't throw here, as user is created. We can try to fix profile later or rely on trigger.
       }
     }
