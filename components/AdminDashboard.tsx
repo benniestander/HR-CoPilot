@@ -363,19 +363,42 @@ const TransactionLog: React.FC<{ transactions: Transaction[]; usersPageInfo: Pag
   )
 }
 
-const SettingsView: React.FC = () => {
-  // Placeholder for settings if needed, or integrate Pricing/Payments here
-  return <div className="p-8 text-center text-gray-500">Settings have been moved to dedicated tabs.</div>
-}
+const PricingRow: React.FC<{ label: string; currentPrice: number; onUpdate: (price: string) => void; isUpdating: boolean }> = ({ label, currentPrice, onUpdate, isUpdating }) => {
+  const [price, setPrice] = useState((currentPrice / 100).toString());
+  const hasChanged = Math.round(Number(price) * 100) !== currentPrice;
 
-// Reuse existing logic for generic/simple managers
-// ... (Keeping PricingManager and CouponManager relatively similar but inside Cards)
+  return (
+    <div className="flex items-center justify-between bg-white p-3 border border-gray-100 rounded-xl hover:border-indigo-100 transition-colors">
+      <span className="text-sm font-medium text-gray-700 truncate mr-4 flex-1" title={label}>{label}</span>
+      <div className="flex items-center gap-2">
+        <div className="relative">
+          <span className="absolute left-2.5 top-1.5 text-xs text-gray-400">R</span>
+          <input
+            type="number"
+            value={price}
+            onChange={(e) => setPrice(e.target.value)}
+            className="w-24 pl-6 pr-2 py-1.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
+          />
+        </div>
+        <button
+          onClick={() => onUpdate(price)}
+          disabled={!hasChanged || isUpdating}
+          className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${hasChanged ? 'bg-indigo-600 text-white shadow-sm hover:shadow-md' : 'bg-gray-50 text-gray-300 pointer-events-none'}`}
+        >
+          {isUpdating ? '...' : 'Save'}
+        </button>
+      </div>
+    </div>
+  );
+};
 
-// COPY OF PricingManager with Better UI
 const PricingManager: React.FC = () => {
   const { proPlanPrice, getDocPrice, adminActions } = useDataContext();
   const [proPrice, setProPrice] = useState((proPlanPrice / 100).toString());
   const [updating, setUpdating] = useState<string | null>(null);
+
+  const policies = Object.values(POLICIES);
+  const forms = Object.values(FORMS);
 
   const handleUpdatePro = async () => {
     setUpdating('pro');
@@ -383,36 +406,237 @@ const PricingManager: React.FC = () => {
     setUpdating(null);
   };
 
-  return (
-    <div className="space-y-8 max-w-4xl">
-      <h2 className="text-2xl font-bold text-gray-800">Pricing Configuration</h2>
+  const handleUpdateDoc = async (docType: string, priceStr: string, category: 'policy' | 'form') => {
+    setUpdating(docType);
+    await adminActions.setDocPrice(docType, Math.round(Number(priceStr) * 100), category);
+    setUpdating(null);
+  };
 
-      <Card className="p-8">
-        <h3 className="text-lg font-bold text-gray-800 mb-6 flex items-center">
-          <Badge type="success" text="SUBSCRIPTION" />
-          <span className="ml-3">Pro Plan Pricing</span>
-        </h3>
-        <div className="flex items-center gap-4 max-w-md">
-          <div className="flex-1 relative">
-            <span className="absolute left-3 top-2.5 text-gray-500">R</span>
-            <input
-              type="number"
-              value={proPrice}
-              onChange={(e) => setProPrice(e.target.value)}
-              className="w-full pl-8 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
-            />
+  return (
+    <div className="space-y-8">
+      <div className="flex justify-between items-center">
+        <h2 className="text-2xl font-bold text-gray-800">Pricing Configuration</h2>
+        <Badge type="info" text="ZAR Currency" />
+      </div>
+
+      <Card className="p-6">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div className="max-w-md">
+            <h3 className="text-lg font-bold text-gray-800 mb-2 flex items-center">
+              <div className="w-2 h-2 rounded-full bg-green-500 mr-2"></div>
+              Main Subscription
+            </h3>
+            <p className="text-sm text-gray-500">The base price for the 12-month Pro Access plan.</p>
           </div>
-          <button
-            onClick={handleUpdatePro}
-            disabled={!!updating}
-            className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-medium disabled:opacity-50 transition-colors"
-          >
-            {updating === 'pro' ? 'Saving...' : 'Update Price'}
-          </button>
+          <div className="flex items-center gap-4">
+            <div className="relative">
+              <span className="absolute left-3 top-2.5 text-gray-500">R</span>
+              <input
+                type="number"
+                value={proPrice}
+                onChange={(e) => setProPrice(e.target.value)}
+                className="w-32 pl-8 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-lg font-bold"
+              />
+            </div>
+            <button
+              onClick={handleUpdatePro}
+              disabled={!!updating}
+              className="px-6 py-2.5 bg-gray-900 text-white rounded-lg hover:bg-black font-bold disabled:opacity-50 transition-all shadow-sm"
+            >
+              {updating === 'pro' ? 'Saving...' : 'Update Plan'}
+            </button>
+          </div>
         </div>
-        <p className="mt-4 text-sm text-gray-500">This affects all new Pro Plan subscriptions generated via Strata.</p>
       </Card>
-      {/* ... keeping the rest simple for brevity, imagine similar Card wrappers ... */}
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h4 className="font-bold text-gray-700 flex items-center uppercase tracking-wider text-xs">
+              <MasterPolicyIcon className="w-4 h-4 mr-2" /> Policies
+            </h4>
+            <span className="text-xs text-gray-400 font-medium">{policies.length} items</span>
+          </div>
+          <Card className="p-4 space-y-2 max-h-[500px] overflow-y-auto custom-scrollbar">
+            {policies.map(p => (
+              <PricingRow
+                key={p.type}
+                label={p.title}
+                currentPrice={getDocPrice(p)}
+                onUpdate={(price) => handleUpdateDoc(p.type, price, 'policy')}
+                isUpdating={updating === p.type}
+              />
+            ))}
+          </Card>
+        </div>
+
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h4 className="font-bold text-gray-700 flex items-center uppercase tracking-wider text-xs">
+              <FormsIcon className="w-4 h-4 mr-2" /> Forms
+            </h4>
+            <span className="text-xs text-gray-400 font-medium">{forms.length} items</span>
+          </div>
+          <Card className="p-4 space-y-2 max-h-[500px] overflow-y-auto custom-scrollbar">
+            {forms.map(f => (
+              <PricingRow
+                key={f.type}
+                label={f.title}
+                currentPrice={getDocPrice(f)}
+                onUpdate={(price) => handleUpdateDoc(f.type, price, 'form')}
+                isUpdating={updating === f.type}
+              />
+            ))}
+          </Card>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const CouponManager: React.FC<{ coupons: Coupon[]; adminActions: any }> = ({ coupons, adminActions }) => {
+  const [newCoupon, setNewCoupon] = useState({ code: '', discountType: 'fixed', discountValue: 0, maxUses: 0, applicableTo: 'all' });
+  const [loading, setLoading] = useState(false);
+
+  const handleCreate = async () => {
+    if (!newCoupon.code) return;
+    setLoading(true);
+    try {
+      await adminActions.createCoupon({
+        ...newCoupon,
+        discountValue: newCoupon.discountType === 'fixed' ? newCoupon.discountValue * 100 : newCoupon.discountValue
+      });
+      setNewCoupon({ code: '', discountType: 'fixed', discountValue: 0, maxUses: 0, applicableTo: 'all' });
+      alert("Coupon created successfully!");
+    } catch (e: any) {
+      alert("Error creating coupon: " + e.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="space-y-10">
+      <div className="flex justify-between items-center">
+        <h2 className="text-2xl font-bold text-gray-800">Coupon Management</h2>
+        <div className="flex items-center gap-2">
+          <span className="h-2 w-2 rounded-full bg-green-500"></span>
+          <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">{coupons.filter(c => c.active).length} Active Tokens</span>
+        </div>
+      </div>
+
+      <Card className="p-8 bg-indigo-50 border-none relative overflow-hidden">
+        <div className="absolute top-0 right-0 p-8 opacity-10 pointer-events-none">
+          <CouponIcon className="w-32 h-32 text-indigo-900" />
+        </div>
+        <div className="relative z-10">
+          <h3 className="text-lg font-bold text-indigo-900 mb-6">Create New Campaign</h3>
+          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4 items-end">
+            <div className="space-y-1.5">
+              <label className="block text-xs font-bold text-indigo-400 uppercase tracking-wider">Coupon Code</label>
+              <input
+                type="text"
+                value={newCoupon.code}
+                onChange={e => setNewCoupon({ ...newCoupon, code: e.target.value.toUpperCase() })}
+                className="w-full px-4 py-2.5 bg-white border border-indigo-100 rounded-xl font-bold focus:ring-2 focus:ring-indigo-500 outline-none uppercase text-gray-800"
+                placeholder="SAVE50"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="block text-xs font-bold text-indigo-400 uppercase tracking-wider">Type</label>
+              <select
+                value={newCoupon.discountType}
+                onChange={e => setNewCoupon({ ...newCoupon, discountType: e.target.value })}
+                className="w-full px-4 py-2.5 bg-white border border-indigo-100 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-medium text-gray-700"
+              >
+                <option value="fixed">Fixed (R)</option>
+                <option value="percentage">Percentage (%)</option>
+              </select>
+            </div>
+            <div className="space-y-1.5">
+              <label className="block text-xs font-bold text-indigo-400 uppercase tracking-wider">Value</label>
+              <input
+                type="number"
+                value={newCoupon.discountValue}
+                onChange={e => setNewCoupon({ ...newCoupon, discountValue: Number(e.target.value) })}
+                className="w-full px-4 py-2.5 bg-white border border-indigo-100 rounded-xl font-bold focus:ring-2 focus:ring-indigo-500 outline-none text-gray-800"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="block text-xs font-bold text-indigo-400 uppercase tracking-wider">Applies To</label>
+              <select
+                value={newCoupon.applicableTo}
+                onChange={e => setNewCoupon({ ...newCoupon, applicableTo: e.target.value })}
+                className="w-full px-4 py-2.5 bg-white border border-indigo-100 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-medium text-gray-700"
+              >
+                <option value="all">Everything</option>
+                <option value="plan:pro">Pro Only</option>
+                <option value="plan:payg">PAYG Only</option>
+              </select>
+            </div>
+            <button
+              onClick={handleCreate}
+              disabled={loading || !newCoupon.code}
+              className="w-full bg-indigo-600 text-white font-bold py-3 px-6 rounded-xl hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200 disabled:opacity-50"
+            >
+              {loading ? '...' : 'Create Coupon'}
+            </button>
+          </div>
+        </div>
+      </Card>
+
+      <Card className="overflow-hidden">
+        <table className="min-w-full">
+          <thead className="bg-gray-50 border-b border-gray-100">
+            <tr>
+              <th className="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-widest">Active Code</th>
+              <th className="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-widest">Discount</th>
+              <th className="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-widest">Usage</th>
+              <th className="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-widest">Status</th>
+              <th className="px-6 py-4 text-right text-xs font-bold text-gray-400 uppercase tracking-widest">Action</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-50">
+            {coupons.map(coupon => (
+              <tr key={coupon.id} className="hover:bg-gray-50 transition-colors">
+                <td className="px-6 py-4">
+                  <span className="px-3 py-1 bg-gray-100 rounded-lg font-mono font-bold text-gray-800 border border-gray-200">{coupon.code}</span>
+                </td>
+                <td className="px-6 py-4 font-bold text-gray-800">
+                  {coupon.discountType === 'percentage' ? `${coupon.discountValue}% OFF` : `R${(coupon.discountValue / 100).toFixed(0)} OFF`}
+                </td>
+                <td className="px-6 py-4">
+                  <div className="text-sm font-medium text-gray-600">{coupon.usedCount} <span className="text-gray-400">/ {coupon.maxUses || '∞'}</span></div>
+                  <div className="w-24 h-1.5 bg-gray-100 rounded-full mt-2 overflow-hidden">
+                    <div
+                      className="h-full bg-indigo-500 transition-all"
+                      style={{ width: coupon.maxUses ? `${(coupon.usedCount / coupon.maxUses) * 100}%` : '0%' }}
+                    ></div>
+                  </div>
+                </td>
+                <td className="px-6 py-4">
+                  <Badge type={coupon.active ? 'success' : 'default'} text={coupon.active ? 'LIVE' : 'EXPIRED'} />
+                </td>
+                <td className="px-6 py-4 text-right">
+                  {coupon.active && (
+                    <button
+                      onClick={() => adminActions.deactivateCoupon(coupon.id)}
+                      className="text-red-500 hover:text-red-700 text-xs font-bold uppercase tracking-widest transition-colors"
+                    >
+                      Disable
+                    </button>
+                  )}
+                </td>
+              </tr>
+            ))}
+            {coupons.length === 0 && (
+              <tr>
+                <td colSpan={5} className="px-6 py-12 text-center text-gray-400 italic">No coupons found. Create your first campaign above!</td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </Card>
     </div>
   );
 };
@@ -537,8 +761,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
               key={item.id}
               onClick={() => setActiveTab(item.id as AdminTab)}
               className={`w-full flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 group ${activeTab === item.id
-                  ? 'bg-indigo-600 text-white shadow-md'
-                  : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                ? 'bg-indigo-600 text-white shadow-md'
+                : 'text-slate-300 hover:bg-slate-800 hover:text-white'
                 }`}
             >
               <item.icon className={`w-5 h-5 mr-3 transition-colors ${activeTab === item.id ? 'text-white' : 'text-slate-400 group-hover:text-white'}`} />
@@ -599,7 +823,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
             {activeTab === 'transactions' && <TransactionLog transactions={transactionsForUserPage} usersPageInfo={paginatedUsers.pageInfo} onNext={onNextUsers} onPrev={onPrevUsers} isLoading={isFetchingUsers} />}
             {activeTab === 'pricing' && <PricingManager />}
             {/* For brevity, other components would be similar Card-based implementations */}
-            {activeTab === 'coupons' && <div className="p-12 text-center text-gray-500 bg-white rounded-xl shadow-sm">Coupon Manager Component (Needs Refactor to match Card style)</div>}
+            {activeTab === 'coupons' && <CouponManager coupons={coupons} adminActions={adminActions} />}
           </div>
         </main>
       </div>
