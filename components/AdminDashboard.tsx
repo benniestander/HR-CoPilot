@@ -684,7 +684,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
   onSearchUsers,
   onRunRetention
 }) => {
-  type AdminTab = 'dashboard' | 'requests' | 'users' | 'analytics' | 'transactions' | 'pricing' | 'coupons' | 'settings';
+  type AdminTab = 'dashboard' | 'requests' | 'users' | 'analytics' | 'transactions' | 'pricing' | 'coupons' | 'settings' | 'waitlist';
   const { user, logout } = useAuthContext();
   const [activeTab, setActiveTab] = useState<AdminTab>('requests');
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
@@ -709,13 +709,50 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
   const NAV_ITEMS = [
     { id: 'dashboard', label: 'Overview', icon: HomeIcon },
-    { id: 'requests', label: 'Order Requests', icon: FileIcon, badge: 0 }, // We can't easily count requests here without fetching but that's ok
+    { id: 'requests', label: 'Order Requests', icon: FileIcon, badge: 0 },
     { id: 'users', label: 'Users', icon: UserIcon },
+    { id: 'waitlist', label: 'Waitlist Leads', icon: HistoryIcon },
     { id: 'analytics', label: 'Documents', icon: MasterPolicyIcon },
     { id: 'transactions', label: 'Finance', icon: CreditCardIcon },
     { id: 'pricing', label: 'Pricing', icon: ShieldCheckIcon },
     { id: 'coupons', label: 'Coupons', icon: CouponIcon },
   ];
+
+  const WaitlistTable = () => {
+    const { waitlistLeads } = useDataContext();
+    return (
+      <div className="space-y-6">
+        <h2 className="text-2xl font-bold text-gray-800">Waitlist Management</h2>
+        <Card className="overflow-hidden">
+          <table className="min-w-full">
+            <thead className="bg-gray-50 border-b border-gray-100">
+              <tr>
+                <th className="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-widest">Lead Name</th>
+                <th className="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-widest">Email</th>
+                <th className="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-widest">Source</th>
+                <th className="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-widest">Joined</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-50">
+              {waitlistLeads.map((lead: any) => (
+                <tr key={lead.id} className="hover:bg-gray-50">
+                  <td className="px-6 py-4 text-sm font-medium text-gray-900">{lead.full_name}</td>
+                  <td className="px-6 py-4 text-sm text-gray-600">{lead.email}</td>
+                  <td className="px-6 py-4 text-sm text-gray-500 capitalize">{lead.source?.replace(/_/g, ' ')}</td>
+                  <td className="px-6 py-4 text-sm text-gray-500">{new Date(lead.created_at).toLocaleDateString()}</td>
+                </tr>
+              ))}
+              {waitlistLeads.length === 0 && (
+                <tr>
+                  <td colSpan={4} className="px-6 py-12 text-center text-gray-400 italic">No waitlist entries yet.</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </Card>
+      </div>
+    );
+  };
 
   /* 
     DASHBOARD OVERVIEW WIDGETS
@@ -819,6 +856,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 onRunRetention={onRunRetention}
               />
             )}
+            {activeTab === 'waitlist' && <WaitlistTable />}
             {activeTab === 'analytics' && <DocumentAnalytics documents={paginatedDocuments.data} pageInfo={paginatedDocuments.pageInfo} onNext={onNextDocs} onPrev={onPrevDocs} isLoading={isFetchingDocs} />}
             {activeTab === 'transactions' && <TransactionLog transactions={transactionsForUserPage} usersPageInfo={paginatedUsers.pageInfo} onNext={onNextUsers} onPrev={onPrevUsers} isLoading={isFetchingUsers} />}
             {activeTab === 'pricing' && <PricingManager />}

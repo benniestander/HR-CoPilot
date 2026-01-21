@@ -39,6 +39,7 @@ const KnowledgeBase = lazy(() => import('./components/KnowledgeBase'));
 const PaymentSuccessPage = lazy(() => import('./components/PaymentSuccessPage'));
 const TransactionsPage = lazy(() => import('./components/TransactionsPage'));
 const PolicyAuditor = lazy(() => import('./components/PolicyAuditor'));
+const WaitlistLanding = lazy(() => import('./components/WaitlistLanding'));
 
 
 
@@ -87,6 +88,7 @@ const AppContent: React.FC = () => {
         handleDeductCredit,
         handleSearchUsers,
         handleRunRetentionCheck,
+        handleWaitlistSignup,
     } = useDataContext();
 
     const {
@@ -603,6 +605,17 @@ const AppContent: React.FC = () => {
                 return <Login />;
             }
 
+            if (currentView === 'waitlist') {
+                return (
+                    <Suspense fallback={<FullPageLoader />}>
+                        <WaitlistLanding
+                            onSignup={(name, email) => handleWaitlistSignup(name, email)}
+                            onShowLogin={() => setAuthPage('login')}
+                        />
+                    </Suspense>
+                );
+            }
+
             return (
                 <Suspense fallback={<FullPageLoader />}>
                     <PlanSelectionPage
@@ -610,6 +623,7 @@ const AppContent: React.FC = () => {
                         onShowLogin={() => setAuthPage('login')}
                         onShowPrivacyPolicy={() => showLegalModal('Privacy Policy', PRIVACY_POLICY_CONTENT)}
                         onShowTerms={() => showLegalModal('Terms of Use', TERMS_OF_USE_CONTENT)}
+                        onShowWaitlist={() => navigateTo('waitlist')}
                     />
                 </Suspense>
             );

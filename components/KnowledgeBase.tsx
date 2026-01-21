@@ -224,7 +224,7 @@ const KNOWLEDGE_BASE_DATA: Category[] = [
             <h4 className="font-bold text-secondary">How we ensure quality:</h4>
             <ul className="list-disc pl-5 space-y-3">
               <li><strong>Legal Foundation:</strong> Our templates and AI models are built upon the latest South African legislation, including the BCEA, LRA, EEA, and POPIA.</li>
-              <li><strong>Expert Review:</strong> We conduct regular spot checks and comprehensive quality audits with qualified HR practitioners and labor lawyers. This ensures our base templates and AI prompts remain current and legally sound.</li>
+              <li><strong>Expert Review:</strong> We conduct regular spot checks and comprehensive quality audits with qualified HR practitioners and labour lawyers. This ensures our base templates and AI prompts remain current and legally sound.</li>
               <li><strong>Real-time Legislative Updates:</strong> Any new legislation, new laws, or updated laws are updated by HR CoPilot and the Ingcweti AI in real-time, ensuring your documents always reflect the current legal landscape.</li>
               <li><strong>Continuous Improvement:</strong> Feedback from legal experts is fed back into the system to constantly refine the AI's output.</li>
             </ul>

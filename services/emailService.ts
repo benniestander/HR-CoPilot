@@ -2,9 +2,9 @@ import { supabase } from './supabase';
 
 /* 
    ==============================================================================
-   CRITICAL: EMAIL EDGE FUNCTION SETUP (RESEND)
+   CRITICAL: EMAIL EDGE FUNCTION SETUP (ZEPTOMAIL / ZOHO)
    ==============================================================================
-   Ensure your 'send-email' Edge Function is deployed as per previous instructions.
+   The 'send-email' Edge Function uses ZeptoMail API via the verified domain.
 */
 
 // --- Frontend Service ---
@@ -37,7 +37,7 @@ const sendEmail = async (to: string, subject: string, htmlBody: string) => {
  * Enhanced Branded HTML Wrapper
  * Wraps content in a consistent, premium HR CoPilot design.
  */
-const getBrandedHtml = (title: string, content: string, ctaLink?: string, ctaText?: string) => {
+export const getBrandedHtml = (title: string, content: string, ctaLink?: string, ctaText?: string) => {
     return `
         <!DOCTYPE html>
         <html>
@@ -169,5 +169,19 @@ export const emailService = {
             ${ticketId ? `<p style="color: #64748b; font-size: 14px; margin-top: 24px;">Ticket Reference: <strong>${ticketId}</strong></p>` : ''}
         `;
         return sendEmail(email, "Message Received", getBrandedHtml("We're on it", content));
+    },
+
+    sendRetentionNudge: async (email: string, name: string) => {
+        const content = `
+            <p>Hi ${name || 'there'},</p>
+            <p>We noticed you signed up for HR CoPilot but haven't generated any documents yet.</p>
+            <p>Is there anything we can help you with? Our system is designed to make HR compliance effortless for South African businesses.</p>
+            <div style="background-color: #f1f5f9; padding: 20px; border-radius: 12px; margin: 24px 0;">
+                <p style="margin: 0; font-weight: 700; color: #188693;">Did you know?</p>
+                <p style="margin: 4px 0 0 0;">You can generate a tailored Employment Contract or Leave Policy in under 5 minutes.</p>
+            </div>
+            <p>Reply to this email if you need assistance!</p>
+        `;
+        return sendEmail(email, "We miss you at HR CoPilot!", getBrandedHtml("Still there?", content, "https://app.hrcopilot.co.za", "Get Started Now"));
     }
 };

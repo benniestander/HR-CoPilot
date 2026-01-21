@@ -8,13 +8,15 @@ interface PlanSelectionPageProps {
     onShowLogin: () => void;
     onShowPrivacyPolicy: () => void;
     onShowTerms: () => void;
+    onShowWaitlist: () => void;
 }
 
 const PlanSelectionPage: React.FC<PlanSelectionPageProps> = ({
     onStartAuthFlow,
     onShowLogin,
     onShowPrivacyPolicy,
-    onShowTerms
+    onShowTerms,
+    onShowWaitlist
 }) => {
     const { proPlanPrice } = useDataContext(); // Dynamic Price
     const [selectedPlan, setSelectedPlan] = useState<'pro' | 'payg'>('pro');
@@ -421,13 +423,26 @@ const PlanSelectionPage: React.FC<PlanSelectionPageProps> = ({
                                 }
                             />
 
-                            <button
-                                type="submit"
-                                disabled={loading}
-                                className="w-full bg-primary text-white font-bold py-4 rounded-lg shadow-lg hover:bg-secondary hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200 disabled:bg-gray-300 disabled:shadow-none disabled:transform-none mt-4"
-                            >
-                                {loading ? 'Creating Account...' : 'Sign Up Now'}
-                            </button>
+                            <div className="pt-2">
+                                <button
+                                    type="submit"
+                                    disabled={loading}
+                                    className="w-full bg-primary text-white font-bold py-4 rounded-lg shadow-lg hover:bg-secondary hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200 disabled:bg-gray-300 disabled:shadow-none disabled:transform-none"
+                                >
+                                    {loading ? 'Creating Account...' : 'Sign Up Now'}
+                                </button>
+
+                                <div className="mt-6 text-center">
+                                    <p className="text-gray-400 text-sm mb-2">Not ready to commit?</p>
+                                    <button
+                                        type="button"
+                                        onClick={onShowWaitlist}
+                                        className="text-secondary font-black text-xs uppercase tracking-[0.2em] hover:text-primary transition-colors"
+                                    >
+                                        Join our priority waitlist instead
+                                    </button>
+                                </div>
+                            </div>
                         </form>
 
                         <div className="flex justify-center items-center space-x-4 text-xs text-gray-400">

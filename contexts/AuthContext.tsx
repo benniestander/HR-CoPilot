@@ -48,7 +48,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
 
   useEffect(() => {
-    if (isLocalhost && !user && !isLoading) {
+    const isWaitlist = window.location.hash.includes('waitlist');
+    if (isLocalhost && !user && !isLoading && !isWaitlist) {
       console.log("🛠️ SANDBOX MODE: Injecting Mock Pro User...");
       const mockUser: User = {
         uid: 'sandbox-user-123',

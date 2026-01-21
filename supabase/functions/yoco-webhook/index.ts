@@ -21,6 +21,51 @@ function timingSafeEqual(a: string, b: string): boolean {
     return result === 0;
 }
 
+const getBrandedHtml = (title: string, content: string, ctaLink?: string, ctaText?: string) => {
+    return `
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        </head>
+        <body style="margin: 0; padding: 0; background-color: #f8fafc; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;">
+            <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 20px; overflow: hidden; margin-top: 40px; margin-bottom: 40px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);">
+                <!-- Header -->
+                <div style="background-color: #ffffff; padding: 32px 40px; text-align: center; border-bottom: 1px solid #f1f5f9;">
+                     <img src="https://i.postimg.cc/h48FMCNY/edited-image-11-removebg-preview.png" alt="HR CoPilot" style="height: 48px; width: auto;" />
+                </div>
+
+                <!-- Main Content -->
+                <div style="padding: 40px 40px 24px 40px;">
+                    <h1 style="color: #0f172a; font-size: 24px; font-weight: 800; margin: 0 0 24px 0; letter-spacing: -0.5px;">${title}</h1>
+                    <div style="color: #334155; font-size: 16px; line-height: 1.6;">
+                        ${content}
+                    </div>
+
+                    ${ctaLink ? `
+                    <div style="margin-top: 32px; text-align: center;">
+                        <a href="${ctaLink}" style="display: inline-block; background-color: #188693; color: white; text-decoration: none; padding: 14px 32px; border-radius: 12px; font-weight: 600; font-size: 16px; transition: background-color 0.2s;">
+                            ${ctaText || 'Go to Dashboard'}
+                        </a>
+                    </div>
+                    ` : ''}
+                </div>
+
+                <!-- Footer -->
+                <div style="background-color: #f8fafc; padding: 32px 40px; text-align: center; border-top: 1px solid #f1f5f9;">
+                    <p style="margin: 0; color: #64748b; font-size: 14px;">HR CoPilot</p>
+                    <p style="margin: 8px 0 0 0; color: #94a3b8; font-size: 12px;">South Africa's Smartest HR Assistant</p>
+                    <p style="margin: 24px 0 0 0; color: #cbd5e1; font-size: 11px;">
+                        &copy; ${new Date().getFullYear()} HR CoPilot. All rights reserved.
+                    </p>
+                </div>
+            </div>
+        </body>
+        </html>
+    `;
+}
+
 /**
  * YOCO WEBHOOK HANDLER
  * Secured version implementing official Yoco Signature Verification & Replay Protection.
@@ -163,11 +208,19 @@ Deno.serve(async (req: any) => {
             // 3. Email Notification
             if (profile) {
                 const amountRands = (amountInCents / 100).toFixed(2);
+                const content = `
+                    <p>Hi ${profile.full_name || 'there'},</p>
+                    <p>Great news! We have successfully processed your payment of <strong>R ${amountRands}</strong>.</p>
+                    <div style="background-color: #ecfdf5; padding: 20px; border-radius: 12px; border: 1px solid #d1fae5; margin: 24px 0;">
+                        <p style="margin: 0; color: #065f46;">Your HR CoPilot account has been updated and your new products or credits are now available in your dashboard.</p>
+                    </div>
+                    <p>Thank you for choosing HR CoPilot for your compliance needs.</p>
+                `;
                 await supabaseAdmin.functions.invoke('send-email', {
                     body: {
                         to: profile.email,
                         subject: `Payment Successful (R ${amountRands})`,
-                        html: `<p>Your HR CoPilot account has been updated following a successful payment of R ${amountRands}.</p>`
+                        html: getBrandedHtml("Order Confirmation", content, "https://app.hrcopilot.co.za", "View Dashboard")
                     }
                 });
             }

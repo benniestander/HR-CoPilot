@@ -34,7 +34,10 @@ import {
     getPricingSettings,
     updateProPrice,
     updateDocumentPrice,
-    searchUsers // Import new function
+    searchUsers,
+    saveWaitlistLead,
+    getWaitlistLeads,
+    logMarketingEvent
 } from '../services/dbService';
 import { supabase } from '../services/supabase'; // Add supabase import
 import { useAuthContext } from './AuthContext';
@@ -102,11 +105,14 @@ interface DataContextType {
     handleSaveDraft: (draft: Omit<PolicyDraft, 'id' | 'createdAt' | 'updatedAt'> & { id?: string }) => Promise<void>;
     handleDeleteDraft: (id: string) => Promise<void>;
     handleSearchUsers: (query: string) => Promise<void>;
-    handleRunRetentionCheck: () => Promise<any>; // Add new function // Add to interface
+    handleRunRetentionCheck: () => Promise<any>;
+    handleWaitlistSignup: (name: string, email: string) => Promise<void>;
+    logMarketingEvent: (eventType: string, metadata?: any) => Promise<void>;
 
     // Pricing Data
     proPlanPrice: number;
     getDocPrice: (item: Policy | Form) => number;
+    waitlistLeads: any[];
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
@@ -142,6 +148,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Pricing State
     const [proPlanPrice, setProPlanPrice] = useState(74700); // Default R747
     const [docPriceMap, setDocPriceMap] = useState<Record<string, number>>({});
+    const [waitlistLeads, setWaitlistLeads] = useState<any[]>([]);
 
     const createPageFetcher = <T,>(
         fetchFn: (pageSize: number, cursor?: number) => Promise<{ data: T[], lastVisible: number | null }>,
@@ -219,6 +226,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
                     priceMap[dp.doc_type] = dp.price;
                 });
                 setDocPriceMap(priceMap);
+
+                // Fetch Waitlist Leads if Admin
+                if (user?.isAdmin) {
+                    const leads = await getWaitlistLeads();
+                    setWaitlistLeads(leads);
+                }
             } catch (error) {
                 console.error("Failed to load pricing settings", error);
             }
@@ -230,12 +243,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (user && user.uid) {
             if (user.uid === 'sandbox-user-123') {
                 console.log("🛠️ SANDBOX MODE: Seeding Mock Data...");
-                const mockDocs: GeneratedDocument[] = [
+                const mockDocs: any[] = [
                     {
                         id: 'mock-1',
                         uid: user.uid,
                         kind: 'policy',
-                        type: 'disciplinary_code',
+                        type: 'disciplinary',
                         content: '# Disciplinary Code\n\nStandard disciplinary procedures for Atlas Tech Corp.',
                         version: 1,
                         createdAt: new Date(Date.now() - 86400000 * 2).toISOString(), // 2 days ago
@@ -245,8 +258,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
                         id: 'mock-2',
                         uid: user.uid,
                         kind: 'policy',
-                        type: 'social_media_policy',
-                        content: '# Social Media Policy\n\nGuidelines for employee conduct on social platforms.',
+                        type: 'leave-policy',
+                        content: '# Leave Policy\n\nGuidelines for employee leave.',
                         version: 1,
                         createdAt: new Date(Date.now() - 86400000 * 5).toISOString(), // 5 days ago
                         history: []
@@ -255,7 +268,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
                         id: 'mock-3',
                         uid: user.uid,
                         kind: 'form',
-                        type: 'employment_contract_fixed',
+                        type: 'employment-contract',
                         content: '# Fixed-Term Employment Contract\n\nAgreement for project-based engineering roles.',
                         version: 1,
                         createdAt: new Date(Date.now() - 86400000 * 10).toISOString(), // 10 days ago
@@ -610,6 +623,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
             if (error) throw error;
             return data;
         },
+        handleWaitlistSignup: async (name: string, email: string) => {
+            await saveWaitlistLead({ name, email });
+        },
+        logMarketingEvent: async (eventType: string, metadata: any = {}) => {
+            await logMarketingEvent(user?.uid, eventType, metadata);
+        },
         adminNotifications,
         coupons,
         isLoadingUserDocs,
@@ -632,7 +651,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         handleSaveDraft,
         handleDeleteDraft,
         proPlanPrice,
-        getDocPrice
+        getDocPrice,
+        waitlistLeads
     };
 
     return <DataContext.Provider value={value}>{children}</DataContext.Provider>;

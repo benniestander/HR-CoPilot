@@ -1,4 +1,4 @@
-# 🚀 HR CoPilot Marketing Strategy & Content Calendar (ZA)
+# 🚀 HR CoPilot Marketing Strategy - PHASE 2 LIVE (Waitlist Build)
 **Target Market:** South African SMEs, Founders, and Operational Managers.
 
 ---

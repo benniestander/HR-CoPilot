@@ -460,3 +460,28 @@ export const getMarketingEvents = async (limit: number = 100) => {
     if (error) throw error;
     return data;
 };
+
+/**
+ * Saves a lead to the Waitlist (assessment_leads).
+ */
+export const saveWaitlistLead = async (leadData: { name: string, email: string, source?: string }) => {
+    const { error } = await supabase.from('assessment_leads').insert({
+        full_name: leadData.name,
+        email: leadData.email,
+        source: leadData.source || 'website_waitlist',
+        created_at: new Date().toISOString()
+    });
+    if (error) throw error;
+};
+
+/**
+ * Retrieves waitlist leads for the admin.
+ */
+export const getWaitlistLeads = async () => {
+    const { data, error } = await supabase
+        .from('assessment_leads')
+        .select('*')
+        .order('created_at', { ascending: false });
+    if (error) throw error;
+    return data;
+};
