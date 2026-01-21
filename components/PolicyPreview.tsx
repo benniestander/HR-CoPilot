@@ -72,51 +72,52 @@ const PolicyPreview: React.FC<PolicyPreviewProps> = ({ policyText, status, onRet
 
   useEffect(() => {
     if (status === 'success' && editorRef.current) {
-        // Only set content if it's different to prevent cursor jumps if this runs on re-render
-        // However, typically policyText won't change while editing unless re-generated.
-        // We assume policyText is the source of truth from AI initially.
-        if (editorRef.current.innerHTML === '') {
-             (async () => {
-                const rawHtml = await marked.parse(policyText);
-                const cleanHtml = DOMPurify.sanitize(rawHtml);
-                editorRef.current!.innerHTML = cleanHtml;
-                // If onContentChange is provided, initialize it with the generated content
-                if (onContentChange) onContentChange(policyText); // We pass markdown back initially? No, let's keep it HTML edit.
-                // Actually, if we edit HTML, we lose markdown structure. But for saving, we save the HTML or Text content.
-                // The DB saves 'content'. If we edit, we save the innerText/HTML.
-                // For simplicity, let's just assume manual edits are saved as text or basic HTML.
-              })();
-        }
+      // Only set content if it's different to prevent cursor jumps if this runs on re-render
+      // However, typically policyText won't change while editing unless re-generated.
+      // We assume policyText is the source of truth from AI initially.
+      if (editorRef.current.innerHTML === '') {
+        (async () => {
+          const rawHtml = await marked.parse(policyText);
+          const cleanHtml = DOMPurify.sanitize(rawHtml);
+          editorRef.current!.innerHTML = cleanHtml;
+          // If onContentChange is provided, initialize it with the generated content
+          if (onContentChange) onContentChange(policyText); // We pass markdown back initially? No, let's keep it HTML edit.
+          // Actually, if we edit HTML, we lose markdown structure. But for saving, we save the HTML or Text content.
+          // The DB saves 'content'. If we edit, we save the innerText/HTML.
+          // For simplicity, let's just assume manual edits are saved as text or basic HTML.
+        })();
+      }
     } else if (editorRef.current && status !== 'success') {
       editorRef.current.innerHTML = '';
     }
   }, [policyText, status]);
 
   const handleInput = () => {
-      if (editorRef.current && onContentChange) {
-          // Pass the innerText (or innerHTML if you want to support rich text saving, but marked converts MD->HTML)
-          // Since the generator expects to save 'content', and the preview displays MD converted to HTML,
-          // saving innerText is safer for "text" edits, but we lose formatting. 
-          // Saving innerHTML preserves formatting but makes future "updates" harder if not converted back to MD.
-          // For this MVP: Save innerText to keep it simple, or innerHTML if we treat it as the final doc.
-          // Let's use innerText to be safe against XSS persistence, or check requirements.
-          // Requirement: "user edits are captured". 
-          onContentChange(editorRef.current.innerText); 
-      }
+    if (editorRef.current && onContentChange) {
+      // Pass the innerText (or innerHTML if you want to support rich text saving, but marked converts MD->HTML)
+      // Since the generator expects to save 'content', and the preview displays MD converted to HTML,
+      // saving innerText is safer for "text" edits, but we lose formatting. 
+      // Saving innerHTML preserves formatting but makes future "updates" harder if not converted back to MD.
+      // For this MVP: Save innerText to keep it simple, or innerHTML if we treat it as the final doc.
+      // Let's use innerText to be safe against XSS persistence, or check requirements.
+      // Requirement: "user edits are captured". 
+      onContentChange(editorRef.current.innerText);
+    }
   };
 
   const handleCopy = () => {
     if (editorRef.current) {
-        navigator.clipboard.writeText(editorRef.current.innerText);
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
+      navigator.clipboard.writeText(editorRef.current.innerText);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
     }
   };
 
   const getStyledHtmlForDownload = (contentHtml: string, docTitle: string) => {
     const bodyStyles = WORD_DOCUMENT_STYLES.replace(/\.word-document-preview/g, 'body');
     return `
-      <!DOCTYPE html><html><head><meta charset="UTF-8"><title>${docTitle}</title>
+      <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
+      <head><meta charset="UTF-8"><title>${docTitle}</title>
       <style>
         @page { size: A4; margin: 1in; }
         ${bodyStyles}
@@ -124,7 +125,7 @@ const PolicyPreview: React.FC<PolicyPreviewProps> = ({ policyText, status, onRet
       </style></head><body>${contentHtml}</body></html>
     `;
   };
-  
+
   const handleDownload = async (format: 'word' | 'csv' | 'txt' | 'pdf') => {
     setDownloadMenuOpen(false);
     const textContent = editorRef.current?.innerText || '';
@@ -134,14 +135,14 @@ const PolicyPreview: React.FC<PolicyPreviewProps> = ({ policyText, status, onRet
 
     if (format === 'word') {
       const htmlDoc = getStyledHtmlForDownload(htmlContent, title);
-      blob = new Blob([htmlDoc], { type: 'application/msword;charset=utf-8' });
-      filename = `${title}.doc`;
+      blob = new Blob([htmlDoc], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document;charset=utf-8' });
+      filename = `${title}.docx`;
     } else {
       // Handle other formats based on text content
       blob = new Blob([textContent], { type: 'text/plain;charset=utf-8;' });
       filename = `${title}.txt`;
     }
-    
+
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
@@ -151,52 +152,52 @@ const PolicyPreview: React.FC<PolicyPreviewProps> = ({ policyText, status, onRet
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
   };
-  
+
   const renderContent = () => {
     switch (status) {
       case 'idle':
         return <div className="text-center text-gray-500 py-12"><h3 className="text-lg font-semibold">Your finalized document will appear here.</h3><p>Complete the previous steps to generate your document.</p></div>;
       case 'loading':
         if (loadingMessages && loadingMessages.length > 0) {
-            return <SemanticLoader messages={loadingMessages} />;
+          return <SemanticLoader messages={loadingMessages} />;
         }
         return <div className="text-center text-gray-500 py-12"><LoadingIcon className="w-12 h-12 animate-spin mx-auto mb-4 text-primary" /><h3 className="text-lg font-semibold">Generating your document...</h3><p>This may take a moment.</p></div>;
       case 'error':
         return <div className="text-center text-red-600 bg-red-50 p-6 rounded-md"><h3 className="text-lg font-semibold mb-2">An Error Occurred</h3><p className="mb-4">{errorMessage || "Couldn't generate document. Please try again."}</p><button onClick={onRetry} className="bg-primary text-white font-semibold py-2 px-4 rounded-md">Retry</button></div>;
       case 'success':
         return (
-            <div id="policy-preview-content" className="h-full flex flex-col">
-                <div className="bg-white shadow-sm border border-gray-200 p-8 md:p-12 min-h-[600px] rounded-sm relative group">
-                    <div 
-                        ref={editorRef}
-                        contentEditable={true}
-                        suppressContentEditableWarning={true}
-                        onInput={handleInput}
-                        className="word-document-preview w-full h-full outline-none"
-                    />
-                    <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                        <span className="text-xs text-gray-400 bg-white px-2 py-1 rounded shadow-sm border">Click to Edit</span>
-                    </div>
+          <div id="policy-preview-content" className="h-full flex flex-col">
+            <div className="bg-white shadow-sm border border-gray-200 p-8 md:p-12 min-h-[600px] rounded-sm relative group">
+              <div
+                ref={editorRef}
+                contentEditable={true}
+                suppressContentEditableWarning={true}
+                onInput={handleInput}
+                className="word-document-preview w-full h-full outline-none"
+              />
+              <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                <span className="text-xs text-gray-400 bg-white px-2 py-1 rounded shadow-sm border">Click to Edit</span>
+              </div>
+            </div>
+            {!isForm && <SourcesUsed sources={sources} />}
+            <div className="mt-6 pt-6 border-t border-dashed border-gray-300 print-hide">
+              <h3 className="text-lg font-bold text-secondary mb-4">Next Steps</h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                <div className="bg-blue-50 p-3 rounded border border-blue-100">
+                  <strong className="block text-blue-800 mb-1">1. Review</strong>
+                  <span className="text-blue-700">Read through the generated content and make any final tweaks directly in the editor above.</span>
                 </div>
-               {!isForm && <SourcesUsed sources={sources} />}
-               <div className="mt-6 pt-6 border-t border-dashed border-gray-300 print-hide">
-                <h3 className="text-lg font-bold text-secondary mb-4">Next Steps</h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-                    <div className="bg-blue-50 p-3 rounded border border-blue-100">
-                        <strong className="block text-blue-800 mb-1">1. Review</strong>
-                        <span className="text-blue-700">Read through the generated content and make any final tweaks directly in the editor above.</span>
-                    </div>
-                    <div className="bg-yellow-50 p-3 rounded border border-yellow-100">
-                        <strong className="block text-yellow-800 mb-1">2. Verify</strong>
-                        <span className="text-yellow-700">While our Ingcweti AI is powerful, we always recommend a final check by a labour law professional.</span>
-                    </div>
-                    <div className="bg-green-50 p-3 rounded border border-green-100">
-                        <strong className="block text-green-800 mb-1">3. Finalize</strong>
-                        <span className="text-green-700">Download the document, print it on your letterhead, and have it signed.</span>
-                    </div>
+                <div className="bg-yellow-50 p-3 rounded border border-yellow-100">
+                  <strong className="block text-yellow-800 mb-1">2. Verify</strong>
+                  <span className="text-yellow-700">While our Ingcweti AI is powerful, we always recommend a final check by a labour law professional.</span>
+                </div>
+                <div className="bg-green-50 p-3 rounded border border-green-100">
+                  <strong className="block text-green-800 mb-1">3. Finalize</strong>
+                  <span className="text-green-700">Download the document, print it on your letterhead, and have it signed.</span>
                 </div>
               </div>
             </div>
+          </div>
         );
     }
   };
@@ -204,39 +205,39 @@ const PolicyPreview: React.FC<PolicyPreviewProps> = ({ policyText, status, onRet
   const renderActionButtons = () => {
     if (status !== 'success') return null;
     return (
-        <div className="absolute top-4 right-4 flex space-x-2 z-10 print-hide">
-          <button onClick={handleCopy} className="p-2 rounded-full bg-white border border-gray-200 shadow-sm hover:bg-gray-50 transition-colors text-gray-600 hover:text-primary" title="Copy Text">
-            {copied ? <CheckIcon className="w-5 h-5 text-green-600" /> : <CopyIcon className="w-5 h-5" />}
+      <div className="absolute top-4 right-4 flex space-x-2 z-10 print-hide">
+        <button onClick={handleCopy} className="p-2 rounded-full bg-white border border-gray-200 shadow-sm hover:bg-gray-50 transition-colors text-gray-600 hover:text-primary" title="Copy Text">
+          {copied ? <CheckIcon className="w-5 h-5 text-green-600" /> : <CopyIcon className="w-5 h-5" />}
+        </button>
+
+        <div ref={downloadMenuRef} className="relative">
+          <button onClick={() => setDownloadMenuOpen(p => !p)} className="p-2 rounded-full bg-white border border-gray-200 shadow-sm hover:bg-gray-50 transition-colors text-gray-600 hover:text-primary" title="Download Options">
+            <DownloadIcon className="w-5 h-5" />
           </button>
-          
-          <div ref={downloadMenuRef} className="relative">
-            <button onClick={() => setDownloadMenuOpen(p => !p)} className="p-2 rounded-full bg-white border border-gray-200 shadow-sm hover:bg-gray-50 transition-colors text-gray-600 hover:text-primary" title="Download Options">
-              <DownloadIcon className="w-5 h-5" />
-            </button>
-            {isDownloadMenuOpen && (
-              <div className="absolute right-0 mt-2 w-56 origin-top-right bg-white rounded-md shadow-lg ring-1 ring-black ring-opacity-5 border border-gray-100 z-50">
-                <div className="py-1">
-                  <button onClick={() => handleDownload('word')} className="w-full text-left flex items-center px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
-                    <WordIcon className="w-5 h-5 mr-3 text-blue-700" /> 
-                    <div>
-                        <span className="block font-medium">Download as Word</span>
-                        <span className="block text-xs text-gray-500">Best for editing (.doc)</span>
-                    </div>
-                  </button>
-                  <div className="border-t border-gray-100 my-1"></div>
-                  <button onClick={() => handleDownload('txt')} className="w-full text-left flex items-center px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
-                     <TxtIcon className="w-5 h-5 mr-3 text-gray-500" /> 
-                     <div>
-                        <span className="block font-medium">Download as Text</span>
-                        <span className="block text-xs text-gray-500">Plain text format (.txt)</span>
-                    </div>
-                  </button>
-                </div>
+          {isDownloadMenuOpen && (
+            <div className="absolute right-0 mt-2 w-56 origin-top-right bg-white rounded-md shadow-lg ring-1 ring-black ring-opacity-5 border border-gray-100 z-50">
+              <div className="py-1">
+                <button onClick={() => handleDownload('word')} className="w-full text-left flex items-center px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
+                  <WordIcon className="w-5 h-5 mr-3 text-blue-700" />
+                  <div>
+                    <span className="block font-medium">Download as Word</span>
+                    <span className="block text-xs text-gray-500">Best for editing (.docx)</span>
+                  </div>
+                </button>
+                <div className="border-t border-gray-100 my-1"></div>
+                <button onClick={() => handleDownload('txt')} className="w-full text-left flex items-center px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
+                  <TxtIcon className="w-5 h-5 mr-3 text-gray-500" />
+                  <div>
+                    <span className="block font-medium">Download as Text</span>
+                    <span className="block text-xs text-gray-500">Plain text format (.txt)</span>
+                  </div>
+                </button>
               </div>
-            )}
-          </div>
+            </div>
+          )}
         </div>
-      );
+      </div>
+    );
   };
 
   return (
@@ -244,7 +245,7 @@ const PolicyPreview: React.FC<PolicyPreviewProps> = ({ policyText, status, onRet
       {renderActionButtons()}
       <div className="h-full flex-grow flex items-center justify-center">
         <div className="w-full h-full max-w-4xl mx-auto">
-            {renderContent()}
+          {renderContent()}
         </div>
       </div>
     </div>

@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
 import { supabase, isSupabaseConfigured } from '../services/supabase';
+import { createUserProfile } from '../services/dbService';
 import { useAuth } from '../hooks/useAuth';
 import type { User } from '../types';
 import type { AuthPage, AuthFlow } from '../AppContent';
@@ -17,7 +18,8 @@ interface AuthContextType {
   handleLogin: (email: string, pass: string) => Promise<void>;
   handleLogout: () => Promise<void>;
   handleForgotPassword: (email: string) => Promise<void>;
-  handleStartAuthFlow: (flow: AuthFlow, email: string, details: any) => void;
+  handleSignUp: (email: string, pass: string, data: any) => Promise<boolean>;
+  handleStartAuthFlow: (flow: AuthFlow, email: string, details: any) => Promise<void>;
 
   needsOnboarding: boolean;
   onboardingSkipped: boolean;
@@ -104,15 +106,65 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (error) throw error;
   };
 
-  const handleStartAuthFlow = (flow: AuthFlow, email: string, details: any) => {
+  const handleSignUp = async (email: string, pass: string, data: any) => {
+    if (!isSupabaseConfigured) throw new Error("Supabase not configured");
+
+    // 1. Sign Up
+    const { data: authData, error } = await (supabase.auth as any).signUp({
+      email,
+      password: pass,
+      options: {
+        data: {
+          full_name: data.name,
+          plan: data.plan || 'payg' // pass plan to metadata
+        }
+      }
+    });
+
+    if (error) throw error;
+
+    if (authData.user) {
+      // 2. Create Profile (Manual fallback if trigger doesn't exist)
+      try {
+        await createUserProfile(
+          authData.user.id,
+          email,
+          data.plan || 'payg',
+          data.name,
+          data.contactNumber
+        );
+      } catch (profileError) {
+        console.error("Profile creation warning:", profileError);
+        // Don't throw here, as user is created. We can try to fix profile later or rely on trigger.
+      }
+    }
+
+    return !!authData.user;
+  };
+
+  const handleStartAuthFlow = async (flow: AuthFlow, email: string, details: any) => {
     setAuthFlow(flow);
     setAuthEmail(email);
-    setAuthPage('email-sent');
 
-    // Store details temporarily for profile creation after email verification
-    window.localStorage.setItem('authFlow', flow);
-    if (details) {
-      window.localStorage.setItem('authDetails', JSON.stringify(details));
+    // Perform actual signup
+    try {
+      await handleSignUp(email, details.password, {
+        name: details.name,
+        contactNumber: details.contactNumber,
+        plan: flow === 'signup' ? 'pro' : 'payg'
+      });
+
+      // Only set page to email-sent if successful
+      setAuthPage('email-sent');
+
+      // Store details temporarily for post-verification logic if needed
+      window.localStorage.setItem('authFlow', flow);
+      if (details) {
+        window.localStorage.setItem('authDetails', JSON.stringify(details));
+      }
+    } catch (error: any) {
+      console.error("Signup failed:", error);
+      throw error; // Let the caller (PlanSelectionPage) handle the error display
     }
   };
 
@@ -153,6 +205,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     handleLogin,
     handleLogout,
     handleForgotPassword,
+    handleSignUp, // Export for flexibility
     handleStartAuthFlow,
     needsOnboarding,
     setNeedsOnboarding,

@@ -2,6 +2,8 @@
 declare const Deno: any;
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { GoogleGenerativeAI } from 'https://esm.sh/@google/generative-ai'
+import mammoth from 'https://esm.sh/mammoth'
 
 const corsHeaders = {
     'Access-Control-Allow-Origin': '*',
@@ -9,7 +11,7 @@ const corsHeaders = {
 }
 
 Deno.serve(async (req: any) => {
-    if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
+    if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
 
     try {
         const authHeader = req.headers.get('Authorization')!;
@@ -19,63 +21,77 @@ Deno.serve(async (req: any) => {
             { global: { headers: { Authorization: authHeader } } }
         )
 
-        const { data: { user } } = await supabaseClient.auth.getUser();
-        const apiKey = Deno.env.get('GEMINI_API_KEY') || Deno.env.get('GOOGLE_API_KEY');
+        const { data: { user } } = await supabaseClient.auth.getUser()
+        const apiKey = Deno.env.get('GEMINI_API_KEY') || Deno.env.get('API_KEY') || Deno.env.get('GOOGLE_API_KEY');
 
-        if (!apiKey) throw new Error("GEMINI_API_KEY is not set.");
-
-        // --- 1. PREPARE FILE ---
         const formData = await req.formData();
         const file = formData.get('file') as File;
-        if (!file) throw new Error("No file uploaded.");
+        if (!file) throw new Error("No file uploaded");
 
+        const fileType = file.type;
         const arrayBuffer = await file.arrayBuffer();
-        const base64Data = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
 
-        // --- 2. FETCH RAG CONTEXT ---
+        // 1. Fetch Legal Context
         const { data: lawModules } = await supabaseClient.from('law_modules').select('content');
         const context = lawModules?.map(m => m.content).join('\n') || '';
 
-        // --- 3. CALL GEMINI (Direct REST - Fixed Snake_Case) ---
-        console.log("Calling Gemini v1 REST API (Fixed)...");
-
-        const payload = {
-            contents: [{
-                parts: [
-                    { inline_data: { mime_type: file.type || "application/pdf", data: base64Data } },
-                    { text: `System: You are an HR Auditor. Cross-reference this document with SA Law: ${context}. Return valid JSON with: score, summary, red_flags: [{issue, law, impact, correction}], disclaimer.` }
-                ]
-            }],
-            generation_config: {
-                response_mime_type: "application/json",
+        // 2. Prepare Tooling
+        const genAI = new GoogleGenerativeAI(apiKey!);
+        const model = genAI.getGenerativeModel({
+            model: "gemini-3-flash-preview",
+            generationConfig: {
+                responseMimeType: "application/json",
                 temperature: 0.1
             }
-        };
+        });
 
-        const response = await fetch(
-            `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
-            {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(payload)
-            }
-        );
+        // 3. IMPROVED PROMPT (SLC LOGIC + POSITIVE FINDINGS)
+        const systemPrompt = `
+        SYSTEM: You are a Senior Labour Consultant (SLC) in South Africa.
+        TASK: Audit the provided document for compliance with SA Labour Law.
+        Retrieved Legal Context: 
+        ${context}
 
-        const result = await response.json();
+        AUDIT RULES:
+        1. BE FAIR: If a policy is technically compliant (e.g., "15 working days leave"), do NOT flag it as an error.
+        2. IMPACT LEVELS: 'High' (Illegal), 'Medium' (Risk), 'Low' (Improvement).
+        3. OUTPUT: Return valid JSON with:
+        {
+          "score": number (0-100),
+          "summary": "Brief executive summary",
+          "red_flags": [{"issue": "...", "law": "...", "impact": "High/Medium/Low", "correction": "..."}],
+          "positive_findings": [{"finding": "...", "law": "...", "benefit": "..."}],
+          "disclaimer": "Standard SLC legal disclaimer"
+        }
+        `;
 
-        if (result.error) {
-            console.error("Gemini API Error Detail:", JSON.stringify(result.error, null, 2));
-            throw new Error(`Google API Error: ${result.error.message}`);
+        let parts: any[] = [];
+
+        // 4. HANDLE DIFFERENT FILE TYPES (Correct Binary vs Text)
+        if (fileType === "application/pdf") {
+            const base64Data = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+            parts = [
+                { inlineData: { data: base64Data, mimeType: "application/pdf" } },
+                { text: systemPrompt }
+            ];
+        } else if (fileType.includes("word") || fileType.includes("officedocument")) {
+            const result = await mammoth.extractRawText({ arrayBuffer: arrayBuffer });
+            parts = [
+                { text: `DOCUMENT CONTENT:\n${result.value}\n\n${systemPrompt}` }
+            ];
+        } else {
+            const text = new TextDecoder().decode(arrayBuffer);
+            parts = [
+                { text: `DOCUMENT CONTENT:\n${text}\n\n${systemPrompt}` }
+            ];
         }
 
-        // --- 4. PARSE & PROTECT ---
-        let responseText = result.candidates[0].content.parts[0].text;
+        console.log(`[DISPATCH] Auditing ${file.name} (${fileType})...`);
+        const aiResult = await model.generateContent(parts);
+        const responseText = aiResult.response.text();
+        const auditResult = JSON.parse(responseText.replace(/```json/g, '').replace(/```/g, '').trim());
 
-        // Safety: Sometimes AI still adds markdown blocks even with mimeType set
-        const cleanJson = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
-        const auditResult = JSON.parse(cleanJson);
-
-        // --- 5. SAVE ---
+        // 5. Save
         const { data: report, error: dbError } = await supabaseClient
             .from('auditor_reports')
             .insert({
@@ -85,20 +101,20 @@ Deno.serve(async (req: any) => {
                 overall_score: auditResult.score || 0,
                 status: 'completed'
             })
-            .select()
-            .single();
+            .select().single();
 
         if (dbError) throw dbError;
 
-        return new Response(JSON.stringify(report), {
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
+        return new Response(JSON.stringify(report), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 
     } catch (error: any) {
         console.error("Critical Failure:", error.message);
-        return new Response(JSON.stringify({ error: error.message }), {
+        return new Response(JSON.stringify({
+            error: error.message,
+            hint: "Check logs for detail."
+        }), {
             status: 500,
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         });
     }
 });

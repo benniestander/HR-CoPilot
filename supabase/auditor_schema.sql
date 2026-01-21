@@ -31,24 +31,38 @@ ALTER TABLE auditor_reports ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Users view own audits" ON auditor_reports FOR SELECT TO authenticated USING (auth.uid() = user_id);
 CREATE POLICY "Users create own audits" ON auditor_reports FOR INSERT TO authenticated WITH CHECK (auth.uid() = user_id);
 
--- SEED DATA for South African Law Modules
+-- SEED DATA for South African Law Modules (Expanded for higher audit accuracy)
 INSERT INTO law_modules (title, category, content, version) VALUES 
 (
-    'Basic Conditions of Employment Act (BCEA) - Key Provisions', 
-    'Labor Law', 
-    'BCEA Act 75 of 1997 regulates: 1. Working Hours (Max 45 hrs/week). 2. Annual Leave (21 days). 3. Sick Leave (30 days/cycle). 4. Maternity Leave (4 months). 5. Notice Periods (4 weeks for >1 year). 6. Section 34 Prohibited Deductions.', 
-    'v1'
+    'BCEA Comprehensive - Basic Entitlements', 
+    'Labour Law', 
+    'BCEA (Act 75 of 1997) thresholds: 
+    1. WORKING HOURS: Max 45 normal hours. Overtime max 10 hours/week, paid at 1.5x. Sundays at 2x.
+    2. LEAVE: Annual leave is 21 consecutive days (15 working days for 5-day week). Sick leave is 30/36 days per cycle. 
+    3. MATERNITY: Minimum 4 consecutive months. Does not have to be paid by employer (UIF covers), but policy must guarantee job security (S25).
+    4. FAMILY RESPONSIBILITY: 3 days per year (for child birth/illness or death of immediate family).
+    5. DEDUCTIONS: S34 prohibits deductions unless for lost/damaged items with fair procedure AND written consent, or law/court order.', 
+    'v2'
 ),
 (
-    'Labour Relations Act (LRA) - Dismissal Standards', 
-    'Labor Law', 
-    'LRA Act 66 of 1995: 1. Dismissals must be Substantively Fair (Valid Reason) and Procedurally Fair (Right to Hearing). 2. Schedule 8 Code of Good Practice is the standard for Conduct/Capacity. 3. Section 189 for Retrenchment.', 
-    'v1'
+    'LRA - Procedural and Substantive Fairness', 
+    'Labour Law', 
+    'LRA (Act 66 of 1995) Code of Good Practice (Schedule 8):
+    1. DISMISSAL: Must have a reason (Conduct, Capacity, Operational Req). 
+    2. PROCEDURE: Employee must be notified of allegations, have time to prepare, and the right to a representative. 
+    3. CONSISTENCY: Employers must apply rules consistently across all staff.
+    4. INCAPACITY: Requires an inquiry to determine if work can be adapted before dismissal.', 
+    'v2'
 ),
 (
-    'POPIA - Compliance Fundamentals', 
+    'POPIA - Processing Personal Information', 
     'Privacy', 
-    'POPI Act of 2013 requires: 1. Lawfulness (Reasonable processing). 2. Consent for direct marketing. 3. Condition 7: Security Safeguards (Technical and organizational measures). 4. Data Subject rights to access/correction.', 
-    'v1'
+    'POPI Act of 2013 Conditions:
+    1. ACCOUNTABILITY: Responsible party ensures compliance.
+    2. PROCESSING LIMITATION: Lawful, minimal, and with consent.
+    3. SPECIFICATION: Purpose must be defined.
+    4. DATA QUALITY: Info must be accurate/updated.
+    5. SECURITY: S19 requires "appropriate, reasonable technical and organisational measures" to prevent loss/unauthorized access.', 
+    'v2'
 )
-ON CONFLICT (title) DO NOTHING;
+ON CONFLICT (title) DO UPDATE SET content = EXCLUDED.content, version = EXCLUDED.version;

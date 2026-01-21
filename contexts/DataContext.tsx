@@ -33,7 +33,8 @@ import {
     deletePolicyDraft,
     getPricingSettings,
     updateProPrice,
-    updateDocumentPrice
+    updateDocumentPrice,
+    searchUsers // Import new function
 } from '../services/dbService';
 import { useAuthContext } from './AuthContext';
 import { useUIContext } from './UIContext';
@@ -99,6 +100,7 @@ interface DataContextType {
     handleDocumentGenerated: (doc: GeneratedDocument, originalId?: string, shouldNavigate?: boolean) => Promise<GeneratedDocument | undefined>;
     handleSaveDraft: (draft: Omit<PolicyDraft, 'id' | 'createdAt' | 'updatedAt'> & { id?: string }) => Promise<void>;
     handleDeleteDraft: (id: string) => Promise<void>;
+    handleSearchUsers: (query: string) => Promise<void>; // Add to interface
 
     // Pricing Data
     proPlanPrice: number;
@@ -266,6 +268,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
             if (isAdmin) {
                 if (userCursors.length > 0) fetchUsersPage(0).catch(e => console.error(e));
+                if (docCursors.length > 0) fetchDocsPage(0).catch(e => console.error(e));
                 if (docCursors.length > 0) fetchDocsPage(0).catch(e => console.error(e));
                 if (logCursors.length > 0) fetchLogsPage(0).catch(e => console.error(e));
                 getAdminNotifications().then(setAdminNotifications);
@@ -582,8 +585,23 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         transactionsForUserPage,
         paginatedLogs: { data: paginatedLogs, pageInfo: { pageIndex: logPageIndex, pageSize: PAGE_SIZE, hasNextPage: logHasNextPage, dataLength: paginatedLogs.length, total: undefined } },
         handleNextLogs,
-        handlePrevLogs,
+        handlePrevLogs: () => { if (logPageIndex > 0) fetchLogsPage(logPageIndex - 1); },
         isFetchingLogs,
+        handleSearchUsers: async (query: string) => {
+            setIsFetchingUsers(true);
+            try {
+                const results = await searchUsers(query);
+                setPaginatedUsers(results);
+                // When searching, we might break standard pagination flow, so we indicate specific state or just "show results"
+                // For simplicity, we just update the user list. 
+                // A more robust solution would separate "search results" from "user list", but this fits the "terrible dashboard" fix.
+                setUserHasNextPage(false); // Disable next button on search results for now
+            } catch (e) {
+                console.error("Search failed", e);
+            } finally {
+                setIsFetchingUsers(false);
+            }
+        },
         adminNotifications,
         coupons,
         isLoadingUserDocs,

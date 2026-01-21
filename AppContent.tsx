@@ -85,6 +85,7 @@ const AppContent: React.FC = () => {
         handleTopUpSuccess,
         handleDocumentGenerated,
         handleDeductCredit,
+        handleSearchUsers,
     } = useDataContext();
 
     const {
@@ -578,6 +579,7 @@ const AppContent: React.FC = () => {
                                 adminNotifications={adminNotifications}
                                 coupons={coupons}
                                 adminActions={adminActions}
+                                onSearchUsers={handleSearchUsers}
                             />
                         </Suspense>
                     </main>

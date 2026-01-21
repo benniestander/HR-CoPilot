@@ -49,7 +49,7 @@ const PlanSelectionPage: React.FC<PlanSelectionPageProps> = ({
     const paygFeatures = [
         'No monthly fees - pay only when you need a document',
         'Instant access to our full library of compliant templates',
-        'Download editable Word/Excel files instantly',
+        'Download editable .docx/.xlsx files instantly',
         'Basic AI customization for your business',
     ];
 
@@ -270,12 +270,33 @@ const PlanSelectionPage: React.FC<PlanSelectionPageProps> = ({
                     <div>
                         <img src="https://i.postimg.cc/h48FMCNY/edited-image-11-removebg-preview.png" alt="HR CoPilot" className="h-10 mb-12 brightness-0 invert" />
 
-                        <h1 className="text-5xl font-bold leading-tight mb-6">
-                            Generate Ironclad HR Contracts & Policies <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-cyan-300">in 60 Seconds</span> — Without Expensive Lawyers.
+                        <h1 className="text-6xl font-black leading-[1.1] mb-8 tracking-tight">
+                            Is your business <span className="text-accent underline decoration-primary/50 underline-offset-8 italic">one dispute</span> away from a CCMA nightmare?
                         </h1>
-                        <p className="text-lg text-blue-100 leading-relaxed mb-10">
-                            Protect your business from CCMA disputes and fines. Join 500+ SA Business Owners who use our AI to become 100% compliant instantly.
+                        <p className="text-xl text-blue-100 leading-relaxed mb-10 font-medium">
+                            Don't risk R250k in fines for a missing clause. Generate ironclad, 2025-compliant HR documents in 60 seconds — <span className="text-white border-b-2 border-primary">without the R2500/hr lawyer fees.</span>
                         </p>
+
+                        <div className="flex flex-col space-y-4 mb-12">
+                            <div className="flex items-center space-x-3 text-blue-50">
+                                <div className="w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center border border-primary/30">
+                                    <CheckIcon className="w-3.5 h-3.5 text-primary" />
+                                </div>
+                                <span className="font-semibold">BCEA, LRA & POPIA Compliant</span>
+                            </div>
+                            <div className="flex items-center space-x-3 text-blue-50">
+                                <div className="w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center border border-primary/30">
+                                    <CheckIcon className="w-3.5 h-3.5 text-primary" />
+                                </div>
+                                <span className="font-semibold">Free AI Policy Audit Included</span>
+                            </div>
+                            <div className="flex items-center space-x-3 text-blue-50">
+                                <div className="w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center border border-primary/30">
+                                    <CheckIcon className="w-3.5 h-3.5 text-primary" />
+                                </div>
+                                <span className="font-semibold">Instant .DOCX Downloads</span>
+                            </div>
+                        </div>
 
                         <div className="bg-white/10 backdrop-blur-md rounded-xl p-6 border border-white/10 shadow-lg max-w-md">
                             <div className="flex text-accent mb-3">
@@ -312,9 +333,12 @@ const PlanSelectionPage: React.FC<PlanSelectionPageProps> = ({
                 </div>
 
                 <div className="flex-1 flex flex-col justify-center max-w-xl mx-auto w-full px-8 pb-12">
-                    <div className="mb-8 text-center">
-                        <h2 className="text-3xl font-bold text-secondary mb-2">Select your plan</h2>
-                        <p className="text-gray-500">Choose the best way to handle your HR compliance.</p>
+                    <div className="mb-10 text-center">
+                        <div className="inline-block px-4 py-1.5 bg-primary/10 text-primary rounded-full text-xs font-black uppercase tracking-[0.2em] mb-4">
+                            Trusted by 12,000+ SA Employees
+                        </div>
+                        <h2 className="text-4xl font-black text-secondary mb-3 tracking-tighter">Choose your protection level</h2>
+                        <p className="text-gray-500 font-medium">Protect your business today. Zero risk. Full compliance.</p>
                     </div>
 
                     <div className="grid grid-cols-2 gap-4 mb-8">

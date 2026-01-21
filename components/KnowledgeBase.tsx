@@ -136,7 +136,7 @@ const KNOWLEDGE_BASE_DATA: Category[] = [
               <li>Select a form (look for the Word or Excel icon to see the output format).</li>
               <li>Answer any specific questions (e.g., for an Employment Contract, you may need to enter the employee's job title).</li>
               <li>Click <strong>Generate</strong>.</li>
-              <li><strong>Download:</strong> Once satisfied, click the <strong>Download</strong> icon in the top right of the preview pane to save it as a Word (.doc) or Text file.</li>
+              <li><strong>Download:</strong> Once satisfied, click the <strong>Download</strong> icon in the top right of the preview pane to save it as a Word (.docx) or Text file.</li>
             </ol>
           </div>
         )
@@ -292,7 +292,7 @@ const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({ onBack, onUpgrade, isPro 
             <div className="p-6 bg-gray-50/50 border-b border-gray-100">
               <h2 className="font-black text-secondary flex items-center uppercase tracking-widest text-xs">
                 <BookIcon className="w-4 h-4 mr-3 text-primary" />
-                Help Center
+                Help Centre
               </h2>
             </div>
             <div className="p-4 space-y-1">

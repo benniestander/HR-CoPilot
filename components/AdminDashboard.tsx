@@ -27,6 +27,7 @@ interface AdminDashboardProps {
   adminNotifications: AdminNotification[];
   coupons: Coupon[];
   adminActions: any;
+  onSearchUsers?: (query: string) => void;
 }
 
 const StatCard: React.FC<{ title: string; value: string | number; icon: React.FC<{ className?: string }> }> = React.memo(({ title, value, icon: Icon }) => (
@@ -78,12 +79,17 @@ const PaginationControls: React.FC<{ pageInfo: PageInfo; onNext: () => void; onP
   </div>
 );
 
-const UserList: React.FC<{ users: User[]; pageInfo: PageInfo; onNext: () => void; onPrev: () => void; onViewUser: (user: User) => void; isLoading: boolean }> = ({ users, pageInfo, onNext, onPrev, onViewUser, isLoading }) => {
+const UserList: React.FC<{ users: User[]; pageInfo: PageInfo; onNext: () => void; onPrev: () => void; onViewUser: (user: User) => void; isLoading: boolean; onSearch?: (q: string) => void }> = ({ users, pageInfo, onNext, onPrev, onViewUser, isLoading, onSearch }) => {
   const [searchTerm, setSearchTerm] = useState('');
-  const filteredUsers = users.filter(u =>
-    u.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (u.name && u.name.toLowerCase().includes(searchTerm.toLowerCase()))
-  );
+
+  useEffect(() => {
+    const delayDebounceFn = setTimeout(() => {
+      if (onSearch) onSearch(searchTerm);
+    }, 500);
+    return () => clearTimeout(delayDebounceFn);
+  }, [searchTerm, onSearch]);
+
+  const displayUsers = users; // Use server-provided filtered list
 
   return (
     <div>
@@ -106,7 +112,7 @@ const UserList: React.FC<{ users: User[]; pageInfo: PageInfo; onNext: () => void
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {filteredUsers.map(user => (
+            {displayUsers.map(user => (
               <tr key={user.uid} className="hover:bg-gray-50">
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="text-sm font-medium text-gray-900">{user.name || 'No Name'}</div>
@@ -663,7 +669,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
   paginatedLogs, onNextLogs, onPrevLogs, isFetchingLogs,
   adminActions,
   adminNotifications,
-  coupons
+  coupons,
+  onSearchUsers // Destructure new prop
 }) => {
   type AdminTab = 'requests' | 'users' | 'analytics' | 'transactions' | 'logs' | 'coupons' | 'pricing' | 'payments';
   const { user } = useAuthContext();
@@ -700,7 +707,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const renderTabContent = () => {
     switch (activeTab) {
       case 'requests': return <OrderRequestList userEmail={user?.email || ''} />;
-      case 'users': return <UserList users={paginatedUsers.data} pageInfo={paginatedUsers.pageInfo} onNext={onNextUsers} onPrev={onPrevUsers} onViewUser={handleViewUser} isLoading={isFetchingUsers} />;
+      case 'users': return <UserList users={paginatedUsers.data} pageInfo={paginatedUsers.pageInfo} onNext={onNextUsers} onPrev={onPrevUsers} onViewUser={handleViewUser} isLoading={isFetchingUsers} onSearch={onSearchUsers} />;
       case 'analytics': return <DocumentAnalytics documents={paginatedDocuments.data} pageInfo={paginatedDocuments.pageInfo} onNext={onNextDocs} onPrev={onPrevDocs} isLoading={isFetchingDocs} />;
       case 'transactions': return <TransactionLog transactions={transactionsForUserPage} usersPageInfo={paginatedUsers.pageInfo} onNext={onNextUsers} onPrev={onPrevUsers} isLoading={isFetchingUsers} />;
       case 'pricing': return <PricingManager />;

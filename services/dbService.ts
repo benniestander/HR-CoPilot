@@ -202,6 +202,35 @@ export const getAllUsers = async (pageSize: number, lastVisible?: number): Promi
     return { data: users, lastVisible: (lastVisible || 0) + pageSize };
 };
 
+export const searchUsers = async (queryStr: string): Promise<User[]> => {
+    if (!queryStr) return (await getAllUsers(20)).data;
+
+    // Search by email, full_name, or company_name
+    const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .or(`email.ilike.%${queryStr}%,full_name.ilike.%${queryStr}%,company_name.ilike.%${queryStr}%`)
+        .limit(50);
+
+    if (error) throw error;
+
+    return data.map((profile: any) => ({
+        uid: profile.id,
+        email: profile.email,
+        name: profile.full_name,
+        contactNumber: profile.contact_number,
+        plan: profile.plan,
+        creditBalance: profile.credit_balance,
+        createdAt: profile.created_at,
+        isAdmin: profile.is_admin,
+        profile: {
+            companyName: profile.company_name,
+            industry: profile.industry
+        },
+        transactions: []
+    }));
+};
+
 export const getAllDocumentsForAllUsers = async (pageSize: number, lastVisible?: number): Promise<{ data: GeneratedDocument[], lastVisible: number | null }> => {
     let query = supabase.from('generated_documents').select('*, profiles(company_name)').order('created_at', { ascending: false });
     const offset = lastVisible || 0;
