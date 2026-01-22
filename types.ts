@@ -188,7 +188,7 @@ export type CompanyProfile = {
   summary?: string;
   companySize?: string;
   companyVoice?: string; // Moved from per-document to profile
-  
+
   // HR Diagnostic Fields (Structural - In Profile)
   bargainingCouncil?: string; // Yes/No or Name
   unionized?: string; // Yes/No
@@ -224,6 +224,11 @@ export type Transaction = {
   amount: number; // in cents, positive for deposits, negative for deductions
   userId?: string; // Added for admin transaction log
   userEmail?: string; // Added for admin transaction log
+  actorId?: string; // Consultant ID if impersonating
+  actorEmail?: string; // Consultant Email if impersonating
+  metadata?: any;
+  ipAddress?: string;
+  userAgent?: string;
 };
 
 export type Coupon = {
@@ -246,12 +251,31 @@ export type User = {
   name?: string;
   contactNumber?: string;
   photoURL?: string;
-  plan: 'payg' | 'pro';
+  plan: 'payg' | 'pro' | 'consultant';
   creditBalance: number; // in cents
   transactions: Transaction[];
   createdAt: string; // ISO string
   isAdmin?: boolean;
+  isConsultant?: boolean;
+  consultantPlatformFeePaidUntil?: string; // ISO string
+  consultantClientLimit?: number; // e.g. 10
+  branding?: {
+    logoUrl?: string;
+    primaryColor?: string; // Hex code
+    accentColor?: string; // Hex code
+  };
+  hasSeenConsultantWelcome?: boolean;
+  clients?: ClientProfile[];
 };
+
+export interface ClientProfile {
+  id: string;
+  name: string;
+  email: string;
+  companyName: string;
+  industry?: string;
+  paidUntil?: string; // ISO string - R750 annual fee for this client
+}
 
 export type FormAnswers = Record<string, any>;
 
@@ -362,12 +386,12 @@ export type DocumentPrice = {
 
 // INVOICE REQUEST TYPE
 export interface InvoiceRequest {
-    id: string; // Notification ID
-    date: string;
-    userId: string;
-    userEmail: string; // Extracted from message or fetched
-    type: 'pro' | 'payg';
-    amount: number; // in cents
-    reference: string;
-    description: string;
+  id: string; // Notification ID
+  date: string;
+  userId: string;
+  userEmail: string; // Extracted from message or fetched
+  type: 'pro' | 'payg';
+  amount: number; // in cents
+  reference: string;
+  description: string;
 }

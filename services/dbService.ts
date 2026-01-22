@@ -30,6 +30,12 @@ export const getUserProfile = async (uid: string): Promise<User | null> => {
         creditBalance: profile.credit_balance || 0,
         createdAt: profile.created_at,
         isAdmin: profile.is_admin,
+        isConsultant: profile.is_consultant || false,
+        consultantPlatformFeePaidUntil: profile.consultant_platform_fee_paid_until,
+        consultantClientLimit: profile.consultant_client_limit || 10,
+        branding: profile.branding || {},
+        hasSeenConsultantWelcome: profile.has_seen_consultant_welcome || false,
+        clients: profile.clients || [],
         profile: {
             companyName: profile.company_name,
             industry: profile.industry,
@@ -48,7 +54,7 @@ export const createUserProfile = async (uid: string, email: string, plan: 'pro' 
     }).select().single();
     if (error) throw error;
     return {
-        uid: data.id, email: data.email, name: data.full_name, contactNumber: data.contact_number, plan: data.plan, creditBalance: 0, createdAt: data.created_at, isAdmin: false, profile: { companyName: '', industry: '' }, transactions: [],
+        uid: data.id, email: data.email, name: data.full_name, contactNumber: data.contact_number, plan: data.plan, creditBalance: 0, createdAt: data.created_at, isAdmin: false, profile: { companyName: '', industry: '' }, transactions: [], isConsultant: false, clients: []
     };
 };
 
@@ -65,6 +71,22 @@ export const updateUser = async (uid: string, updates: Partial<User>) => {
         if (updates.profile.companySize !== undefined) dbUpdates.company_size = updates.profile.companySize;
     }
     const { error } = await supabase.from('profiles').update(dbUpdates).eq('id', uid);
+    if (error) throw error;
+};
+
+export const updateConsultantClients = async (uid: string, clients: any[], amount?: number, reason?: string) => {
+    if (amount) {
+        await addTransactionToUser(uid, { amount: -amount, description: reason || 'Client Access Fee' }, true);
+    }
+    const { error } = await supabase.from('profiles').update({ clients: clients }).eq('id', uid);
+    if (error) throw error;
+};
+
+export const updateConsultantPlatformFee = async (uid: string, newExpiry: string, amount: number) => {
+    await addTransactionToUser(uid, { amount: -amount, description: 'Consultant Monthly Platform Fee' }, true);
+    const { error } = await supabase.from('profiles').update({
+        consultant_platform_fee_paid_until: newExpiry
+    }).eq('id', uid);
     if (error) throw error;
 };
 
@@ -97,7 +119,15 @@ export const saveGeneratedDocument = async (uid: string, doc: GeneratedDocument)
 
 export const addTransactionToUser = async (uid: string, transaction: Partial<Transaction>, updateBalance: boolean = false) => {
     const { error: txError } = await supabase.from('transactions').insert({
-        user_id: uid, amount: transaction.amount, description: transaction.description, date: new Date().toISOString(),
+        user_id: uid,
+        amount: transaction.amount,
+        description: transaction.description,
+        date: new Date().toISOString(),
+        actor_id: transaction.actorId,
+        actor_email: transaction.actorEmail,
+        metadata: transaction.metadata || {},
+        user_agent: typeof window !== 'undefined' ? navigator.userAgent : 'Server',
+        ip_address: transaction.ipAddress
     });
     if (txError) throw txError;
     if (updateBalance && transaction.amount) {
@@ -186,7 +216,12 @@ const logAdminAction = async (action: string, targetUid: string, details?: any) 
     if (!user) return;
     const { data: target } = await supabase.from('profiles').select('email').eq('id', targetUid).single();
     await supabase.from('admin_action_logs').insert({
-        admin_email: user.email, action, target_user_id: targetUid, target_user_email: target?.email || 'Unknown', details
+        admin_email: user.email,
+        action,
+        target_user_id: targetUid,
+        target_user_email: target?.email || 'Unknown',
+        details,
+        user_agent: typeof window !== 'undefined' ? navigator.userAgent : 'Server'
     });
 };
 

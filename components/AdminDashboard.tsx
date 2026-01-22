@@ -338,6 +338,7 @@ const TransactionLog: React.FC<{ transactions: Transaction[]; usersPageInfo: Pag
             <tr>
               <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">User</th>
               <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">Action</th>
+              <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">Actor</th>
               <th className="px-6 py-4 text-right text-xs font-semibold text-gray-500 uppercase">Amount</th>
               <th className="px-6 py-4 text-right text-xs font-semibold text-gray-500 uppercase">Date</th>
             </tr>
@@ -347,6 +348,13 @@ const TransactionLog: React.FC<{ transactions: Transaction[]; usersPageInfo: Pag
               <tr key={tx.id} className="hover:bg-gray-50">
                 <td className="px-6 py-4 text-sm text-gray-600">{tx.userEmail}</td>
                 <td className="px-6 py-4 text-sm text-gray-900 font-medium">{tx.description}</td>
+                <td className="px-6 py-4 text-sm text-gray-500 italic">
+                  {tx.actorEmail ? (
+                    <span title={`Action by consultant: ${tx.actorEmail}`}>
+                      Consultant
+                    </span>
+                  ) : 'Self'}
+                </td>
                 <td className={`px-6 py-4 text-right text-sm font-bold font-mono ${tx.amount > 0 ? 'text-green-600' : 'text-red-500'}`}>
                   {tx.amount > 0 ? '+' : ''}R{(tx.amount / 100).toFixed(2)}
                 </td>
@@ -685,7 +693,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
   onRunRetention
 }) => {
   type AdminTab = 'dashboard' | 'requests' | 'users' | 'analytics' | 'transactions' | 'pricing' | 'coupons' | 'settings' | 'waitlist';
-  const { user, logout } = useAuthContext();
+  const { user, handleLogout } = useAuthContext();
   const [activeTab, setActiveTab] = useState<AdminTab>('requests');
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
 
@@ -816,7 +824,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
               <p className="text-xs text-slate-400">Super Admin</p>
             </div>
           </div>
-          <button onClick={logout} className="w-full flex items-center justify-center px-4 py-2 border border-slate-700 rounded-lg text-sm text-slate-300 hover:bg-slate-800 hover:text-white transition-colors">
+          <button onClick={handleLogout} className="w-full flex items-center justify-center px-4 py-2 border border-slate-700 rounded-lg text-sm text-slate-300 hover:bg-slate-800 hover:text-white transition-colors">
             Sign Out
           </button>
         </div>

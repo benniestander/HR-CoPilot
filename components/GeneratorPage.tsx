@@ -288,6 +288,7 @@ const GeneratorPage: React.FC<GeneratorPageProps> = ({ selectedItem, initialData
                             errorMessage={errorMessage}
                             loadingMessages={selectedItem.kind === 'policy' ? policyLoadingMessages : formLoadingMessages}
                             onContentChange={handleContentChange}
+                            branding={user?.branding}
                         />
                         {status === 'success' && (
                             <div className="mt-8 flex flex-col sm:flex-row justify-between items-center bg-white/70 backdrop-blur-xl p-8 rounded-[2.5rem] shadow-2xl shadow-gray-200/50 border border-white/40 gap-6">

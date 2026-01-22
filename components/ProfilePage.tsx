@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
     UserIcon,
     ShieldCheckIcon,
@@ -13,13 +14,16 @@ import {
     FileIcon,
     TrashIcon,
     ComplianceIcon,
-    UpdateIcon
+    UpdateIcon,
+    RegisterIcon,
+    LockIcon
 } from './Icons';
-import type { CompanyProfile, GeneratedDocument, UserFile, Policy, Form, PolicyType, FormType } from '../types';
+import type { CompanyProfile, GeneratedDocument, UserFile, Policy, Form, PolicyType, FormType, ClientProfile } from '../types';
 import { INDUSTRIES, POLICIES, FORMS } from '../constants';
 import { useAuthContext } from '../contexts/AuthContext';
 import { useDataContext } from '../contexts/DataContext';
 import { useUIContext } from '../contexts/UIContext';
+import { updateConsultantClients } from '../services/dbService';
 import EmptyState from './EmptyState';
 
 interface ProfilePageProps {
@@ -29,19 +33,13 @@ interface ProfilePageProps {
     onRedoOnboarding: () => void;
 }
 
-const COMPANY_VOICES = [
-    'Formal & Corporate',
-    'Modern & Friendly',
-    'Direct & No-Nonsense',
-];
-
 const ProfilePage: React.FC<ProfilePageProps> = ({
     onBack,
     onUpgrade,
     onGoToTopUp,
     onRedoOnboarding
 }) => {
-    const { user, handleLogout: onLogout } = useAuthContext();
+    const { user, handleLogout: onLogout, setUser, payClientAccessFee, updateBranding, markConsultantWelcomeAsSeen } = useAuthContext();
     const {
         generatedDocuments,
         userFiles,
@@ -56,12 +54,33 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
     } = useDataContext();
     const { setToastMessage, setDocumentToView, setSelectedItem, navigateTo } = useUIContext();
 
-    const [activeTab, setActiveTab] = useState<'profile' | 'billing' | 'vault'>('profile');
+    const [isProcessingPayment, setIsProcessingPayment] = useState<string | null>(null);
+    const [isWelcomeOpen, setIsWelcomeOpen] = useState(user?.isConsultant && !user?.hasSeenConsultantWelcome);
+
+    const isClientExpired = (client: ClientProfile) => {
+        if (!client.paidUntil) return true;
+        return new Date(client.paidUntil) < new Date();
+    };
+
+    const handlePayClient = async (clientId: string) => {
+        setIsProcessingPayment(clientId);
+        try {
+            await payClientAccessFee(clientId);
+            setToastMessage("Client access renewed!");
+        } catch (err: any) {
+            setToastMessage(err.message);
+        } finally {
+            setIsProcessingPayment(null);
+        }
+    };
+
+    const [activeTab, setActiveTab] = useState<'profile' | 'billing' | 'vault' | 'clients'>('profile');
     const [isEditing, setIsEditing] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
 
     const [profileData, setProfileData] = useState<CompanyProfile>(user?.profile || { companyName: '', industry: '' });
     const [userData, setUserData] = useState({ name: user?.name || '', contactNumber: user?.contactNumber || '' });
+    const [brandingData, setBrandingData] = useState(user?.branding || { primaryColor: '#2563eb', accentColor: '#1e40af', logoUrl: '' });
     const [errors, setErrors] = useState<Record<string, string>>({});
 
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -70,6 +89,11 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
     const [photoFile, setPhotoFile] = useState<File | null>(null);
     const [isPhotoUploading, setIsPhotoUploading] = useState(false);
     const photoInputRef = useRef<HTMLInputElement>(null);
+
+    // Client Management States
+    const [isClientModalOpen, setIsClientModalOpen] = useState(false);
+    const [editingClient, setEditingClient] = useState<ClientProfile | null>(null);
+    const [clientForm, setClientForm] = useState<Partial<ClientProfile>>({});
 
     const generatedPolicies = generatedDocuments.filter(doc => doc.kind === 'policy');
     const generatedForms = generatedDocuments.filter(doc => doc.kind === 'form');
@@ -109,14 +133,11 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
 
     const handleProfilePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (!e.target.files?.[0]) return;
-
         const file = e.target.files[0];
-
-        // Chaos Monkey Fix: 5MB Upload Limit
         if (file.size > 5 * 1024 * 1024) {
             alert("The file is too large. Please upload an image smaller than 5MB.");
-            e.target.value = ''; // Reset input
-            setPhotoFile(null); // Clear the selected file state
+            e.target.value = '';
+            setPhotoFile(null);
             return;
         }
         setPhotoFile(file);
@@ -130,6 +151,23 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
         setPhotoFile(null);
     };
 
+    const handleSaveBranding = async () => {
+        setIsSaving(true);
+        try {
+            await updateBranding(brandingData);
+            setToastMessage("Branding updated successfully!");
+        } catch (err: any) {
+            setToastMessage("Failed to update branding.");
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    const handleCloseWelcome = async () => {
+        setIsWelcomeOpen(false);
+        await markConsultantWelcomeAsSeen();
+    };
+
     const handleUploadClick = async () => {
         if (!selectedFile) return;
         setIsUploading(true);
@@ -138,6 +176,83 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
         setFileNotes('');
         setIsUploading(false);
     };
+
+    // Client Management Functions
+    const handleOpenClientModal = (client?: ClientProfile) => {
+        if (!client && user && (user.clients?.length || 0) >= (user.consultantClientLimit || 10)) {
+            setToastMessage("You've reached your client limit. Please upgrade for more slots.");
+            return;
+        }
+        if (client) {
+            setEditingClient(client);
+            setClientForm(client);
+        } else {
+            setEditingClient(null);
+            setClientForm({ name: '', email: '', companyName: '', industry: '' });
+        }
+        setIsClientModalOpen(true);
+    };
+
+    const handleSaveClient = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!user || !clientForm.name || !clientForm.companyName) return;
+
+        try {
+            // Enterprise: Rate Limiting (Prevent scripted abuse)
+            const recentAdds = JSON.parse(sessionStorage.getItem('recent_client_adds') || '[]');
+            const now = Date.now();
+            const validAdds = recentAdds.filter((t: number) => now - t < 3600000); // last 1 hour
+
+            if (!editingClient && validAdds.length >= 5) {
+                setToastMessage("Security Alert: Rate limit exceeded for client additions. Please try again in an hour.");
+                return;
+            }
+
+            const currentClients = user.clients || [];
+            let updatedClients;
+
+            if (editingClient) {
+                updatedClients = currentClients.map(c => c.id === editingClient.id ? { ...c, ...clientForm } as ClientProfile : c);
+            } else {
+                const newClient: ClientProfile = {
+                    id: crypto.randomUUID(),
+                    name: clientForm.name!,
+                    email: clientForm.email || '',
+                    companyName: clientForm.companyName!,
+                    industry: clientForm.industry
+                };
+                updatedClients = [...currentClients, newClient];
+            }
+
+            await updateConsultantClients(user.uid, updatedClients);
+            setUser({ ...user, clients: updatedClients });
+
+            if (!editingClient) {
+                const recentAdds = JSON.parse(sessionStorage.getItem('recent_client_adds') || '[]');
+                sessionStorage.setItem('recent_client_adds', JSON.stringify([...recentAdds, Date.now()]));
+            }
+
+            setIsClientModalOpen(false);
+            setToastMessage("Client list updated successfully.");
+        } catch (err: any) {
+            setToastMessage(`Failed to save client: ${err.message}`);
+        }
+    };
+
+    const handleDeleteClient = async (clientId: string) => {
+        const confirmed = window.confirm("Are you sure you want to remove this client? This will remove them from your list.");
+        if (!confirmed || !user) return;
+
+        try {
+            const updatedClients = (user.clients || []).filter(c => c.id !== clientId);
+            await updateConsultantClients(user.uid, updatedClients);
+            setUser({ ...user, clients: updatedClients });
+            setToastMessage("Client removed.");
+        } catch (err: any) {
+            setToastMessage(`Failed to remove client: ${err.message}`);
+        }
+    };
+
 
     const getExpiryDate = () => {
         if (!user?.transactions) return 'N/A';
@@ -159,6 +274,7 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
         { id: 'profile', label: 'Company Profile', icon: UserIcon },
         { id: 'billing', label: 'Credits & Billing', icon: CreditCardIcon },
         { id: 'vault', label: 'The Vault', icon: ShieldCheckIcon },
+        ...(user.isConsultant ? [{ id: 'clients', label: 'Client Management', icon: RegisterIcon }] : [])
     ] as const;
 
     return (
@@ -175,7 +291,6 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
 
             <div className="flex flex-col lg:flex-row gap-8">
                 <aside className="w-full lg:w-64 flex-shrink-0">
-                    {/* Mobile: Horizontal Scroll, Desktop: Vertical List */}
                     <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-2 lg:sticky lg:top-8 flex lg:flex-col overflow-x-auto lg:overflow-visible gap-2" role="tablist" aria-label="Profile Sections">
                         {NAV_ITEMS.map((item) => {
                             const Icon = item.icon;
@@ -187,7 +302,7 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
                                     aria-selected={isActive}
                                     aria-controls={`${item.id}-panel`}
                                     id={`${item.id}-tab`}
-                                    onClick={() => setActiveTab(item.id)}
+                                    onClick={() => setActiveTab(item.id as any)}
                                     className={`flex-shrink-0 lg:w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm transition-all whitespace-nowrap ${isActive ? 'bg-secondary text-white shadow-md' : 'text-gray-500 hover:bg-gray-50'}`}
                                 >
                                     <Icon className="w-5 h-5" />
@@ -211,7 +326,6 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
                                         <input type="file" ref={photoInputRef} onChange={(e) => {
                                             const file = e.target.files?.[0];
                                             if (file) {
-                                                // Chaos Monkey Fix: 5MB Limit
                                                 if (file.size > 5 * 1024 * 1024) {
                                                     alert('Image too large. Max 5MB allowed.');
                                                     e.target.value = '';
@@ -228,7 +342,6 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
                                         {photoFile && <button onClick={handlePhotoUpload} className="px-4 py-2 bg-primary text-white text-xs font-black rounded-lg">Apply Photo</button>}
                                     </div>
                                 </header>
-
                                 <section>
                                     <div className="flex items-center justify-between mb-8">
                                         <h3 className="text-xl font-black text-secondary">Company Details</h3>
@@ -265,6 +378,63 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 text-sm">
                                             <div><span className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1">Company</span><p className="font-black text-secondary">{user.profile.companyName || 'Not set'}</p></div>
                                             <div><span className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1">Industry</span><p className="font-black text-secondary">{user.profile.industry || 'Not set'}</p></div>
+                                        </div>
+                                    )}
+                                    {user.isConsultant && (
+                                        <div className="mt-12 p-8 bg-slate-50 rounded-3xl border border-slate-100">
+                                            <div className="flex items-center justify-between mb-8">
+                                                <div>
+                                                    <h3 className="text-xl font-black text-secondary">White-label Branding</h3>
+                                                    <p className="text-sm text-gray-500">Your logo and colors will be applied to your client sessions.</p>
+                                                </div>
+                                                <button onClick={handleSaveBranding} disabled={isSaving} className="px-4 py-2 bg-slate-900 text-white text-[10px] font-black rounded-lg uppercase tracking-widest hover:bg-black transition-all">
+                                                    {isSaving ? '...' : 'Update Branding'}
+                                                </button>
+                                            </div>
+
+                                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                                <div>
+                                                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Logo URL</label>
+                                                    <input
+                                                        className="w-full p-3 bg-white border border-gray-100 rounded-xl font-bold text-xs"
+                                                        placeholder="https://..."
+                                                        value={brandingData.logoUrl || ''}
+                                                        onChange={e => setBrandingData({ ...brandingData, logoUrl: e.target.value })}
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Primary Color</label>
+                                                    <div className="flex gap-2">
+                                                        <input
+                                                            type="color"
+                                                            className="h-10 w-10 p-1 bg-white border border-gray-100 rounded-lg cursor-pointer"
+                                                            value={brandingData.primaryColor || '#2563eb'}
+                                                            onChange={e => setBrandingData({ ...brandingData, primaryColor: e.target.value })}
+                                                        />
+                                                        <input
+                                                            className="flex-1 p-3 bg-white border border-gray-100 rounded-xl font-bold text-xs uppercase"
+                                                            value={brandingData.primaryColor || '#2563eb'}
+                                                            onChange={e => setBrandingData({ ...brandingData, primaryColor: e.target.value })}
+                                                        />
+                                                    </div>
+                                                </div>
+                                                <div>
+                                                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Accent Color</label>
+                                                    <div className="flex gap-2">
+                                                        <input
+                                                            type="color"
+                                                            className="h-10 w-10 p-1 bg-white border border-gray-100 rounded-lg cursor-pointer"
+                                                            value={brandingData.accentColor || '#1e40af'}
+                                                            onChange={e => setBrandingData({ ...brandingData, accentColor: e.target.value })}
+                                                        />
+                                                        <input
+                                                            className="flex-1 p-3 bg-white border border-gray-100 rounded-xl font-bold text-xs uppercase"
+                                                            value={brandingData.accentColor || '#1e40af'}
+                                                            onChange={e => setBrandingData({ ...brandingData, accentColor: e.target.value })}
+                                                        />
+                                                    </div>
+                                                </div>
+                                            </div>
                                         </div>
                                     )}
                                 </section>
@@ -340,20 +510,201 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
                                         </div>
                                     </div>
                                 </div>
-                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 pt-8 border-t border-gray-50">
-                                    <React.Suspense fallback={<div className="h-40 bg-gray-50 rounded-xl animate-pulse"></div>}>
-                                        <DocumentHistorySection title="Policies" documents={generatedPolicies} icon={MasterPolicyIcon} isLoading={isLoadingUserDocs} type="policy" />
-                                        <DocumentHistorySection title="Forms" documents={generatedForms} icon={FormsIcon} isLoading={isLoadingUserDocs} type="form" />
-                                    </React.Suspense>
+                            </div>
+                        )}
+
+                        {activeTab === 'clients' && (
+                            <div id="clients-panel" role="tabpanel" className="p-4 md:p-8 animate-in fade-in slide-in-from-right-2 duration-300">
+                                <div className="flex items-center justify-between mb-8">
+                                    <div>
+                                        <h2 className="text-3xl font-black text-secondary">My Clients</h2>
+                                        <p className="text-gray-400 mt-2">Manage the client profiles you consult for.</p>
+                                    </div>
+                                    <div className="flex items-center gap-6">
+                                        <div className="text-right">
+                                            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Slots Used</p>
+                                            <p className="text-lg font-black text-secondary">
+                                                {user.clients?.length || 0} / {user.consultantClientLimit || 10}
+                                            </p>
+                                        </div>
+                                        <button
+                                            onClick={() => handleOpenClientModal()}
+                                            className={`px-6 py-3 bg-secondary text-white font-bold rounded-xl shadow-lg shadow-secondary/20 hover:scale-105 transition-transform ${(user.clients?.length || 0) >= (user.consultantClientLimit || 10) ? 'opacity-50 cursor-not-allowed' : ''
+                                                }`}
+                                        >
+                                            + Add Client
+                                        </button>
+                                    </div>
                                 </div>
+
+                                {(!user.clients || user.clients.length === 0) ? (
+                                    <EmptyState
+                                        title="No Clients Yet"
+                                        description="Add your first client to start generating documents for them."
+                                        icon={RegisterIcon}
+                                        actionLabel="Add Client"
+                                        onAction={() => handleOpenClientModal()}
+                                    />
+                                ) : (
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        {user.clients.map(client => (
+                                            <div key={client.id} className="p-6 bg-white border border-gray-100 rounded-2xl hover:shadow-md transition-shadow group">
+                                                <div className="flex justify-between items-start mb-4">
+                                                    <div>
+                                                        <h3 className="text-xl font-bold text-secondary">{client.companyName}</h3>
+                                                        <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">{client.industry || 'No Industry Set'}</p>
+                                                    </div>
+                                                    <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                        <button onClick={() => handleOpenClientModal(client)} className="p-2 text-gray-400 hover:text-primary hover:bg-gray-50 rounded-lg">
+                                                            <EditIcon className="w-4 h-4" />
+                                                        </button>
+                                                        <button onClick={() => handleDeleteClient(client.id)} className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg">
+                                                            <TrashIcon className="w-4 h-4" />
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                                <div className="flex items-center gap-3">
+                                                    <div className="w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center text-slate-400 font-black text-sm border border-slate-100">
+                                                        {client.name.charAt(0)}
+                                                    </div>
+                                                    <div className="flex-1">
+                                                        <p className="text-sm font-bold text-gray-700">{client.name}</p>
+                                                        <p className="text-xs text-gray-400">{client.email}</p>
+                                                    </div>
+                                                    <div className="text-right">
+                                                        {isClientExpired(client) ? (
+                                                            <div className="flex flex-col items-end gap-2">
+                                                                <span className="px-2 py-0.5 bg-red-50 text-red-500 text-[10px] font-black rounded uppercase tracking-widest border border-red-100 flex items-center gap-1">
+                                                                    <LockIcon className="w-3 h-3" /> Expired
+                                                                </span>
+                                                                <button
+                                                                    onClick={() => handlePayClient(client.id)}
+                                                                    disabled={isProcessingPayment === client.id}
+                                                                    className="px-3 py-1.5 bg-slate-900 text-white text-[10px] font-black rounded-lg shadow hover:bg-black transition-all flex items-center gap-1"
+                                                                >
+                                                                    <CreditCardIcon className="w-3 h-3" />
+                                                                    {isProcessingPayment === client.id ? "..." : "PAY R750"}
+                                                                </button>
+                                                            </div>
+                                                        ) : (
+                                                            <div className="flex flex-col items-end gap-1">
+                                                                <span className="px-2 py-0.5 bg-emerald-50 text-emerald-600 text-[10px] font-black rounded uppercase tracking-widest border border-emerald-100">
+                                                                    Active
+                                                                </span>
+                                                                <p className="text-[9px] font-bold text-gray-400">Until {new Date(client.paidUntil!).toLocaleDateString()}</p>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
                             </div>
                         )}
                     </div>
                 </main>
             </div>
+
+            {/* Client Modal */}
+            {isClientModalOpen && (
+                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                    <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+                        <header className="bg-gray-50 p-6 border-b border-gray-100 flex justify-between items-center">
+                            <h3 className="text-xl font-black text-secondary">{editingClient ? 'Edit Client' : 'Add New Client'}</h3>
+                            <button onClick={() => setIsClientModalOpen(false)} className="text-gray-400 hover:text-secondary font-bold text-xl">&times;</button>
+                        </header>
+                        <form onSubmit={handleSaveClient} className="p-6 space-y-4">
+                            <div>
+                                <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Company Name</label>
+                                <input
+                                    required
+                                    className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl font-bold text-secondary focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
+                                    placeholder="e.g. Acme Inc."
+                                    value={clientForm.companyName || ''}
+                                    onChange={e => setClientForm({ ...clientForm, companyName: e.target.value })}
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Industry</label>
+                                <select
+                                    required
+                                    className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl font-bold text-secondary focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
+                                    value={clientForm.industry || ''}
+                                    onChange={e => setClientForm({ ...clientForm, industry: e.target.value })}
+                                >
+                                    <option value="" disabled>Select Industry</option>
+                                    {INDUSTRIES.map(i => <option key={i} value={i}>{i}</option>)}
+                                </select>
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Contact Person</label>
+                                    <input
+                                        required
+                                        className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl font-bold text-secondary focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
+                                        placeholder="e.g. John Doe"
+                                        value={clientForm.name || ''}
+                                        onChange={e => setClientForm({ ...clientForm, name: e.target.value })}
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Email</label>
+                                    <input
+                                        type="email"
+                                        className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl font-bold text-secondary focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
+                                        placeholder="Optional"
+                                        value={clientForm.email || ''}
+                                        onChange={e => setClientForm({ ...clientForm, email: e.target.value })}
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="pt-4 flex justify-end gap-3">
+                                <button type="button" onClick={() => setIsClientModalOpen(false)} className="px-6 py-3 text-gray-500 font-bold hover:bg-gray-50 rounded-xl">Cancel</button>
+                                <button type="submit" className="px-6 py-3 bg-secondary text-white font-black rounded-xl shadow-lg hover:shadow-xl hover:scale-105 transition-all">Save Client</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+            {/* Welcome Nudge */}
+            {isWelcomeOpen && (
+                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[200] flex items-center justify-center p-6">
+                    <motion.div
+                        initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        className="bg-white rounded-[2.5rem] p-10 max-w-lg w-full text-center shadow-2xl relative overflow-hidden"
+                    >
+                        <div className="absolute top-0 right-0 p-6">
+                            <button onClick={handleCloseWelcome} className="text-gray-400 hover:text-secondary text-2xl font-light">&times;</button>
+                        </div>
+                        <div className="w-20 h-20 bg-emerald-50 text-emerald-500 rounded-3xl flex items-center justify-center mx-auto mb-8 shadow-inner">
+                            <CheckIcon className="w-10 h-10" />
+                        </div>
+                        <h2 className="text-3xl font-black text-secondary mb-4 leading-tight">Welcome to Consultant Mode</h2>
+                        <p className="text-slate-500 mb-8 font-medium">Elevate your consulting business with white-labeled document generation and secure client management.</p>
+                        <div className="space-y-4 mb-10">
+                            <div className="flex items-center gap-4 text-left p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                                <div className="w-10 h-10 rounded-xl bg-white shadow-sm flex items-center justify-center text-primary font-black">1</div>
+                                <p className="text-sm font-black text-slate-700">Add your first client to get started.</p>
+                            </div>
+                            <div className="flex items-center gap-4 text-left p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                                <div className="w-10 h-10 rounded-xl bg-white shadow-sm flex items-center justify-center text-primary font-black">2</div>
+                                <p className="text-sm font-black text-slate-700">Configure your branding in the Profile tab.</p>
+                            </div>
+                        </div>
+                        <button
+                            onClick={handleCloseWelcome}
+                            className="w-full py-4 bg-secondary text-white font-black rounded-2xl shadow-xl shadow-secondary/20 hover:translate-y-[-2px] transition-all"
+                        >
+                            Get Started
+                        </button>
+                    </motion.div>
+                </div>
+            )}
         </div>
     );
 };
 
-// Lazy load for performance
 export default React.memo(ProfilePage);

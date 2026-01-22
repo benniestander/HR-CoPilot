@@ -183,5 +183,29 @@ export const emailService = {
             <p>Reply to this email if you need assistance!</p>
         `;
         return sendEmail(email, "We miss you at HR CoPilot!", getBrandedHtml("Still there?", content, "https://app.hrcopilot.co.za", "Get Started Now"));
+    },
+
+    sendWaitlistWelcome: async (email: string, name: string) => {
+        const content = `
+            <p>Welcome to the inner circle of <strong>HR CoPilot</strong>.</p>
+            <p>You’re now officially on the priority list for South Africa’s first AI-powered HR platform built specifically for the LRA and BCEA landscape.</p>
+            
+            <p><strong>Why this matters:</strong></p>
+            <p>Most SA founders spend R3,500+ an hour on labour consultants or use "Google Templates" that actually put their business at risk. We're ending that.</p>
+            
+            <div style="background-color: #f1f5f9; border-radius: 12px; padding: 24px; margin: 32px 0; border: 1px solid #e2e8f0;">
+                <h3 style="margin: 0 0 16px 0; font-size: 16px; color: #0f172a;">Your "Compliance First Steps" Roadmap:</h3>
+                <ul style="margin: 0; padding-left: 20px; color: #334155;">
+                    <li style="margin-bottom: 12px;"><strong>Audit your Contracts:</strong> Ensure "Notice Period" clauses match BCEA minimums (1 week for 6 months, 2 weeks for 1 year, etc).</li>
+                    <li style="margin-bottom: 12px;"><strong>POPIA Check:</strong> Are you storing employee ID numbers in an encrypted environment?</li>
+                    <li><strong>Disciplinary Code:</strong> Without one, you’re unprotected at the CCMA.</li>
+                </ul>
+            </div>
+            
+            <p>We’ll be reaching out soon with a private link to audit your existing policies for free using our AI.</p>
+            <p>Stay compliant,</p>
+            <p><strong>The HR CoPilot Team</strong></p>
+        `;
+        return sendEmail(email, "🇿🇦 You’re on the list! (And your exclusive HR roadmap)", getBrandedHtml("Welcome Aboard!", content));
     }
 };

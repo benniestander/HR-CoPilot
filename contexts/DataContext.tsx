@@ -43,6 +43,7 @@ import { supabase } from '../services/supabase'; // Add supabase import
 import { useAuthContext } from './AuthContext';
 import { useUIContext } from './UIContext';
 import { useModalContext } from './ModalContext';
+import { emailService } from '../services/emailService';
 import { POLICIES, FORMS } from '../constants';
 
 const PAGE_SIZE = 25;
@@ -118,7 +119,7 @@ interface DataContextType {
 const DataContext = createContext<DataContextType | undefined>(undefined);
 
 export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-    const { user, setUser, isAdmin, setNeedsOnboarding } = useAuthContext();
+    const { user, setUser, isAdmin, setNeedsOnboarding, realConsultantUser } = useAuthContext();
     const { setToastMessage, navigateTo, setShowOnboardingWalkthrough } = useUIContext();
     const { showConfirmationModal, hideConfirmationModal } = useModalContext();
 
@@ -508,7 +509,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
         try {
             setUser(prev => prev ? ({ ...prev, creditBalance: Math.max(0, prev.creditBalance - amountInCents) }) : null);
-            await addTransactionToUser(user.uid, { description, amount: -amountInCents }, true);
+            await addTransactionToUser(user.uid, {
+                description,
+                amount: -amountInCents,
+                actorId: realConsultantUser?.uid,
+                actorEmail: realConsultantUser?.email
+            }, true);
             const updatedUser = await getUserProfile(user.uid);
             if (updatedUser) setUser(updatedUser);
             return true;
@@ -542,7 +548,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
 
         try {
-            const savedDoc = await saveGeneratedDocument(user.uid, docToSave);
+            const savedDoc = await saveGeneratedDocument(user.uid, {
+                ...docToSave,
+                // Add consultant info to metadata if impersonating
+                metadata: realConsultantUser ? {
+                    actor_id: realConsultantUser.uid,
+                    actor_email: realConsultantUser.email
+                } : undefined
+            } as any);
             setGeneratedDocuments(prevDocs => {
                 if (originalId) {
                     return prevDocs.map(d => d.id === originalId ? savedDoc : d);
@@ -625,6 +638,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         },
         handleWaitlistSignup: async (name: string, email: string) => {
             await saveWaitlistLead({ name, email });
+            // Automate the "Email 1: The Welcome" trigger
+            await emailService.sendWaitlistWelcome(email, name);
         },
         logMarketingEvent: async (eventType: string, metadata: any = {}) => {
             await logMarketingEvent(user?.uid, eventType, metadata);

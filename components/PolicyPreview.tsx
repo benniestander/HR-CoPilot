@@ -16,6 +16,11 @@ interface PolicyPreviewProps {
   errorMessage?: string | null;
   loadingMessages?: string[];
   onContentChange?: (newContent: string) => void;
+  branding?: {
+    logoUrl?: string;
+    primaryColor?: string;
+    accentColor?: string;
+  };
 }
 
 const WORD_DOCUMENT_STYLES = `
@@ -31,6 +36,8 @@ const WORD_DOCUMENT_STYLES = `
   .word-document-preview th, .word-document-preview td { border: 1px solid #d1d5db; padding: 6pt; text-align: left; }
   .word-document-preview th { background-color: #f3f4f6; font-weight: bold; }
   .word-document-preview strong { color: #111827; }
+  .branding-header { margin-bottom: 30pt; text-align: right; border-bottom: 2pt solid var(--primary-color, #188693); padding-bottom: 10pt; }
+  .branding-logo { max-height: 60pt; max-width: 200pt; }
 `;
 
 const SourcesUsed: React.FC<{ sources: Source[] }> = ({ sources }) => {
@@ -56,7 +63,7 @@ const SourcesUsed: React.FC<{ sources: Source[] }> = ({ sources }) => {
   );
 };
 
-const PolicyPreview: React.FC<PolicyPreviewProps> = ({ policyText, status, onRetry, isForm, outputFormat, sources, errorMessage, loadingMessages, onContentChange }) => {
+const PolicyPreview: React.FC<PolicyPreviewProps> = ({ policyText, status, onRetry, isForm, outputFormat, sources, errorMessage, loadingMessages, onContentChange, branding }) => {
   const [copied, setCopied] = useState(false);
   const [isDownloadMenuOpen, setDownloadMenuOpen] = useState(false);
 
@@ -115,14 +122,21 @@ const PolicyPreview: React.FC<PolicyPreviewProps> = ({ policyText, status, onRet
 
   const getStyledHtmlForDownload = (contentHtml: string, docTitle: string) => {
     const bodyStyles = WORD_DOCUMENT_STYLES.replace(/\.word-document-preview/g, 'body');
+    const headerHtml = branding?.logoUrl ? `
+      <div class="branding-header">
+        <img src="${branding.logoUrl}" class="branding-logo" />
+      </div>
+    ` : '';
+
     return `
       <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
       <head><meta charset="UTF-8"><title>${docTitle}</title>
       <style>
         @page { size: A4; margin: 1in; }
+        :root { --primary-color: ${branding?.primaryColor || '#188693'}; }
         ${bodyStyles}
         .print-hide { display: none !important; }
-      </style></head><body>${contentHtml}</body></html>
+      </style></head><body>${headerHtml}${contentHtml}</body></html>
     `;
   };
 

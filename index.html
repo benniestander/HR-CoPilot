@@ -25,14 +25,21 @@
   <meta property="twitter:description"
     content="Generate and audit your HR policies instantly with AI. Built for South African SMEs." />
   <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    :root {
+      --primary-color: #188693;
+      --secondary-color: #143a67;
+      --accent-color: #f8b43b;
+    }
+  </style>
   <script>
     tailwind.config = {
       theme: {
         extend: {
           colors: {
-            primary: '#188693',
-            secondary: '#143a67',
-            accent: '#f8b43b',
+            primary: 'var(--primary-color)',
+            secondary: 'var(--secondary-color)',
+            accent: 'var(--accent-color)',
             light: '#f9fafb',
           },
           fontFamily: {
@@ -62,7 +69,8 @@
     "dompurify": "https://aistudiocdn.com/dompurify@^3.3.0",
     "mammoth": "https://esm.sh/mammoth@1.6.0",
     "pdfjs-dist": "https://esm.sh/pdfjs-dist@3.11.174",
-    "framer-motion": "https://esm.sh/framer-motion@12?deps=react@^19.2.0"
+    "framer-motion": "https://esm.sh/framer-motion@12?deps=react@^19.2.0",
+    "jspdf": "https://esm.sh/jspdf@2.5.1"
   }
 }
 </script>

@@ -1,4 +1,3 @@
-
 import { useRef, useEffect, lazy, Suspense } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Dashboard from './components/Dashboard';
@@ -7,7 +6,6 @@ import Login from './components/Login';
 import EmailSentPage from './components/EmailSentPage';
 import VerifyEmailPage from './components/VerifyEmailPage';
 import Toast from './components/Toast';
-import PaymentModal from './components/PaymentModal';
 import LegalModal from './components/LegalModal';
 import AdminNotificationPanel from './components/AdminNotificationPanel';
 import InitialProfileSetup from './components/InitialProfileSetup';
@@ -19,7 +17,6 @@ import { useUIContext } from './contexts/UIContext';
 import { useModalContext } from './contexts/ModalContext';
 import { PRIVACY_POLICY_CONTENT, TERMS_OF_USE_CONTENT } from './legalContent';
 import type { Policy, Form } from './types';
-import { trackEvent } from './utils/analytics';
 import { emailService } from './services/emailService';
 import { logMarketingEvent } from './services/dbService';
 
@@ -28,6 +25,7 @@ export type AuthFlow = 'signup' | 'login' | 'payg_signup';
 
 // Lazy-loaded components
 const AdminDashboard = lazy(() => import('./components/AdminDashboard'));
+const ConsultantClientSelector = lazy(() => import('./components/ConsultantClientSelector'));
 const GeneratorPage = lazy(() => import('./components/GeneratorPage'));
 const PolicyUpdater = lazy(() => import('./components/PolicyUpdater'));
 const ComplianceChecklist = lazy(() => import('./components/ComplianceChecklist'));
@@ -40,8 +38,7 @@ const PaymentSuccessPage = lazy(() => import('./components/PaymentSuccessPage'))
 const TransactionsPage = lazy(() => import('./components/TransactionsPage'));
 const PolicyAuditor = lazy(() => import('./components/PolicyAuditor'));
 const WaitlistLanding = lazy(() => import('./components/WaitlistLanding'));
-
-
+const ConsultantLockoutScreen = lazy(() => import('./components/ConsultantLockoutScreen'));
 
 const AppContent: React.FC = () => {
     const {
@@ -60,6 +57,12 @@ const AppContent: React.FC = () => {
         handleGoToProfileSetup,
         isSubscribed,
         handleStartAuthFlow,
+
+        // Consultant Props
+        activeClient,
+        selectClient,
+        switchToConsultant,
+        isAccountLocked,
     } = useAuthContext();
 
     const {
@@ -107,13 +110,12 @@ const AppContent: React.FC = () => {
         setIsPrePaid
     } = useUIContext();
 
-    // Watch for Yoco Redirects (since standard redirects can't easily append to hash)
+    // Watch for Yoco Redirects
     useEffect(() => {
         const params = new URLSearchParams(window.location.search);
         if (params.get('payment') === 'success') {
             console.log("Detected success redirect from Yoco...");
             navigateTo('payment-success' as any);
-            // Delay cleaning the URL slightly to let components read it if needed
             setTimeout(() => {
                 window.history.replaceState({}, document.title, window.location.pathname + window.location.hash);
             }, 500);
@@ -149,6 +151,19 @@ const AppContent: React.FC = () => {
         }
     }, [user, navigateTo, setSelectedItem, setDocumentToView, setShowOnboardingWalkthrough]);
 
+    // Apply branding colors
+    useEffect(() => {
+        if (user?.isConsultant && user.branding) {
+            const { primaryColor, accentColor } = user.branding;
+            if (primaryColor) document.documentElement.style.setProperty('--primary-color', primaryColor);
+            if (accentColor) document.documentElement.style.setProperty('--accent-color', accentColor);
+        } else {
+            document.documentElement.style.setProperty('--primary-color', '#188693');
+            document.documentElement.style.setProperty('--secondary-color', '#143a67');
+            document.documentElement.style.setProperty('--accent-color', '#f8b43b');
+        }
+    }, [user]);
+
     const handleCloseWalkthrough = () => {
         setShowOnboardingWalkthrough(false);
     };
@@ -172,9 +187,7 @@ const AppContent: React.FC = () => {
     const handleSelectDocument = (item: Policy | Form) => {
         if (!user) return;
 
-        // 1. Pro User Profile Check
         if (user.plan === 'pro') {
-            // Ensure basic profile data exists before generating
             if (!user.profile.companyName || (item.kind === 'policy' && !user.profile.industry)) {
                 showConfirmationModal({
                     title: "Complete Your Profile",
@@ -188,15 +201,13 @@ const AppContent: React.FC = () => {
                 });
                 return;
             }
-
             setSelectedItem(item);
             setDocumentToView(null);
-            setIsPrePaid(false); // Not relevant for Pro, but good hygiene
+            setIsPrePaid(false);
             navigateTo('generator');
             return;
         }
 
-        // 2. PAYG Checks
         if (user.plan === 'payg') {
             const price = item.price;
             const balance = user.creditBalance || 0;
@@ -216,7 +227,6 @@ const AppContent: React.FC = () => {
                     confirmText: "Top Up Now",
                     onConfirm: () => {
                         hideConfirmationModal();
-                        // --- MARKETING NUDGE ---
                         if (user?.email) {
                             emailService.sendInsufficientCreditNudge(user.email, user.name || '', item.title);
                             logMarketingEvent(user.uid, 'insufficient_credit_nudge', {
@@ -232,7 +242,6 @@ const AppContent: React.FC = () => {
                 return;
             }
 
-            // Confirm Cost AND Deduct immediately
             showConfirmationModal({
                 title: "Confirm Generation",
                 message: (
@@ -250,17 +259,14 @@ const AppContent: React.FC = () => {
                 ),
                 confirmText: "Confirm & Generate",
                 onConfirm: async () => {
-                    // Execute deduction logic HERE
                     const success = await handleDeductCredit(price, `Generated: ${item.title}`);
-
                     if (success) {
                         hideConfirmationModal();
                         setSelectedItem(item);
                         setDocumentToView(null);
-                        setIsPrePaid(true); // Flag that payment was collected
+                        setIsPrePaid(true);
                         navigateTo('generator');
                     } else {
-                        // handleDeductCredit shows the toast error
                         hideConfirmationModal();
                     }
                 },
@@ -271,6 +277,70 @@ const AppContent: React.FC = () => {
 
     const AuthHeader = ({ isAdminHeader = false }: { isAdminHeader?: boolean }) => {
         const unreadCount = adminNotifications.filter(n => !n.isRead).length;
+
+        // CONSULTANT HEADER
+        if (user?.isConsultant && !isAdminHeader) {
+            return (
+                <motion.header
+                    initial={{ y: -20, opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
+                    transition={{ duration: 0.5, ease: "easeOut" }}
+                    className="bg-white/90 backdrop-blur-md border-b border-gray-100 sticky top-0 z-40 py-3"
+                >
+                    <div className="container mx-auto flex justify-between items-center px-6">
+                        <div className="flex items-center space-x-4">
+                            <motion.img
+                                whileHover={{ scale: 1.05 }}
+                                whileTap={{ scale: 0.95 }}
+                                src={user.branding?.logoUrl || "https://i.postimg.cc/h48FMCNY/edited-image-11-removebg-preview.png"}
+                                alt="HR CoPilot Logo"
+                                className="h-10 cursor-pointer object-contain"
+                                onClick={handleStartOver}
+                            />
+                        </div>
+
+                        <div className="flex items-center space-x-3 sm:space-x-5">
+                            {activeClient ? (
+                                <motion.button
+                                    whileHover={{ scale: 1.05 }}
+                                    whileTap={{ scale: 0.95 }}
+                                    onClick={switchToConsultant}
+                                    className="hidden sm:flex items-center text-xs font-bold text-gray-500 hover:text-primary transition-all bg-gray-50 px-3 py-1.5 rounded-lg border border-gray-200"
+                                >
+                                    <span className="mr-2 text-gray-400">CLIENT:</span>
+                                    {activeClient.companyName}
+                                    <span className="ml-2 text-[10px] bg-gray-200 px-1 rounded text-gray-500">SWITCH</span>
+                                </motion.button>
+                            ) : (
+                                <span className="text-xs font-bold text-gray-400 bg-gray-50 px-2 py-1 rounded border border-gray-100 uppercase tracking-widest">
+                                    Consultant Mode
+                                </span>
+                            )}
+
+                            <div className="h-6 w-px bg-gray-100 hidden sm:block"></div>
+
+                            <motion.button
+                                whileHover={{ y: -2 }}
+                                onClick={handleShowProfile}
+                                className="flex items-center group"
+                            >
+                                <div className="w-8 h-8 rounded-full bg-indigo-50 border border-indigo-100 flex items-center justify-center p-0.5 group-hover:border-primary transition-colors overflow-hidden">
+                                    <UserIcon className="w-4 h-4 text-indigo-400 group-hover:text-primary transition-colors" />
+                                </div>
+                                <div className="ml-2 hidden lg:block text-left">
+                                    <p className="text-xs font-bold text-secondary truncate max-w-[120px]">{user?.name}</p>
+                                    <p className="text-[9px] font-bold text-primary uppercase tracking-tighter">Consultant</p>
+                                </div>
+                            </motion.button>
+
+                            <button onClick={handleLogout} className="text-[10px] font-bold text-gray-300 hover:text-red-500 uppercase tracking-widest transition-colors">
+                                Exit
+                            </button>
+                        </div>
+                    </div>
+                </motion.header>
+            );
+        }
 
         return (
             <motion.header
@@ -283,7 +353,7 @@ const AppContent: React.FC = () => {
                     <motion.img
                         whileHover={{ scale: 1.05 }}
                         whileTap={{ scale: 0.95 }}
-                        src="https://i.postimg.cc/h48FMCNY/edited-image-11-removebg-preview.png"
+                        src={(user?.isConsultant && user.branding?.logoUrl) ? user.branding.logoUrl : "https://i.postimg.cc/h48FMCNY/edited-image-11-removebg-preview.png"}
                         alt="HR CoPilot Logo"
                         className="h-10 cursor-pointer object-contain"
                         onClick={handleStartOver}
@@ -411,7 +481,7 @@ const AppContent: React.FC = () => {
         switch (currentView) {
             case 'dashboard':
                 return <Dashboard
-                    onStartUpdate={() => navigateTo('auditor')}
+                    onStartUpdate={() => navigateTo('updater')}
                     onStartChecklist={() => navigateTo('checklist')}
                     showOnboardingWalkthrough={showOnboardingWalkthrough}
                     onCloseWalkthrough={handleCloseWalkthrough}
@@ -420,7 +490,6 @@ const AppContent: React.FC = () => {
                 />;
             case 'generator':
                 if (!selectedItem || !user) {
-                    // Safe fallback
                     return <Dashboard
                         onStartUpdate={() => navigateTo('updater')}
                         onStartChecklist={() => navigateTo('checklist')}
@@ -495,9 +564,6 @@ const AppContent: React.FC = () => {
                     onCancel={handleBackToDashboard}
                 />;
             case 'topup':
-                // FIX: Do not return null or call state setter here. 
-                // Render fallback Dashboard if logic fails. useEffect will handle navigation if needed elsewhere,
-                // or the user sees the dashboard and realizes they can't top up (though button shouldn't be visible).
                 if (!user || user.plan !== 'payg') {
                     return <Dashboard
                         onStartUpdate={() => navigateTo('updater')}
@@ -536,7 +602,6 @@ const AppContent: React.FC = () => {
             case 'payment-success':
                 return <PaymentSuccessPage
                     onVerified={() => {
-                        // Refresh data to show new balance/plan
                         handleBackToDashboard();
                         setToastMessage("Payment confirmed! Your account has been updated.");
                     }}
@@ -629,6 +694,14 @@ const AppContent: React.FC = () => {
             );
         }
 
+        if (isAccountLocked) {
+            return (
+                <Suspense fallback={<FullPageLoader />}>
+                    <ConsultantLockoutScreen />
+                </Suspense>
+            );
+        }
+
         if (user.plan === 'pro' && !isSubscribed) {
             return (
                 <Suspense fallback={<FullPageLoader />}>
@@ -645,6 +718,24 @@ const AppContent: React.FC = () => {
         }
 
         if (user) {
+            // Consultant Selection Logic
+            if (user.isConsultant && !activeClient) {
+                return (
+                    <div className="min-h-screen bg-light text-secondary flex flex-col">
+                        <AuthHeader />
+                        <main className="container mx-auto px-6 py-8 flex-grow flex items-center justify-center">
+                            <Suspense fallback={<FullPageLoader />}>
+                                <ConsultantClientSelector
+                                    clients={user.clients || []}
+                                    onSelect={selectClient}
+                                />
+                            </Suspense>
+                        </main>
+                        <AppFooter />
+                    </div>
+                );
+            }
+
             return (
                 <div className="min-h-screen bg-light text-secondary flex flex-col">
                     <AuthHeader />

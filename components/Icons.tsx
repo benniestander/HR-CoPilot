@@ -798,13 +798,20 @@ export const BellIcon: React.FC<{ className?: string }> = ({ className }) => (
 );
 
 export const DotIcon: React.FC<{ className?: string }> = ({ className }) => (
-  <svg viewBox="0 0 100 100" className={className} fill="currentColor">
-    <circle cx="50" cy="50" r="50" />
+  <svg className={className} viewBox="0 0 20 20" fill="currentColor">
+    <circle cx="10" cy="10" r="3" />
   </svg>
 );
 
+export const ShieldAlertIcon: React.FC<{ className?: string }> = ({ className }) => (
+  <DuotoneIcon className={className} paths={[
+    "M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z",
+    "M12 8v4m0 4h.01"
+  ]} />
+);
+
 export const AlertIcon: React.FC<{ className?: string }> = ({ className }) => (
-  <OutlineIcon className={className} path="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
+  <OutlineIcon className={className} path="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
 );
 
 export const ArrowRightIcon: React.FC<{ className?: string }> = ({ className }) => (
