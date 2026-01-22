@@ -88,7 +88,7 @@ const Dashboard: React.FC<DashboardProps> = ({
               </div>
               <span className="text-[10px] font-black uppercase tracking-[0.3em] text-primary/50">Business Dashboard</span>
             </div>
-            <h1 className="text-4xl md:text-7xl font-medium text-secondary tracking-tight leading-tight font-serif italic">
+            <h1 className="text-4xl md:text-7xl font-medium text-secondary tracking-tight leading-tight">
               Welcome back, {user?.name ? user.name.split(' ')[0] : 'HR Hero'}!
             </h1>
             <div className="flex items-center gap-5 mt-6">
@@ -99,7 +99,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                   <span className="text-sm font-black text-emerald-600">R{(Number(user.creditBalance || 0) / 100).toFixed(2)}</span>
                 </div>
               )}
-              <span className="text-[10px] font-bold text-secondary/40 uppercase tracking-[0.25em] bg-white/50 backdrop-blur-sm px-4 py-2.5 rounded-xl border border-secondary/5 italic font-serif">
+              <span className="text-[10px] font-bold text-secondary/40 uppercase tracking-[0.25em] bg-white/50 backdrop-blur-sm px-4 py-2.5 rounded-xl border border-secondary/5">
                 Protecting {user?.profile?.companyName || 'your enterprise'}
               </span>
             </div>
@@ -114,7 +114,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                 <ComplianceIcon className="w-32 h-32" />
               </div>
               <p className="text-[10px] font-black uppercase tracking-[0.4em] text-accent mb-2">Registry Status</p>
-              <p className="text-3xl font-medium mb-6 tracking-tight font-serif italic text-white/90">Fully Compliant</p>
+              <p className="text-3xl font-medium mb-6 tracking-tight text-white/90">Fully Compliant</p>
               <button
                 onClick={() => navigateTo('knowledge-base')}
                 className="bg-accent/10 hover:bg-accent text-accent hover:text-secondary px-5 py-2.5 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] transition-all backdrop-blur-md border border-accent/20"

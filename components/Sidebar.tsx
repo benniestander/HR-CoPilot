@@ -46,7 +46,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeView }) => {
                         className="h-8 brightness-0 invert"
                     />
                     <div className="flex flex-col">
-                        <span className="text-white font-serif italic text-lg leading-none">CoPilot</span>
+                        <span className="text-white text-lg leading-none">CoPilot</span>
                         <span className="text-[8px] font-black uppercase tracking-[0.4em] text-accent/60 mt-1">Registry v2.0</span>
                     </div>
                 </motion.div>
@@ -94,7 +94,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeView }) => {
                             )}
                         </div>
                         <div className="flex-1 min-w-0">
-                            <p className="text-[12px] font-medium text-white/90 truncate font-serif italic italic">{user?.name || user?.email}</p>
+                            <p className="text-[12px] font-medium text-white/90 truncate">{user?.name || user?.email}</p>
                             <p className="text-[8px] font-black text-accent uppercase tracking-widest">{user?.plan === 'pro' ? 'Pro Member' : 'PAYG'}</p>
                         </div>
                     </div>

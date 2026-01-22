@@ -35,7 +35,8 @@ export const getUserProfile = async (uid: string): Promise<User | null> => {
         consultantClientLimit: profile.consultant_client_limit || 10,
         branding: profile.branding || {},
         hasSeenConsultantWelcome: profile.has_seen_consultant_welcome || false,
-        clients: profile.clients || [],
+        clients: (profile.clients || []).filter((c: any) => !c.deleted_at),
+        deletedAt: profile.deleted_at,
         profile: {
             companyName: profile.company_name,
             industry: profile.industry,
@@ -79,6 +80,33 @@ export const updateConsultantClients = async (uid: string, clients: any[], amoun
         await addTransactionToUser(uid, { amount: -amount, description: reason || 'Client Access Fee' }, true);
     }
     const { error } = await supabase.from('profiles').update({ clients: clients }).eq('id', uid);
+    if (error) throw error;
+};
+
+/**
+ * COMPLIANCE: POPIA Right to be Forgotten
+ * Soft-deletes a user profile and all associated data via DB triggers.
+ */
+export const retractUser = async (uid: string) => {
+    const { error } = await supabase.from('profiles').update({
+        deleted_at: new Date().toISOString()
+    }).eq('id', uid);
+    if (error) throw error;
+};
+
+/**
+ * COMPLIANCE: POPIA Right to be Forgotten
+ * Marks a consultant client as retracted.
+ */
+export const retractClient = async (consultantUid: string, clientId: string) => {
+    const { data: profile } = await supabase.from('profiles').select('clients').eq('id', consultantUid).single();
+    if (!profile) return;
+
+    const clients = (profile.clients || []).map((c: any) =>
+        c.id === clientId ? { ...c, deleted_at: new Date().toISOString() } : c
+    );
+
+    const { error } = await supabase.from('profiles').update({ clients }).eq('id', consultantUid);
     if (error) throw error;
 };
 

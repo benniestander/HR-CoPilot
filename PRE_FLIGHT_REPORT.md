@@ -91,6 +91,15 @@ The HR CoPilot application is now an enterprise-grade platform. We have moved fr
 - **Finding:** The system correctly identified that the load test script lacked a valid User Session. The **Supabase Authenticated Gate** (Wave 2) is verified as operative, blocking unauthorized AI token drain.
 - **Latency Monitoring:** Request rejection was processed at sub-1.5s, confirming Edge Function availability even under rapid burst.
 
+## 🔒 WAVE 6: POPIA & PRIVACY (The Eraser)
+
+### 1. Right to be Forgotten (Soft-Delete)
+- **Risk:** Difficulty in manually scrubbing PII for users who exercise their right to be forgotten.
+- **Fix:** Implemented a unified "Retraction" system (`supabase/compliance_soft_delete.sql`).
+  - **Account Closure:** Users can now self-terminate their profile from the new **Security & Privacy** tab in Settings.
+  - **Consultant Retraction:** Consultants can "retract" client profiles, triggering a soft-delete of all associated document metadata.
+  - **Automated PII Scrubbing:** A DB trigger (`on_user_scrub`) automatically nullifies sensitive transaction metadata and marks all child documents as deleted when a profile is retired.
+
 ---
 
 ## 🏁 FINAL VERDICT

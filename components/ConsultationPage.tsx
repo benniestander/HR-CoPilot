@@ -76,7 +76,7 @@ const ConsultationPage: React.FC<{ onBack: () => void }> = ({ onBack }) => {
     const renderMessageContent = (content: string) => {
         const rawHtml = marked.parse(content) as string;
         const cleanHtml = DOMPurify.sanitize(rawHtml);
-        return <div className="prose prose-invert max-w-none text-[15px] leading-relaxed font-serif" dangerouslySetInnerHTML={{ __html: cleanHtml }} />;
+        return <div className="prose prose-invert max-w-none text-[15px] leading-relaxed" dangerouslySetInnerHTML={{ __html: cleanHtml }} />;
     };
 
     return (
@@ -84,7 +84,7 @@ const ConsultationPage: React.FC<{ onBack: () => void }> = ({ onBack }) => {
             <div className={`flex justify-between items-end border-b border-secondary/5 ${isMobile ? 'pb-4 px-2' : 'pb-6'}`}>
                 <div className="space-y-1">
                     <p className="text-[10px] font-black uppercase tracking-[0.4em] text-accent/80">Intelligence Briefing</p>
-                    <h1 className={`${isMobile ? 'text-3xl' : 'text-4xl'} font-serif italic text-secondary leading-tight`}>Consult with Ingcweti</h1>
+                    <h1 className={`${isMobile ? 'text-3xl' : 'text-4xl'} font-bold text-secondary leading-tight`}>Consult with Ingcweti</h1>
                     {!isMobile && <p className="text-secondary/40 text-sm">Strategic South African Labour Law Advisory</p>}
                 </div>
                 <button onClick={onBack} className="text-secondary/40 hover:text-secondary text-[10px] font-black uppercase tracking-widest border border-secondary/5 px-4 py-2 rounded-xl transition-all">
@@ -114,7 +114,7 @@ const ConsultationPage: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                             <div className={`${isMobile ? 'max-w-full' : 'max-w-[80%]'} space-y-2`}>
                                 <div className={`${isMobile ? 'p-6 rounded-2xl' : 'p-8 rounded-[2rem]'} shadow-2xl ${m.role === 'user'
                                     ? 'bg-primary text-white rounded-tr-none'
-                                    : 'bg-white/5 backdrop-blur-md border border-white/5 text-white/90 rounded-tl-none font-serif italic'
+                                    : 'bg-white/5 backdrop-blur-md border border-white/5 text-white/90 rounded-tl-none'
                                     }`}>
                                     {m.role === 'user' ? (
                                         <p className="text-sm font-bold tracking-tight">{m.content}</p>
