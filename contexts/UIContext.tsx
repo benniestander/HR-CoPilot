@@ -2,7 +2,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import type { Policy, Form, GeneratedDocument } from '../types';
 
-type View = 'dashboard' | 'generator' | 'updater' | 'checklist' | 'profile' | 'upgrade' | 'topup' | 'knowledge-base' | 'payment-success' | 'transactions' | 'auditor' | 'waitlist';
+type View = 'dashboard' | 'generator' | 'updater' | 'checklist' | 'profile' | 'upgrade' | 'topup' | 'knowledge-base' | 'payment-success' | 'transactions' | 'auditor' | 'waitlist' | 'consultation' | 'admin';
 
 interface UIContextType {
     currentView: View;
@@ -19,6 +19,7 @@ interface UIContextType {
     setNotificationPanelOpen: React.Dispatch<React.SetStateAction<boolean>>;
     setShowOnboardingWalkthrough: React.Dispatch<React.SetStateAction<boolean>>;
     setIsPrePaid: React.Dispatch<React.SetStateAction<boolean>>;
+    isMobile: boolean;
     setCurrentView: (view: View) => void; // Compatibility
 }
 
@@ -37,6 +38,13 @@ export const UIProvider: React.FC<{ children: React.ReactNode }> = ({ children }
     const [isNotificationPanelOpen, setNotificationPanelOpen] = useState(false);
     const [showOnboardingWalkthrough, setShowOnboardingWalkthrough] = useState(false);
     const [isPrePaid, setIsPrePaid] = useState(false);
+    const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+
+    useEffect(() => {
+        const handleResize = () => setIsMobile(window.innerWidth < 1024);
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
 
     useEffect(() => {
         const handleHashChange = () => {
@@ -75,6 +83,7 @@ export const UIProvider: React.FC<{ children: React.ReactNode }> = ({ children }
         setShowOnboardingWalkthrough,
         isPrePaid,
         setIsPrePaid,
+        isMobile,
         setCurrentView: (view: View) => navigateTo(view),
     };
 

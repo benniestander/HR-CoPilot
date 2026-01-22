@@ -96,6 +96,21 @@ export const ByodIcon: React.FC<{ className?: string }> = ({ className }) => (
   ]} />
 );
 
+// NEW PREMIUM BRIEFING ICON: Message with an Eye/Intelligence hint
+export const BriefingIcon: React.FC<{ className?: string }> = ({ className }) => (
+  <DuotoneIcon className={className} paths={[
+    "M20 2H4a2 2 0 00-2 2v18l4-4h14a2 2 0 002-2V4a2 2 0 00-2-2z",
+    "M8 9h8m-8 4h5"
+  ]} />
+);
+
+export const ChatIcon: React.FC<{ className?: string }> = ({ className }) => (
+  <DuotoneIcon className={className} paths={[
+    "M12 2C6.477 2 2 6.477 2 12c0 1.821.487 3.53 1.338 5L2 22l5-1.338c1.47.851 3.179 1.338 5 1.338 5.523 0 10-4.477 10-10S17.523 2 12 2z",
+    "M12 11a1 1 0 100-2 1 1 0 000 2zm-3 0a1 1 0 100-2 1 1 0 000 2zm6 0a1 1 0 100-2 1 1 0 000 2z"
+  ]} />
+);
+
 export const CellPhoneIcon: React.FC<{ className?: string }> = ({ className }) => (
   <DuotoneIcon className={className} paths={[
     "M7 2h10a2 2 0 012 2v16a2 2 0 01-2 2H7a2 2 0 01-2-2V4a2 2 0 012-2z",
