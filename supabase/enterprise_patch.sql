@@ -1,4 +1,12 @@
 
+-- 0. SCHEMA PREPARATION (Ensuring all consultant columns exist)
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS is_consultant BOOLEAN DEFAULT false;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS consultant_platform_fee_paid_until TIMESTAMPTZ;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS consultant_client_limit INTEGER DEFAULT 10;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS branding JSONB DEFAULT '{}'::jsonb;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS has_seen_consultant_welcome BOOLEAN DEFAULT false;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS clients JSONB DEFAULT '[]'::jsonb;
+
 -- 1. MAKE LOGS IMMUTABLE (Append-only)
 -- Prevent any UPDATE or DELETE on transactions and admin_action_logs
 DROP POLICY IF EXISTS "No updates on transactions" ON transactions;

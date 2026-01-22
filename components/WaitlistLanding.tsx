@@ -52,7 +52,7 @@ const WaitlistLanding: React.FC<WaitlistLandingProps> = ({ onSignup, onShowLogin
             <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-secondary/5 rounded-full blur-[100px]"></div>
 
             {/* Header */}
-            <header className="relative z-50 px-8 py-8 flex justify-between items-center max-w-7xl mx-auto w-full">
+            <header className="relative z-50 px-8 py-4 flex justify-between items-center max-w-7xl mx-auto w-full">
                 <motion.div
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
@@ -73,8 +73,8 @@ const WaitlistLanding: React.FC<WaitlistLandingProps> = ({ onSignup, onShowLogin
             </header>
 
             {/* Main Hero Section */}
-            <main className="relative z-10 flex-grow flex flex-col items-center justify-center px-6 py-12 md:py-20 max-w-7xl mx-auto w-full">
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
+            <main className="relative z-10 flex-grow flex flex-col items-center justify-center px-6 py-6 md:py-10 max-w-7xl mx-auto w-full">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
 
                     {/* Left: Copy */}
                     <div className="space-y-12">
@@ -85,7 +85,7 @@ const WaitlistLanding: React.FC<WaitlistLandingProps> = ({ onSignup, onShowLogin
                             <span className="inline-flex items-center px-4 py-1.5 bg-primary/5 border border-primary/10 rounded-full text-[10px] font-bold uppercase tracking-[0.3em] text-primary mb-8 shadow-sm">
                                 <span className="mr-2">🇿🇦</span> South Africa's Smartest Compliance AI
                             </span>
-                            <h1 className="text-6xl md:text-8xl font-black tracking-tight leading-[0.9] mb-10 text-secondary">
+                            <h1 className="text-5xl md:text-7xl font-black tracking-tight leading-[0.95] mb-6 text-secondary">
                                 The End of <br />
                                 <span className="inline-block relative">
                                     <span className="relative z-10 text-primary">Legal Anxiety.</span>
@@ -93,11 +93,11 @@ const WaitlistLanding: React.FC<WaitlistLandingProps> = ({ onSignup, onShowLogin
                                         initial={{ width: 0 }}
                                         animate={{ width: '100%' }}
                                         transition={{ delay: 0.8, duration: 1 }}
-                                        className="absolute bottom-4 left-0 h-4 bg-accent/20 -z-1"
+                                        className="absolute bottom-3 left-0 h-3 bg-accent/20 -z-1"
                                     ></motion.span>
                                 </span>
                             </h1>
-                            <p className="text-xl md:text-2xl text-secondary/70 leading-relaxed max-w-xl font-medium">
+                            <p className="text-lg md:text-xl text-secondary/70 leading-relaxed max-w-xl font-medium">
                                 No more expensive consultants or outdated templates. <br />
                                 <span className="text-secondary">Generate BCEA & LRA compliant documents in seconds.</span>
                             </p>
@@ -108,15 +108,15 @@ const WaitlistLanding: React.FC<WaitlistLandingProps> = ({ onSignup, onShowLogin
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: 0.2 }}
-                            className="flex flex-wrap gap-4"
+                            className="flex flex-wrap gap-3"
                         >
                             {statItems.map((stat, i) => (
-                                <div key={i} className="bg-white/60 p-5 rounded-3xl border border-white/80 shadow-[0_8px_30px_rgb(0,0,0,0.04)] backdrop-blur-md flex items-center space-x-4">
-                                    <div className="w-10 h-10 bg-primary/10 rounded-2xl flex items-center justify-center text-primary">
-                                        <stat.icon className="w-5 h-5" />
+                                <div key={i} className="bg-white/60 p-4 rounded-3xl border border-white/80 shadow-[0_8px_30px_rgb(0,0,0,0.04)] backdrop-blur-md flex items-center space-x-3">
+                                    <div className="w-8 h-8 bg-primary/10 rounded-2xl flex items-center justify-center text-primary">
+                                        <stat.icon className="w-4 h-4" />
                                     </div>
                                     <div>
-                                        <div className="text-xl font-black text-secondary">{stat.value}</div>
+                                        <div className="text-lg font-black text-secondary">{stat.value}</div>
                                         <div className="text-[10px] uppercase tracking-wider text-secondary/40 font-bold">{stat.label}</div>
                                     </div>
                                 </div>
@@ -135,7 +135,7 @@ const WaitlistLanding: React.FC<WaitlistLandingProps> = ({ onSignup, onShowLogin
                             {/* Visual Glow behind form */}
                             <div className="absolute inset-0 bg-primary/10 blur-[80px] -z-10 transform translate-x-8 translate-y-8"></div>
 
-                            <div className="bg-white/80 backdrop-blur-[30px] border border-white p-10 md:p-14 rounded-[4rem] shadow-[0_40px_100px_-20px_rgba(20,58,103,0.1)]">
+                            <div className="bg-white/80 backdrop-blur-[30px] border border-white p-8 md:p-10 rounded-[3.5rem] shadow-[0_40px_100px_-20px_rgba(20,58,103,0.1)]">
                                 <AnimatePresence mode="wait">
                                     {!isSuccess ? (
                                         <motion.div
@@ -143,28 +143,28 @@ const WaitlistLanding: React.FC<WaitlistLandingProps> = ({ onSignup, onShowLogin
                                             initial={{ opacity: 1 }}
                                             exit={{ opacity: 0, scale: 0.95 }}
                                         >
-                                            <h3 className="text-3xl font-black mb-2 tracking-tighter text-secondary">Join The Waitlist</h3>
-                                            <p className="text-sm text-secondary/50 mb-10 font-medium">Securing early access for SA startups.</p>
+                                            <h3 className="text-2xl font-black mb-1 tracking-tighter text-secondary">Join The Waitlist</h3>
+                                            <p className="text-xs text-secondary/50 mb-8 font-medium">Securing early access for SA startups.</p>
 
                                             <form onSubmit={handleSubmit} className="space-y-6">
-                                                <div className="space-y-2">
-                                                    <label className="text-[10px] font-black uppercase tracking-[0.2em] text-secondary/40 ml-4">Business Owner Name</label>
+                                                <div className="space-y-1.5">
+                                                    <label className="text-[9px] font-black uppercase tracking-[0.2em] text-secondary/40 ml-4">Business Owner Name</label>
                                                     <input
                                                         type="text"
                                                         placeholder="John Smit"
                                                         value={formData.name}
                                                         onChange={e => setFormData({ ...formData, name: e.target.value })}
-                                                        className="w-full bg-light border border-secondary/5 rounded-[1.8rem] px-8 py-5 text-secondary placeholder:text-secondary/20 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all font-medium"
+                                                        className="w-full bg-light border border-secondary/5 rounded-[1.5rem] px-6 py-4 text-secondary placeholder:text-secondary/20 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all font-medium text-sm"
                                                     />
                                                 </div>
-                                                <div className="space-y-2">
-                                                    <label className="text-[10px] font-black uppercase tracking-[0.2em] text-secondary/40 ml-4">Work Email</label>
+                                                <div className="space-y-1.5">
+                                                    <label className="text-[9px] font-black uppercase tracking-[0.2em] text-secondary/40 ml-4">Work Email</label>
                                                     <input
                                                         type="email"
                                                         placeholder="john@company.co.za"
                                                         value={formData.email}
                                                         onChange={e => setFormData({ ...formData, email: e.target.value })}
-                                                        className="w-full bg-light border border-secondary/5 rounded-[1.8rem] px-8 py-5 text-secondary placeholder:text-secondary/20 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all font-medium"
+                                                        className="w-full bg-light border border-secondary/5 rounded-[1.5rem] px-6 py-4 text-secondary placeholder:text-secondary/20 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all font-medium text-sm"
                                                     />
                                                 </div>
 
@@ -173,7 +173,7 @@ const WaitlistLanding: React.FC<WaitlistLandingProps> = ({ onSignup, onShowLogin
                                                 <button
                                                     type="submit"
                                                     disabled={isSubmitting}
-                                                    className="w-full bg-primary text-white font-black text-sm uppercase tracking-[0.2em] py-6 rounded-[1.8rem] shadow-xl shadow-primary/30 hover:shadow-primary/40 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 mt-4 h-18 flex items-center justify-center group"
+                                                    className="w-full bg-primary text-white font-black text-xs uppercase tracking-[0.2em] py-5 rounded-[1.5rem] shadow-xl shadow-primary/30 hover:shadow-primary/40 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 mt-2 h-14 flex items-center justify-center group"
                                                 >
                                                     {isSubmitting ? (
                                                         <div className="w-6 h-6 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
