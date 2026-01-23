@@ -331,6 +331,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const isProfileHydrating = !!user &&
+    !user.isAdmin && // Admins don't need company profile details to function
     user.profile &&
     Object.keys(user.profile).length <= 1 &&
     !user.profile.companyName &&

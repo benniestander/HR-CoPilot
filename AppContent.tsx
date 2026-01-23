@@ -41,6 +41,7 @@ const TransactionsPage = lazy(() => import('./components/TransactionsPage'));
 const PolicyAuditor = lazy(() => import('./components/PolicyAuditor'));
 const WaitlistLanding = lazy(() => import('./components/WaitlistLanding'));
 const ConsultantLockoutScreen = lazy(() => import('./components/ConsultantLockoutScreen'));
+const LandingPageV2 = lazy(() => import('./components/LandingPageV2'));
 
 const AppContent: React.FC = () => {
     const {
@@ -685,13 +686,7 @@ const AppContent: React.FC = () => {
 
             return (
                 <Suspense fallback={<FullPageLoader />}>
-                    <PlanSelectionPage
-                        onStartAuthFlow={handleStartAuthFlow}
-                        onShowLogin={() => setAuthPage('login')}
-                        onShowPrivacyPolicy={() => showLegalModal('Privacy Policy', PRIVACY_POLICY_CONTENT)}
-                        onShowTerms={() => showLegalModal('Terms of Use', TERMS_OF_USE_CONTENT)}
-                        onShowWaitlist={() => navigateTo('waitlist')}
-                    />
+                    <LandingPageV2 />
                 </Suspense>
             );
         }

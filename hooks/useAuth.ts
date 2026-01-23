@@ -19,7 +19,16 @@ export const useAuth = () => {
     });
 
     const [unverifiedUser, setUnverifiedUser] = useState<any | null>(null);
-    const [isAdmin, setIsAdmin] = useState(false);
+    const [isAdmin, setIsAdmin] = useState<boolean>(() => {
+        try {
+            const cached = window.localStorage.getItem(USER_CACHE_KEY);
+            if (cached) {
+                const parsed = JSON.parse(cached);
+                return !!parsed.isAdmin;
+            }
+        } catch (e) { }
+        return false;
+    });
     const [isLoading, setIsLoading] = useState(true);
     const [needsOnboarding, setNeedsOnboarding] = useState(false);
 
@@ -132,6 +141,7 @@ export const useAuth = () => {
             const updated = await getUserProfile(user.uid);
             if (updated) {
                 setUser(updated);
+                setIsAdmin(!!updated.isAdmin);
                 window.localStorage.setItem(USER_CACHE_KEY, JSON.stringify(updated));
             }
         } catch (error) {

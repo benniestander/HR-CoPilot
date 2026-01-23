@@ -1,6 +1,6 @@
 
-import React, { createContext, useContext, useState, useEffect, useMemo, useCallback } from 'react';
-import type { GeneratedDocument, CompanyProfile, User, Transaction, AdminActionLog, AdminNotification, UserFile, Coupon, PolicyDraft, Policy, Form, PolicyType, FormType } from '../types';
+import React, { createContext, useContext, useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import type { GeneratedDocument, CompanyProfile, User, Transaction, AdminActionLog, AdminNotification, UserFile, Coupon, PolicyDraft, Policy, Form, InvoiceRequest } from '../types';
 import {
     updateUser,
     getGeneratedDocuments,
@@ -27,7 +27,7 @@ import {
     createCoupon,
     getCoupons,
     deactivateCoupon,
-    validateCoupon,
+    validateCoupon as validateCouponInDb,
     savePolicyDraft,
     getPolicyDrafts,
     deletePolicyDraft,
@@ -37,14 +37,16 @@ import {
     searchUsers,
     saveWaitlistLead,
     getWaitlistLeads,
-    logMarketingEvent
+    logMarketingEvent,
+    getSupportTickets,
+    updateSupportTicketStatus,
+    getOpenInvoiceRequests
 } from '../services/dbService';
-import { supabase } from '../services/supabase'; // Add supabase import
+import { supabase } from '../services/supabase';
 import { useAuthContext } from './AuthContext';
 import { useUIContext } from './UIContext';
 import { useModalContext } from './ModalContext';
 import { emailService } from '../services/emailService';
-import { POLICIES, FORMS } from '../constants';
 
 const PAGE_SIZE = 25;
 
@@ -92,7 +94,6 @@ interface DataContextType {
         simulateFailedPayment: (targetUid: string, targetUserEmail: string) => Promise<void>;
         createCoupon: (data: Partial<Coupon>) => Promise<void>;
         deactivateCoupon: (id: string) => Promise<void>;
-        // Pricing actions
         setProPrice: (priceInCents: number) => Promise<void>;
         setDocPrice: (docType: string, priceInCents: number, category: 'policy' | 'form') => Promise<void>;
     };
@@ -109,11 +110,14 @@ interface DataContextType {
     handleRunRetentionCheck: () => Promise<any>;
     handleWaitlistSignup: (name: string, email: string) => Promise<void>;
     logMarketingEvent: (eventType: string, metadata?: any) => Promise<void>;
-
-    // Pricing Data
     proPlanPrice: number;
     getDocPrice: (item: Policy | Form) => number;
     waitlistLeads: any[];
+    paginatedSupportTickets: { data: any[]; pageInfo: PageInfo };
+    handleNextSupport: () => void;
+    handlePrevSupport: () => void;
+    isFetchingSupport: boolean;
+    handleUpdateSupportStatus: (ticketId: string, status: any) => Promise<void>;
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
@@ -145,65 +149,68 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const [isFetchingLogs, setIsFetchingLogs] = useState(false);
     const [adminNotifications, setAdminNotifications] = useState<AdminNotification[]>([]);
     const [coupons, setCoupons] = useState<Coupon[]>([]);
-
-    // Pricing State
-    const [proPlanPrice, setProPlanPrice] = useState(74700); // Default R747
+    const [proPlanPrice, setProPlanPrice] = useState(74700);
     const [docPriceMap, setDocPriceMap] = useState<Record<string, number>>({});
     const [waitlistLeads, setWaitlistLeads] = useState<any[]>([]);
+    const [paginatedSupportTickets, setPaginatedSupportTickets] = useState<any[]>([]);
+    const [supportCursors, setSupportCursors] = useState<number[]>([0]);
+    const [supportPageIndex, setSupportPageIndex] = useState(0);
+    const [supportHasNextPage, setSupportHasNextPage] = useState(true);
+    const [isFetchingSupport, setIsFetchingSupport] = useState(false);
 
-    const createPageFetcher = <T,>(
-        fetchFn: (pageSize: number, cursor?: number) => Promise<{ data: T[], lastVisible: number | null }>,
-        setData: React.Dispatch<React.SetStateAction<T[]>>,
+    const createPageFetcher = useCallback((
+        fetchFn: (pageSize: number, cursor?: number) => Promise<{ data: any[], lastVisible: number | null }>,
+        setData: React.Dispatch<React.SetStateAction<any[]>>,
         setCursors: React.Dispatch<React.SetStateAction<number[]>>,
         setPageIndex: React.Dispatch<React.SetStateAction<number>>,
         setHasNextPage: React.Dispatch<React.SetStateAction<boolean>>,
-        cursors: number[],
-        setLoading: React.Dispatch<React.SetStateAction<boolean>>
+        setLoading: React.Dispatch<React.SetStateAction<boolean>>,
+        cursorsRef: React.MutableRefObject<number[]>
     ) => async (pageIndex: number) => {
-        if (pageIndex < 0) return;
-        if (pageIndex >= cursors.length) return;
-
-        const cursor = cursors[pageIndex];
-        if (cursor === undefined || cursor === null) return;
-
+        if (pageIndex < 0 || pageIndex >= cursorsRef.current.length) return;
+        const cursor = cursorsRef.current[pageIndex];
         setLoading(true);
         try {
             const { data, lastVisible } = await fetchFn(PAGE_SIZE, cursor);
             setData(data || []);
             setPageIndex(pageIndex);
-
-            if (pageIndex === cursors.length - 1) {
+            if (pageIndex === cursorsRef.current.length - 1) {
                 if (lastVisible !== null && data && data.length === PAGE_SIZE) {
-                    setCursors(prev => {
-                        if (prev[prev.length - 1] !== lastVisible) {
-                            return [...prev, lastVisible];
-                        }
-                        return prev;
-                    });
+                    if (!cursorsRef.current.includes(lastVisible)) {
+                        cursorsRef.current.push(lastVisible);
+                        setCursors([...cursorsRef.current]);
+                    }
                     setHasNextPage(true);
                 } else {
                     setHasNextPage(false);
                 }
             } else {
-                setHasNextPage(pageIndex < cursors.length - 1);
+                setHasNextPage(pageIndex < cursorsRef.current.length - 1);
             }
-        } catch (err: any) {
-            console.error(`Pagination error (Page ${pageIndex}):`, err);
+        } catch (err) {
+            console.error("Pagination error:", err);
         } finally {
             setLoading(false);
         }
-    };
+    }, []);
 
-    const fetchUsersPage = useCallback(createPageFetcher(getAllUsers, setPaginatedUsers, setUserCursors, setUserPageIndex, setUserHasNextPage, userCursors, setIsFetchingUsers), [userCursors]);
-    const fetchDocsPage = useCallback(createPageFetcher(getAllDocumentsForAllUsers, setPaginatedDocuments, setDocCursors, setDocPageIndex, setDocHasNextPage, docCursors, setIsFetchingDocs), [docCursors]);
-    const fetchLogsPage = useCallback(createPageFetcher(getAdminActionLogs, setPaginatedLogs, setLogCursors, setLogPageIndex, setLogHasNextPage, logCursors, setIsFetchingLogs), [logCursors]);
+    const userCursorsRef = useRef<number[]>([0]);
+    const fetchUsersPage = useCallback(createPageFetcher(getAllUsers, setPaginatedUsers, setUserCursors, setUserPageIndex, setUserHasNextPage, setIsFetchingUsers, userCursorsRef), [createPageFetcher]);
+    const docCursorsRef = useRef<number[]>([0]);
+    const fetchDocsPage = useCallback(createPageFetcher(getAllDocumentsForAllUsers, setPaginatedDocuments, setDocCursors, setDocPageIndex, setDocHasNextPage, setIsFetchingDocs, docCursorsRef), [createPageFetcher]);
+    const logCursorsRef = useRef<number[]>([0]);
+    const fetchLogsPage = useCallback(createPageFetcher(getAdminActionLogs, setPaginatedLogs, setLogCursors, setLogPageIndex, setLogHasNextPage, setIsFetchingLogs, logCursorsRef), [createPageFetcher]);
+    const supportCursorsRef = useRef<number[]>([0]);
+    const fetchSupportPage = useCallback(createPageFetcher(getSupportTickets as any, setPaginatedSupportTickets, setSupportCursors, setSupportPageIndex, setSupportHasNextPage, setIsFetchingSupport, supportCursorsRef), [createPageFetcher]);
 
-    const handleNextUsers = () => { if (userHasNextPage) fetchUsersPage(userPageIndex + 1); };
-    const handlePrevUsers = () => { if (userPageIndex > 0) fetchUsersPage(userPageIndex - 1); };
-    const handleNextDocs = () => { if (docHasNextPage) fetchDocsPage(docPageIndex + 1); };
-    const handlePrevDocs = () => { if (docPageIndex > 0) fetchDocsPage(docPageIndex - 1); };
-    const handleNextLogs = () => { if (logHasNextPage) fetchLogsPage(logPageIndex + 1); };
-    const handlePrevLogs = () => { if (logPageIndex > 0) fetchLogsPage(logPageIndex - 1); };
+    const handleNextUsers = useCallback(() => { if (userHasNextPage) fetchUsersPage(userPageIndex + 1); }, [userHasNextPage, fetchUsersPage, userPageIndex]);
+    const handlePrevUsers = useCallback(() => { if (userPageIndex > 0) fetchUsersPage(userPageIndex - 1); }, [userPageIndex, fetchUsersPage]);
+    const handleNextDocs = useCallback(() => { if (docHasNextPage) fetchDocsPage(docPageIndex + 1); }, [docHasNextPage, fetchDocsPage, docPageIndex]);
+    const handlePrevDocs = useCallback(() => { if (docPageIndex > 0) fetchDocsPage(docPageIndex - 1); }, [docPageIndex, fetchDocsPage]);
+    const handleNextLogs = useCallback(() => { if (logHasNextPage) fetchLogsPage(logPageIndex + 1); }, [logHasNextPage, fetchLogsPage, logPageIndex]);
+    const handlePrevLogs = useCallback(() => { if (logPageIndex > 0) fetchLogsPage(logPageIndex - 1); }, [logPageIndex, fetchLogsPage]);
+    const handleNextSupport = useCallback(() => { if (supportHasNextPage) fetchSupportPage(supportPageIndex + 1); }, [supportHasNextPage, fetchSupportPage, supportPageIndex]);
+    const handlePrevSupport = useCallback(() => { if (supportPageIndex > 0) fetchSupportPage(supportPageIndex - 1); }, [supportPageIndex, fetchSupportPage]);
 
     const transactionsForUserPage = useMemo(() => {
         return paginatedUsers.flatMap(user =>
@@ -211,472 +218,184 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         ).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
     }, [paginatedUsers]);
 
-    // Initial Load - Fetch Pricing
     useEffect(() => {
         const loadPricing = async () => {
             try {
                 const { settings, docPrices } = await getPricingSettings();
-
-                // Set Pro Price
                 const proSetting = settings.find((s: any) => s.key === 'pro_plan_yearly');
                 if (proSetting) setProPlanPrice(proSetting.value);
-
-                // Set Doc Prices
                 const priceMap: Record<string, number> = {};
-                docPrices.forEach((dp: any) => {
-                    priceMap[dp.doc_type] = dp.price;
-                });
+                docPrices.forEach((dp: any) => { priceMap[dp.doc_type] = dp.price; });
                 setDocPriceMap(priceMap);
-
-                // Fetch Waitlist Leads if Admin
                 if (user?.isAdmin) {
                     const leads = await getWaitlistLeads();
                     setWaitlistLeads(leads);
                 }
-            } catch (error) {
-                console.error("Failed to load pricing settings", error);
-            }
+            } catch (error) { console.error(error); }
         };
         loadPricing();
-    }, []);
+    }, [user?.isAdmin]);
 
     useEffect(() => {
-        if (user && user.uid) {
-            if (user.uid === 'sandbox-user-123') {
-                console.log("🛠️ SANDBOX MODE: Seeding Mock Data...");
-                const mockDocs: any[] = [
-                    {
-                        id: 'mock-1',
-                        uid: user.uid,
-                        kind: 'policy',
-                        type: 'disciplinary',
-                        content: '# Disciplinary Code\n\nStandard disciplinary procedures for Atlas Tech Corp.',
-                        version: 1,
-                        createdAt: new Date(Date.now() - 86400000 * 2).toISOString(), // 2 days ago
-                        history: []
-                    },
-                    {
-                        id: 'mock-2',
-                        uid: user.uid,
-                        kind: 'policy',
-                        type: 'leave-policy',
-                        content: '# Leave Policy\n\nGuidelines for employee leave.',
-                        version: 1,
-                        createdAt: new Date(Date.now() - 86400000 * 5).toISOString(), // 5 days ago
-                        history: []
-                    },
-                    {
-                        id: 'mock-3',
-                        uid: user.uid,
-                        kind: 'form',
-                        type: 'employment-contract',
-                        content: '# Fixed-Term Employment Contract\n\nAgreement for project-based engineering roles.',
-                        version: 1,
-                        createdAt: new Date(Date.now() - 86400000 * 10).toISOString(), // 10 days ago
-                        history: []
-                    }
-                ];
-                setGeneratedDocuments(mockDocs);
-                setIsLoadingUserDocs(false);
-                setIsLoadingUserFiles(false);
-                return;
-            }
-
-            if (isAdmin) {
-                if (userCursors.length > 0) fetchUsersPage(0).catch(e => console.error(e));
-                if (docCursors.length > 0) fetchDocsPage(0).catch(e => console.error(e));
-                if (docCursors.length > 0) fetchDocsPage(0).catch(e => console.error(e));
-                if (logCursors.length > 0) fetchLogsPage(0).catch(e => console.error(e));
-                getAdminNotifications().then(setAdminNotifications);
-                getCoupons().then(setCoupons);
-            } else {
-                setIsLoadingUserDocs(true);
-                getGeneratedDocuments(user.uid).then(docs => {
-                    setGeneratedDocuments(docs);
-                    setIsLoadingUserDocs(false);
-                });
-                setIsLoadingUserFiles(true);
-                getUserFiles(user.uid).then(files => {
-                    setUserFiles(files);
-                    setIsLoadingUserFiles(false);
-                });
-                getPolicyDrafts(user.uid).then(setPolicyDrafts);
-            }
-        } else {
-            // Reset state on logout
-            setGeneratedDocuments([]);
-            setUserFiles([]);
-            setPolicyDrafts([]);
-            setPaginatedUsers([]);
-            setPaginatedDocuments([]);
-            setPaginatedLogs([]);
-            setAdminNotifications([]);
-            setCoupons([]);
-            setIsLoadingUserDocs(false);
-            setIsLoadingUserFiles(false);
+        if (!user?.uid) {
+            setGeneratedDocuments([]); setUserFiles([]); setPolicyDrafts([]); setPaginatedUsers([]); setPaginatedDocuments([]); setPaginatedLogs([]); setAdminNotifications([]); setCoupons([]); setIsLoadingUserDocs(false); setIsLoadingUserFiles(false);
+            return;
         }
-    }, [user?.uid, isAdmin]);
+        if (isAdmin) {
+            if (paginatedUsers.length === 0 && !isFetchingUsers) fetchUsersPage(0);
+            if (paginatedDocuments.length === 0 && !isFetchingDocs) fetchDocsPage(0);
+            if (paginatedLogs.length === 0 && !isFetchingLogs) fetchLogsPage(0);
+            if (paginatedSupportTickets.length === 0 && !isFetchingSupport) fetchSupportPage(0);
+            getAdminNotifications().then(setAdminNotifications);
+            getCoupons().then(setCoupons);
+        } else {
+            setIsLoadingUserDocs(true);
+            getGeneratedDocuments(user.uid).then(docs => { setGeneratedDocuments(docs); setIsLoadingUserDocs(false); });
+            setIsLoadingUserFiles(true);
+            getUserFiles(user.uid).then(files => { setUserFiles(files); setIsLoadingUserFiles(false); });
+            getPolicyDrafts(user.uid).then(setPolicyDrafts);
+        }
+    }, [user?.uid, isAdmin, fetchUsersPage, fetchDocsPage, fetchLogsPage, fetchSupportPage, isFetchingUsers, isFetchingDocs, isFetchingLogs, isFetchingSupport, paginatedUsers.length, paginatedDocuments.length, paginatedLogs.length, paginatedSupportTickets.length]);
 
-    const getDocPrice = (item: Policy | Form): number => {
-        // Return dynamic price if exists, else fallback to constant
-        if (docPriceMap[item.type]) return docPriceMap[item.type];
-        return item.price;
-    };
-
-    const handleUpdateProfile = async (data: { profile: CompanyProfile; name?: string; contactNumber?: string }) => {
+    const handleUpdateProfile = useCallback(async (data: { profile: CompanyProfile; name?: string; contactNumber?: string }) => {
         if (!user) return;
-        const updatedProfile = { ...user.profile, ...data.profile };
-        const updates: Partial<User> = { profile: updatedProfile };
-        if (data.name !== undefined) updates.name = data.name;
-        if (data.contactNumber !== undefined) updates.contactNumber = data.contactNumber;
-        const updatedUser = { ...user, ...updates };
-        setUser(updatedUser);
-        await updateUser(user.uid, updates);
-        setToastMessage("Profile updated successfully!");
-    };
+        const updates = { ...data, profile: { ...user.profile, ...data.profile } };
+        setUser({ ...user, ...updates });
+        await updateUser(user.uid, updates as any);
+        setToastMessage("Profile updated.");
+    }, [user, setUser, setToastMessage]);
 
-    const handleInitialProfileSubmit = async (profileData: CompanyProfile, name: string) => {
+    const handleInitialProfileSubmit = useCallback(async (profile: CompanyProfile, name: string) => {
         if (!user) return;
-        const updatedProfile = { ...user.profile, ...profileData };
-        const updatedUser = { ...user, name, profile: updatedProfile };
-        setUser(updatedUser);
-        await updateUser(user.uid, { name, profile: updatedProfile });
+        setUser({ ...user, name, profile });
+        await updateUser(user.uid, { name, profile });
         setNeedsOnboarding(false);
         setShowOnboardingWalkthrough(true);
-    };
+    }, [user, setUser, setNeedsOnboarding, setShowOnboardingWalkthrough]);
 
-    const handleProfilePhotoUpload = async (file: File) => {
+    const handleProfilePhotoUpload = useCallback(async (file: File) => {
         if (!user) return;
-        try {
-            const photoURL = await uploadProfilePhoto(user.uid, file);
-            setUser({ ...user, photoURL });
-            setToastMessage("Profile photo updated successfully!");
-        } catch (error: any) {
-            setToastMessage(`Upload failed: ${error.message}`);
-        }
-    };
+        const url = await uploadProfilePhoto(user.uid, file);
+        setUser({ ...user, photoURL: url });
+        setToastMessage("Photo updated.");
+    }, [user, setUser, setToastMessage]);
 
-    const handleProfilePhotoDelete = async () => {
+    const handleProfilePhotoDelete = useCallback(async () => {
         if (!user) return;
-        try {
-            await deleteProfilePhoto(user.uid);
-            const updatedUser = { ...user };
-            delete updatedUser.photoURL;
-            setUser(updatedUser);
-            setToastMessage("Profile photo deleted.");
-        } catch (error: any) {
-            setToastMessage(`Deletion failed: ${error.message}`);
-        }
-    };
+        await deleteProfilePhoto(user.uid);
+        const u = { ...user }; delete u.photoURL; setUser(u);
+        setToastMessage("Photo deleted.");
+    }, [user, setUser, setToastMessage]);
 
-    const handleFileUpload = async (file: File, notes: string) => {
+    const handleFileUpload = useCallback(async (file: File, notes: string) => {
         if (!user) return;
-        try {
-            await uploadUserFile(user.uid, file, notes);
-            const updatedFiles = await getUserFiles(user.uid);
-            setUserFiles(updatedFiles);
-            setToastMessage("File uploaded successfully!");
-        } catch (error: any) {
-            setToastMessage(`Upload failed: ${error.message}`);
-        }
-    };
+        await uploadUserFile(user.uid, file, notes);
+        setUserFiles(await getUserFiles(user.uid));
+        setToastMessage("File uploaded.");
+    }, [user, setToastMessage]);
 
-    const handleFileDownload = async (storagePath: string) => {
-        try {
-            const url = await getDownloadUrlForFile(storagePath);
-            window.open(url, '_blank');
-        } catch (error: any) {
-            setToastMessage(`Download failed: ${error.message}`);
-        }
-    };
+    const handleFileDownload = useCallback(async (path: string) => {
+        window.open(await getDownloadUrlForFile(path), '_blank');
+    }, []);
 
-    const handleDeleteUserFile = (fileId: string, storagePath: string) => {
-        if (!user) return;
-        const file = userFiles.find(f => f.id === fileId);
-        if (!file) return;
+    const handleDeleteUserFile = useCallback((id: string, path: string) => {
         showConfirmationModal({
             title: "Delete File",
-            message: `Are you sure you want to permanently delete the file "${file.name}"?`,
+            message: "Permanent delete?",
             onConfirm: async () => {
                 hideConfirmationModal();
-                try {
-                    await deleteUserFile(user.uid, fileId, storagePath);
-                    setUserFiles(prev => prev.filter(f => f.id !== fileId));
-                    setToastMessage("File deleted successfully.");
-                } catch (error: any) {
-                    setToastMessage(`Error deleting file: ${error.message}`);
-                }
+                await deleteUserFile(user!.uid, id, path);
+                setUserFiles(prev => prev.filter(f => f.id !== id));
+                setToastMessage("Deleted.");
             }
         });
-    };
+    }, [user, showConfirmationModal, hideConfirmationModal, setToastMessage]);
 
-    const adminActions = {
-        updateUser: async (targetUid: string, updates: Partial<User>) => {
-            if (!user || !isAdmin) return;
-            await updateUserByAdmin(user.email, targetUid, updates);
-            await fetchUsersPage(userPageIndex);
-            setToastMessage("User profile updated.");
+    const adminActions = useMemo(() => ({
+        updateUser: async (tid: string, u: any) => { await updateUserByAdmin(user!.email, tid, u); fetchUsersPage(userPageIndex); setToastMessage("Updated."); },
+        adjustCredit: async (tid: string, a: number, r: string) => {
+            const upd = await adjustUserCreditByAdmin(user!.email, tid, a, r);
+            if (upd) setPaginatedUsers(prev => prev.map(x => x.uid === tid ? upd : x));
+            else fetchUsersPage(userPageIndex);
+            setToastMessage("Adjusted.");
         },
-        adjustCredit: async (targetUid: string, amountInCents: number, reason: string) => {
-            if (!user || !isAdmin) return;
-            const updatedUser = await adjustUserCreditByAdmin(user.email, targetUid, amountInCents, reason);
-            if (updatedUser) setPaginatedUsers(prev => prev.map(u => u.uid === targetUid ? updatedUser : u));
-            else await fetchUsersPage(userPageIndex);
-            setToastMessage(`Credit adjusted.`);
-        },
-        changePlan: async (targetUid: string, newPlan: 'pro' | 'payg') => {
-            if (!user || !isAdmin) return;
-            await changeUserPlanByAdmin(user.email, targetUid, newPlan);
-            await fetchUsersPage(userPageIndex);
-            setToastMessage("User plan changed successfully.");
-        },
-        grantPro: async (targetUid: string) => {
-            if (!user || !isAdmin) return;
-            await grantProPlanByAdmin(user.email, targetUid);
-            await fetchUsersPage(userPageIndex);
-            setToastMessage("Granted Free Pro Plan (12 Months).");
-        },
-        simulateFailedPayment: async (targetUid: string, targetUserEmail: string) => {
-            if (!user || !isAdmin) return;
-            await simulateFailedPaymentForUser(user.email, targetUid, targetUserEmail);
-            await getAdminNotifications().then(setAdminNotifications);
-            setToastMessage(`Simulated a failed payment for ${targetUserEmail}.`);
-        },
-        createCoupon: async (data: Partial<Coupon>) => {
-            if (!user || !isAdmin) return;
-            try {
-                await createCoupon(data);
-                await getCoupons().then(setCoupons);
-                setToastMessage("Coupon created successfully.");
-            } catch (error: any) {
-                setToastMessage(`Failed to create coupon: ${error.message}`);
-            }
-        },
-        deactivateCoupon: async (id: string) => {
-            if (!user || !isAdmin) return;
-            await deactivateCoupon(id);
-            await getCoupons().then(setCoupons);
-            setToastMessage("Coupon deactivated.");
-        },
-        setProPrice: async (priceInCents: number) => {
-            if (!user || !isAdmin) return;
-            await updateProPrice(priceInCents);
-            setProPlanPrice(priceInCents);
-            setToastMessage("Pro Plan price updated.");
-        },
-        setDocPrice: async (docType: string, priceInCents: number, category: 'policy' | 'form') => {
-            if (!user || !isAdmin) return;
-            await updateDocumentPrice(docType, priceInCents, category);
-            setDocPriceMap(prev => ({ ...prev, [docType]: priceInCents }));
-            setToastMessage("Document price updated.");
-        }
-    };
+        changePlan: async (tid: string, p: any) => { await changeUserPlanByAdmin(user!.email, tid, p); fetchUsersPage(userPageIndex); setToastMessage("Plan changed."); },
+        grantPro: async (tid: string) => { await grantProPlanByAdmin(user!.email, tid); fetchUsersPage(userPageIndex); setToastMessage("Granted."); },
+        simulateFailedPayment: async (tid: string, e: string) => { await simulateFailedPaymentForUser(user!.email, tid, e); getAdminNotifications().then(setAdminNotifications); setToastMessage("Simulated."); },
+        createCoupon: async (d: any) => { await createCoupon(d); getCoupons().then(setCoupons); setToastMessage("Created."); },
+        deactivateCoupon: async (id: string) => { await deactivateCoupon(id); getCoupons().then(setCoupons); setToastMessage("Deactivated."); },
+        setProPrice: async (p: number) => { await updateProPrice(p); setProPlanPrice(p); setToastMessage("Price updated."); },
+        setDocPrice: async (t: string, p: number, c: any) => { await updateDocumentPrice(t, p, c); setDocPriceMap(prev => ({ ...prev, [t]: p })); setToastMessage("Price updated."); }
+    }), [user, fetchUsersPage, userPageIndex, setToastMessage]);
 
-    const handleMarkNotificationRead = async (notificationId: string) => {
-        await markNotificationAsRead(notificationId);
-        await getAdminNotifications().then(setAdminNotifications);
-    };
+    const validateCoupon = useCallback((code: string, type: any) => validateCouponInDb(code, type), []);
+    const handleMarkNotificationRead = useCallback(async (id: string) => { await markNotificationAsRead(id); getAdminNotifications().then(setAdminNotifications); }, []);
+    const handleMarkAllNotificationsRead = useCallback(async () => { await markAllNotificationsAsRead(); getAdminNotifications().then(setAdminNotifications); }, []);
+    const handleSubscriptionSuccess = useCallback(async () => {
+        setUser(prev => prev ? ({ ...prev, plan: 'pro' }) : null); setToastMessage("Welcome to Pro!"); navigateTo('dashboard'); setShowOnboardingWalkthrough(true);
+        const updated = await getUserProfile(user!.uid); if (updated) setUser(updated);
+    }, [user, setUser, setToastMessage, navigateTo, setShowOnboardingWalkthrough]);
 
-    const handleMarkAllNotificationsRead = async () => {
-        await markAllNotificationsAsRead();
-        await getAdminNotifications().then(setAdminNotifications);
-    };
+    const handleTopUpSuccess = useCallback(async (a: number) => {
+        setUser(prev => prev ? ({ ...prev, creditBalance: (prev.creditBalance || 0) + a }) : null); setToastMessage("Credits added."); navigateTo('dashboard');
+        const updated = await getUserProfile(user!.uid); if (updated) setUser(updated);
+    }, [user, setUser, setToastMessage, navigateTo]);
 
-    const handleSubscriptionSuccess = async () => {
+    const handleDeductCredit = useCallback(async (a: number, d: string) => {
+        if (!user || user.creditBalance < a) return false;
+        setUser(prev => prev ? ({ ...prev, creditBalance: prev.creditBalance - a }) : null);
+        await addTransactionToUser(user.uid, { description: d, amount: -a, actorId: realConsultantUser?.uid, actorEmail: realConsultantUser?.email }, true);
+        const updated = await getUserProfile(user.uid); if (updated) setUser(updated);
+        return true;
+    }, [user, setUser, realConsultantUser]);
+
+    const handleDocumentGenerated = useCallback(async (doc: GeneratedDocument, oid?: string, nav = true) => {
         if (!user) return;
-        setUser(prev => prev ? ({ ...prev, plan: 'pro' }) : null);
-        setToastMessage("Success! Welcome to HR CoPilot Pro.");
-        navigateTo('dashboard');
-        setShowOnboardingWalkthrough(true);
-        const updatedUser = await getUserProfile(user.uid);
-        if (updatedUser) setUser(updatedUser);
-    };
+        const saved = await saveGeneratedDocument(user.uid, { ...doc, metadata: realConsultantUser ? { actor_id: realConsultantUser.uid } : undefined } as any);
+        setGeneratedDocuments(prev => oid ? prev.map(x => x.id === oid ? saved : x) : [saved, ...prev]);
+        if (nav) navigateTo('dashboard');
+        return saved;
+    }, [user, realConsultantUser, navigateTo]);
 
-    const handleTopUpSuccess = async (amountInCents: number) => {
-        if (!user) return;
-        setUser(prev => prev ? ({ ...prev, creditBalance: (prev.creditBalance || 0) + amountInCents }) : null);
-        setToastMessage(`Success! R${(amountInCents / 100).toFixed(2)} has been added.`);
-        navigateTo('dashboard');
-        const updatedUser = await getUserProfile(user.uid);
-        if (updatedUser) setUser(updatedUser);
-    };
+    const handleSaveDraft = useCallback(async (d: any) => { await savePolicyDraft(user!.uid, d); setPolicyDrafts(await getPolicyDrafts(user!.uid)); setToastMessage("Draft saved."); }, [user, setToastMessage]);
+    const handleDeleteDraft = useCallback(async (id: string) => { await deletePolicyDraft(id); setPolicyDrafts(prev => prev.filter(x => x.id !== id)); }, [user]);
 
-    const handleDeductCredit = async (amountInCents: number, description: string): Promise<boolean> => {
-        if (!user) return false;
-        if (user.creditBalance < amountInCents) {
-            setToastMessage("Insufficient credit.");
-            return false;
-        }
-        try {
-            setUser(prev => prev ? ({ ...prev, creditBalance: Math.max(0, prev.creditBalance - amountInCents) }) : null);
-            await addTransactionToUser(user.uid, {
-                description,
-                amount: -amountInCents,
-                actorId: realConsultantUser?.uid,
-                actorEmail: realConsultantUser?.email
-            }, true);
-            const updatedUser = await getUserProfile(user.uid);
-            if (updatedUser) setUser(updatedUser);
-            return true;
-        } catch (error: any) {
-            console.error("Deduction failed:", error);
-            const updatedUser = await getUserProfile(user.uid);
-            if (updatedUser) setUser(updatedUser);
-            setToastMessage("Failed to deduct credit. Please try again.");
-            return false;
-        }
-    };
+    const lastQ = useRef<string | null>(null);
+    const handleSearchUsers = useCallback(async (q: string) => {
+        if (q === lastQ.current) return; lastQ.current = q; setIsFetchingUsers(true);
+        try { setPaginatedUsers(await searchUsers(q)); setUserHasNextPage(false); } finally { setIsFetchingUsers(false); }
+    }, []);
 
-    const handleDocumentGenerated = async (doc: GeneratedDocument, originalId?: string, shouldNavigate: boolean = true): Promise<GeneratedDocument | undefined> => {
-        if (!user) return undefined;
-        let docToSave = { ...doc };
-        if (originalId) {
-            const oldDoc = generatedDocuments.find(d => d.id === originalId);
-            if (oldDoc) {
-                docToSave = {
-                    ...doc,
-                    id: originalId,
-                    version: oldDoc.version + 1,
-                    createdAt: new Date().toISOString(),
-                    history: [{ version: oldDoc.version, createdAt: oldDoc.createdAt, content: oldDoc.content }, ...(oldDoc.history || [])],
-                };
-                if (shouldNavigate) setToastMessage("Document updated successfully!");
-            }
-        } else {
-            docToSave = { ...doc, version: 1, history: [] };
-            if (shouldNavigate) setToastMessage("Document saved successfully!");
-        }
+    const handleRunRetentionCheck = useCallback(() => supabase.functions.invoke('check-inactivity').then(r => r.data), []);
+    const handleWaitlistSignup = useCallback(async (n: string, e: string) => { await saveWaitlistLead({ name: n, email: e }); await emailService.sendWaitlistWelcome(e, n); }, []);
+    const handleLogMarketingEvent = useCallback((t: string, m: any) => logMarketingEvent(user?.uid, t, m), [user?.uid]);
+    const getDocPrice = useCallback((i: any) => docPriceMap[i.type] || i.price, [docPriceMap]);
+    const handleUpdateSupportStatus = useCallback(async (id: string, s: any) => { await updateSupportTicketStatus(id, s); setPaginatedSupportTickets(prev => prev.map(x => x.id === id ? { ...x, status: s } : x)); }, []);
 
-        try {
-            const savedDoc = await saveGeneratedDocument(user.uid, {
-                ...docToSave,
-                // Add consultant info to metadata if impersonating
-                metadata: realConsultantUser ? {
-                    actor_id: realConsultantUser.uid,
-                    actor_email: realConsultantUser.email
-                } : undefined
-            } as any);
-            setGeneratedDocuments(prevDocs => {
-                if (originalId) {
-                    return prevDocs.map(d => d.id === originalId ? savedDoc : d);
-                } else {
-                    return [savedDoc, ...prevDocs];
-                }
-            });
-            getGeneratedDocuments(user.uid).then(updatedDocs => { setGeneratedDocuments(updatedDocs); }).catch(err => console.warn(err));
-
-            if (shouldNavigate) {
-                navigateTo('dashboard');
-            }
-            return savedDoc;
-        } catch (error) {
-            console.error("Failed to save document:", error);
-            setToastMessage("Error saving document to database.");
-            return undefined;
-        }
-    };
-
-    const handleSaveDraft = async (draft: Omit<PolicyDraft, 'id' | 'createdAt' | 'updatedAt'> & { id?: string }) => {
-        if (!user) return;
-        try {
-            await savePolicyDraft(user.uid, draft);
-            const updatedDrafts = await getPolicyDrafts(user.uid);
-            setPolicyDrafts(updatedDrafts);
-            setToastMessage("Draft saved successfully!");
-        } catch (error: any) {
-            setToastMessage(`Failed to save draft: ${error.message}`);
-        }
-    };
-
-    const handleDeleteDraft = async (id: string) => {
-        if (!user) return;
-        try {
-            await deletePolicyDraft(id);
-            setPolicyDrafts(prev => prev.filter(d => d.id !== id));
-        } catch (error: any) {
-            console.error("Failed to delete draft:", error);
-        }
-    };
-
-    const value: DataContextType = {
-        generatedDocuments,
-        userFiles,
-        policyDrafts,
-        paginatedUsers: { data: paginatedUsers, pageInfo: { pageIndex: userPageIndex, pageSize: PAGE_SIZE, hasNextPage: userHasNextPage, dataLength: paginatedUsers.length, total: undefined } },
-        handleNextUsers,
-        handlePrevUsers,
-        isFetchingUsers,
-        paginatedDocuments: { data: paginatedDocuments, pageInfo: { pageIndex: docPageIndex, pageSize: PAGE_SIZE, hasNextPage: docHasNextPage, dataLength: paginatedDocuments.length, total: undefined } },
-        handleNextDocs,
-        handlePrevDocs,
-        isFetchingDocs,
-        transactionsForUserPage,
-        paginatedLogs: { data: paginatedLogs, pageInfo: { pageIndex: logPageIndex, pageSize: PAGE_SIZE, hasNextPage: logHasNextPage, dataLength: paginatedLogs.length, total: undefined } },
-        handleNextLogs,
-        handlePrevLogs: () => { if (logPageIndex > 0) fetchLogsPage(logPageIndex - 1); },
-        isFetchingLogs,
-        handleSearchUsers: async (query: string) => {
-            setIsFetchingUsers(true);
-            try {
-                const results = await searchUsers(query);
-                setPaginatedUsers(results);
-                // When searching, we might break standard pagination flow, so we indicate specific state or just "show results"
-                // For simplicity, we just update the user list. 
-                // A more robust solution would separate "search results" from "user list", but this fits the "terrible dashboard" fix.
-                setUserHasNextPage(false); // Disable next button on search results for now
-            } catch (e) {
-                console.error("Search failed", e);
-            } finally {
-                setIsFetchingUsers(false);
-            }
-        },
-        handleRunRetentionCheck: async () => {
-            // Admin invokes the edge function
-            const { data, error } = await supabase.functions.invoke('check-inactivity');
-            if (error) throw error;
-            return data;
-        },
-        handleWaitlistSignup: async (name: string, email: string) => {
-            await saveWaitlistLead({ name, email });
-            // Automate the "Email 1: The Welcome" trigger
-            await emailService.sendWaitlistWelcome(email, name);
-        },
-        logMarketingEvent: async (eventType: string, metadata: any = {}) => {
-            await logMarketingEvent(user?.uid, eventType, metadata);
-        },
-        adminNotifications,
-        coupons,
-        isLoadingUserDocs,
-        isLoadingUserFiles,
-        handleUpdateProfile,
-        handleInitialProfileSubmit,
-        handleProfilePhotoUpload,
-        handleProfilePhotoDelete,
-        handleFileUpload,
-        handleFileDownload,
-        handleDeleteUserFile,
-        adminActions,
-        validateCoupon,
-        handleMarkNotificationRead,
-        handleMarkAllNotificationsRead,
-        handleSubscriptionSuccess,
-        handleTopUpSuccess,
-        handleDeductCredit,
-        handleDocumentGenerated,
-        handleSaveDraft,
-        handleDeleteDraft,
-        proPlanPrice,
-        getDocPrice,
-        waitlistLeads
-    };
+    const value = useMemo(() => ({
+        generatedDocuments, userFiles, policyDrafts, paginatedUsers: { data: paginatedUsers, pageInfo: { pageIndex: userPageIndex, pageSize: PAGE_SIZE, hasNextPage: userHasNextPage, dataLength: paginatedUsers.length } },
+        handleNextUsers, handlePrevUsers, isFetchingUsers, paginatedDocuments: { data: paginatedDocuments, pageInfo: { pageIndex: docPageIndex, pageSize: PAGE_SIZE, hasNextPage: docHasNextPage, dataLength: paginatedDocuments.length } },
+        handleNextDocs, handlePrevDocs, isFetchingDocs, transactionsForUserPage, paginatedLogs: { data: paginatedLogs, pageInfo: { pageIndex: logPageIndex, pageSize: PAGE_SIZE, hasNextPage: logHasNextPage, dataLength: paginatedLogs.length } },
+        handleNextLogs, handlePrevLogs, isFetchingLogs, adminNotifications, coupons, isLoadingUserDocs, isLoadingUserFiles,
+        handleUpdateProfile, handleInitialProfileSubmit, handleProfilePhotoUpload, handleProfilePhotoDelete, handleFileUpload, handleFileDownload, handleDeleteUserFile,
+        adminActions, validateCoupon, handleMarkNotificationRead, handleMarkAllNotificationsRead, handleSubscriptionSuccess, handleTopUpSuccess, handleDeductCredit,
+        handleDocumentGenerated, handleSaveDraft, handleDeleteDraft, handleSearchUsers, handleRunRetentionCheck, handleWaitlistSignup, logMarketingEvent: handleLogMarketingEvent,
+        proPlanPrice, getDocPrice, waitlistLeads, paginatedSupportTickets: { data: paginatedSupportTickets, pageInfo: { pageIndex: supportPageIndex, pageSize: PAGE_SIZE, hasNextPage: supportHasNextPage, dataLength: paginatedSupportTickets.length } },
+        handleNextSupport, handlePrevSupport, isFetchingSupport, handleUpdateSupportStatus
+    }), [
+        generatedDocuments, userFiles, policyDrafts, paginatedUsers, userPageIndex, userHasNextPage, isFetchingUsers, paginatedDocuments, docPageIndex, docHasNextPage, isFetchingDocs,
+        transactionsForUserPage, paginatedLogs, logPageIndex, logHasNextPage, isFetchingLogs, adminNotifications, coupons, isLoadingUserDocs, isLoadingUserFiles,
+        handleUpdateProfile, handleInitialProfileSubmit, handleProfilePhotoUpload, handleProfilePhotoDelete, handleFileUpload, handleFileDownload, handleDeleteUserFile,
+        adminActions, validateCoupon, handleMarkNotificationRead, handleMarkAllNotificationsRead, handleSubscriptionSuccess, handleTopUpSuccess, handleDeductCredit,
+        handleDocumentGenerated, handleSaveDraft, handleDeleteDraft, handleSearchUsers, handleRunRetentionCheck, handleWaitlistSignup, handleLogMarketingEvent,
+        proPlanPrice, getDocPrice, waitlistLeads, paginatedSupportTickets, supportPageIndex, supportHasNextPage, isFetchingSupport, handleUpdateSupportStatus
+    ]);
 
     return <DataContext.Provider value={value}>{children}</DataContext.Provider>;
 };
 
 export const useDataContext = () => {
     const context = useContext(DataContext);
-    if (context === undefined) {
-        throw new Error('useDataContext must be used within a DataProvider');
-    }
+    if (!context) throw new Error('useDataContext must be used within DataProvider');
     return context;
 };

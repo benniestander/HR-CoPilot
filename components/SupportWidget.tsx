@@ -10,7 +10,7 @@ import {
     CheckCircleIcon
 } from './Icons';
 import { useAuthContext } from '../contexts/AuthContext';
-import { emailService } from '../services/emailService';
+import { createSupportTicket, createAdminNotification } from '../services/dbService';
 
 const SupportWidget: React.FC = () => {
     const { user } = useAuthContext();
@@ -54,18 +54,24 @@ const SupportWidget: React.FC = () => {
         setIsSubmitting(true);
 
         try {
-            // 1. Send Ticket to Admin
-            await emailService.sendSupportTicketToAdmin(
-                form.name || 'Anonymous User',
-                form.email,
-                form.message,
-                files.length
-            );
+            // 1. Create Support Ticket in DB
+            await createSupportTicket({
+                userId: user?.uid,
+                name: form.name || 'Anonymous User',
+                email: form.email,
+                message: form.message,
+                attachments: files.map(f => ({ name: f.name, size: f.size, type: f.type })),
+                metadata: {
+                    browser: typeof navigator !== 'undefined' ? navigator.userAgent : 'Unknown',
+                    platform: typeof navigator !== 'undefined' ? navigator.platform : 'Unknown'
+                }
+            });
 
-            // 2. Send Auto-Reply to User
-            await emailService.sendSupportAutoReply(
-                form.email,
-                form.name || 'Valued User'
+            // 2. Notify Admin via internal system
+            await createAdminNotification(
+                'important_update',
+                `New Support Ticket from ${form.email}`,
+                user?.uid
             );
 
             setIsSuccess(true);

@@ -26,6 +26,34 @@ CREATE TABLE IF NOT EXISTS assessment_leads (
     created_at TIMESTAMPTZ DEFAULT now()
 );
 
+-- Support Ticket System
+CREATE TABLE IF NOT EXISTS support_tickets (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID REFERENCES auth.users(id),
+    name TEXT NOT NULL,
+    email TEXT NOT NULL,
+    message TEXT NOT NULL,
+    attachments JSONB DEFAULT '[]'::jsonb,
+    status TEXT DEFAULT 'open' CHECK (status IN ('open', 'in-progress', 'resolved')),
+    priority TEXT DEFAULT 'medium' CHECK (priority IN ('low', 'medium', 'high')),
+    metadata JSONB DEFAULT '{}'::jsonb,
+    created_at TIMESTAMPTZ DEFAULT now()
+);
+
+ALTER TABLE support_tickets ENABLE ROW LEVEL SECURITY;
+
+-- Users can insert their own tickets
+DROP POLICY IF EXISTS "Anyone can create support tickets" ON support_tickets;
+CREATE POLICY "Anyone can create support tickets" ON support_tickets FOR INSERT WITH CHECK (true);
+
+-- Users can view their own tickets
+DROP POLICY IF EXISTS "Users can view own tickets" ON support_tickets;
+CREATE POLICY "Users can view own tickets" ON support_tickets FOR SELECT USING (auth.uid() = user_id OR email = (SELECT email FROM profiles WHERE id = auth.uid()));
+
+-- Admins can do everything
+DROP POLICY IF EXISTS "Admins can manage all tickets" ON support_tickets;
+CREATE POLICY "Admins can manage all tickets" ON support_tickets TO authenticated USING (is_admin()) WITH CHECK (is_admin());
+
 -- 1. MAKE LOGS IMMUTABLE (Append-only)
 -- Prevent any UPDATE or DELETE on transactions and admin_action_logs
 DROP POLICY IF EXISTS "No updates on transactions" ON transactions;

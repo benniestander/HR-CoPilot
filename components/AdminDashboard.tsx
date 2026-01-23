@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import type { User, GeneratedDocument, Transaction, AdminActionLog, AdminNotification, Coupon, InvoiceRequest } from '../types';
-import { UserIcon, MasterPolicyIcon, FormsIcon, SearchIcon, CreditCardIcon, HistoryIcon, DownloadIcon, LoadingIcon, CouponIcon, CheckIcon, FileIcon, ShieldCheckIcon, AlertIcon } from './Icons';
+import { UserIcon, MasterPolicyIcon, FormsIcon, SearchIcon, CreditCardIcon, HistoryIcon, DownloadIcon, LoadingIcon, CouponIcon, CheckIcon, FileIcon, ShieldCheckIcon, AlertIcon, ChatBubbleLeftRightIcon } from './Icons';
 import AdminUserDetailModal from './AdminUserDetailModal';
 import { PageInfo, useDataContext } from '../contexts/DataContext';
 import { POLICIES, FORMS } from '../constants';
@@ -104,11 +104,14 @@ const UserList: React.FC<{
   };
 
   useEffect(() => {
+    // Only search if term exists OR we have no users at all (initial load)
+    if (searchTerm === '' && users.length > 0) return;
+
     const delayDebounceFn = setTimeout(() => {
       if (onSearch) onSearch(searchTerm);
     }, 500);
     return () => clearTimeout(delayDebounceFn);
-  }, [searchTerm, onSearch]);
+  }, [searchTerm, onSearch, users.length]);
 
   return (
     <div className="space-y-6">
@@ -692,7 +695,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
   onSearchUsers,
   onRunRetention
 }) => {
-  type AdminTab = 'dashboard' | 'requests' | 'users' | 'analytics' | 'transactions' | 'pricing' | 'coupons' | 'settings' | 'waitlist';
+  type AdminTab = 'dashboard' | 'requests' | 'support' | 'users' | 'analytics' | 'transactions' | 'pricing' | 'coupons' | 'settings' | 'waitlist';
   const { user, handleLogout } = useAuthContext();
   const [activeTab, setActiveTab] = useState<AdminTab>('requests');
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
@@ -718,6 +721,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const NAV_ITEMS = [
     { id: 'dashboard', label: 'Overview', icon: HomeIcon },
     { id: 'requests', label: 'Order Requests', icon: FileIcon, badge: 0 },
+    { id: 'support', label: 'Support Desk', icon: ChatBubbleLeftRightIcon },
     { id: 'users', label: 'Users', icon: UserIcon },
     { id: 'waitlist', label: 'Waitlist Leads', icon: HistoryIcon },
     { id: 'analytics', label: 'Documents', icon: MasterPolicyIcon },
@@ -757,6 +761,76 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
               )}
             </tbody>
           </table>
+        </Card>
+      </div>
+    );
+  };
+
+  const SupportTicketsDesk = () => {
+    const { paginatedSupportTickets, handleNextSupport, handlePrevSupport, isFetchingSupport, handleUpdateSupportStatus } = useDataContext();
+
+    return (
+      <div className="space-y-6">
+        <div className="flex justify-between items-center">
+          <h2 className="text-2xl font-bold text-gray-800">Support Desk</h2>
+          <Badge type="info" text={`${paginatedSupportTickets.data.filter(t => t.status === 'open').length} Open Tickets`} />
+        </div>
+        <Card className="overflow-hidden">
+          <table className="min-w-full">
+            <thead className="bg-gray-50 border-b border-gray-100">
+              <tr>
+                <th className="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-widest">User</th>
+                <th className="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-widest">Message</th>
+                <th className="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-widest">Status</th>
+                <th className="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-widest">Date</th>
+                <th className="px-6 py-4 text-right text-xs font-bold text-gray-400 uppercase tracking-widest">Action</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-50">
+              {paginatedSupportTickets.data.map((ticket: any) => (
+                <tr key={ticket.id} className="hover:bg-gray-50">
+                  <td className="px-6 py-4">
+                    <div className="text-sm font-bold text-gray-900">{ticket.name}</div>
+                    <div className="text-xs text-gray-500">{ticket.email}</div>
+                  </td>
+                  <td className="px-6 py-4">
+                    <p className="text-sm text-gray-600 max-w-sm line-clamp-2" title={ticket.message}>{ticket.message}</p>
+                    {ticket.attachments?.length > 0 && (
+                      <span className="text-[10px] text-indigo-500 font-bold uppercase mt-1 block">📎 {ticket.attachments.length} Attachments</span>
+                    )}
+                  </td>
+                  <td className="px-6 py-4">
+                    <Badge
+                      type={ticket.status === 'open' ? 'error' : ticket.status === 'in-progress' ? 'warning' : 'success'}
+                      text={ticket.status.toUpperCase()}
+                    />
+                  </td>
+                  <td className="px-6 py-4 text-sm text-gray-500">
+                    {new Date(ticket.createdAt).toLocaleDateString()}
+                  </td>
+                  <td className="px-6 py-4 text-right">
+                    <select
+                      value={ticket.status}
+                      onChange={(e) => handleUpdateSupportStatus(ticket.id, e.target.value)}
+                      className="text-xs border border-gray-200 rounded p-1"
+                    >
+                      <option value="open">Open</option>
+                      <option value="in-progress">In-Progress</option>
+                      <option value="resolved">Resolved</option>
+                    </select>
+                  </td>
+                </tr>
+              ))}
+              {paginatedSupportTickets.data.length === 0 && (
+                <tr>
+                  <td colSpan={5} className="px-6 py-12 text-center text-gray-400 italic">No support tickets found.</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+          <div className="px-6 pb-4">
+            <PaginationControls pageInfo={paginatedSupportTickets.pageInfo} onNext={handleNextSupport} onPrev={handlePrevSupport} isLoading={isFetchingSupport} />
+          </div>
         </Card>
       </div>
     );
@@ -852,6 +926,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
           <div className="max-w-7xl mx-auto pb-12">
             {activeTab === 'dashboard' && <DashboardOverview />}
             {activeTab === 'requests' && <OrderRequestList userEmail={user?.email || ''} />}
+            {activeTab === 'support' && <SupportTicketsDesk />}
             {activeTab === 'users' && (
               <UserList
                 users={paginatedUsers.data}

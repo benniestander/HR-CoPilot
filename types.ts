@@ -395,3 +395,16 @@ export interface InvoiceRequest {
   reference: string;
   description: string;
 }
+
+export interface SupportTicket {
+  id: string;
+  userId?: string;
+  name: string;
+  email: string;
+  message: string;
+  attachments: any[];
+  status: 'open' | 'in-progress' | 'resolved';
+  priority: 'low' | 'medium' | 'high';
+  createdAt: string;
+  metadata: any;
+}

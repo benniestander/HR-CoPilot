@@ -12,10 +12,57 @@ import type {
     PolicyDraft,
     Policy,
     Form,
-    InvoiceRequest
+    InvoiceRequest,
+    SupportTicket
 } from '../types';
 
-// ... (User & Profile Functions Omitted for Brevity - they remain unchanged)
+
+
+export const createSupportTicket = async (ticket: Partial<SupportTicket>) => {
+    const { error } = await supabase.from('support_tickets').insert({
+        user_id: ticket.userId || null,
+        name: ticket.name,
+        email: ticket.email,
+        message: ticket.message,
+        attachments: ticket.attachments || [],
+        metadata: {
+            ...ticket.metadata,
+            user_agent: typeof window !== 'undefined' ? navigator.userAgent : 'Server',
+            url: typeof window !== 'undefined' ? window.location.href : 'Unknown'
+        }
+    });
+    if (error) throw error;
+};
+
+export const getSupportTickets = async (pageSize: number = 20, lastVisible?: number): Promise<{ data: SupportTicket[], lastVisible: number | null }> => {
+    let query = supabase.from('support_tickets').select('*').order('created_at', { ascending: false }).limit(pageSize);
+    const offset = lastVisible || 0;
+    query = query.range(offset, offset + pageSize - 1);
+    const { data, error } = await query;
+    if (error) throw error;
+
+    const tickets = data.map((t: any) => ({
+        id: t.id,
+        userId: t.user_id,
+        name: t.name,
+        email: t.email,
+        message: t.message,
+        attachments: t.attachments || [],
+        status: t.status,
+        priority: t.priority,
+        createdAt: t.created_at,
+        metadata: t.metadata
+    }));
+
+    return { data: tickets, lastVisible: offset + pageSize };
+};
+
+export const updateSupportTicketStatus = async (ticketId: string, status: SupportTicket['status']) => {
+    const { error } = await supabase.from('support_tickets').update({ status }).eq('id', ticketId);
+    if (error) throw error;
+};
+
+
 export const getUserProfile = async (uid: string): Promise<User | null> => {
     const { data: profile, error } = await supabase.from('profiles').select('*').eq('id', uid).single();
     if (error) { if (error.code !== 'PGRST116') console.error('Error fetching profile:', error); return null; }
