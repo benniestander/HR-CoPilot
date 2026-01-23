@@ -373,6 +373,16 @@ export const getAdminNotifications = async (): Promise<AdminNotification[]> => {
 export const markNotificationAsRead = async (id: string) => { await supabase.from('admin_notifications').update({ is_read: true }).eq('id', id); };
 export const markAllNotificationsAsRead = async () => { await supabase.from('admin_notifications').update({ is_read: true }).eq('is_read', false); };
 
+export const createAdminNotification = async (type: AdminNotification['type'], message: string, relatedUserId?: string) => {
+    const { error } = await supabase.from('admin_notifications').insert({
+        type,
+        message,
+        related_user_id: relatedUserId,
+        is_read: false
+    });
+    if (error) console.error("Error creating admin notification:", error);
+};
+
 export const getUserFiles = async (uid: string): Promise<UserFile[]> => {
     const { data, error } = await supabase.from('user_files').select('*').eq('user_id', uid).order('created_at', { ascending: false });
     if (error) return [];

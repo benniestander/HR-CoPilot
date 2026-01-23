@@ -3,9 +3,9 @@ import type { AdminNotification } from '../types';
 import { UserIcon, CreditCardIcon, DotIcon, SecurityIcon } from './Icons';
 
 interface AdminNotificationPanelProps {
-  notifications: AdminNotification[];
-  onMarkAsRead: (notificationId: string) => void;
-  onMarkAllAsRead: () => void;
+    notifications: AdminNotification[];
+    onMarkAsRead: (notificationId: string) => void;
+    onMarkAllAsRead: () => void;
 }
 
 const NotificationIcon: React.FC<{ type: AdminNotification['type'] }> = ({ type }) => {
@@ -16,6 +16,8 @@ const NotificationIcon: React.FC<{ type: AdminNotification['type'] }> = ({ type 
             return <CreditCardIcon className="w-5 h-5 text-red-500" />;
         case 'password_reset_request':
             return <SecurityIcon className="w-5 h-5 text-blue-500" />;
+        case 'important_update':
+            return <SecurityIcon className="w-5 h-5 text-orange-500" />;
         default:
             return <UserIcon className="w-5 h-5 text-gray-500" />;
     }
@@ -48,8 +50,8 @@ const AdminNotificationPanel: React.FC<AdminNotificationPanelProps> = ({ notific
             <ul className="divide-y divide-gray-100 max-h-96 overflow-y-auto">
                 {notifications.length > 0 ? (
                     notifications.map(notification => (
-                        <li 
-                            key={notification.id} 
+                        <li
+                            key={notification.id}
                             onClick={() => !notification.isRead && onMarkAsRead(notification.id)}
                             className={`p-4 flex items-start space-x-3 transition-colors ${!notification.isRead ? 'bg-primary/5 hover:bg-primary/10 cursor-pointer' : 'bg-white'}`}
                         >

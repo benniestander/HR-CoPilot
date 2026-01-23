@@ -12,6 +12,7 @@ import { CheckIcon, LoadingIcon, EditIcon } from './Icons';
 import { useDataContext } from '../contexts/DataContext';
 import { useAuthContext } from '../contexts/AuthContext';
 import { useUIContext } from '../contexts/UIContext';
+import { createAdminNotification } from '../services/dbService';
 
 interface GeneratorPageProps {
     selectedItem: Policy | Form;
@@ -82,7 +83,7 @@ const GeneratorPage: React.FC<GeneratorPageProps> = ({ selectedItem, initialData
     const handleGenerate = useCallback(async () => {
         if (!selectedItem || !companyProfile || !user) return;
 
-        let deductedAmount = 0;
+        let deductedAmount = hasPaidSession ? getDocPrice(selectedItem) : 0;
 
         // 1. Handle PAYG Credit Deduction (CRIT-3 Safe Logic)
         if (user.plan === 'payg' && !initialData && !hasPaidSession) {
@@ -179,6 +180,13 @@ const GeneratorPage: React.FC<GeneratorPageProps> = ({ selectedItem, initialData
             console.error('Failed to generate document:', error);
             setStatus('error');
             setErrorMessage(error.message || 'An unexpected error occurred. Please try again.');
+
+            // Notify Admin of the failure
+            await createAdminNotification(
+                'important_update',
+                `GENERATION FAILED: ${user.email} failed to generate ${selectedItem.title}. Error: ${error.message || 'Unknown'}`,
+                user.uid
+            );
 
             // CRIT-3 FIX: Compensating Transaction (Refund)
             if (deductedAmount > 0) {
