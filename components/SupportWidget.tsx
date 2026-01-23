@@ -10,6 +10,7 @@ import {
     CheckCircleIcon
 } from './Icons';
 import { useAuthContext } from '../contexts/AuthContext';
+import { emailService } from '../services/emailService';
 
 const SupportWidget: React.FC = () => {
     const { user } = useAuthContext();
@@ -51,19 +52,37 @@ const SupportWidget: React.FC = () => {
         if (!form.message || !form.email) return;
 
         setIsSubmitting(true);
-        // Simulate API call
-        await new Promise(resolve => setTimeout(resolve, 1500));
 
-        setIsSubmitting(false);
-        setIsSuccess(true);
+        try {
+            // 1. Send Ticket to Admin
+            await emailService.sendSupportTicketToAdmin(
+                form.name || 'Anonymous User',
+                form.email,
+                form.message,
+                files.length
+            );
 
-        // Reset after a while
-        setTimeout(() => {
-            setIsSuccess(false);
-            setForm(prev => ({ ...prev, message: '' }));
-            setFiles([]);
-            setIsOpen(false);
-        }, 3000);
+            // 2. Send Auto-Reply to User
+            await emailService.sendSupportAutoReply(
+                form.email,
+                form.name || 'Valued User'
+            );
+
+            setIsSuccess(true);
+
+            // Success reset
+            setTimeout(() => {
+                setIsSuccess(false);
+                setForm(prev => ({ ...prev, message: '' }));
+                setFiles([]);
+                setIsOpen(false);
+            }, 3000);
+        } catch (error) {
+            console.error("Support submission failed:", error);
+            alert("Sorry, we couldn't send your message at this time. Please try again or email admin@hrcopilot.co.za directly.");
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
     return (

@@ -207,5 +207,19 @@ export const emailService = {
             <p><strong>The HR CoPilot Team</strong></p>
         `;
         return sendEmail(email, "🇿🇦 You’re on the list! (And your exclusive HR roadmap)", getBrandedHtml("Welcome Aboard!", content));
+    },
+
+    sendSupportTicketToAdmin: async (name: string, email: string, message: string, attachmentsCount: number = 0) => {
+        const content = `
+            <p><strong>New Support Ticket received from the widget.</strong></p>
+            <div style="background-color: #f1f5f9; padding: 24px; border-radius: 12px; border: 1px solid #e2e8f0; margin: 24px 0;">
+                <p style="margin: 0 0 8px 0;"><strong>From:</strong> ${name} (${email})</p>
+                <p style="margin: 0 0 16px 0;"><strong>Attachments:</strong> ${attachmentsCount} files</p>
+                <hr style="border: none; border-top: 1px solid #cbd5e1; margin: 16px 0;" />
+                <p style="white-space: pre-wrap; color: #0f172a;">${message}</p>
+            </div>
+            <p style="font-size: 12px; color: #64748b;">Reply directly to this email to contact the user.</p>
+        `;
+        return sendEmail("admin@hrcopilot.co.za", `Support Ticket: ${name}`, getBrandedHtml("New Support Inquiry", content));
     }
 };
