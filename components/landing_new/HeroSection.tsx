@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Sparkles } from "lucide-react";
 import { motion } from "framer-motion";
-import heroImage from "@/assets/hero-dashboard.png";
+import { HeroMockup } from "./HeroMockup";
 
 const HeroSection = () => {
   return (
@@ -64,9 +64,14 @@ const HeroSection = () => {
             </h1>
 
             <p className="text-lg md:text-xl text-muted-foreground leading-relaxed mb-8 max-w-lg">
-              Stop stressing about BCEA, LRA, and POPIA compliance.
-              We generate legally-sound HR documents while you focus on
-              actually growing your business.
+              The automated HR compliance tool for South African businesses with
+              <span className="font-semibold text-foreground"> less than 50 employees</span>.
+              Generate legally-sound policies in minutes—no expensive consultants required.
+              <br /><br />
+              <span className="text-sm border-l-2 border-primary pl-3 italic">
+                Are you an HR Consultant? Manage all your clients through our
+                <span className="font-bold text-primary"> Partner Portal</span>.
+              </span>
             </p>
 
             <div className="flex flex-col sm:flex-row gap-4 mb-8">
@@ -117,50 +122,14 @@ const HeroSection = () => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.3 }}
           >
-            {/* Main dashboard image with tilt */}
             <div className="relative">
               <motion.div
                 className="relative z-10"
-                whileHover={{ scale: 1.02, rotateY: -5 }}
+                whileHover={{ scale: 1.02, rotateY: -2 }}
                 transition={{ type: "spring", stiffness: 300 }}
               >
-                <div className="absolute inset-0 bg-gradient-to-br from-primary/30 to-transparent rounded-2xl blur-2xl transform -rotate-3" />
-                <img
-                  src={heroImage}
-                  alt="HR CoPilot Dashboard"
-                  className="relative rounded-2xl shadow-strong w-full transform rotate-1 hover:rotate-0 transition-transform duration-500"
-                />
-              </motion.div>
-
-              {/* Floating stat card - left */}
-              <motion.div
-                className="absolute -left-8 top-1/4 glass rounded-xl p-4 shadow-medium z-20"
-                initial={{ opacity: 0, x: -30 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.8 }}
-                whileHover={{ scale: 1.05 }}
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-full bg-primary flex items-center justify-center">
-                    <span className="text-primary-foreground font-bold">99%</span>
-                  </div>
-                  <div>
-                    <p className="font-bold text-foreground text-sm">Compliance Score</p>
-                    <p className="text-muted-foreground text-xs">Real-time updates</p>
-                  </div>
-                </div>
-              </motion.div>
-
-              {/* Floating stat card - bottom right */}
-              <motion.div
-                className="absolute -right-4 bottom-8 glass rounded-xl p-4 shadow-medium z-20"
-                initial={{ opacity: 0, x: 30 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 1 }}
-                whileHover={{ scale: 1.05 }}
-              >
-                <p className="text-3xl font-extrabold text-primary">R12k+</p>
-                <p className="text-muted-foreground text-sm">saved monthly on legal fees</p>
+                <div className="absolute inset-0 bg-gradient-to-br from-primary/30 to-transparent rounded-2xl blur-3xl transform -rotate-3" />
+                <HeroMockup />
               </motion.div>
             </div>
           </motion.div>

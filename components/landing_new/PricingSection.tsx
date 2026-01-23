@@ -102,11 +102,11 @@ const PricingSection = () => {
 
             <div className="divide-y divide-border/30">
               {[
-                { label: "Cost per contract", old: "R3,000+", new: "Free" },
-                { label: "Monthly cost", old: "R15,000+", new: "R62" },
+                { label: "Cost per contract", old: "R3,000+", new: "Included" },
+                { label: "Annual cost", old: "R180,000+", new: "R747" },
                 { label: "Turnaround time", old: "3-5 Days", new: "3 Minutes" },
-                { label: "Availability", old: "9-5 Mon-Fri", new: "24/7/365" },
-                { label: "Legal updates", old: "Manual/Extra", new: "Automatic" },
+                { label: "Availability", old: "Consultant Hours", new: "24/7/365" },
+                { label: "Legal updates", old: "Manual / Extra", new: "Automatic" },
               ].map((row) => (
                 <div key={row.label} className="grid grid-cols-2 items-center hover:bg-muted/5 transition-colors">
                   <div className="p-4 border-r border-border/50 text-center">
@@ -122,7 +122,7 @@ const PricingSection = () => {
             </div>
 
             <div className="p-4 bg-primary text-primary-foreground text-center text-sm font-medium">
-              Join 500+ SA businesses who saved over R1,000,000 in combined legal fees last month
+              Specifically designed for South African businesses with less than 50 employees who need compliance without the high consultant fees.
             </div>
           </div>
         </motion.div>
