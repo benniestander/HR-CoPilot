@@ -1,6 +1,9 @@
 import { motion, useInView } from "framer-motion";
 import { useRef } from "react";
 import { Check, Clock, Shield, TrendingDown } from "lucide-react";
+import documentGeneratorImg from "@/assets/feature-document-generator.png";
+import complianceDashboardImg from "@/assets/feature-compliance-dashboard.png";
+import savingsComparisonImg from "@/assets/feature-savings-comparison.png";
 
 const features = [
     {
@@ -14,7 +17,7 @@ const features = [
             "No legal jargon - plain English",
             "Customizable templates for your business",
         ],
-        imagePlaceholder: "document-generator-screenshot",
+        image: documentGeneratorImg,
         imageAlt: "HR CoPilot document generator interface showing 30-second generation time",
     },
     {
@@ -28,7 +31,7 @@ const features = [
             "CCMA risk reduction",
             "POPIA data protection built-in",
         ],
-        imagePlaceholder: "compliance-dashboard-screenshot",
+        image: complianceDashboardImg,
         imageAlt: "Compliance dashboard showing 100% BCEA, LRA, and POPIA compliance status",
     },
     {
@@ -42,7 +45,7 @@ const features = [
             "No hourly billing surprises",
             "Cancel anytime - no lock-in",
         ],
-        imagePlaceholder: "savings-calculator-screenshot",
+        image: savingsComparisonImg,
         imageAlt: "Cost comparison showing R180,000 annual savings vs traditional HR consultants",
     },
 ];
@@ -124,21 +127,16 @@ const FeaturesSectionV2 = () => {
                                         whileHover={{ scale: 1.02, y: -8 }}
                                         transition={{ type: "spring", stiffness: 300 }}
                                     >
-                                        {/* Placeholder for screenshot - will be replaced with actual images */}
-                                        <div className="aspect-[4/3] bg-gradient-to-br from-primary/10 to-secondary/10 flex items-center justify-center relative">
+                                        {/* Real product screenshot */}
+                                        <div className="relative">
                                             {/* Glow effect on hover */}
-                                            <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                                            <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 rounded-2xl" />
 
-                                            {/* Placeholder content */}
-                                            <div className="relative z-10 text-center p-8">
-                                                <Icon className={`w-24 h-24 ${feature.iconColor} mx-auto mb-4 opacity-20`} />
-                                                <p className="text-muted-foreground text-sm">
-                                                    Screenshot: {feature.imagePlaceholder}
-                                                </p>
-                                                <p className="text-xs text-muted-foreground/60 mt-2">
-                                                    {feature.imageAlt}
-                                                </p>
-                                            </div>
+                                            <img
+                                                src={feature.image}
+                                                alt={feature.imageAlt}
+                                                className="w-full h-auto rounded-xl"
+                                            />
                                         </div>
 
                                         {/* Annotation badge (example) */}
