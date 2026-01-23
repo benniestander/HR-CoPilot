@@ -1,3 +1,4 @@
+
 import { useRef, useEffect, lazy, Suspense } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Dashboard from './components/Dashboard';
@@ -10,6 +11,7 @@ import LegalModal from './components/LegalModal';
 import AdminNotificationPanel from './components/AdminNotificationPanel';
 import InitialProfileSetup from './components/InitialProfileSetup';
 import ConfirmationModal from './components/ConfirmationModal';
+import SupportWidget from './components/SupportWidget';
 import { UserIcon, BellIcon, BookIcon } from './components/Icons';
 import { useAuthContext } from './contexts/AuthContext';
 import { useDataContext } from './contexts/DataContext';
@@ -756,6 +758,7 @@ const AppContent: React.FC = () => {
         <>
             {toastMessage && <Toast message={toastMessage} onClose={() => setToastMessage(null)} />}
             {renderPage()}
+            <SupportWidget />
             {legalModalContent && (
                 <LegalModal
                     isOpen={!!legalModalContent}
