@@ -5,7 +5,7 @@ import { useUIContext } from '../contexts/UIContext';
 import { PRIVACY_POLICY_CONTENT, TERMS_OF_USE_CONTENT } from '../legalContent';
 
 const Login: React.FC = () => {
-    const { handleLogin, handleForgotPassword, setAuthPage } = useAuthContext();
+    const { handleLogin, handleSignUp, handleForgotPassword, setAuthPage } = useAuthContext();
     const { showLegalModal } = useModalContext();
     const { setToastMessage } = useUIContext();
 

@@ -43,6 +43,251 @@ const WaitlistLanding = lazy(() => import('./components/WaitlistLanding'));
 const ConsultantLockoutScreen = lazy(() => import('./components/ConsultantLockoutScreen'));
 const LandingPageV2 = lazy(() => import('./components/LandingPageV2'));
 
+const AuthHeader = ({ isAdminHeader = false, handleStartOver, handleShowProfile }: { isAdminHeader?: boolean; handleStartOver: () => void; handleShowProfile: () => void }) => {
+    const {
+        user,
+        handleLogout,
+        activeClient,
+        switchToConsultant,
+    } = useAuthContext();
+
+    const {
+        adminNotifications,
+        handleMarkNotificationRead,
+        handleMarkAllNotificationsRead,
+    } = useDataContext();
+
+    const {
+        navigateTo,
+        isNotificationPanelOpen,
+        setNotificationPanelOpen,
+    } = useUIContext();
+
+    const notificationPanelRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (notificationPanelRef.current && !notificationPanelRef.current.contains(event.target as Node)) {
+                setNotificationPanelOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, [setNotificationPanelOpen]);
+
+    const unreadCount = adminNotifications.filter(n => !n.isRead).length;
+
+    // CONSULTANT HEADER
+    if (user?.isConsultant && !isAdminHeader) {
+        return (
+            <motion.header
+                initial={{ y: -20, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ duration: 0.5, ease: "easeOut" }}
+                className="bg-white/90 backdrop-blur-md border-b border-gray-100 sticky top-0 z-40 py-3"
+            >
+                <div className="container mx-auto flex justify-between items-center px-6">
+                    <div className="flex items-center space-x-4">
+                        <motion.img
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
+                            src={user.branding?.logoUrl || "https://i.postimg.cc/h48FMCNY/edited-image-11-removebg-preview.png"}
+                            alt="HR CoPilot Logo"
+                            className="h-10 cursor-pointer object-contain"
+                            onClick={handleStartOver}
+                        />
+                    </div>
+
+                    <div className="flex items-center space-x-3 sm:space-x-5">
+                        {activeClient ? (
+                            <motion.button
+                                whileHover={{ scale: 1.05 }}
+                                whileTap={{ scale: 0.95 }}
+                                onClick={switchToConsultant}
+                                className="hidden sm:flex items-center text-xs font-bold text-gray-500 hover:text-primary transition-all bg-gray-50 px-3 py-1.5 rounded-lg border border-gray-200"
+                            >
+                                <span className="mr-2 text-gray-400">CLIENT:</span>
+                                {activeClient.companyName}
+                                <span className="ml-2 text-[10px] bg-gray-200 px-1 rounded text-gray-500">SWITCH</span>
+                            </motion.button>
+                        ) : (
+                            <span className="text-xs font-bold text-gray-400 bg-gray-50 px-2 py-1 rounded border border-gray-100 uppercase tracking-widest">
+                                Consultant Mode
+                            </span>
+                        )}
+
+                        <div className="h-6 w-px bg-gray-100 hidden sm:block"></div>
+
+                        <motion.button
+                            whileHover={{ y: -2 }}
+                            onClick={handleShowProfile}
+                            className="flex items-center group"
+                        >
+                            <div className="w-8 h-8 rounded-full bg-indigo-50 border border-indigo-100 flex items-center justify-center p-0.5 group-hover:border-primary transition-colors overflow-hidden" >
+                                <UserIcon className="w-4 h-4 text-indigo-400 group-hover:text-primary transition-colors" />
+                            </div >
+                            <div className="ml-2 hidden lg:block text-left" >
+                                <p className="text-xs font-bold text-secondary truncate max-w-[120px]" > {user?.name} </p>
+                                <p className="text-[9px] font-bold text-primary uppercase tracking-tighter" > Consultant </p>
+                            </div >
+                        </motion.button >
+
+                        <button onClick={handleLogout} className="text-[10px] font-bold text-gray-300 hover:text-red-500 uppercase tracking-widest transition-colors" >
+                            Exit
+                        </button >
+                    </div >
+                </div >
+            </motion.header >
+        );
+    }
+
+    return (
+        <motion.header
+            initial={{ y: -20, opacity: 0 }
+            }
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ duration: 0.5, ease: "easeOut" }}
+            className="bg-white/90 backdrop-blur-md border-b border-gray-100 sticky top-0 z-40 py-3"
+        >
+            <div className="container mx-auto flex justify-between items-center px-6" >
+                <motion.img
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    src={(user?.isConsultant && user.branding?.logoUrl) ? user.branding.logoUrl : "https://i.postimg.cc/h48FMCNY/edited-image-11-removebg-preview.png"}
+                    alt="HR CoPilot Logo"
+                    className="h-10 cursor-pointer object-contain"
+                    onClick={handleStartOver}
+                />
+                {isAdminHeader ? (
+                    <div className="flex items-center space-x-6" >
+                        <span className="font-bold text-red-600 bg-red-50 px-3 py-1 rounded-full text-xs tracking-widest uppercase" > Admin Panel </span>
+                        <div className="relative" ref={notificationPanelRef} >
+                            <motion.button
+                                whileHover={{ scale: 1.1 }}
+                                whileTap={{ scale: 0.9 }}
+                                onClick={() => setNotificationPanelOpen(prev => !prev)}
+                                className="relative p-2 text-gray-500 hover:text-primary hover:bg-gray-50 rounded-full transition-all"
+                            >
+                                <BellIcon className="w-5 h-5" />
+                                {
+                                    unreadCount > 0 && (
+                                        <motion.span
+                                            initial={{ scale: 0 }}
+                                            animate={{ scale: 1 }}
+                                            className="absolute top-1.5 right-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white shadow-sm"
+                                        >
+                                            {unreadCount}
+                                        </motion.span>
+                                    )
+                                }
+                            </motion.button >
+                            <AnimatePresence>
+                                {
+                                    isNotificationPanelOpen && (
+                                        <motion.div
+                                            initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                                            animate={{ opacity: 1, y: 0, scale: 1 }}
+                                            exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                                            transition={{ duration: 0.2 }}
+                                            className="absolute right-0 mt-2"
+                                        >
+                                            <AdminNotificationPanel
+                                                notifications={adminNotifications}
+                                                onMarkAsRead={handleMarkNotificationRead}
+                                                onMarkAllAsRead={handleMarkAllNotificationsRead}
+                                            />
+                                        </motion.div >
+                                    )
+                                }
+                            </AnimatePresence >
+                        </div >
+                        <button onClick={handleLogout} className="text-xs font-bold text-gray-400 hover:text-red-600 uppercase tracking-wider transition-colors" >
+                            Logout
+                        </button >
+                    </div >
+                ) : (
+                    <div className="flex items-center space-x-3 sm:space-x-5" >
+                        <motion.button
+                            whileHover={{ scale: 1.05, backgroundColor: '#f3f4f6' }}
+                            whileTap={{ scale: 0.95 }}
+                            onClick={() => navigateTo('knowledge-base')}
+                            className="flex items-center text-xs font-bold text-gray-500 hover:text-primary transition-all bg-gray-50 px-4 py-2 rounded-xl border border-gray-100 shadow-sm"
+                            title="Help & Guides"
+                        >
+                            <BookIcon className="w-4 h-4 mr-2" />
+                            <span className="hidden sm:inline uppercase tracking-widest" > Guide </span>
+                        </motion.button >
+
+                        <div className="h-6 w-px bg-gray-100 hidden sm:block" > </div>
+
+                        {
+                            user?.plan === 'payg' && (
+                                <motion.div
+                                    initial={{ scale: 0.9, opacity: 0 }}
+                                    animate={{ scale: 1, opacity: 1 }}
+                                    className="text-[10px] font-black uppercase tracking-widest bg-emerald-50 text-emerald-700 px-3 py-2 rounded-lg border border-emerald-100 hidden md:block"
+                                >
+                                    Balance: R{(Number(user.creditBalance) / 100).toFixed(2)}
+                                </motion.div >
+                            )
+                        }
+
+                        <motion.button
+                            whileHover={{ y: -2 }}
+                            onClick={handleShowProfile}
+                            className="flex items-center group"
+                        >
+                            <div className="w-8 h-8 rounded-full bg-gray-50 border border-gray-100 flex items-center justify-center p-0.5 group-hover:border-primary transition-colors overflow-hidden" >
+                                {
+                                    user?.photoURL ? (
+                                        <img src={user.photoURL} alt="Profile" className="w-full h-full rounded-full object-cover" />
+                                    ) : (
+                                        <UserIcon className="w-4 h-4 text-gray-400 group-hover:text-primary transition-colors" />
+                                    )
+                                }
+                            </div >
+                            <div className="ml-2 hidden lg:block text-left" >
+                                <p className="text-xs font-bold text-secondary truncate max-w-[120px]" > {user?.name || user?.email} </p>
+                                <p className="text-[9px] font-bold text-primary uppercase tracking-tighter" > {user?.plan === 'pro' ? 'Pro Member' : 'Pay-As-You-Go'} </p>
+                            </div >
+                        </motion.button >
+
+                        <button onClick={handleLogout} className="text-[10px] font-bold text-gray-300 hover:text-red-500 uppercase tracking-widest transition-colors" >
+                            Exit
+                        </button >
+                    </div >
+                )}
+            </div >
+        </motion.header >
+    );
+};
+
+const AppFooter = () => {
+    const { showLegalModal } = useModalContext();
+    return (
+        <footer className="bg-secondary text-white py-8" >
+            <div className="container mx-auto px-6 text-center" >
+                <img
+                    src="https://i.postimg.cc/h48FMCNY/edited-image-11-removebg-preview.png"
+                    alt="HR CoPilot Logo"
+                    className="h-10 mx-auto mb-4"
+                />
+                <div className="flex justify-center space-x-6 mb-4" >
+                    <button onClick={() => showLegalModal('Privacy Policy', PRIVACY_POLICY_CONTENT)} className="text-sm text-gray-300 hover:text-white hover:underline" >
+                        Privacy Policy
+                    </button >
+                    <button onClick={() => showLegalModal('Terms of Use', TERMS_OF_USE_CONTENT)} className="text-sm text-gray-300 hover:text-white hover:underline" >
+                        Terms of Use
+                    </button >
+                </div >
+                <p className="text-sm text-gray-300" >
+                    © {new Date().getFullYear()} HR CoPilot. All rights reserved.
+                </p >
+            </div >
+        </footer >
+    );
+};
+
 const AppContent: React.FC = () => {
     const {
         user,
@@ -278,207 +523,7 @@ const AppContent: React.FC = () => {
         }
     };
 
-    const AuthHeader = ({ isAdminHeader = false }: { isAdminHeader?: boolean }) => {
-        const unreadCount = adminNotifications.filter(n => !n.isRead).length;
 
-        // CONSULTANT HEADER
-        if (user?.isConsultant && !isAdminHeader) {
-            return (
-                <motion.header
-                    initial={{ y: -20, opacity: 0 }}
-                    animate={{ y: 0, opacity: 1 }}
-                    transition={{ duration: 0.5, ease: "easeOut" }}
-                    className="bg-white/90 backdrop-blur-md border-b border-gray-100 sticky top-0 z-40 py-3"
-                >
-                    <div className="container mx-auto flex justify-between items-center px-6">
-                        <div className="flex items-center space-x-4">
-                            <motion.img
-                                whileHover={{ scale: 1.05 }}
-                                whileTap={{ scale: 0.95 }}
-                                src={user.branding?.logoUrl || "https://i.postimg.cc/h48FMCNY/edited-image-11-removebg-preview.png"}
-                                alt="HR CoPilot Logo"
-                                className="h-10 cursor-pointer object-contain"
-                                onClick={handleStartOver}
-                            />
-                        </div>
-
-                        <div className="flex items-center space-x-3 sm:space-x-5">
-                            {activeClient ? (
-                                <motion.button
-                                    whileHover={{ scale: 1.05 }}
-                                    whileTap={{ scale: 0.95 }}
-                                    onClick={switchToConsultant}
-                                    className="hidden sm:flex items-center text-xs font-bold text-gray-500 hover:text-primary transition-all bg-gray-50 px-3 py-1.5 rounded-lg border border-gray-200"
-                                >
-                                    <span className="mr-2 text-gray-400">CLIENT:</span>
-                                    {activeClient.companyName}
-                                    <span className="ml-2 text-[10px] bg-gray-200 px-1 rounded text-gray-500">SWITCH</span>
-                                </motion.button>
-                            ) : (
-                                <span className="text-xs font-bold text-gray-400 bg-gray-50 px-2 py-1 rounded border border-gray-100 uppercase tracking-widest">
-                                    Consultant Mode
-                                </span>
-                            )}
-
-                            <div className="h-6 w-px bg-gray-100 hidden sm:block"></div>
-
-                            <motion.button
-                                whileHover={{ y: -2 }}
-                                onClick={handleShowProfile}
-                                className="flex items-center group"
-                            >
-                                <div className="w-8 h-8 rounded-full bg-indigo-50 border border-indigo-100 flex items-center justify-center p-0.5 group-hover:border-primary transition-colors overflow-hidden">
-                                    <UserIcon className="w-4 h-4 text-indigo-400 group-hover:text-primary transition-colors" />
-                                </div>
-                                <div className="ml-2 hidden lg:block text-left">
-                                    <p className="text-xs font-bold text-secondary truncate max-w-[120px]">{user?.name}</p>
-                                    <p className="text-[9px] font-bold text-primary uppercase tracking-tighter">Consultant</p>
-                                </div>
-                            </motion.button>
-
-                            <button onClick={handleLogout} className="text-[10px] font-bold text-gray-300 hover:text-red-500 uppercase tracking-widest transition-colors">
-                                Exit
-                            </button>
-                        </div>
-                    </div>
-                </motion.header>
-            );
-        }
-
-        return (
-            <motion.header
-                initial={{ y: -20, opacity: 0 }}
-                animate={{ y: 0, opacity: 1 }}
-                transition={{ duration: 0.5, ease: "easeOut" }}
-                className="bg-white/90 backdrop-blur-md border-b border-gray-100 sticky top-0 z-40 py-3"
-            >
-                <div className="container mx-auto flex justify-between items-center px-6">
-                    <motion.img
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
-                        src={(user?.isConsultant && user.branding?.logoUrl) ? user.branding.logoUrl : "https://i.postimg.cc/h48FMCNY/edited-image-11-removebg-preview.png"}
-                        alt="HR CoPilot Logo"
-                        className="h-10 cursor-pointer object-contain"
-                        onClick={handleStartOver}
-                    />
-                    {isAdminHeader ? (
-                        <div className="flex items-center space-x-6">
-                            <span className="font-bold text-red-600 bg-red-50 px-3 py-1 rounded-full text-xs tracking-widest uppercase">Admin Panel</span>
-                            <div className="relative" ref={notificationPanelRef}>
-                                <motion.button
-                                    whileHover={{ scale: 1.1 }}
-                                    whileTap={{ scale: 0.9 }}
-                                    onClick={() => setNotificationPanelOpen(prev => !prev)}
-                                    className="relative p-2 text-gray-500 hover:text-primary hover:bg-gray-50 rounded-full transition-all"
-                                >
-                                    <BellIcon className="w-5 h-5" />
-                                    {unreadCount > 0 && (
-                                        <motion.span
-                                            initial={{ scale: 0 }}
-                                            animate={{ scale: 1 }}
-                                            className="absolute top-1.5 right-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white shadow-sm"
-                                        >
-                                            {unreadCount}
-                                        </motion.span>
-                                    )}
-                                </motion.button>
-                                <AnimatePresence>
-                                    {isNotificationPanelOpen && (
-                                        <motion.div
-                                            initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                                            animate={{ opacity: 1, y: 0, scale: 1 }}
-                                            exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                                            transition={{ duration: 0.2 }}
-                                            className="absolute right-0 mt-2"
-                                        >
-                                            <AdminNotificationPanel
-                                                notifications={adminNotifications}
-                                                onMarkAsRead={handleMarkNotificationRead}
-                                                onMarkAllAsRead={handleMarkAllNotificationsRead}
-                                            />
-                                        </motion.div>
-                                    )}
-                                </AnimatePresence>
-                            </div>
-                            <button onClick={handleLogout} className="text-xs font-bold text-gray-400 hover:text-red-600 uppercase tracking-wider transition-colors">
-                                Logout
-                            </button>
-                        </div>
-                    ) : (
-                        <div className="flex items-center space-x-3 sm:space-x-5">
-                            <motion.button
-                                whileHover={{ scale: 1.05, backgroundColor: '#f3f4f6' }}
-                                whileTap={{ scale: 0.95 }}
-                                onClick={() => navigateTo('knowledge-base')}
-                                className="flex items-center text-xs font-bold text-gray-500 hover:text-primary transition-all bg-gray-50 px-4 py-2 rounded-xl border border-gray-100 shadow-sm"
-                                title="Help & Guides"
-                            >
-                                <BookIcon className="w-4 h-4 mr-2" />
-                                <span className="hidden sm:inline uppercase tracking-widest">Guide</span>
-                            </motion.button>
-
-                            <div className="h-6 w-px bg-gray-100 hidden sm:block"></div>
-
-                            {user?.plan === 'payg' && (
-                                <motion.div
-                                    initial={{ scale: 0.9, opacity: 0 }}
-                                    animate={{ scale: 1, opacity: 1 }}
-                                    className="text-[10px] font-black uppercase tracking-widest bg-emerald-50 text-emerald-700 px-3 py-2 rounded-lg border border-emerald-100 hidden md:block"
-                                >
-                                    Balance: R{(Number(user.creditBalance) / 100).toFixed(2)}
-                                </motion.div>
-                            )}
-
-                            <motion.button
-                                whileHover={{ y: -2 }}
-                                onClick={handleShowProfile}
-                                className="flex items-center group"
-                            >
-                                <div className="w-8 h-8 rounded-full bg-gray-50 border border-gray-100 flex items-center justify-center p-0.5 group-hover:border-primary transition-colors overflow-hidden">
-                                    {user?.photoURL ? (
-                                        <img src={user.photoURL} alt="Profile" className="w-full h-full rounded-full object-cover" />
-                                    ) : (
-                                        <UserIcon className="w-4 h-4 text-gray-400 group-hover:text-primary transition-colors" />
-                                    )}
-                                </div>
-                                <div className="ml-2 hidden lg:block text-left">
-                                    <p className="text-xs font-bold text-secondary truncate max-w-[120px]">{user?.name || user?.email}</p>
-                                    <p className="text-[9px] font-bold text-primary uppercase tracking-tighter">{user?.plan === 'pro' ? 'Pro Member' : 'Pay-As-You-Go'}</p>
-                                </div>
-                            </motion.button>
-
-                            <button onClick={handleLogout} className="text-[10px] font-bold text-gray-300 hover:text-red-500 uppercase tracking-widest transition-colors">
-                                Exit
-                            </button>
-                        </div>
-                    )}
-                </div>
-            </motion.header>
-        );
-    };
-
-    const AppFooter = () => (
-        <footer className="bg-secondary text-white py-8">
-            <div className="container mx-auto px-6 text-center">
-                <img
-                    src="https://i.postimg.cc/h48FMCNY/edited-image-11-removebg-preview.png"
-                    alt="HR CoPilot Logo"
-                    className="h-10 mx-auto mb-4"
-                />
-                <div className="flex justify-center space-x-6 mb-4">
-                    <button onClick={() => showLegalModal('Privacy Policy', PRIVACY_POLICY_CONTENT)} className="text-sm text-gray-300 hover:text-white hover:underline">
-                        Privacy Policy
-                    </button>
-                    <button onClick={() => showLegalModal('Terms of Use', TERMS_OF_USE_CONTENT)} className="text-sm text-gray-300 hover:text-white hover:underline">
-                        Terms of Use
-                    </button>
-                </div>
-                <p className="text-sm text-gray-300">
-                    © {new Date().getFullYear()} HR CoPilot. All rights reserved.
-                </p>
-            </div>
-        </footer>
-    );
 
     const renderDashboardContent = () => {
         switch (currentView) {
@@ -629,34 +674,28 @@ const AppContent: React.FC = () => {
 
         if (user && isAdmin) {
             return (
-                <div className="min-h-screen bg-gray-100 text-secondary flex flex-col">
-                    <AuthHeader isAdminHeader={true} />
-                    <main className="container mx-auto px-6 py-8 flex-grow">
-                        <Suspense fallback={<FullPageLoader />}>
-                            <AdminDashboard
-                                paginatedUsers={paginatedUsers}
-                                onNextUsers={handleNextUsers}
-                                onPrevUsers={handlePrevUsers}
-                                isFetchingUsers={isFetchingUsers}
-                                paginatedDocuments={paginatedDocuments}
-                                onNextDocs={handleNextDocs}
-                                onPrevDocs={handlePrevDocs}
-                                isFetchingDocs={isFetchingDocs}
-                                transactionsForUserPage={transactionsForUserPage}
-                                paginatedLogs={paginatedLogs}
-                                onNextLogs={handleNextLogs}
-                                onPrevLogs={handlePrevLogs}
-                                isFetchingLogs={isFetchingLogs}
-                                adminNotifications={adminNotifications}
-                                coupons={coupons}
-                                adminActions={adminActions}
-                                onSearchUsers={handleSearchUsers}
-                                onRunRetention={handleRunRetentionCheck}
-                            />
-                        </Suspense>
-                    </main>
-                    <AppFooter />
-                </div>
+                <Suspense fallback={<FullPageLoader />}>
+                    <AdminDashboard
+                        paginatedUsers={paginatedUsers}
+                        onNextUsers={handleNextUsers}
+                        onPrevUsers={handlePrevUsers}
+                        isFetchingUsers={isFetchingUsers}
+                        paginatedDocuments={paginatedDocuments}
+                        onNextDocs={handleNextDocs}
+                        onPrevDocs={handlePrevDocs}
+                        isFetchingDocs={isFetchingDocs}
+                        transactionsForUserPage={transactionsForUserPage}
+                        paginatedLogs={paginatedLogs}
+                        onNextLogs={handleNextLogs}
+                        onPrevLogs={handlePrevLogs}
+                        isFetchingLogs={isFetchingLogs}
+                        adminNotifications={adminNotifications}
+                        coupons={coupons}
+                        adminActions={adminActions}
+                        onSearchUsers={handleSearchUsers}
+                        onRunRetention={handleRunRetentionCheck}
+                    />
+                </Suspense>
             );
         }
 
@@ -735,7 +774,7 @@ const AppContent: React.FC = () => {
 
             return (
                 <div className="min-h-screen bg-light text-secondary flex flex-col">
-                    <AuthHeader />
+                    <AuthHeader handleStartOver={handleStartOver} handleShowProfile={handleShowProfile} />
                     <main className="container mx-auto px-6 py-8 flex-grow">
                         <Suspense fallback={<FullPageLoader />}>
                             {renderDashboardContent()}

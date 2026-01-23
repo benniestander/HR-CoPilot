@@ -97,6 +97,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [isLocalhost, user, isLoading, setUser]);
 
+  // Update Mock Provider Price if exists
+  useEffect(() => {
+    if (user?.uid === 'sandbox-user-123' && user.transactions[0].amount === 74700) {
+      setUser(prev => prev ? {
+        ...prev,
+        transactions: [{ ...prev.transactions[0], amount: 149900 }]
+      } : null);
+    }
+  }, [user?.uid, setUser]);
+
   const selectClient = async (client: ClientProfile) => {
     // Store the original consultant user if not already stored
     if (!realConsultantUser) {
