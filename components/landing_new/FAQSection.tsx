@@ -33,26 +33,26 @@ const FAQSection = () => {
   return (
     <section id="faq" className="py-24 md:py-32 bg-background relative overflow-hidden">
       {/* Background accent */}
-      <div 
+      <div
         className="absolute bottom-0 right-0 w-[50%] h-[70%] bg-accent/20"
         style={{ clipPath: "polygon(100% 30%, 100% 100%, 20% 100%)" }}
       />
-      
+
       <div className="container mx-auto px-4 relative z-10" ref={ref}>
         <div className="grid lg:grid-cols-12 gap-12 lg:gap-16">
           {/* Left side - Header */}
-          <motion.div 
+          <motion.div
             className="lg:col-span-5"
             initial={{ opacity: 0, x: -40 }}
             animate={isInView ? { opacity: 1, x: 0 } : {}}
             transition={{ duration: 0.6 }}
           >
-            <h2 className="text-4xl md:text-5xl lg:text-6xl font-extrabold text-foreground mb-6 leading-tight sticky top-32">
+            <h2 className="text-4xl md:text-5xl lg:text-6xl font-extrabold text-foreground mb-6 leading-tight">
               Questions?
               <br />
               <span className="text-gradient">Answers.</span>
             </h2>
-            <p className="text-lg text-muted-foreground mb-8">
+            <p className="text-lg text-muted-foreground">
               Still got questions? Hit us up at{" "}
               <a href="mailto:hello@hrcopilot.co.za" className="text-primary hover:underline">
                 hello@hrcopilot.co.za
@@ -85,7 +85,7 @@ const FAQSection = () => {
                       )}
                     </div>
                   </div>
-                  
+
                   <motion.div
                     initial={false}
                     animate={{
