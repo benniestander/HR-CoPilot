@@ -45,9 +45,9 @@ const features: Feature[] = [
         icon: TrendingDown,
         iconColor: "text-blue-600",
         headline: "Save over R170,000 every year",
-        body: "Traditional HR consultants charge R15,000+ per month. With HR CoPilot, you get unlimited document generation for one simple annual fee of R747. That's 95% savings for your bottom line.",
+        body: "Traditional HR consultants charge R15,000+ per month. With HR CoPilot, you get unlimited document generation for one simple annual fee of R1,499. That's still a 95% saving, but with institutional-grade quality.",
         benefits: [
-            "R747 billed once per year",
+            "R1,499 billed once per year",
             "Unlimited document generation",
             "No per-document hidden fees",
             "Full compliance suite included",
@@ -58,16 +58,16 @@ const features: Feature[] = [
     {
         icon: Users,
         iconColor: "text-purple-600",
-        headline: "Are you a Consultant? Partner with us.",
-        body: "Manage all your clients through our dedicated Partner Portal. Use our automation to scale your practice while we handle the document legwork. scale from 1 to 100 clients effortlessly.",
+        headline: "Case Study: ATLAS Tech avoided a R50k CCMA payout",
+        body: "A fast-growing Cape Town startup was using outdated 'Google' contracts. After a dispute, they switched to HR CoPilot. Within 2 hours, they audited their entire team and generated legally-sound documents that held up in court.",
         benefits: [
-            "Multi-client management dashboard",
-            "Dedicated portal for consultants",
-            "Bulk client management tools",
-            "White-label export options",
+            "Legally-defensible documents",
+            "Instant risk mitigation",
+            "Verified by SA labour experts",
+            "Used by 500+ SA small businesses",
         ],
         mockupType: "partner",
-        imageAlt: "Partner Portal dashboard showing multi-client management interface",
+        imageAlt: "Case study results showing successful compliance audit",
     },
 ];
 
@@ -168,25 +168,25 @@ const FeaturesSectionV2 = () => {
                                                                 </div>
                                                                 <div className="flex items-end justify-between mt-1">
                                                                     <span className="text-sm font-bold">HR CoPilot</span>
-                                                                    <span className="text-2xl font-black text-primary">R747</span>
+                                                                    <span className="text-2xl font-black text-primary">R1,499</span>
                                                                 </div>
                                                             </div>
                                                             <div className="p-3 bg-primary/10 rounded-lg text-center">
-                                                                <p className="text-xs font-bold text-primary">✓ R179,253 Saved Yearly</p>
+                                                                <p className="text-xs font-bold text-primary">✓ R178,501 Saved Yearly</p>
                                                             </div>
                                                         </div>
                                                     ) : feature.mockupType === "partner" ? (
                                                         <div className="space-y-4">
-                                                            <p className="text-[10px] font-bold text-muted-foreground uppercase">Partner Dashboard</p>
+                                                            <p className="text-[10px] font-bold text-muted-foreground uppercase">Case Study Success Report</p>
                                                             <div className="space-y-2">
-                                                                {["Client A (Active)", "Client B (Active)", "Client C (Pending)"].map(c => (
-                                                                    <div key={c} className="h-8 w-full bg-muted/40 rounded flex items-center px-3 text-[10px] border border-border/20">
-                                                                        {c}
+                                                                {["Verified Contract Used", "Proper Disciplinary Code", "Signed POPIA Consent"].map(c => (
+                                                                    <div key={c} className="h-6 w-full bg-white rounded flex items-center px-3 text-[8px] border border-border/20 text-muted-foreground">
+                                                                        <Check className="w-2 h-2 text-green-600 mr-2" /> {c}
                                                                     </div>
                                                                 ))}
                                                             </div>
-                                                            <div className="h-8 w-full bg-primary rounded flex items-center justify-center text-[10px] text-white font-bold">
-                                                                Add New Client
+                                                            <div className="h-8 w-full bg-secondary rounded flex items-center justify-center text-[10px] text-white font-bold">
+                                                                Review Case Study
                                                             </div>
                                                         </div>
                                                     ) : feature.mockupType === "monitor" ? (
@@ -240,8 +240,8 @@ const FeaturesSectionV2 = () => {
                                             </div>
                                         )}
                                         {feature.mockupType === "partner" && (
-                                            <div className="absolute top-4 right-4 bg-purple-600 text-white px-4 py-2 rounded-full text-sm font-semibold shadow-lg">
-                                                🤝 Consultant Ready
+                                            <div className="absolute top-4 right-4 bg-green-600 text-white px-4 py-2 rounded-full text-sm font-semibold shadow-lg">
+                                                🤝 Verdict: PROTECTED
                                             </div>
                                         )}
                                     </motion.div>

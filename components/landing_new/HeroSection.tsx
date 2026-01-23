@@ -70,11 +70,6 @@ const HeroSection = () => {
               The automated HR compliance tool for South African businesses with
               <span className="font-semibold text-foreground"> less than 50 employees</span>.
               Generate legally-sound policies in minutes—no expensive consultants required.
-              <br /><br />
-              <span className="text-sm border-l-2 border-primary pl-3 italic">
-                Are you an HR Consultant? Manage all your clients through our
-                <span className="font-bold text-primary"> Partner Portal</span>.
-              </span>
             </p>
 
             <div className="flex flex-col sm:flex-row gap-4 mb-8">

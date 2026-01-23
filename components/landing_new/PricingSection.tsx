@@ -14,39 +14,54 @@ const plans = [
     benefits: [
       "R35 per policy or document",
       "All document types available",
-      "BCEA, LRA & POPIA compliance built-in",
-      "Download in Word & PDF formats",
-      "Email support within 48 hours",
+      "BCEA, LRA & POPIA compliance",
+      "Instant PDF/Word download",
+      "Standard email support",
     ],
     limitations: [
-      "Priority support",
-      "Custom branding",
-      "Bulk discounts",
+      "No Bulk Generation",
+      "No Custom Branding",
     ],
     cta: "Get Started Now",
     ctaAction: "signup",
     featured: false,
   },
   {
-    name: "Pro Plan",
-    tagline: "Best value for growing teams",
-    price: "R747",
+    name: "Pro Compliance",
+    tagline: "Most popular for SMEs",
+    price: "R1,499",
     period: "/year",
     description: "Unlimited documents. Full compliance. One simple price.",
     benefits: [
       "Unlimited document generation",
-      "All template types included",
-      "Complete compliance suite (BCEA, LRA, POPIA)",
-      "Custom branding on all documents",
-      "Priority support (24-hour response)",
-      "Download in Word & PDF formats",
+      "AI Compliance Audit",
+      "Custom company branding",
+      "BCEA, LRA & POPIA suite",
+      "Priority 24h support",
       "Policy update notifications",
-      "Team collaboration tools",
     ],
     limitations: [],
-    cta: "Get Unlimited Access",
+    cta: "Go Unlimited",
     ctaAction: "signup",
     featured: true,
+  },
+  {
+    name: "Business Tier",
+    tagline: "Ultimate Peace of Mind",
+    price: "R4,999",
+    period: "/year",
+    description: "Everything in Pro plus human-expert document review.",
+    benefits: [
+      "Everything in Pro Plan",
+      "1-on-1 Legal Review (1x year)",
+      "Custom Policy Implementation",
+      "Dedicated account manager",
+      "Drafted specialized NDAs",
+    ],
+    limitations: [],
+    cta: "Contact Sales",
+    ctaAction: "contact",
+    featured: false,
   },
 ];
 
@@ -64,18 +79,17 @@ const PricingSection = () => {
       </div>
 
       <div className="container mx-auto px-4 relative z-10" ref={ref}>
-        {/* Header */}
         <motion.div
           className="text-center max-w-3xl mx-auto mb-16"
           initial={{ opacity: 0, y: 40 }}
           animate={isInView ? { opacity: 1, y: 0 } : {}}
           transition={{ duration: 0.6 }}
         >
-          <h2 className="text-4xl md:text-5xl lg:text-6xl font-extrabold text-foreground mb-6 leading-tight">
-            Simple pricing.
+          <h2 className="text-4xl md:text-5xl lg:text-3xl font-extrabold text-foreground mb-6 leading-tight">
+            Institutional-Grade Compliance.
             <br />
             <span className="text-muted-foreground text-2xl md:text-3xl font-normal">
-              Pay per policy or go unlimited.
+              Affordable for every South African SME.
             </span>
           </h2>
         </motion.div>
@@ -105,9 +119,9 @@ const PricingSection = () => {
             <div className="divide-y divide-border/30">
               {[
                 { label: "Cost per contract", old: "R3,000+", new: "Included" },
-                { label: "Annual cost", old: "R180,000+", new: "R747" },
+                { label: "Annual cost", old: "R180,000+", new: "R1,499" },
                 { label: "Turnaround time", old: "3-5 Days", new: "3 Minutes" },
-                { label: "Availability", old: "Consultant Hours", new: "24/7/365" },
+                { label: "Availability", old: "Fixed Hours", new: "24/7/365" },
                 { label: "Legal updates", old: "Manual / Extra", new: "Automatic" },
               ].map((row) => (
                 <div key={row.label} className="grid grid-cols-2 items-center hover:bg-muted/5 transition-colors">
@@ -124,18 +138,18 @@ const PricingSection = () => {
             </div>
 
             <div className="p-4 bg-primary text-primary-foreground text-center text-sm font-medium">
-              Specifically designed for South African businesses with less than 50 employees who need compliance without the high consultant fees.
+              Join 500+ South African businesses who have replaced expensive retainers with automated compliance.
             </div>
           </div>
         </motion.div>
 
         {/* Pricing cards */}
-        <div className="grid md:grid-cols-2 gap-6 lg:gap-8 max-w-4xl mx-auto items-stretch">
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8 max-w-6xl mx-auto items-stretch">
           {plans.map((plan, index) => (
             <motion.div
               key={plan.name}
-              className={`relative rounded-3xl p-8 ${plan.featured
-                ? "bg-secondary text-secondary-foreground scale-105 shadow-strong z-10"
+              className={`relative rounded-3xl p-8 flex flex-col ${plan.featured
+                ? "bg-secondary text-secondary-foreground scale-105 shadow-strong z-10 border-2 border-primary"
                 : "bg-background border border-border/50 shadow-soft"
                 }`}
               initial={{ opacity: 0, y: 40 }}
@@ -170,7 +184,7 @@ const PricingSection = () => {
               </div>
 
               {/* Benefits Section */}
-              <div className="mb-8">
+              <div className="mb-8 flex-grow">
                 <h4 className={`text-xs font-semibold uppercase tracking-wider mb-3 ${plan.featured ? "text-secondary-foreground/60" : "text-muted-foreground"}`}>
                   What's Included
                 </h4>
@@ -203,12 +217,12 @@ const PricingSection = () => {
               <Button
                 variant={plan.featured ? "hero" : "outline"}
                 size="lg"
-                className="w-full"
+                className="w-full mt-auto"
                 onClick={() => {
                   if (plan.ctaAction === "signup") {
                     setAuthPage('login');
                   } else if (plan.ctaAction === "contact") {
-                    window.location.href = "mailto:hello@hrcopilot.co.za?subject=Enterprise Plan Inquiry";
+                    window.location.href = "mailto:hello@hrcopilot.co.za?subject=Business Plan Inquiry";
                   }
                 }}
               >
