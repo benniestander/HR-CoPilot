@@ -23,13 +23,26 @@ serve(async (req) => {
             throw new Error("Server configuration error: Missing Email Provider Key");
         }
 
-        const { to, subject, html } = await req.json();
+        // --- SAFE REQUEST PARSING ---
+        const bodyText = await req.text();
+        if (!bodyText) {
+            throw new Error("Empty request body");
+        }
+
+        let body;
+        try {
+            body = JSON.parse(bodyText);
+        } catch (e) {
+            throw new Error(`Invalid JSON in request: ${e.message}`);
+        }
+
+        const { to, subject, html } = body;
 
         if (!to || !subject || !html) {
             throw new Error("Missing required fields: to, subject, html");
         }
 
-        // ZeptoMail API Endpoint (Batch sending is standard for transactional)
+        // ZeptoMail API Endpoint
         const zeptoUrl = "https://api.zeptomail.com/v1.1/email";
 
         const payload = {
@@ -40,8 +53,7 @@ serve(async (req) => {
             "to": [
                 {
                     "email_address": {
-                        "address": to,
-                        // "name": "Client Name" // Optional if we passed name in future
+                        "address": to
                     }
                 }
             ],
@@ -58,11 +70,18 @@ serve(async (req) => {
             body: JSON.stringify(payload),
         });
 
-        const data = await res.json();
+        // --- SAFE RESPONSE PARSING ---
+        const resText = await res.text();
+        let data;
+        try {
+            data = resText ? JSON.parse(resText) : { message: "No response body from provider" };
+        } catch (e) {
+            console.error("ZeptoMail non-JSON response:", resText);
+            throw new Error(`Provider returned malformed response: ${resText.substring(0, 100)}`);
+        }
 
         if (!res.ok) {
             console.error("ZeptoMail API Error:", JSON.stringify(data));
-            // Zepto error messages are usually in data.message or data.error
             throw new Error(data.message || JSON.stringify(data.error) || "Failed to send email");
         }
 
