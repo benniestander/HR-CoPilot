@@ -29,7 +29,7 @@ const plans = [
   {
     name: "Pro Plan",
     tagline: "Best value for growing teams",
-    price: "R757",
+    price: "R747",
     period: "/year",
     description: "Unlimited documents. Full compliance. One simple price.",
     benefits: [
