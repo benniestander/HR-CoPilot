@@ -74,10 +74,10 @@ const SupportWidget: React.FC = () => {
                         initial={{ opacity: 0, scale: 0.9, y: 20, originX: 1, originY: 1 }}
                         animate={{ opacity: 1, scale: 1, y: 0 }}
                         exit={{ opacity: 0, scale: 0.9, y: 20 }}
-                        className="mb-4 w-[360px] sm:w-[400px] bg-white rounded-[2rem] shadow-[0_20px_60px_-15px_rgba(0,0,0,0.2)] border border-gray-100 overflow-hidden flex flex-col"
+                        className="mb-4 w-[360px] sm:w-[400px] max-w-[calc(100vw-32px)] max-h-[calc(100vh-120px)] bg-white rounded-[2rem] shadow-[0_20px_60px_-15px_rgba(0,0,0,0.2)] border border-gray-100 overflow-hidden flex flex-col"
                     >
                         {/* Header */}
-                        <div className="bg-[#7c7cf8] p-5 flex justify-between items-center text-white">
+                        <div className="bg-[#7c7cf8] p-5 flex justify-between items-center text-white flex-shrink-0">
                             <span className="font-bold tracking-tight">Leave us a message</span>
                             <button
                                 onClick={() => setIsOpen(false)}
@@ -88,7 +88,7 @@ const SupportWidget: React.FC = () => {
                         </div>
 
                         {/* Content */}
-                        <div className="p-6 md:p-8 flex-grow">
+                        <div className="p-6 md:p-8 flex-grow overflow-y-auto">
                             <AnimatePresence mode="wait">
                                 {!isSuccess ? (
                                     <motion.form
