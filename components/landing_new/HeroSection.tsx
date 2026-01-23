@@ -165,6 +165,35 @@ const HeroSection = () => {
             </div>
           </motion.div>
         </div>
+
+        {/* Logo Strip / Social Proof */}
+        <motion.div
+          className="mt-20 pt-10 border-t border-border/30"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 1, duration: 1 }}
+        >
+          <p className="text-center text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground/60 mb-8">
+            Trusted by modern SA businesses in
+          </p>
+          <div className="flex flex-wrap justify-center items-center gap-8 md:gap-16 opacity-40 grayscale hover:grayscale-0 transition-all duration-500">
+            <div className="flex items-center gap-2">
+              <span className="font-bold text-xl tracking-tight">TECH</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="font-bold text-xl tracking-tight">RETAIL</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="font-bold text-xl tracking-tight">LOGISTICS</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="font-bold text-xl tracking-tight">FINANCE</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="font-bold text-xl tracking-tight">MANUFACTURING</span>
+            </div>
+          </div>
+        </motion.div>
       </div>
 
       {/* Wave divider */}
