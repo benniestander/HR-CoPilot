@@ -73,13 +73,13 @@ const CTASection = () => {
                 }
               }}
             >
-              Start Your Free Trial
+              Get Compliant Now
               <ArrowRight className="ml-2 group-hover:translate-x-1 transition-transform" size={20} />
             </Button>
           </div>
 
-          <p className="mt-6 text-secondary-foreground/60 text-sm">
-            No credit card required • 14-day free trial • Cancel anytime • Your data stays yours
+          <p className="mt-6 text-secondary-foreground/60 text-sm italic">
+            Trusted by 500+ South African businesses. Instant document generation. No long-term contracts.
           </p>
         </motion.div>
       </div>

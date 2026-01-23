@@ -2,8 +2,11 @@ import { Button } from "@/components/ui/button";
 import { ArrowRight, Sparkles } from "lucide-react";
 import { motion } from "framer-motion";
 import { HeroMockup } from "./HeroMockup";
+import { useAuthContext } from "@/contexts/AuthContext";
 
 const HeroSection = () => {
+  const { setAuthPage } = useAuthContext();
+
   return (
     <section className="relative min-h-screen overflow-hidden bg-background">
       {/* Diagonal background slice */}
@@ -86,8 +89,16 @@ const HeroSection = () => {
                   }
                 }}
               >
-                Generate Your First Policy
+                Get Started
                 <ArrowRight className="ml-2 group-hover:translate-x-1 transition-transform" size={20} />
+              </Button>
+              <Button
+                variant="outline"
+                size="xl"
+                className="bg-background/50 backdrop-blur-sm border-border hover:bg-accent transition-colors"
+                onClick={() => setAuthPage('login')}
+              >
+                Sign In
               </Button>
             </div>
 

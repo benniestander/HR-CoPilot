@@ -2,6 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Check, X, Zap } from "lucide-react";
 import { motion, useInView } from "framer-motion";
 import { useRef } from "react";
+import { useAuthContext } from "@/contexts/AuthContext";
 
 const plans = [
   {
@@ -22,7 +23,7 @@ const plans = [
       "Custom branding",
       "Bulk discounts",
     ],
-    cta: "Get Started",
+    cta: "Get Started Now",
     ctaAction: "signup",
     featured: false,
   },
@@ -43,7 +44,7 @@ const plans = [
       "Team collaboration tools",
     ],
     limitations: [],
-    cta: "Start Free Trial",
+    cta: "Get Unlimited Access",
     ctaAction: "signup",
     featured: true,
   },
@@ -52,6 +53,7 @@ const plans = [
 const PricingSection = () => {
   const ref = useRef(null);
   const isInView = useInView(ref, { once: true, margin: "-100px" });
+  const { setAuthPage } = useAuthContext();
 
   return (
     <section id="pricing" className="py-24 md:py-32 bg-card relative overflow-hidden">
@@ -204,13 +206,7 @@ const PricingSection = () => {
                 className="w-full"
                 onClick={() => {
                   if (plan.ctaAction === "signup") {
-                    // Scroll to top and trigger signup
-                    window.scrollTo({ top: 0, behavior: 'smooth' });
-                    // Trigger the Get Started button in navbar
-                    setTimeout(() => {
-                      const getStartedBtn = document.querySelector('[data-action="get-started"]') as HTMLElement;
-                      if (getStartedBtn) getStartedBtn.click();
-                    }, 500);
+                    setAuthPage('login');
                   } else if (plan.ctaAction === "contact") {
                     window.location.href = "mailto:hello@hrcopilot.co.za?subject=Enterprise Plan Inquiry";
                   }
@@ -229,7 +225,7 @@ const PricingSection = () => {
           animate={isInView ? { opacity: 1 } : {}}
           transition={{ delay: 0.5 }}
         >
-          Start with Pay-As-You-Go or try Pro free for 14 days. No credit card required.
+          Instant BCEA & POPIA compliance for SA small businesses. No long-term contracts.
         </motion.p>
       </div>
     </section>
