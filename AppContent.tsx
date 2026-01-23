@@ -42,6 +42,7 @@ const PolicyAuditor = lazy(() => import('./components/PolicyAuditor'));
 const WaitlistLanding = lazy(() => import('./components/WaitlistLanding'));
 const ConsultantLockoutScreen = lazy(() => import('./components/ConsultantLockoutScreen'));
 const LandingPageV2 = lazy(() => import('./components/LandingPageV2'));
+const ConsultantLandingPage = lazy(() => import('./components/ConsultantLandingPage'));
 
 const AuthHeader = ({ isAdminHeader = false, handleStartOver, handleShowProfile }: { isAdminHeader?: boolean; handleStartOver: () => void; handleShowProfile: () => void }) => {
     const {
@@ -719,6 +720,14 @@ const AppContent: React.FC = () => {
                             onSignup={(name, email) => handleWaitlistSignup(name, email)}
                             onShowLogin={() => setAuthPage('login')}
                         />
+                    </Suspense>
+                );
+            }
+
+            if (currentView === 'consultants') {
+                return (
+                    <Suspense fallback={<FullPageLoader />}>
+                        <ConsultantLandingPage />
                     </Suspense>
                 );
             }
