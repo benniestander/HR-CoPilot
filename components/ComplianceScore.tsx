@@ -43,20 +43,19 @@ const ComplianceScore: React.FC<ComplianceScoreProps> = ({ profile, documents, o
     if (!profile.companyName) return null;
 
     return (
-        <div className="bg-white/80 backdrop-blur-xl border border-secondary/5 rounded-[3rem] shadow-sm p-8 mb-12 relative overflow-hidden group">
-            {/* Ambient Glow */}
-            <div className={`absolute top-0 right-0 w-48 h-48 rounded-full opacity-[0.03] blur-[60px] -mr-16 -mt-16 transition-colors duration-1000 ${getBgColor(stats.score).replace('100', '500')}`}></div>
+        <div className="bg-white border border-gray-200 rounded-lg shadow-sm p-6 mb-8 relative overflow-hidden">
+            <div className={`absolute top-0 right-0 w-32 h-32 rounded-full opacity-10 -mr-10 -mt-10 ${getBgColor(stats.score).replace('100', '500')}`}></div>
 
-            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-8 relative z-10">
-                <div className="flex items-center gap-6">
-                    <div className="relative w-24 h-24 flex-shrink-0 group-hover:scale-105 transition-transform duration-500">
-                        <svg className="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
+            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 relative z-10">
+                <div className="flex items-center gap-4">
+                    <div className="relative w-20 h-20 flex-shrink-0">
+                        <svg className="w-full h-full" viewBox="0 0 36 36">
                             <path
-                                className="text-secondary/5"
+                                className="text-gray-200"
                                 d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
                                 fill="none"
                                 stroke="currentColor"
-                                strokeWidth="2.5"
+                                strokeWidth="3"
                             />
                             <path
                                 className={`${getColor(animateScore).split(' ')[0]} transition-all duration-1000 ease-out`}
@@ -64,57 +63,56 @@ const ComplianceScore: React.FC<ComplianceScoreProps> = ({ profile, documents, o
                                 d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
                                 fill="none"
                                 stroke="currentColor"
-                                strokeWidth="2.5"
-                                strokeLinecap="round"
+                                strokeWidth="3"
                             />
                         </svg>
                         <div className="absolute inset-0 flex items-center justify-center flex-col">
-                            <span className={`text-2xl font-medium font-serif italic ${getColor(animateScore).split(' ')[0]}`}>{animateScore}%</span>
+                            <span className={`text-xl font-bold ${getColor(animateScore).split(' ')[0]}`}>{animateScore}%</span>
                         </div>
                     </div>
                     <div>
-                        <h3 className="text-2xl font-medium text-secondary flex items-center font-serif italic group-hover:text-primary transition-colors">
-                            Registry Health
-                            {stats.score === 100 && <ShieldCheckIcon className="w-6 h-6 text-emerald-600 ml-2" />}
+                        <h3 className="text-lg font-bold text-secondary flex items-center">
+                            Compliance Score
+                            {stats.score === 100 && <ShieldCheckIcon className="w-5 h-5 text-green-600 ml-2" />}
                         </h3>
-                        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-secondary/40 mt-1">
-                            {stats.score < 40 ? "Action Required: Critical Gaps" :
-                                stats.score < 80 ? "Ongoing: Standard Vigilance" :
-                                    "SECURE: Enterprise Compliance"}
+                        <p className="text-sm text-gray-600">
+                            {stats.score < 40 ? "Your business is at risk." :
+                                stats.score < 80 ? "Good progress, but gaps remain." :
+                                    "Excellent! You are well protected."}
                         </p>
                     </div>
                 </div>
 
-                <div className="flex-1 w-full md:w-auto bg-secondary/[0.02] rounded-[2rem] p-6 border border-secondary/5 backdrop-blur-sm">
+                <div className="flex-1 w-full md:w-auto bg-gray-50 rounded-md p-4 border border-gray-200">
                     {stats.nextRecommendation ? (
-                        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6">
-                            <div className="space-y-1">
-                                <p className="text-[10px] font-black text-secondary/30 uppercase tracking-[0.2em]">Prioritized Requirement</p>
-                                <p className="font-medium text-secondary text-sm font-serif italic">{stats.nextRecommendation.title}</p>
-                                <p className="text-[10px] text-secondary/40 font-bold uppercase tracking-tight">{stats.nextRecommendation.reason}</p>
+                        <div>
+                            <p className="text-xs font-bold text-gray-500 uppercase mb-1">Recommended Next Step</p>
+                            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                                <div>
+                                    <p className="font-semibold text-secondary text-sm">{stats.nextRecommendation.title}</p>
+                                    <p className="text-xs text-gray-500">{stats.nextRecommendation.reason}</p>
+                                </div>
+                                <button
+                                    onClick={() => {
+                                        if (stats.nextRecommendation) {
+                                            const item = stats.nextRecommendation.isForm
+                                                ? FORMS[stats.nextRecommendation.type as any]
+                                                : POLICIES[stats.nextRecommendation.type as any];
+                                            if (item) onGenerateSuggestion(item);
+                                        }
+                                    }}
+                                    className="text-xs font-bold text-white bg-primary px-3 py-2 rounded-md hover:bg-opacity-90 whitespace-nowrap shadow-sm"
+                                >
+                                    Generate Now (+{Math.round(100 / stats.totalMandatory)}%)
+                                </button>
                             </div>
-                            <button
-                                onClick={() => {
-                                    if (stats.nextRecommendation) {
-                                        const item = stats.nextRecommendation.isForm
-                                            ? FORMS[stats.nextRecommendation.type as any]
-                                            : POLICIES[stats.nextRecommendation.type as any];
-                                        if (item) onGenerateSuggestion(item);
-                                    }
-                                }}
-                                className="text-[10px] font-black text-white bg-primary px-6 py-4 rounded-xl hover:shadow-lg hover:shadow-primary/20 transition-all uppercase tracking-[0.2em] whitespace-nowrap active:scale-95"
-                            >
-                                Fulfill now (+{Math.round(100 / stats.totalMandatory)}%)
-                            </button>
                         </div>
                     ) : (
-                        <div className="flex items-center text-emerald-700">
-                            <div className="w-10 h-10 bg-emerald-50 rounded-xl flex items-center justify-center mr-4">
-                                <CheckIcon className="w-6 h-6" />
-                            </div>
+                        <div className="flex items-center text-green-700">
+                            <CheckIcon className="w-5 h-5 mr-2" />
                             <div>
-                                <p className="font-medium text-sm font-serif italic">Enterprise Protection Complete</p>
-                                <p className="text-[10px] font-black text-emerald-600/60 uppercase tracking-[0.2em]">All mandatory filings verified.</p>
+                                <p className="font-semibold text-sm">All mandatory documents generated!</p>
+                                <p className="text-xs text-green-600">Keep checking back for updates.</p>
                             </div>
                         </div>
                     )}

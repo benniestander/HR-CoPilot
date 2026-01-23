@@ -266,7 +266,6 @@ export type User = {
   };
   hasSeenConsultantWelcome?: boolean;
   clients?: ClientProfile[];
-  deletedAt?: string; // ISO string for soft-delete
 };
 
 export interface ClientProfile {
@@ -276,7 +275,6 @@ export interface ClientProfile {
   companyName: string;
   industry?: string;
   paidUntil?: string; // ISO string - R750 annual fee for this client
-  deletedAt?: string; // ISO string for soft-delete
 }
 
 export type FormAnswers = Record<string, any>;

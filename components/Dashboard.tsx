@@ -30,7 +30,7 @@ const Dashboard: React.FC<DashboardProps> = ({
   onSelectDocument
 }) => {
   const [activeTab, setActiveTab] = useState<'policies' | 'forms' | 'documents'>('policies');
-  const { setSelectedItem, navigateTo, setDocumentToView, setToastMessage, setIsPrePaid, isMobile } = useUIContext();
+  const { setSelectedItem, navigateTo, setDocumentToView, setToastMessage, setIsPrePaid } = useUIContext();
   const { user } = useAuthContext();
   const { generatedDocuments } = useDataContext();
 
@@ -88,7 +88,7 @@ const Dashboard: React.FC<DashboardProps> = ({
               </div>
               <span className="text-[10px] font-black uppercase tracking-[0.3em] text-primary/50">Business Dashboard</span>
             </div>
-            <h1 className="text-4xl md:text-7xl font-medium text-secondary tracking-tight leading-tight">
+            <h1 className="text-4xl md:text-6xl font-black text-secondary tracking-tight leading-tight">
               Welcome back, {user?.name ? user.name.split(' ')[0] : 'HR Hero'}!
             </h1>
             <div className="flex items-center gap-5 mt-6">
@@ -99,7 +99,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                   <span className="text-sm font-black text-emerald-600">R{(Number(user.creditBalance || 0) / 100).toFixed(2)}</span>
                 </div>
               )}
-              <span className="text-[10px] font-bold text-secondary/40 uppercase tracking-[0.25em] bg-white/50 backdrop-blur-sm px-4 py-2.5 rounded-xl border border-secondary/5">
+              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.25em] bg-gray-50/50 backdrop-blur-sm px-4 py-2.5 rounded-xl border border-gray-100/50 italic">
                 Protecting {user?.profile?.companyName || 'your enterprise'}
               </span>
             </div>
@@ -107,19 +107,19 @@ const Dashboard: React.FC<DashboardProps> = ({
 
           <motion.div
             whileHover={{ scale: 1.02, y: -2 }}
-            className="hidden lg:block w-84"
+            className="hidden lg:block w-80"
           >
-            <div className="bg-gradient-to-br from-secondary via-[#0a1128] to-slate-950 p-8 rounded-[2.5rem] text-white shadow-2xl shadow-secondary/20 relative overflow-hidden group border border-white/5">
+            <div className="bg-gradient-to-br from-secondary via-secondary to-slate-900 p-8 rounded-[2.5rem] text-white shadow-2xl shadow-secondary/20 relative overflow-hidden group border border-white/5">
               <div className="absolute -top-4 -right-4 p-4 opacity-10 group-hover:scale-110 transition-transform duration-500">
                 <ComplianceIcon className="w-32 h-32" />
               </div>
-              <p className="text-[10px] font-black uppercase tracking-[0.4em] text-accent mb-2">Registry Status</p>
-              <p className="text-3xl font-medium mb-6 tracking-tight text-white/90">Fully Compliant</p>
+              <p className="text-[10px] font-black uppercase tracking-[0.3em] opacity-50 mb-2">Live Status</p>
+              <p className="text-2xl font-black mb-6 tracking-tight">Fully Compliant</p>
               <button
                 onClick={() => navigateTo('knowledge-base')}
-                className="bg-accent/10 hover:bg-accent text-accent hover:text-secondary px-5 py-2.5 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] transition-all backdrop-blur-md border border-accent/20"
+                className="bg-white/10 hover:bg-white/20 px-5 py-2.5 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] transition-all backdrop-blur-md border border-white/10"
               >
-                Access Archives
+                Access Library
               </button>
             </div>
           </motion.div>
@@ -140,85 +140,85 @@ const Dashboard: React.FC<DashboardProps> = ({
       <motion.div variants={itemVariants} className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-16">
         <motion.div
           id="tour-roadmap"
-          whileHover={{ y: -8, boxShadow: '0 40px 80px -15px rgba(15, 76, 92, 0.15)' }}
+          whileHover={{ y: -8, boxShadow: '0 40px 80px -15px rgba(59, 130, 246, 0.15)' }}
           whileTap={{ scale: 0.97 }}
           onClick={onStartChecklist}
-          className="bg-white p-10 rounded-[3rem] border border-secondary/5 cursor-pointer transition-all flex items-center group shadow-sm relative overflow-hidden active:bg-gray-50/50"
+          className="bg-white p-10 rounded-[3rem] border border-gray-100 cursor-pointer transition-all flex items-center group shadow-sm relative overflow-hidden active:bg-gray-50"
         >
           {/* Ambient Glow */}
-          <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 blur-[80px] group-hover:bg-primary/10 transition-colors" />
+          <div className="absolute top-0 right-0 w-32 h-32 bg-blue-400/5 blur-[80px] group-hover:bg-blue-400/10 transition-colors" />
 
-          <div className="bg-primary/5 p-6 rounded-[2rem] mr-8 group-hover:bg-primary group-hover:text-white transition-all duration-500 border border-primary/10 shadow-inner">
-            <ComplianceIcon className="w-10 h-10 text-primary group-hover:text-white" />
+          <div className="bg-blue-50 p-6 rounded-[2rem] mr-8 group-hover:bg-blue-600 group-hover:text-white transition-all duration-500 shadow-inner">
+            <ComplianceIcon className="w-10 h-10 text-blue-600 group-hover:text-white" />
           </div>
           <div className="flex-1">
-            <h3 className="text-2xl font-medium text-secondary group-hover:text-primary transition-colors tracking-tight mb-1 font-serif italic">Compliance Roadmap</h3>
-            <p className="text-xs text-secondary/40 font-medium leading-relaxed uppercase tracking-wider">Discover every statutory document your company needs.</p>
+            <h3 className="text-2xl font-black text-secondary group-hover:text-primary transition-colors tracking-tight mb-1">Compliance Roadmap</h3>
+            <p className="text-sm text-gray-500 font-medium leading-relaxed">Discover every statutory document your company needs.</p>
           </div>
-          <div className="text-secondary/10 group-hover:text-primary transition-all group-hover:translate-x-1 pl-4">
+          <div className="text-gray-200 group-hover:text-primary transition-all group-hover:translate-x-1 pl-4">
             <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M9 5l7 7-7 7" /></svg>
           </div>
         </motion.div>
 
         <motion.div
           id="tour-updater"
-          whileHover={{ y: -8, boxShadow: '0 40px 80px -15px rgba(193, 153, 88, 0.15)' }}
+          whileHover={{ y: -8, boxShadow: '0 40px 80px -15px rgba(245, 158, 11, 0.15)' }}
           whileTap={{ scale: 0.97 }}
           onClick={onStartUpdate}
-          className="bg-white p-10 rounded-[3rem] border border-secondary/5 cursor-pointer transition-all flex items-center group shadow-sm relative overflow-hidden active:bg-gray-50/50"
+          className="bg-white p-10 rounded-[3rem] border border-gray-100 cursor-pointer transition-all flex items-center group shadow-sm relative overflow-hidden active:bg-gray-50"
         >
           {/* Ambient Glow */}
-          <div className="absolute top-0 right-0 w-32 h-32 bg-accent/5 blur-[80px] group-hover:bg-accent/10 transition-colors" />
+          <div className="absolute top-0 right-0 w-32 h-32 bg-amber-400/5 blur-[80px] group-hover:bg-amber-400/10 transition-colors" />
 
-          <div className="bg-accent/5 p-6 rounded-[2rem] mr-8 group-hover:bg-accent group-hover:text-white transition-all duration-500 border border-accent/10 shadow-inner">
-            <UpdateIcon className="w-10 h-10 text-accent group-hover:text-white" />
+          <div className="bg-amber-50 p-6 rounded-[2rem] mr-8 group-hover:bg-amber-500 group-hover:text-white transition-all duration-500 shadow-inner">
+            <UpdateIcon className="w-10 h-10 text-amber-600 group-hover:text-white" />
           </div>
           <div className="flex-1">
-            <h3 className="text-2xl font-medium text-secondary group-hover:text-accent transition-colors tracking-tight mb-1 font-serif italic">AI Policy Auditor</h3>
-            <p className="text-xs text-secondary/40 font-medium leading-relaxed uppercase tracking-wider">Scan any document for South African labor law compliance.</p>
+            <h3 className="text-2xl font-black text-secondary group-hover:text-primary transition-colors tracking-tight mb-1">AI Policy Auditor</h3>
+            <p className="text-sm text-gray-500 font-medium leading-relaxed">Scan any document for South African labor law compliance.</p>
           </div>
-          <div className="text-secondary/10 group-hover:text-accent transition-all group-hover:translate-x-1 pl-4">
+          <div className="text-gray-200 group-hover:text-primary transition-all group-hover:translate-x-1 pl-4">
             <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M9 5l7 7-7 7" /></svg>
           </div>
         </motion.div>
       </motion.div>
 
       {/* --- MAIN GENERATOR TABS --- */}
-      <motion.div variants={itemVariants} className="bg-white/80 backdrop-blur-3xl rounded-[2.5rem] md:rounded-[3.5rem] shadow-[0_40px_100px_-20px_rgba(0,0,0,0.08)] border border-secondary/5 overflow-hidden mb-20 transform-gpu">
-        <div className="flex border-b border-secondary/5 p-2 md:p-4 bg-secondary/[0.02] sticky top-0 md:relative z-10" id="tour-generator">
+      <motion.div variants={itemVariants} className="bg-white/70 backdrop-blur-2xl rounded-[3.5rem] shadow-[0_32px_64px_-16px_rgba(0,0,0,0.06)] border border-white/40 overflow-hidden mb-20 transform-gpu">
+        <div className="flex border-b border-gray-100 p-3 bg-gray-50/30 sticky top-0 md:relative z-10" id="tour-generator">
           <button
             onClick={() => setActiveTab('policies')}
-            className={`flex-1 py-6 px-8 rounded-2xl text-center flex flex-col items-center justify-center transition-all duration-500 gap-2 ${activeTab === 'policies'
-              ? 'bg-white text-primary shadow-2xl shadow-primary/10 border border-primary/10'
-              : 'text-secondary/30 hover:text-secondary hover:bg-white/50'
+            className={`flex-1 py-6 px-8 rounded-[2rem] text-center font-black text-xs uppercase tracking-[0.25em] flex items-center justify-center transition-all ${activeTab === 'policies'
+              ? 'bg-white text-primary shadow-xl shadow-gray-200/50 border border-gray-100/50'
+              : 'text-gray-400 hover:text-secondary'
               }`}
           >
-            <MasterPolicyIcon className={`w-5 h-5 transition-transform duration-500 ${activeTab === 'policies' ? 'scale-110' : ''}`} />
-            <span className="text-[10px] font-black uppercase tracking-[0.3em]">Statutory Policies</span>
+            <MasterPolicyIcon className="w-5 h-5 mr-3" />
+            Policies
           </button>
           <button
             onClick={() => setActiveTab('forms')}
-            className={`flex-1 py-6 px-8 rounded-2xl text-center flex flex-col items-center justify-center transition-all duration-500 gap-2 ${activeTab === 'forms'
-              ? 'bg-white text-primary shadow-2xl shadow-primary/10 border border-primary/10'
-              : 'text-secondary/30 hover:text-secondary hover:bg-white/50'
+            className={`flex-1 py-6 px-8 rounded-[2rem] text-center font-black text-xs uppercase tracking-[0.25em] flex items-center justify-center transition-all ${activeTab === 'forms'
+              ? 'bg-white text-primary shadow-xl shadow-gray-200/50 border border-gray-100/50'
+              : 'text-gray-400 hover:text-secondary'
               }`}
           >
-            <FormsIcon className={`w-5 h-5 transition-transform duration-500 ${activeTab === 'forms' ? 'scale-110' : ''}`} />
-            <span className="text-[10px] font-black uppercase tracking-[0.3em]">Compliance Forms</span>
+            <FormsIcon className="w-5 h-5 mr-3" />
+            Forms
           </button>
           <button
             onClick={() => setActiveTab('documents')}
-            className={`flex-1 py-6 px-8 rounded-2xl text-center flex flex-col items-center justify-center transition-all duration-500 gap-2 ${activeTab === 'documents'
-              ? 'bg-white text-primary shadow-2xl shadow-primary/10 border border-primary/10'
-              : 'text-secondary/30 hover:text-secondary hover:bg-white/50'
+            className={`flex-1 py-6 px-8 rounded-[2rem] text-center font-black text-xs uppercase tracking-[0.25em] flex items-center justify-center transition-all ${activeTab === 'documents'
+              ? 'bg-white text-primary shadow-xl shadow-gray-200/50 border border-gray-100/50'
+              : 'text-gray-400 hover:text-secondary'
               }`}
           >
-            <FileIcon className={`w-5 h-5 transition-transform duration-500 ${activeTab === 'documents' ? 'scale-110' : ''}`} />
-            <span className="text-[10px] font-black uppercase tracking-[0.3em]">The Secure Vault</span>
+            <FileIcon className="w-5 h-5 mr-3" />
+            Vault
           </button>
         </div>
 
-        <div className="p-6 md:p-20 min-h-[400px] md:min-h-[600px] relative">
+        <div className="p-10 md:p-20 min-h-[600px] relative">
           <AnimatePresence mode="wait">
             <motion.div
               key={activeTab}

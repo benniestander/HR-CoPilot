@@ -1,6 +1,5 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
 import { LoadingIcon, CopyIcon, DownloadIcon, CheckIcon, WordIcon, TxtIcon, ShieldCheckIcon } from './Icons';
 import SemanticLoader from './SemanticLoader';
 import type { AppStatus, Source } from '../types';
@@ -67,13 +66,6 @@ const SourcesUsed: React.FC<{ sources: Source[] }> = ({ sources }) => {
 const PolicyPreview: React.FC<PolicyPreviewProps> = ({ policyText, status, onRetry, isForm, outputFormat, sources, errorMessage, loadingMessages, onContentChange, branding }) => {
   const [copied, setCopied] = useState(false);
   const [isDownloadMenuOpen, setDownloadMenuOpen] = useState(false);
-  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
-
-  useEffect(() => {
-    const handleResize = () => setIsMobile(window.innerWidth < 768);
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
 
   const downloadMenuRef = useRef<HTMLDivElement>(null);
   const editorRef = useRef<HTMLDivElement>(null);
@@ -178,72 +170,44 @@ const PolicyPreview: React.FC<PolicyPreviewProps> = ({ policyText, status, onRet
   const renderContent = () => {
     switch (status) {
       case 'idle':
-        return (
-          <div className="text-center py-20 px-8 bg-white/40 backdrop-blur-xl rounded-[2.5rem] border border-white/40 shadow-2xl">
-            <ShieldCheckIcon className="w-16 h-16 text-secondary/10 mx-auto mb-6" />
-            <h3 className="text-xl font-serif italic text-secondary mb-2">Registry Draft Pending</h3>
-            <p className="text-secondary/40 text-sm max-w-sm mx-auto">Complete the diagnostic questionnaire to generate your legally validated document.</p>
-          </div>
-        );
+        return <div className="text-center text-gray-500 py-12"><h3 className="text-lg font-semibold">Your finalized document will appear here.</h3><p>Complete the previous steps to generate your document.</p></div>;
       case 'loading':
         if (loadingMessages && loadingMessages.length > 0) {
           return <SemanticLoader messages={loadingMessages} />;
         }
-        return (
-          <div className="text-center py-20 bg-white/40 backdrop-blur-xl rounded-[2.5rem] border border-white/40 shadow-2xl">
-            <LoadingIcon className="w-12 h-12 animate-spin mx-auto mb-6 text-primary" />
-            <h3 className="text-xl font-serif italic text-secondary">Forging Document...</h3>
-            <p className="text-secondary/40 text-[10px] font-black uppercase tracking-[0.2em] mt-2">Consulting SA Labour Law Database</p>
-          </div>
-        );
+        return <div className="text-center text-gray-500 py-12"><LoadingIcon className="w-12 h-12 animate-spin mx-auto mb-4 text-primary" /><h3 className="text-lg font-semibold">Generating your document...</h3><p>This may take a moment.</p></div>;
       case 'error':
-        return (
-          <div className="text-center py-12 bg-red-500/5 rounded-3xl border border-red-500/10 px-8">
-            <h3 className="text-lg font-bold text-red-600 mb-2">Generation Interrupted</h3>
-            <p className="text-red-500/70 text-sm mb-6">{errorMessage || "The AI smithy encountered a conflict. Please re-attempt generation."}</p>
-            <button onClick={onRetry} className="bg-red-500 text-white font-black text-[10px] uppercase tracking-widest py-3 px-8 rounded-xl shadow-lg shadow-red-500/20 hover:bg-red-600 transition-all">
-              Retry Forge
-            </button>
-          </div>
-        );
+        return <div className="text-center text-red-600 bg-red-50 p-6 rounded-md"><h3 className="text-lg font-semibold mb-2">An Error Occurred</h3><p className="mb-4">{errorMessage || "Couldn't generate document. Please try again."}</p><button onClick={onRetry} className="bg-primary text-white font-semibold py-2 px-4 rounded-md">Retry</button></div>;
       case 'success':
         return (
-          <div id="policy-preview-content" className="h-full flex flex-col space-y-6 md:space-y-8 animate-fade-in">
-            <div className={`bg-white shadow-2xl shadow-secondary/10 border border-secondary/5 ${isMobile ? 'p-6 py-10' : 'p-12 md:p-20'} min-h-[600px] md:min-h-[800px] rounded-sm relative group overflow-hidden ring-1 ring-black/5`}>
-              {/* Paper Texture Overlay */}
-              <div className="absolute inset-0 pointer-events-none opacity-[0.03] bg-[url('https://www.transparenttextures.com/patterns/paper.png')]"></div>
-
+          <div id="policy-preview-content" className="h-full flex flex-col">
+            <div className="bg-white shadow-sm border border-gray-200 p-8 md:p-12 min-h-[600px] rounded-sm relative group">
               <div
                 ref={editorRef}
                 contentEditable={true}
                 suppressContentEditableWarning={true}
                 onInput={handleInput}
-                className="word-document-preview w-full h-full outline-none relative z-10 font-serif leading-relaxed text-[17px] text-secondary/90"
+                className="word-document-preview w-full h-full outline-none"
               />
-              <div className="absolute bottom-8 right-8 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-20">
-                <span className="text-[9px] font-black uppercase tracking-widest text-secondary/30 bg-white/80 backdrop-blur-sm px-3 py-1.5 rounded-full border border-secondary/5 shadow-sm">Interactive Draft Mode</span>
+              <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                <span className="text-xs text-gray-400 bg-white px-2 py-1 rounded shadow-sm border">Click to Edit</span>
               </div>
             </div>
-
             {!isForm && <SourcesUsed sources={sources} />}
-
-            <div className="bg-secondary/5 backdrop-blur-sm p-10 rounded-[2.5rem] border border-secondary/5">
-              <h3 className="text-xs font-black uppercase tracking-[0.4em] text-secondary/40 mb-6">Execution Roadmap</h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                <div className="space-y-2">
-                  <span className="text-[10px] font-black text-accent uppercase tracking-widest">Step 01</span>
-                  <h4 className="font-serif italic text-lg text-secondary">Clinical Review</h4>
-                  <p className="text-secondary/50 text-xs leading-relaxed">Read through the generated content and make any final tweaks directly in the interactive paper above.</p>
+            <div className="mt-6 pt-6 border-t border-dashed border-gray-300 print-hide">
+              <h3 className="text-lg font-bold text-secondary mb-4">Next Steps</h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                <div className="bg-blue-50 p-3 rounded border border-blue-100">
+                  <strong className="block text-blue-800 mb-1">1. Review</strong>
+                  <span className="text-blue-700">Read through the generated content and make any final tweaks directly in the editor above.</span>
                 </div>
-                <div className="space-y-2">
-                  <span className="text-[10px] font-black text-accent uppercase tracking-widest">Step 02</span>
-                  <h4 className="font-serif italic text-lg text-secondary">Legal Validation</h4>
-                  <p className="text-secondary/50 text-xs leading-relaxed">Our AI is built on constitutional principles, but we recommend a final verified check for sensitive cases.</p>
+                <div className="bg-yellow-50 p-3 rounded border border-yellow-100">
+                  <strong className="block text-yellow-800 mb-1">2. Verify</strong>
+                  <span className="text-yellow-700">While our Ingcweti AI is powerful, we always recommend a final check by a labour law professional.</span>
                 </div>
-                <div className="space-y-2">
-                  <span className="text-[10px] font-black text-accent uppercase tracking-widest">Step 03</span>
-                  <h4 className="font-serif italic text-lg text-secondary">Official Activation</h4>
-                  <p className="text-secondary/50 text-xs leading-relaxed">Download as Word, print on company letterhead, and secure signatures to activate compliance.</p>
+                <div className="bg-green-50 p-3 rounded border border-green-100">
+                  <strong className="block text-green-800 mb-1">3. Finalize</strong>
+                  <span className="text-green-700">Download the document, print it on your letterhead, and have it signed.</span>
                 </div>
               </div>
             </div>
@@ -255,48 +219,35 @@ const PolicyPreview: React.FC<PolicyPreviewProps> = ({ policyText, status, onRet
   const renderActionButtons = () => {
     if (status !== 'success') return null;
     return (
-      <div className={`absolute ${isMobile ? '-top-14 right-4' : '-top-6 right-0'} flex space-x-3 z-20 print-hide`}>
-        <button
-          onClick={handleCopy}
-          className="w-12 h-12 flex items-center justify-center rounded-2xl bg-white border border-secondary/5 shadow-xl shadow-secondary/5 hover:bg-secondary hover:text-white transition-all group"
-          title="Copy to Clipboard"
-        >
-          {copied ? <CheckIcon className="w-5 h-5 text-emerald-500" /> : <CopyIcon className="w-5 h-5 transition-transform group-hover:scale-110" />}
+      <div className="absolute top-4 right-4 flex space-x-2 z-10 print-hide">
+        <button onClick={handleCopy} className="p-2 rounded-full bg-white border border-gray-200 shadow-sm hover:bg-gray-50 transition-colors text-gray-600 hover:text-primary" title="Copy Text">
+          {copied ? <CheckIcon className="w-5 h-5 text-green-600" /> : <CopyIcon className="w-5 h-5" />}
         </button>
 
         <div ref={downloadMenuRef} className="relative">
-          <button
-            onClick={() => setDownloadMenuOpen(p => !p)}
-            className="w-12 h-12 flex items-center justify-center rounded-2xl bg-primary text-white shadow-xl shadow-primary/20 hover:bg-primary/90 transition-all group"
-            title="Download Repository"
-          >
-            <DownloadIcon className="w-5 h-5 transition-transform group-hover:translate-y-0.5" />
+          <button onClick={() => setDownloadMenuOpen(p => !p)} className="p-2 rounded-full bg-white border border-gray-200 shadow-sm hover:bg-gray-50 transition-colors text-gray-600 hover:text-primary" title="Download Options">
+            <DownloadIcon className="w-5 h-5" />
           </button>
           {isDownloadMenuOpen && (
-            <motion.div
-              initial={{ opacity: 0, y: 10, scale: 0.95 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              className="absolute right-0 mt-3 w-64 origin-top-right bg-white rounded-3xl shadow-2xl ring-1 ring-black ring-opacity-5 border border-secondary/5 z-50 overflow-hidden px-2 py-2"
-            >
-              <button onClick={() => handleDownload('word')} className="w-full text-left flex items-center p-4 rounded-2xl hover:bg-secondary/5 transition-all group">
-                <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center mr-4 group-hover:bg-blue-100 transition-colors">
-                  <WordIcon className="w-5 h-5 text-blue-700" />
-                </div>
-                <div>
-                  <span className="block text-[11px] font-black text-secondary uppercase tracking-wider">Word Document</span>
-                  <span className="block text-[9px] text-secondary/40">Best for further editing</span>
-                </div>
-              </button>
-              <button onClick={() => handleDownload('txt')} className="w-full text-left flex items-center p-4 rounded-2xl hover:bg-secondary/5 transition-all group">
-                <div className="w-10 h-10 rounded-xl bg-gray-50 flex items-center justify-center mr-4 group-hover:bg-gray-100 transition-colors">
-                  <TxtIcon className="w-5 h-5 text-gray-400" />
-                </div>
-                <div>
-                  <span className="block text-[11px] font-black text-secondary uppercase tracking-wider">Plain Text</span>
-                  <span className="block text-[9px] text-secondary/40">Raw text data</span>
-                </div>
-              </button>
-            </motion.div>
+            <div className="absolute right-0 mt-2 w-56 origin-top-right bg-white rounded-md shadow-lg ring-1 ring-black ring-opacity-5 border border-gray-100 z-50">
+              <div className="py-1">
+                <button onClick={() => handleDownload('word')} className="w-full text-left flex items-center px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
+                  <WordIcon className="w-5 h-5 mr-3 text-blue-700" />
+                  <div>
+                    <span className="block font-medium">Download as Word</span>
+                    <span className="block text-xs text-gray-500">Best for editing (.docx)</span>
+                  </div>
+                </button>
+                <div className="border-t border-gray-100 my-1"></div>
+                <button onClick={() => handleDownload('txt')} className="w-full text-left flex items-center px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
+                  <TxtIcon className="w-5 h-5 mr-3 text-gray-500" />
+                  <div>
+                    <span className="block font-medium">Download as Text</span>
+                    <span className="block text-xs text-gray-500">Plain text format (.txt)</span>
+                  </div>
+                </button>
+              </div>
+            </div>
           )}
         </div>
       </div>
@@ -304,10 +255,10 @@ const PolicyPreview: React.FC<PolicyPreviewProps> = ({ policyText, status, onRet
   };
 
   return (
-    <div className={`relative flex flex-col ${status === 'loading' ? 'h-auto' : 'h-full mt-10'}`}>
+    <div className={`bg-gray-50/50 p-4 md:p-8 rounded-lg border border-gray-200 relative flex flex-col ${status === 'loading' ? 'h-auto' : 'h-full'}`}>
       {renderActionButtons()}
       <div className="h-full flex-grow flex items-center justify-center">
-        <div className="w-full h-full mx-auto">
+        <div className="w-full h-full max-w-4xl mx-auto">
           {renderContent()}
         </div>
       </div>

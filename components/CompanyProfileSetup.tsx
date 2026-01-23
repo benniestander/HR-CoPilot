@@ -313,10 +313,10 @@ const CompanyProfileSetup: React.FC<CompanyProfileSetupProps> = ({ item, initial
                     <button
                         type="submit"
                         disabled={isContinueDisabled}
-                        className="w-full bg-primary text-white font-black text-[11px] uppercase tracking-[0.3em] py-5 px-4 rounded-2xl hover:bg-primary/90 disabled:bg-gray-200 disabled:text-gray-400 disabled:cursor-not-allowed shadow-xl shadow-primary/20 transition-all flex items-center justify-center border border-primary/10"
+                        className="w-full bg-primary text-white font-bold py-3 px-4 rounded-md hover:bg-opacity-90 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
                     >
-                        Draft Parameters
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 ml-2 transition-transform group-hover:translate-x-1" viewBox="0 0 20 20" fill="currentColor">
+                        Continue to Customize
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 ml-2" viewBox="0 0 20 20" fill="currentColor">
                             <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
                         </svg>
                     </button>

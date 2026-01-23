@@ -305,35 +305,3 @@ export const auditPolicy = async (file: File): Promise<any> => {
     if (error) throw new Error(error.message);
     return data;
 };
-
-export const startConsultationStream = async function* (message: string, history: { role: 'user' | 'model', content: string }[], profile?: CompanyProfile) {
-    const diagnosticContext = profile ? formatDiagnosticContext(profile) : "Company profile not provided.";
-
-    // Convert history to prompt format
-    const historyString = history.map(h => `${h.role === 'user' ? 'USER' : 'INGCWETI'}: ${h.content}`).join('\n\n');
-
-    const prompt = `You are Ingcweti, a senior South African HR & Labour Law Expert AI partner for SMEs.
-    Your personality is: Regally professional, deeply authoritative on SA law, but partner-focused and empathetic to business owners.
-    
-    CURRENT BUSINESS CONTEXT:
-    ${diagnosticContext}
-    
-    CHAT HISTORY:
-    ${historyString}
-    
-    NEW USER QUERY:
-    ${message}
-    
-    OPERATIONAL DIRECTIVES:
-    1. Base all advice on South African legislation (BCEA, LRA, POPIA, COIDA, UIF, EEA).
-    2. Format your response with beautiful Markdown. Use ## for main headings, **bold** for emphasis.
-    3. If there is a high-risk situation (e.g. immediate threat of strike or multi-million Rand CCMA claim), strongly advise seeking verified legal counsel.
-    4. Use the Google Search tool ALWAYS to verify the latest case law or legislative updates from official sources (Department of Employment & Labour).
-    5. Be concise but comprehensive. Focus on ACTIONABLE risk mitigation.
-    `;
-
-    const stream = streamFromEdge(prompt, 'gemini-3-flash-preview', { tools: [{ googleSearch: {} }] });
-    for await (const chunk of stream) {
-        yield chunk; // Returns { text, groundingMetadata }
-    }
-};

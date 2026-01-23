@@ -1,8 +1,6 @@
 import { useRef, useEffect, lazy, Suspense } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Dashboard from './components/Dashboard';
-import Sidebar from './components/Sidebar';
-import MobileNav from './components/MobileNav';
 import FullPageLoader from './components/FullPageLoader';
 import Login from './components/Login';
 import EmailSentPage from './components/EmailSentPage';
@@ -41,7 +39,6 @@ const TransactionsPage = lazy(() => import('./components/TransactionsPage'));
 const PolicyAuditor = lazy(() => import('./components/PolicyAuditor'));
 const WaitlistLanding = lazy(() => import('./components/WaitlistLanding'));
 const ConsultantLockoutScreen = lazy(() => import('./components/ConsultantLockoutScreen'));
-const ConsultationPage = lazy(() => import('./components/ConsultationPage'));
 
 const AppContent: React.FC = () => {
     const {
@@ -110,8 +107,7 @@ const AppContent: React.FC = () => {
         setNotificationPanelOpen,
         showOnboardingWalkthrough,
         setShowOnboardingWalkthrough,
-        setIsPrePaid,
-        isMobile
+        setIsPrePaid
     } = useUIContext();
 
     // Watch for Yoco Redirects
@@ -279,39 +275,105 @@ const AppContent: React.FC = () => {
         }
     };
 
-    const TopBar = () => {
-        const isAdminHeader = isAdmin && (currentView === 'admin' || currentView === 'dashboard');
+    const AuthHeader = ({ isAdminHeader = false }: { isAdminHeader?: boolean }) => {
         const unreadCount = adminNotifications.filter(n => !n.isRead).length;
+
+        // CONSULTANT HEADER
+        if (user?.isConsultant && !isAdminHeader) {
+            return (
+                <motion.header
+                    initial={{ y: -20, opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
+                    transition={{ duration: 0.5, ease: "easeOut" }}
+                    className="bg-white/90 backdrop-blur-md border-b border-gray-100 sticky top-0 z-40 py-3"
+                >
+                    <div className="container mx-auto flex justify-between items-center px-6">
+                        <div className="flex items-center space-x-4">
+                            <motion.img
+                                whileHover={{ scale: 1.05 }}
+                                whileTap={{ scale: 0.95 }}
+                                src={user.branding?.logoUrl || "https://i.postimg.cc/h48FMCNY/edited-image-11-removebg-preview.png"}
+                                alt="HR CoPilot Logo"
+                                className="h-10 cursor-pointer object-contain"
+                                onClick={handleStartOver}
+                            />
+                        </div>
+
+                        <div className="flex items-center space-x-3 sm:space-x-5">
+                            {activeClient ? (
+                                <motion.button
+                                    whileHover={{ scale: 1.05 }}
+                                    whileTap={{ scale: 0.95 }}
+                                    onClick={switchToConsultant}
+                                    className="hidden sm:flex items-center text-xs font-bold text-gray-500 hover:text-primary transition-all bg-gray-50 px-3 py-1.5 rounded-lg border border-gray-200"
+                                >
+                                    <span className="mr-2 text-gray-400">CLIENT:</span>
+                                    {activeClient.companyName}
+                                    <span className="ml-2 text-[10px] bg-gray-200 px-1 rounded text-gray-500">SWITCH</span>
+                                </motion.button>
+                            ) : (
+                                <span className="text-xs font-bold text-gray-400 bg-gray-50 px-2 py-1 rounded border border-gray-100 uppercase tracking-widest">
+                                    Consultant Mode
+                                </span>
+                            )}
+
+                            <div className="h-6 w-px bg-gray-100 hidden sm:block"></div>
+
+                            <motion.button
+                                whileHover={{ y: -2 }}
+                                onClick={handleShowProfile}
+                                className="flex items-center group"
+                            >
+                                <div className="w-8 h-8 rounded-full bg-indigo-50 border border-indigo-100 flex items-center justify-center p-0.5 group-hover:border-primary transition-colors overflow-hidden">
+                                    <UserIcon className="w-4 h-4 text-indigo-400 group-hover:text-primary transition-colors" />
+                                </div>
+                                <div className="ml-2 hidden lg:block text-left">
+                                    <p className="text-xs font-bold text-secondary truncate max-w-[120px]">{user?.name}</p>
+                                    <p className="text-[9px] font-bold text-primary uppercase tracking-tighter">Consultant</p>
+                                </div>
+                            </motion.button>
+
+                            <button onClick={handleLogout} className="text-[10px] font-bold text-gray-300 hover:text-red-500 uppercase tracking-widest transition-colors">
+                                Exit
+                            </button>
+                        </div>
+                    </div>
+                </motion.header>
+            );
+        }
 
         return (
             <motion.header
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="bg-white/40 backdrop-blur-xl border-b border-secondary/5 py-4 px-8 sticky top-0 z-40 transition-all flex justify-between items-center"
+                initial={{ y: -20, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ duration: 0.5, ease: "easeOut" }}
+                className="bg-white/90 backdrop-blur-md border-b border-gray-100 sticky top-0 z-40 py-3"
             >
-                <div className="flex items-center gap-4">
-                    <h2 className="text-[10px] font-black uppercase tracking-[0.4em] text-secondary/40 font-sans">
-                        {currentView === 'dashboard' ? 'Overview' : currentView.replace('-', ' ')}
-                    </h2>
-                </div>
-
-                <div className="flex items-center gap-6">
-                    {isAdminHeader && (
-                        <div className="flex items-center gap-4 border-r border-secondary/5 pr-6">
-                            <span className="font-bold text-red-500 bg-red-500/5 border border-red-500/10 px-3 py-1 rounded-full text-[8px] tracking-widest uppercase font-sans">Admin Console</span>
+                <div className="container mx-auto flex justify-between items-center px-6">
+                    <motion.img
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                        src={(user?.isConsultant && user.branding?.logoUrl) ? user.branding.logoUrl : "https://i.postimg.cc/h48FMCNY/edited-image-11-removebg-preview.png"}
+                        alt="HR CoPilot Logo"
+                        className="h-10 cursor-pointer object-contain"
+                        onClick={handleStartOver}
+                    />
+                    {isAdminHeader ? (
+                        <div className="flex items-center space-x-6">
+                            <span className="font-bold text-red-600 bg-red-50 px-3 py-1 rounded-full text-xs tracking-widest uppercase">Admin Panel</span>
                             <div className="relative" ref={notificationPanelRef}>
                                 <motion.button
                                     whileHover={{ scale: 1.1 }}
                                     whileTap={{ scale: 0.9 }}
                                     onClick={() => setNotificationPanelOpen(prev => !prev)}
-                                    className="relative p-2 text-secondary/40 hover:text-primary transition-all"
+                                    className="relative p-2 text-gray-500 hover:text-primary hover:bg-gray-50 rounded-full transition-all"
                                 >
                                     <BellIcon className="w-5 h-5" />
                                     {unreadCount > 0 && (
                                         <motion.span
                                             initial={{ scale: 0 }}
                                             animate={{ scale: 1 }}
-                                            className="absolute top-1.5 right-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[8px] font-bold text-white shadow-sm"
+                                            className="absolute top-1.5 right-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white shadow-sm"
                                         >
                                             {unreadCount}
                                         </motion.span>
@@ -335,32 +397,58 @@ const AppContent: React.FC = () => {
                                     )}
                                 </AnimatePresence>
                             </div>
+                            <button onClick={handleLogout} className="text-xs font-bold text-gray-400 hover:text-red-600 uppercase tracking-wider transition-colors">
+                                Logout
+                            </button>
+                        </div>
+                    ) : (
+                        <div className="flex items-center space-x-3 sm:space-x-5">
+                            <motion.button
+                                whileHover={{ scale: 1.05, backgroundColor: '#f3f4f6' }}
+                                whileTap={{ scale: 0.95 }}
+                                onClick={() => navigateTo('knowledge-base')}
+                                className="flex items-center text-xs font-bold text-gray-500 hover:text-primary transition-all bg-gray-50 px-4 py-2 rounded-xl border border-gray-100 shadow-sm"
+                                title="Help & Guides"
+                            >
+                                <BookIcon className="w-4 h-4 mr-2" />
+                                <span className="hidden sm:inline uppercase tracking-widest">Guide</span>
+                            </motion.button>
+
+                            <div className="h-6 w-px bg-gray-100 hidden sm:block"></div>
+
+                            {user?.plan === 'payg' && (
+                                <motion.div
+                                    initial={{ scale: 0.9, opacity: 0 }}
+                                    animate={{ scale: 1, opacity: 1 }}
+                                    className="text-[10px] font-black uppercase tracking-widest bg-emerald-50 text-emerald-700 px-3 py-2 rounded-lg border border-emerald-100 hidden md:block"
+                                >
+                                    Balance: R{(Number(user.creditBalance) / 100).toFixed(2)}
+                                </motion.div>
+                            )}
+
+                            <motion.button
+                                whileHover={{ y: -2 }}
+                                onClick={handleShowProfile}
+                                className="flex items-center group"
+                            >
+                                <div className="w-8 h-8 rounded-full bg-gray-50 border border-gray-100 flex items-center justify-center p-0.5 group-hover:border-primary transition-colors overflow-hidden">
+                                    {user?.photoURL ? (
+                                        <img src={user.photoURL} alt="Profile" className="w-full h-full rounded-full object-cover" />
+                                    ) : (
+                                        <UserIcon className="w-4 h-4 text-gray-400 group-hover:text-primary transition-colors" />
+                                    )}
+                                </div>
+                                <div className="ml-2 hidden lg:block text-left">
+                                    <p className="text-xs font-bold text-secondary truncate max-w-[120px]">{user?.name || user?.email}</p>
+                                    <p className="text-[9px] font-bold text-primary uppercase tracking-tighter">{user?.plan === 'pro' ? 'Pro Member' : 'Pay-As-You-Go'}</p>
+                                </div>
+                            </motion.button>
+
+                            <button onClick={handleLogout} className="text-[10px] font-bold text-gray-300 hover:text-red-500 uppercase tracking-widest transition-colors">
+                                Exit
+                            </button>
                         </div>
                     )}
-
-                    <div className="flex items-center gap-4">
-                        {user?.plan === 'payg' && (
-                            <div className="bg-emerald-500/5 text-emerald-600 px-3 py-1.5 rounded-xl border border-emerald-500/10 text-[9px] font-black uppercase tracking-wider">
-                                R{(Number(user.creditBalance) / 100).toFixed(2)}
-                            </div>
-                        )}
-                        <button
-                            onClick={() => navigateTo('profile')}
-                            className="flex items-center gap-3 group"
-                        >
-                            <div className="w-8 h-8 rounded-xl bg-secondary/5 border border-secondary/5 flex items-center justify-center group-hover:border-primary transition-all overflow-hidden p-0.5 shadow-inner">
-                                {user?.photoURL ? (
-                                    <img src={user.photoURL} alt="Profile" className="w-full h-full object-cover rounded-lg" />
-                                ) : (
-                                    <UserIcon className="w-4 h-4 text-secondary/30 group-hover:text-primary transition-colors" />
-                                )}
-                            </div>
-                            <div className="hidden sm:block text-left">
-                                <p className="text-[10px] font-medium text-secondary truncate max-w-[100px] leading-tight font-serif italic">{user?.name || user?.email}</p>
-                                <p className="text-[7px] font-black text-secondary/30 uppercase tracking-widest leading-none">Settings</p>
-                            </div>
-                        </button>
-                    </div>
                 </div>
             </motion.header>
         );
@@ -519,10 +607,6 @@ const AppContent: React.FC = () => {
                     }}
                     onBack={handleBackToDashboard}
                 />;
-            case 'consultation':
-                return <ConsultationPage
-                    onBack={handleBackToDashboard}
-                />;
             default:
                 return <Dashboard
                     onStartUpdate={() => navigateTo('updater')}
@@ -542,35 +626,33 @@ const AppContent: React.FC = () => {
 
         if (user && isAdmin) {
             return (
-                <div className="min-h-screen bg-light flex">
-                    <Sidebar activeView={currentView} />
-                    <div className="flex-1 flex flex-col min-w-0">
-                        <TopBar />
-                        <main className="flex-1 p-8 md:p-12 overflow-y-auto">
-                            <Suspense fallback={<FullPageLoader />}>
-                                <AdminDashboard
-                                    paginatedUsers={paginatedUsers}
-                                    onNextUsers={handleNextUsers}
-                                    onPrevUsers={handlePrevUsers}
-                                    isFetchingUsers={isFetchingUsers}
-                                    paginatedDocuments={paginatedDocuments}
-                                    onNextDocs={handleNextDocs}
-                                    onPrevDocs={handlePrevDocs}
-                                    isFetchingDocs={isFetchingDocs}
-                                    transactionsForUserPage={transactionsForUserPage}
-                                    paginatedLogs={paginatedLogs}
-                                    onNextLogs={handleNextLogs}
-                                    onPrevLogs={handlePrevLogs}
-                                    isFetchingLogs={isFetchingLogs}
-                                    adminNotifications={adminNotifications}
-                                    coupons={coupons}
-                                    adminActions={adminActions}
-                                    onSearchUsers={handleSearchUsers}
-                                    onRunRetention={handleRunRetentionCheck}
-                                />
-                            </Suspense>
-                        </main>
-                    </div>
+                <div className="min-h-screen bg-gray-100 text-secondary flex flex-col">
+                    <AuthHeader isAdminHeader={true} />
+                    <main className="container mx-auto px-6 py-8 flex-grow">
+                        <Suspense fallback={<FullPageLoader />}>
+                            <AdminDashboard
+                                paginatedUsers={paginatedUsers}
+                                onNextUsers={handleNextUsers}
+                                onPrevUsers={handlePrevUsers}
+                                isFetchingUsers={isFetchingUsers}
+                                paginatedDocuments={paginatedDocuments}
+                                onNextDocs={handleNextDocs}
+                                onPrevDocs={handlePrevDocs}
+                                isFetchingDocs={isFetchingDocs}
+                                transactionsForUserPage={transactionsForUserPage}
+                                paginatedLogs={paginatedLogs}
+                                onNextLogs={handleNextLogs}
+                                onPrevLogs={handlePrevLogs}
+                                isFetchingLogs={isFetchingLogs}
+                                adminNotifications={adminNotifications}
+                                coupons={coupons}
+                                adminActions={adminActions}
+                                onSearchUsers={handleSearchUsers}
+                                onRunRetention={handleRunRetentionCheck}
+                            />
+                        </Suspense>
+                    </main>
+                    <AppFooter />
                 </div>
             );
         }
@@ -639,35 +721,30 @@ const AppContent: React.FC = () => {
             // Consultant Selection Logic
             if (user.isConsultant && !activeClient) {
                 return (
-                    <div className="min-h-screen bg-light text-secondary flex flex-col items-center justify-center">
-                        <Suspense fallback={<FullPageLoader />}>
-                            <ConsultantClientSelector
-                                clients={user.clients || []}
-                                onSelect={selectClient}
-                            />
-                        </Suspense>
+                    <div className="min-h-screen bg-light text-secondary flex flex-col">
+                        <AuthHeader />
+                        <main className="container mx-auto px-6 py-8 flex-grow flex items-center justify-center">
+                            <Suspense fallback={<FullPageLoader />}>
+                                <ConsultantClientSelector
+                                    clients={user.clients || []}
+                                    onSelect={selectClient}
+                                />
+                            </Suspense>
+                        </main>
+                        <AppFooter />
                     </div>
                 );
             }
 
             return (
-                <div className="min-h-screen bg-light flex flex-col md:flex-row">
-                    {/* Desktop Sidebar */}
-                    {!isMobile && <Sidebar activeView={currentView} />}
-
-                    <div className="flex-1 flex flex-col min-w-0">
-                        {/* Refined TopBar */}
-                        <TopBar />
-
-                        <main className={`flex-1 p-6 md:p-12 overflow-y-auto ${isMobile ? 'pb-32' : ''}`}>
-                            <Suspense fallback={<FullPageLoader />}>
-                                {renderDashboardContent()}
-                            </Suspense>
-                        </main>
-                    </div>
-
-                    {/* Mobile Navigation Bar */}
-                    {isMobile && <MobileNav activeView={currentView} />}
+                <div className="min-h-screen bg-light text-secondary flex flex-col">
+                    <AuthHeader />
+                    <main className="container mx-auto px-6 py-8 flex-grow">
+                        <Suspense fallback={<FullPageLoader />}>
+                            {renderDashboardContent()}
+                        </Suspense>
+                    </main>
+                    <AppFooter />
                 </div>
             );
         }

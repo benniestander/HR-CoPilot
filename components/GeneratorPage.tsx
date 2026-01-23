@@ -324,35 +324,14 @@ const GeneratorPage: React.FC<GeneratorPageProps> = ({ selectedItem, initialData
     };
 
     return (
-        <div className="max-w-5xl mx-auto space-y-10">
-            {/* Phase 3: Header Section */}
-            <div className="flex justify-between items-end border-b border-secondary/5 pb-8">
-                <div className="space-y-1">
-                    <p className="text-[10px] font-black uppercase tracking-[0.4em] text-accent/80">Premium Document Draft</p>
-                    <h1 className="text-4xl font-serif italic text-secondary leading-tight">
-                        {selectedItem.title}
-                    </h1>
-                </div>
-                {status === 'success' && (
-                    <div className="flex items-center gap-2 bg-emerald-500/5 text-emerald-600 px-4 py-2 rounded-full border border-emerald-500/10 text-[9px] font-black uppercase tracking-widest">
-                        <CheckIcon className="w-3 h-3" />
-                        Draft Validated
-                    </div>
-                )}
-            </div>
-
-            <Stepper
-                steps={STEPS}
-                currentStep={currentStep}
-                onStepClick={setCurrentStep}
-                isStepClickable={!!companyProfile && !isSaving && !isDeducting}
-            />
-
+        <div className="max-w-7xl mx-auto">
+            <Stepper steps={STEPS} currentStep={currentStep} onStepClick={setCurrentStep} isStepClickable={!!companyProfile && !isSaving && !isDeducting} />
             <div className="mt-8">
                 <AnimatePresence mode="wait">
                     {renderStepContent()}
                 </AnimatePresence>
             </div>
+
         </div>
     );
 };

@@ -23,7 +23,7 @@ import { INDUSTRIES, POLICIES, FORMS } from '../constants';
 import { useAuthContext } from '../contexts/AuthContext';
 import { useDataContext } from '../contexts/DataContext';
 import { useUIContext } from '../contexts/UIContext';
-import { updateConsultantClients, retractUser, retractClient } from '../services/dbService';
+import { updateConsultantClients } from '../services/dbService';
 import EmptyState from './EmptyState';
 
 interface ProfilePageProps {
@@ -74,7 +74,7 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
         }
     };
 
-    const [activeTab, setActiveTab] = useState<'profile' | 'billing' | 'vault' | 'clients' | 'security'>('profile');
+    const [activeTab, setActiveTab] = useState<'profile' | 'billing' | 'vault' | 'clients'>('profile');
     const [isEditing, setIsEditing] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
 
@@ -240,28 +240,16 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
     };
 
     const handleDeleteClient = async (clientId: string) => {
-        const confirmed = window.confirm("POPIA COMPLIANCE: Are you sure you want to retract this client profile? Their document associations will be soft-deleted in accordance with the Right to be Forgotten. This action can be reversed by Support within 30 days.");
+        const confirmed = window.confirm("Are you sure you want to remove this client? This will remove them from your list.");
         if (!confirmed || !user) return;
 
         try {
-            await retractClient(user.uid, clientId);
             const updatedClients = (user.clients || []).filter(c => c.id !== clientId);
+            await updateConsultantClients(user.uid, updatedClients);
             setUser({ ...user, clients: updatedClients });
-            setToastMessage("Client retracted successfully.");
+            setToastMessage("Client removed.");
         } catch (err: any) {
-            setToastMessage(`Failed to retract client: ${err.message}`);
-        }
-    };
-
-    const handleCloseAccount = async () => {
-        const confirmed = window.confirm("CRITICAL: Are you sure you want to close your HR CoPilot account? All your generated documents and PII will be soft-deleted immediately and permanently purged after 30 days. This action cannot be undone by you.");
-        if (!confirmed || !user) return;
-
-        try {
-            await retractUser(user.uid);
-            await onLogout();
-        } catch (err: any) {
-            setToastMessage(`Failed to close account: ${err.message}`);
+            setToastMessage(`Failed to remove client: ${err.message}`);
         }
     };
 
@@ -286,8 +274,7 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
         { id: 'profile', label: 'Company Profile', icon: UserIcon },
         { id: 'billing', label: 'Credits & Billing', icon: CreditCardIcon },
         { id: 'vault', label: 'The Vault', icon: ShieldCheckIcon },
-        ...(user.isConsultant ? [{ id: 'clients', label: 'Client Management', icon: RegisterIcon }] : []),
-        { id: 'security', label: 'Security & Privacy', icon: LockIcon }
+        ...(user.isConsultant ? [{ id: 'clients', label: 'Client Management', icon: RegisterIcon }] : [])
     ] as const;
 
     return (
@@ -613,36 +600,6 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
                                         ))}
                                     </div>
                                 )}
-                            </div>
-                        )}
-
-                        {activeTab === 'security' && (
-                            <div id="security-panel" role="tabpanel" className="p-4 md:p-8 animate-in fade-in slide-in-from-right-2 duration-300">
-                                <h2 className="text-3xl font-black text-secondary mb-8">Security & Privacy</h2>
-                                <div className="space-y-8">
-                                    <div className="p-6 bg-slate-50 rounded-3xl border border-slate-100 flex items-start gap-6">
-                                        <div className="w-12 h-12 rounded-2xl bg-white shadow-sm flex items-center justify-center text-primary flex-shrink-0">
-                                            <ShieldCheckIcon className="w-6 h-6" />
-                                        </div>
-                                        <div>
-                                            <h3 className="text-lg font-black text-secondary mb-1">POPIA Compliance</h3>
-                                            <p className="text-sm text-slate-500 leading-relaxed max-w-xl">
-                                                HR CoPilot adheres strictly to the Protection of Personal Information Act. You have the right to be forgotten. Closing your account or retracting a client will trigger our automated PII scrubber.
-                                            </p>
-                                        </div>
-                                    </div>
-
-                                    <div className="p-8 border-2 border-dashed border-red-100 rounded-[2.5rem]">
-                                        <h3 className="text-xl font-black text-red-500 mb-2">Danger Zone</h3>
-                                        <p className="text-sm text-slate-400 mb-8">Once you close your account, there is no going back. All documents, logs, and client associations will be retired.</p>
-                                        <button
-                                            onClick={handleCloseAccount}
-                                            className="px-8 py-4 bg-red-50 text-red-500 font-black rounded-2xl border border-red-200 hover:bg-red-500 hover:text-white transition-all shadow-sm"
-                                        >
-                                            Terminate Account Profile
-                                        </button>
-                                    </div>
-                                </div>
                             </div>
                         )}
                     </div>

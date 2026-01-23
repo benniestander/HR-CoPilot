@@ -1,6 +1,5 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
 import type { Policy, Form, FormAnswers, CompanyProfile, Question } from '../types';
 import { InfoIcon, EditIcon } from './Icons';
 
@@ -120,21 +119,17 @@ const GuidedQuestionnaire: React.FC<GuidedQuestionnaireProps> = ({
   };
 
   const renderProgressBar = () => (
-    <div className="space-y-3">
-      <div className="flex justify-between items-end">
-        <span className="text-[10px] font-black uppercase tracking-widest text-primary/60">
-          {isReviewing ? 'Validation' : `Provisioning Step ${currentIndex + 1} of ${visibleQuestions.length}`}
+    <div className="mb-8">
+      <div className="flex justify-between mb-1">
+        <span className="text-base font-medium text-primary">
+          {isReviewing ? 'Final Step' : `Step ${currentIndex + 1} of ${visibleQuestions.length}`}
         </span>
-        <span className="text-[10px] font-black uppercase tracking-widest text-secondary/30">
-          {isReviewing ? 'Complete' : `${Math.round((currentIndex / visibleQuestions.length) * 100)}%`}
+        <span className="text-sm font-medium text-primary">
+          {isReviewing ? 'Review Your Answers' : currentQuestion.label}
         </span>
       </div>
-      <div className="w-full bg-secondary/5 rounded-full h-1 overflow-hidden">
-        <motion.div
-          initial={{ width: 0 }}
-          animate={{ width: `${isReviewing ? 100 : (currentIndex / visibleQuestions.length) * 100}%` }}
-          className="bg-primary h-full rounded-full shadow-[0_0_10px_rgba(15,76,92,0.3)]"
-        />
+      <div className="w-full bg-gray-200 rounded-full h-2.5">
+        <div className="bg-primary h-2.5 rounded-full transition-all duration-300" style={{ width: `${isReviewing ? 100 : (currentIndex / visibleQuestions.length) * 100}%` }}></div>
       </div>
     </div>
   );
@@ -179,11 +174,9 @@ const GuidedQuestionnaire: React.FC<GuidedQuestionnaireProps> = ({
   );
 
   return (
-    <div className="bg-white/60 backdrop-blur-xl p-10 rounded-[2.5rem] border border-secondary/5 shadow-2xl shadow-secondary/5 max-w-2xl mx-auto space-y-8">
-      <div className="text-center space-y-2">
-        <h2 className="text-2xl font-serif italic text-secondary">{item.title}</h2>
-        <p className="text-secondary/40 text-[10px] font-black uppercase tracking-[0.2em]">Diagnostic Configuration</p>
-      </div>
+    <div className="bg-white p-8 rounded-lg shadow-md border border-gray-200 max-w-2xl mx-auto">
+      <h2 className="text-2xl font-bold text-secondary text-center">{item.title}</h2>
+      <p className="text-gray-500 mb-6 mt-2 text-center">Answer the questions below to customize your document.</p>
 
       {renderProgressBar()}
 

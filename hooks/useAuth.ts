@@ -80,13 +80,6 @@ export const useAuth = () => {
             }
 
             if (appUser) {
-                if (appUser.deletedAt) {
-                    await (supabase.auth as any).signOut();
-                    setUser(null);
-                    window.localStorage.removeItem(USER_CACHE_KEY);
-                    setIsLoading(false);
-                    return;
-                }
                 setUser(appUser);
                 setIsAdmin(!!appUser.isAdmin);
                 window.localStorage.setItem(USER_CACHE_KEY, JSON.stringify(appUser));
