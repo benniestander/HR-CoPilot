@@ -36,10 +36,10 @@ const HeroSection = () => {
       />
 
       <div className="container mx-auto px-4 pt-28 pb-16 md:pt-36 md:pb-24 relative z-10">
-        <div className="grid lg:grid-cols-12 gap-8 lg:gap-4 items-center min-h-[80vh]">
-          {/* Text Content - Asymmetric positioning */}
+        <div className="grid lg:grid-cols-2 gap-8 lg:gap-12 items-center min-h-[80vh]">
+          {/* Text Content - Left side */}
           <motion.div
-            className="lg:col-span-6 lg:col-start-1"
+            className="order-1"
             initial={{ opacity: 0, x: -60 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.8, ease: "easeOut" }}
@@ -110,9 +110,9 @@ const HeroSection = () => {
             </motion.div>
           </motion.div>
 
-          {/* Hero Visual - Offset positioning */}
+          {/* Hero Visual - Right side */}
           <motion.div
-            className="lg:col-span-7 lg:col-start-6 relative"
+            className="order-2 relative"
             initial={{ opacity: 0, y: 40 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.3 }}
