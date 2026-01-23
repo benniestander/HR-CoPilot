@@ -31,10 +31,10 @@ const FeaturesSection = () => {
       {/* Abstract background shapes */}
       <div className="absolute top-20 left-0 w-[500px] h-[500px] bg-primary/5 rounded-full blur-3xl -translate-x-1/2" />
       <div className="absolute bottom-20 right-0 w-[400px] h-[400px] bg-accent/20 rounded-full blur-3xl translate-x-1/2" />
-      
+
       <div className="container mx-auto px-4 relative z-10" ref={ref}>
         {/* Section intro - left aligned, not centered */}
-        <motion.div 
+        <motion.div
           className="max-w-2xl mb-20"
           initial={{ opacity: 0, y: 40 }}
           animate={isInView ? { opacity: 1, y: 0 } : {}}
@@ -42,7 +42,7 @@ const FeaturesSection = () => {
         >
           <h2 className="text-4xl md:text-5xl lg:text-6xl font-extrabold text-foreground mb-6 leading-tight">
             Why SA businesses are{" "}
-            <span className="text-gradient">ditching the old way</span>
+            <span className="text-gradient">Ditching the old way</span>
           </h2>
           <p className="text-xl text-muted-foreground">
             HR compliance shouldn't require a law degree or a second mortgage.
@@ -54,16 +54,15 @@ const FeaturesSection = () => {
           {features.map((feature, index) => (
             <motion.div
               key={feature.title}
-              className={`flex flex-col ${
-                index % 2 === 0 ? "md:flex-row" : "md:flex-row-reverse"
-              } gap-8 md:gap-16 items-center`}
+              className={`flex flex-col ${index % 2 === 0 ? "md:flex-row" : "md:flex-row-reverse"
+                } gap-8 md:gap-16 items-center`}
               initial={{ opacity: 0, y: 60 }}
               animate={isInView ? { opacity: 1, y: 0 } : {}}
               transition={{ duration: 0.6, delay: index * 0.2 }}
             >
               {/* Visual */}
               <div className="md:w-1/2">
-                <div 
+                <div
                   className={`aspect-square max-w-md mx-auto bg-gradient-to-br ${feature.accent} rounded-3xl flex items-center justify-center relative overflow-hidden group`}
                 >
                   {/* Decorative elements */}
@@ -72,7 +71,7 @@ const FeaturesSection = () => {
                     <div className="absolute bottom-8 right-8 w-32 h-32 border-4 border-white/10 rounded-lg rotate-12" />
                     <div className="absolute top-1/2 left-1/2 w-40 h-1 bg-white/20 -rotate-45" />
                   </div>
-                  
+
                   <span className="text-8xl md:text-9xl group-hover:scale-110 transition-transform duration-500">
                     {feature.visual}
                   </span>
