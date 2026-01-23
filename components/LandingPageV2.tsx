@@ -1,6 +1,6 @@
 import Navbar from "@/components/landing_new/Navbar";
 import HeroSection from "@/components/landing_new/HeroSection";
-import FeaturesSection from "@/components/landing_new/FeaturesSection";
+import FeaturesSectionV2 from "@/components/landing_new/FeaturesSectionV2";
 import HowItWorksSection from "@/components/landing_new/HowItWorksSection";
 import TestimonialsSection from "@/components/landing_new/TestimonialsSection";
 import PricingSection from "@/components/landing_new/PricingSection";
@@ -13,7 +13,7 @@ const LandingPageV2 = () => {
         <main className="min-h-screen overflow-x-hidden">
             <Navbar />
             <HeroSection />
-            <FeaturesSection />
+            <FeaturesSectionV2 />
             <HowItWorksSection />
             <TestimonialsSection />
             <PricingSection />
