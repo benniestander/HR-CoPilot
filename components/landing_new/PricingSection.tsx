@@ -78,6 +78,55 @@ const PricingSection = () => {
           </h2>
         </motion.div>
 
+        {/* Comparison Anchor */}
+        <motion.div
+          className="max-w-4xl mx-auto mb-20"
+          initial={{ opacity: 0, y: 40 }}
+          animate={isInView ? { opacity: 1, y: 0 } : {}}
+          transition={{ duration: 0.6, delay: 0.2 }}
+        >
+          <div className="bg-background border border-border/50 rounded-3xl overflow-hidden shadow-medium">
+            <div className="grid grid-cols-2 text-center border-b border-border/50">
+              <div className="p-6 bg-muted/30">
+                <p className="text-sm font-semibold uppercase tracking-wider text-muted-foreground mb-2">Traditional Method</p>
+                <p className="text-xl font-bold text-foreground">HR Consultant</p>
+              </div>
+              <div className="p-6 bg-primary/10 border-l border-border/50">
+                <p className="text-sm font-semibold uppercase tracking-wider text-primary mb-2">The Modern Way</p>
+                <div className="flex items-center justify-center gap-2">
+                  <p className="text-xl font-bold text-foreground">HR CoPilot</p>
+                  <span className="bg-primary text-primary-foreground text-[10px] font-bold px-2 py-0.5 rounded-full uppercase">95% Savings</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="divide-y divide-border/30">
+              {[
+                { label: "Cost per contract", old: "R3,000+", new: "Free" },
+                { label: "Monthly cost", old: "R15,000+", new: "R62" },
+                { label: "Turnaround time", old: "3-5 Days", new: "3 Minutes" },
+                { label: "Availability", old: "9-5 Mon-Fri", new: "24/7/365" },
+                { label: "Legal updates", old: "Manual/Extra", new: "Automatic" },
+              ].map((row) => (
+                <div key={row.label} className="grid grid-cols-2 items-center hover:bg-muted/5 transition-colors">
+                  <div className="p-4 border-r border-border/50 text-center">
+                    <p className="text-xs text-muted-foreground mb-1 uppercase font-medium">{row.label}</p>
+                    <p className="text-lg font-medium text-destructive/70 line-through decoration-2 decoration-destructive/30">{row.old}</p>
+                  </div>
+                  <div className="p-4 text-center bg-primary/5">
+                    <p className="text-xs text-primary/70 mb-1 uppercase font-bold">{row.label}</p>
+                    <p className="text-lg font-bold text-primary">{row.new}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="p-4 bg-primary text-primary-foreground text-center text-sm font-medium">
+              Join 500+ SA businesses who saved over R1,000,000 in combined legal fees last month
+            </div>
+          </div>
+        </motion.div>
+
         {/* Pricing cards */}
         <div className="grid md:grid-cols-2 gap-6 lg:gap-8 max-w-4xl mx-auto items-stretch">
           {plans.map((plan, index) => (
@@ -99,7 +148,7 @@ const PricingSection = () => {
               )}
 
               <div className="mb-8">
-                <p className={`text-sm font-medium mb-2 ${plan.featured ? "text-primary" : "text-primary"}`}>
+                <p className={`text-sm font-medium mb-2 ${plan.featured ? "text-primary-foreground/90" : "text-primary"}`}>
                   {plan.tagline}
                 </p>
                 <h3 className={`text-2xl font-bold mb-2 ${plan.featured ? "text-secondary-foreground" : "text-foreground"}`}>
