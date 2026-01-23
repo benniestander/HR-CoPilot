@@ -5,65 +5,47 @@ import { useRef } from "react";
 
 const plans = [
   {
-    name: "Starter",
-    tagline: "Perfect for small teams",
-    price: "R299",
-    period: "/month",
-    description: "Get your HR basics sorted without breaking the bank.",
+    name: "Pay-As-You-Go",
+    tagline: "Perfect for occasional needs",
+    price: "R35",
+    period: "/policy",
+    description: "Only pay for what you use. No monthly commitments.",
     benefits: [
-      "Generate up to 5 compliant documents monthly",
-      "Employment contracts & basic policies",
+      "R35 per policy or document",
+      "All document types available",
       "BCEA, LRA & POPIA compliance built-in",
-      "Email support within 24 hours",
+      "Download in Word & PDF formats",
+      "Email support within 48 hours",
     ],
     limitations: [
-      "Custom branding",
       "Priority support",
-      "Advanced templates",
+      "Custom branding",
+      "Bulk discounts",
     ],
-    cta: "Start Free Trial",
-    ctaAction: "signup",
-    featured: false,
-  },
-  {
-    name: "Professional",
-    tagline: "Most popular choice",
-    price: "R599",
-    period: "/month",
-    description: "Everything you need for complete HR compliance.",
-    benefits: [
-      "Unlimited document generation",
-      "Full template library access",
-      "Complete compliance suite (BCEA, LRA, POPIA)",
-      "Custom branding on all documents",
-      "Priority support (4-hour response)",
-      "Team collaboration tools",
-      "Policy update notifications",
-    ],
-    limitations: [],
     cta: "Get Started",
     ctaAction: "signup",
-    featured: true,
+    featured: false,
   },
   {
-    name: "Enterprise",
-    tagline: "For growing organizations",
-    price: "Custom",
-    period: "",
-    description: "Tailored solutions with dedicated support.",
+    name: "Pro Plan",
+    tagline: "Best value for growing teams",
+    price: "R757",
+    period: "/year",
+    description: "Unlimited documents. Full compliance. One simple price.",
     benefits: [
-      "Everything in Professional",
-      "Dedicated account manager",
-      "Custom integrations & API access",
-      "SLA guarantees",
-      "On-site training sessions",
-      "Multi-company management",
-      "Advanced analytics & reporting",
+      "Unlimited document generation",
+      "All template types included",
+      "Complete compliance suite (BCEA, LRA, POPIA)",
+      "Custom branding on all documents",
+      "Priority support (24-hour response)",
+      "Download in Word & PDF formats",
+      "Policy update notifications",
+      "Team collaboration tools",
     ],
     limitations: [],
-    cta: "Contact Sales",
-    ctaAction: "contact",
-    featured: false,
+    cta: "Start Free Trial",
+    ctaAction: "signup",
+    featured: true,
   },
 ];
 
@@ -88,16 +70,16 @@ const PricingSection = () => {
           transition={{ duration: 0.6 }}
         >
           <h2 className="text-4xl md:text-5xl lg:text-6xl font-extrabold text-foreground mb-6 leading-tight">
-            Pricing that makes sense
+            Simple pricing.
             <br />
             <span className="text-muted-foreground text-2xl md:text-3xl font-normal">
-              (unlike most HR consultants)
+              Pay per policy or go unlimited.
             </span>
           </h2>
         </motion.div>
 
         {/* Pricing cards */}
-        <div className="grid md:grid-cols-3 gap-6 lg:gap-8 max-w-6xl mx-auto items-stretch">
+        <div className="grid md:grid-cols-2 gap-6 lg:gap-8 max-w-4xl mx-auto items-stretch">
           {plans.map((plan, index) => (
             <motion.div
               key={plan.name}
@@ -198,7 +180,7 @@ const PricingSection = () => {
           animate={isInView ? { opacity: 1 } : {}}
           transition={{ delay: 0.5 }}
         >
-          14-day free trial on all plans. No credit card required. Cancel anytime.
+          Start with Pay-As-You-Go or try Pro free for 14 days. No credit card required.
         </motion.p>
       </div>
     </section>
