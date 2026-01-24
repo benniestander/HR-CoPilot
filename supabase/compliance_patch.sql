@@ -28,5 +28,12 @@ ALTER COLUMN version TYPE TEXT USING version::TEXT;
 
 COMMENT ON COLUMN generated_documents.version IS 'Semantic versioning: Major.Minor (e.g. 1.1, 2.0)';
 
--- 4. Reload PostgREST schema cache
+-- 4. Speed up Cooldown & Duplicate checks
+CREATE INDEX IF NOT EXISTS idx_auditor_reports_user_doc 
+ON auditor_reports (user_id, document_name);
+
+CREATE INDEX IF NOT EXISTS idx_auditor_reports_hash 
+ON auditor_reports (content_hash);
+
+-- 5. Reload PostgREST schema cache
 NOTIFY pgrst, 'reload config';

@@ -14,7 +14,7 @@ import {
 } from './Icons';
 import { useUIContext } from '../contexts/UIContext';
 import { useAuthContext } from '../contexts/AuthContext';
-import { getLastAuditByFilename } from '../services/dbService';
+import { getGlobalLastAudit } from '../services/dbService';
 
 interface AuditResult {
     score: number;
@@ -68,28 +68,30 @@ const PolicyAuditor: React.FC<PolicyAuditorProps> = ({ onBack }) => {
         setStatus('analyzing');
         setProgress(10);
 
-        // 1. CHECK COOLDOWN (Once every 30 days per unique filename)
+        // 1. HARD COOLDOWN (Global Kill-Switch: Once every 30 days for this client)
         try {
-            const lastAudit = await getLastAuditByFilename(user.uid, file.name);
+            const lastAudit = await getGlobalLastAudit(user.uid);
             if (lastAudit) {
                 const lastDate = new Date(lastAudit.created_at);
                 const daysSince = (Date.now() - lastDate.getTime()) / (1000 * 60 * 60 * 24);
 
                 if (daysSince < 30) {
-                    console.log(`[COOLDOWN] Document was audited ${daysSince.toFixed(1)} days ago. Returning cached result.`);
+                    console.log(`[HARD LOCK] User audited '${lastAudit.document_name}' recently (${daysSince.toFixed(1)} days ago). Blocking AI.`);
 
-                    // Small delay to make it feel like it worked
-                    await new Promise(r => setTimeout(r, 1500));
+                    // Force progress to 100 to stop the "Running" feeling
+                    await new Promise(r => setTimeout(r, 2000));
 
                     setResult(lastAudit.audit_result);
                     setStatus('complete');
                     setProgress(100);
-                    setToastMessage("Policy is updated. Note: Re-audits are limited to once every 30 days.");
+
+                    // Explicit wording requested by Bennie
+                    setToastMessage("Policy is updated. Check back in 30 days.");
                     return;
                 }
             }
         } catch (e) {
-            console.warn("Cooldown check failed, proceeding with audit:", e);
+            console.warn("Global lock check failed, proceeding with safety:", e);
         }
 
         // Simulated progress steps for better UX

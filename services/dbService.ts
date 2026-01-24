@@ -182,17 +182,19 @@ export const getGeneratedDocuments = async (uid: string): Promise<GeneratedDocum
     }));
 };
 
-export const getLastAuditByFilename = async (uid: string, filename: string) => {
+export const getGlobalLastAudit = async (uid: string) => {
     const { data, error } = await supabase
         .from('auditor_reports')
-        .select('created_at, audit_result')
+        .select('created_at, audit_result, document_name')
         .eq('user_id', uid)
-        .eq('document_name', filename)
         .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle();
 
-    if (error) throw error;
+    if (error) {
+        console.error("Critical Database Error during Cooldown Check:", error);
+        return null; // Fail-safe to allow audit if DB is down, though unlikely
+    }
     return data;
 };
 
