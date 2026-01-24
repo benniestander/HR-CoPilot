@@ -619,6 +619,42 @@ export const getMarketingEvents = async (limit: number = 100) => {
 };
 
 /**
+ * Bulk imports clients into a consultant's profile.
+ */
+export const bulkImportClients = async (userId: string, clients: any[]) => {
+    const { data: profile } = await supabase.from('profiles').select('clients').eq('id', userId).single();
+    const existingClients = profile?.clients || [];
+    const updatedClients = [...existingClients, ...clients];
+
+    const { error } = await supabase
+        .from('profiles')
+        .update({ clients: updatedClients })
+        .eq('id', userId);
+
+    if (error) throw error;
+};
+
+/**
+ * Upgrades a consultant to the Pro-Agency tier.
+ */
+export const upgradeToAgency = async (userId: string, amount: number) => {
+    const expiry = new Date();
+    expiry.setFullYear(expiry.getFullYear() + 1);
+
+    const { error } = await supabase
+        .from('profiles')
+        .update({
+            plan: 'agency',
+            consultant_platform_fee_paid_until: expiry.toISOString()
+        })
+        .eq('id', userId);
+
+    if (error) throw error;
+
+    await addTransactionToUser(userId, { amount: -amount, description: 'Upgrade to Pro-Agency Tier (Unlimited Clients)' }, true);
+};
+
+/**
  * Saves a lead to the Waitlist (assessment_leads).
  */
 export const saveWaitlistLead = async (leadData: { name: string, email: string, source?: string }) => {

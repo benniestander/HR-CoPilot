@@ -252,7 +252,7 @@ export type User = {
   name?: string;
   contactNumber?: string;
   photoURL?: string;
-  plan: 'payg' | 'pro' | 'consultant';
+  plan: 'payg' | 'pro' | 'consultant' | 'agency';
   creditBalance: number; // in cents
   transactions: Transaction[];
   createdAt: string; // ISO string

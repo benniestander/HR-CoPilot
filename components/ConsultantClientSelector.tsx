@@ -93,17 +93,39 @@ const ConsultantClientSelector: React.FC<ConsultantClientSelectorProps> = ({ cli
                             </div>
                         </div>
                     </div>
-                    <div className="bg-primary p-4 rounded-2xl shadow-lg shadow-primary/20 flex flex-col justify-between min-w-[140px] hidden sm:flex">
-                        <span className="text-[10px] font-black text-white/60 uppercase tracking-widest">Balance</span>
+                    <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex flex-col justify-between min-w-[140px]">
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Health Index</span>
                         <div className="flex items-end justify-between">
-                            <span className="text-xl font-black text-white">R{((user?.creditBalance || 0) / 100).toFixed(0)}</span>
-                            <div className="p-1.5 bg-white/20 rounded-lg">
-                                <TrendingUp className="w-4 h-4 text-white" />
+                            <span className="text-2xl font-black text-primary">84%</span>
+                            <div className="p-1.5 bg-primary/5 rounded-lg">
+                                <TrendingUp className="w-4 h-4 text-primary" />
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
+
+            {/* Strategy Guardrail: Pro-Agency Upsell */}
+            {user?.plan === 'consultant' && activeClientsCount >= 5 && (
+                <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="bg-slate-900 p-6 rounded-[2rem] border border-slate-800 flex flex-col md:flex-row items-center justify-between gap-6"
+                >
+                    <div className="flex items-center space-x-4">
+                        <div className="p-3 bg-primary rounded-xl">
+                            <Briefcase className="w-5 h-5 text-white" />
+                        </div>
+                        <div>
+                            <h4 className="text-white font-black text-sm uppercase tracking-tight">Scale to "Agency" & Save</h4>
+                            <p className="text-slate-400 text-xs">Unlock unlimited clients for R5,000/year and stop paying individual access fees.</p>
+                        </div>
+                    </div>
+                    <Button variant="outline" className="border-primary text-primary hover:bg-primary hover:text-white rounded-xl text-[10px] font-black uppercase tracking-widest px-6 h-10">
+                        Upgrade Tier
+                    </Button>
+                </motion.div>
+            )}
 
             {/* Search & Actions */}
             <div className="flex flex-col sm:flex-row gap-4 items-center">
@@ -117,18 +139,24 @@ const ConsultantClientSelector: React.FC<ConsultantClientSelectorProps> = ({ cli
                         onChange={e => setSearch(e.target.value)}
                     />
                 </div>
-                <Button
-                    className="h-16 px-8 rounded-2xl w-full sm:w-auto font-black text-sm uppercase tracking-widest"
-                    onClick={() => {
-                        // Navigate to profile page and mention that we want clients tab
-                        // The UIContext/AppContent should handle the tab state if we wanted to be fancy, 
-                        // but navigateTo('profile') is the shortest path.
-                        (window as any).nextProfileTab = 'clients';
-                        navigateTo('profile');
-                    }}
-                >
-                    <Plus className="w-5 h-5 mr-2" /> Add Client
-                </Button>
+                <div className="flex items-center space-x-3 w-full sm:w-auto">
+                    <Button
+                        variant="outline"
+                        className="h-16 px-6 rounded-2xl flex-grow sm:flex-initial font-bold text-xs uppercase tracking-widest border-slate-200"
+                    >
+                        Bulk Import
+                    </Button>
+                    <Button
+                        className="h-16 px-8 rounded-2xl flex-grow sm:flex-initial font-black text-sm uppercase tracking-widest"
+                        onClick={() => {
+                            // Navigate to profile page and mention that we want clients tab
+                            (window as any).nextProfileTab = 'clients';
+                            navigateTo('profile');
+                        }}
+                    >
+                        <Plus className="w-5 h-5 mr-2" /> Add Client
+                    </Button>
+                </div>
             </div>
 
             {/* Portfolio Grid */}
