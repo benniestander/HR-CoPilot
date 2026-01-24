@@ -120,40 +120,42 @@ const ConsultantHero = () => {
                             >
                                 <div className="absolute inset-0 bg-gradient-to-br from-primary/30 to-transparent rounded-2xl blur-3xl transform -rotate-3" />
 
-                                {/* Portal Mockup */}
+                                {/* Premium Image Frame */}
                                 <div className="relative z-10 bg-white/80 backdrop-blur-xl border border-border/50 p-2 rounded-[2.5rem] shadow-strong overflow-hidden">
-                                    <div className="bg-slate-50 rounded-[2rem] overflow-hidden aspect-[4/3] flex flex-col border border-border/30">
-                                        <div className="bg-white p-4 border-b border-border/50 flex items-center justify-between">
-                                            <div className="flex space-x-2">
-                                                <div className="w-3 h-3 rounded-full bg-slate-200" />
-                                                <div className="w-3 h-3 rounded-full bg-slate-200" />
-                                            </div>
-                                            <div className="bg-slate-100 px-4 py-1 rounded text-[10px] text-slate-400 font-mono">
-                                                portal.your-agency.co.za
-                                            </div>
-                                            <div className="w-4 h-4" />
-                                        </div>
-                                        <div className="p-8 flex-grow">
-                                            <div className="flex items-center justify-between mb-8">
-                                                <div className="space-y-2">
-                                                    <div className="h-4 w-32 bg-slate-200 rounded-full" />
-                                                    <div className="h-2 w-20 bg-slate-200/50 rounded-full" />
-                                                </div>
-                                                <div className="w-10 h-10 rounded-full bg-primary/10 border border-primary/20" />
-                                            </div>
-                                            <div className="grid grid-cols-2 gap-4">
-                                                <div className="h-24 bg-white border border-border/50 rounded-2xl p-4 shadow-sm">
-                                                    <div className="h-2 w-12 bg-slate-100 rounded-full mb-3" />
-                                                    <div className="h-6 w-16 bg-primary/5 rounded-full" />
-                                                </div>
-                                                <div className="h-24 bg-white border border-border/50 rounded-2xl p-4 shadow-sm">
-                                                    <div className="h-2 w-12 bg-slate-100 rounded-full mb-3" />
-                                                    <div className="h-6 w-16 bg-emerald-50 rounded-full" />
-                                                </div>
-                                            </div>
-                                        </div>
+                                    <div className="rounded-[2rem] overflow-hidden aspect-[4/3] flex flex-col border border-border/30 relative">
+                                        <img
+                                            src="/assets/hr_consultant_preview.png"
+                                            alt="HR Consultant Management Platform"
+                                            className="w-full h-full object-cover"
+                                        />
+                                        {/* Overlay gradient for depth */}
+                                        <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent pointer-events-none" />
                                     </div>
                                 </div>
+                            </motion.div>
+
+                            {/* Floating Stats Card */}
+                            <motion.div
+                                className="absolute -bottom-6 -left-6 z-20 bg-background/90 backdrop-blur-md border border-border p-4 rounded-2xl shadow-xl flex items-center gap-4"
+                                animate={{ y: [0, -10, 0] }}
+                                transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+                            >
+                                <div className="w-10 h-10 rounded-full bg-emerald-500/10 flex items-center justify-center">
+                                    <ShieldCheck className="w-6 h-6 text-emerald-600" />
+                                </div>
+                                <div>
+                                    <p className="text-[10px] font-bold text-muted-foreground uppercase leading-none mb-1">Protection</p>
+                                    <p className="text-sm font-black text-foreground">100% Compliant</p>
+                                </div>
+                            </motion.div>
+
+                            {/* Floating Margin Badge */}
+                            <motion.div
+                                className="absolute -top-6 -right-6 z-20 bg-primary text-white px-6 py-3 rounded-full shadow-2xl font-black text-sm flex items-center gap-2 border-2 border-background"
+                                animate={{ y: [0, 10, 0] }}
+                                transition={{ duration: 5, repeat: Infinity, ease: "easeInOut", delay: 1 }}
+                            >
+                                <Zap className="w-4 h-4" /> 100% Margin
                             </motion.div>
                         </div>
                     </motion.div>

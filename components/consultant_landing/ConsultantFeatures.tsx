@@ -150,69 +150,38 @@ const ConsultantFeatures = () => {
                                                 <div className="w-6 h-6 rounded-full bg-primary/10" />
                                             </div>
 
-                                            {/* Inner View Mockup */}
-                                            <div className="p-8 flex-grow">
+                                            {/* Inner View Mockup - Replaced with High Quality Generated Images */}
+                                            <div className="flex-grow relative h-full">
                                                 {feature.mockupType === "branding" && (
-                                                    <div className="flex flex-col items-center justify-center h-full text-center">
-                                                        <Palette className="w-16 h-16 text-indigo-500 mb-6 opacity-20" />
-                                                        <div className="p-6 bg-white rounded-3xl border border-dashed border-border flex flex-col items-center shadow-sm">
-                                                            <div className="w-32 h-8 bg-indigo-500 rounded-lg mb-4 flex items-center justify-center text-[10px] text-white font-bold uppercase tracking-widest">Your Logo</div>
-                                                            <div className="grid grid-cols-3 gap-2 mt-2">
-                                                                <div className="w-6 h-6 rounded-full bg-indigo-600" />
-                                                                <div className="w-6 h-6 rounded-full bg-indigo-400" />
-                                                                <div className="w-6 h-6 rounded-full bg-slate-800" />
-                                                            </div>
-                                                        </div>
-                                                    </div>
+                                                    <img
+                                                        src="/assets/hr_white_label_preview.png"
+                                                        alt="White Labeling Interface"
+                                                        className="w-full h-full object-cover"
+                                                    />
                                                 )}
                                                 {feature.mockupType === "multi-tenant" && (
-                                                    <div className="space-y-4">
-                                                        <div className="flex items-center space-x-3 mb-6">
-                                                            <div className="w-8 h-8 bg-blue-500 rounded-lg" />
-                                                            <div className="h-4 w-32 bg-slate-200 rounded-full" />
-                                                        </div>
-                                                        {[1, 2, 3].map(i => (
-                                                            <div key={i} className="p-4 bg-white rounded-2xl border border-border/50 flex items-center justify-between shadow-xs">
-                                                                <div className="flex items-center space-x-3">
-                                                                    <div className="w-4 h-4 bg-slate-100 rounded" />
-                                                                    <div className="h-2 w-24 bg-slate-100 rounded-full" />
-                                                                </div>
-                                                                <div className="px-3 py-1 bg-blue-50 text-[10px] font-bold text-blue-600 rounded-full">Manage</div>
-                                                            </div>
-                                                        ))}
-                                                    </div>
+                                                    <img
+                                                        src="/assets/hr_multi_tenant_preview.png"
+                                                        alt="Multi-tenant Dashboard"
+                                                        className="w-full h-full object-cover"
+                                                    />
                                                 )}
                                                 {feature.mockupType === "contracts" && (
-                                                    <div className="h-full flex flex-col">
-                                                        <div className="flex justify-between items-center mb-6">
-                                                            <div className="h-6 w-48 bg-slate-200 rounded-lg" />
-                                                            <div className="h-8 w-8 bg-emerald-500 rounded-full flex items-center justify-center text-white">
-                                                                <Check className="w-4 h-4" />
-                                                            </div>
-                                                        </div>
-                                                        <div className="flex-grow space-y-3">
-                                                            <div className="h-2 w-full bg-slate-200/50 rounded-full" />
-                                                            <div className="h-2 w-[90%] bg-slate-200/50 rounded-full" />
-                                                            <div className="h-2 w-full bg-slate-200/50 rounded-full" />
-                                                            <div className="h-24 bg-white rounded-2xl border border-indigo-50 shadow-xs p-4 mt-6">
-                                                                <div className="h-2 w-16 bg-slate-100 rounded-full mb-4" />
-                                                                <div className="h-8 w-24 bg-indigo-600 rounded flex items-center justify-center text-[10px] text-white font-bold">Sign Policy</div>
-                                                            </div>
-                                                        </div>
-                                                    </div>
+                                                    <img
+                                                        src="/assets/hr_automation_preview.png"
+                                                        alt="Automated Document Drafting"
+                                                        className="w-full h-full object-cover"
+                                                    />
                                                 )}
                                                 {feature.mockupType === "profit" && (
-                                                    <div className="h-full flex flex-col justify-center">
-                                                        <div className="bg-amber-50 border border-amber-100 rounded-3xl p-8 text-center shadow-xs">
-                                                            <div className="text-[10px] font-black text-amber-600 uppercase tracking-widest mb-2">Est. Annual Margin</div>
-                                                            <div className="text-4xl font-black text-slate-800 mb-2">R450,000</div>
-                                                            <div className="text-[10px] font-bold text-slate-500 italic">Based on 25 clients @ R1.5k/hr</div>
-                                                        </div>
-                                                        <div className="mt-6 flex justify-center">
-                                                            <div className="h-2 w-32 bg-slate-100 rounded-full" />
-                                                        </div>
-                                                    </div>
+                                                    <img
+                                                        src="/assets/hr_revenue_preview.png"
+                                                        alt="Consultancy Revenue Growth"
+                                                        className="w-full h-full object-cover"
+                                                    />
                                                 )}
+                                                {/* Overlay gradient for depth */}
+                                                <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent pointer-events-none" />
                                             </div>
                                         </div>
                                     </motion.div>
