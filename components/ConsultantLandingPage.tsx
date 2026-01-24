@@ -7,7 +7,15 @@ import ConsultantRevenueSimulator from "./consultant_landing/ConsultantRevenueSi
 import ConsultantTestimonials from "./consultant_landing/ConsultantTestimonials";
 import ConsultantCTA from "./consultant_landing/ConsultantCTA";
 
+import { useSEO } from "@/hooks/useSEO";
+
 const ConsultantLandingPage: React.FC = () => {
+    useSEO({
+        title: "Partnership Programme | HR CoPilot for Consultants",
+        description: "Scale your HR consultancy with automated compliance, branded client portals, and institutional-grade legal documents.",
+        canonical: "https://hrcopilot.co.za/#/consultants"
+    });
+
     return (
         <main className="min-h-screen bg-white overflow-x-hidden">
             <ConsultantNavbar />

@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://hrcopilot.co.za/sitemap.xml

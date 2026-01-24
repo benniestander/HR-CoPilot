@@ -61,15 +61,15 @@ const HeroSection = () => {
             </motion.div>
 
             <h1 className="text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-extrabold text-foreground leading-[1.1] mb-6">
+              <span className="sr-only">South African BCEA-Compliant HR Document Generator. </span>
               HR paperwork?
               <br />
               <span className="text-gradient">Nee dankie.</span>
             </h1>
 
             <p className="text-lg md:text-xl text-muted-foreground leading-relaxed mb-8 max-w-lg">
-              The automated HR compliance tool for South African businesses with
-              <span className="font-semibold text-foreground"> less than 50 employees</span>.
-              Generate legally-sound policies in minutes—no expensive consultants required.
+              The automated <span className="text-foreground font-semibold">South African HR compliance tool</span>.
+              Generate legally-vetted BCEA, LRA & POPIA policies in minutes—no expensive consultants required.
             </p>
 
             <div className="flex flex-col sm:flex-row gap-4 mb-8">

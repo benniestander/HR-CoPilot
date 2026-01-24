@@ -39,6 +39,21 @@ const FAQSection = () => {
       />
 
       <div className="container mx-auto px-4 relative z-10" ref={ref}>
+        {/* FAQ Schema */}
+        <script type="application/ld+json">
+          {JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "FAQPage",
+            "mainEntity": faqs.map(faq => ({
+              "@type": "Question",
+              "name": faq.question,
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": faq.answer
+              }
+            }))
+          })}
+        </script>
         <div className="grid lg:grid-cols-12 gap-12 lg:gap-16">
           {/* Left side - Header */}
           <motion.div
