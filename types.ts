@@ -411,3 +411,29 @@ export interface SupportTicket {
   createdAt: string;
   metadata: any;
 }
+
+export interface Invoice {
+  id: string;
+  userId: string;
+  invoiceNumber: string;
+  amountDue: number; // In cents
+  status: 'draft' | 'sent' | 'paid' | 'overdue' | 'cancelled';
+  dueDate: string;
+  periodStart: string;
+  periodEnd: string;
+  pdfUrl?: string;
+  createdAt: string;
+  updatedAt: string;
+  userEmail?: string; // Optional for admin view convenience
+}
+
+export interface BillingLedgerItem {
+  id: string;
+  userId: string;
+  description: string;
+  amount: number; // In cents
+  status: 'pending' | 'invoiced' | 'cancelled';
+  relatedInvoiceId?: string;
+  metadata?: any;
+  createdAt: string;
+}

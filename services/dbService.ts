@@ -673,6 +673,113 @@ export const getConsultantInvoices = async (userId: string) => {
 };
 
 /**
+ * ADMIN: Gets all pending ledger items across all users.
+ */
+export const getAdminLedger = async () => {
+    const { data, error } = await supabase
+        .from('billing_ledger')
+        .select('*, profile:profiles(email, name)')
+        .eq('status', 'pending')
+        .order('created_at', { ascending: false });
+
+    if (error) throw error;
+    return data || [];
+};
+
+/**
+ * ADMIN: Gets all invoices across all users.
+ */
+export const getAdminInvoices = async () => {
+    const { data, error } = await supabase
+        .from('invoices')
+        .select('*, profile:profiles(email, name)')
+        .order('created_at', { ascending: false });
+
+    if (error) throw error;
+    return data || [];
+};
+
+/**
+ * ADMIN: Generates an invoice for a specific user from their pending ledger items.
+ */
+export const generateInvoiceForUser = async (userId: string, amountOverride?: number) => {
+    // 1. Get pending items
+    const { data: items, error: fetchError } = await supabase
+        .from('billing_ledger')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('status', 'pending');
+
+    if (fetchError) throw fetchError;
+    if (!items || items.length === 0) throw new Error("No pending items for this user.");
+
+    const platformFee = 50000; // R500.00 in cents
+    const totalFromLedger = items.reduce((acc, curr) => acc + curr.amount, 0);
+    const finalAmount = amountOverride ?? (totalFromLedger + platformFee);
+
+    // 2. Create Invoice record
+    const invoiceNumber = `INV-${new Date().getFullYear()}${String(new Date().getMonth() + 1).padStart(2, '0')}-${userId.substring(0, 4).toUpperCase()}`;
+
+    const { data: invoice, error: invError } = await supabase
+        .from('invoices')
+        .insert({
+            user_id: userId,
+            invoice_number: invoiceNumber,
+            amount_due: finalAmount,
+            status: 'draft',
+            due_date: new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).toISOString(),
+            period_start: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString(),
+            period_end: new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).toISOString(),
+        })
+        .select()
+        .single();
+
+    if (invError) throw invError;
+
+    // 3. Create Invoice Items (Line Items)
+    const lineItems = [
+        { invoice_id: invoice.id, description: 'Consultant Platform Fee (Advance Monthly)', amount: platformFee, type: 'platform_fee' },
+        ...items.map(it => ({
+            invoice_id: invoice.id,
+            description: it.description,
+            amount: it.amount,
+            type: 'client_fee'
+        }))
+    ];
+
+    const { error: lineError } = await supabase.from('invoice_items').insert(lineItems);
+    if (lineError) console.error("Line items failed", lineError);
+
+    // 4. Mark ledger items as invoiced
+    const { error: updateError } = await supabase
+        .from('billing_ledger')
+        .update({ status: 'invoiced', related_invoice_id: invoice.id })
+        .eq('user_id', userId)
+        .eq('status', 'pending');
+
+    if (updateError) throw updateError;
+
+    return invoice;
+};/**
+ * ADMIN: Updates an invoice status.
+ */
+export const updateInvoiceStatus = async (invoiceId: string, status: 'draft' | 'sent' | 'paid' | 'overdue' | 'cancelled') => {
+    const { error } = await supabase
+        .from('invoices')
+        .update({ status, updated_at: new Date().toISOString() })
+        .eq('id', invoiceId);
+
+    if (error) throw error;
+};
+
+/**
+ * ADMIN: Marks an invoice as paid.
+ */
+export const markInvoicePaid = async (invoiceId: string) => {
+    return updateInvoiceStatus(invoiceId, 'paid');
+};
+
+/**
  * Bulk imports clients into a consultant's profile.
  */
 export const bulkImportClients = async (userId: string, clients: any[]) => {

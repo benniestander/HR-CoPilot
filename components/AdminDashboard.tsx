@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import type { User, GeneratedDocument, Transaction, AdminActionLog, AdminNotification, Coupon, InvoiceRequest } from '../types';
-import { UserIcon, MasterPolicyIcon, FormsIcon, SearchIcon, CreditCardIcon, HistoryIcon, DownloadIcon, LoadingIcon, CouponIcon, CheckIcon, FileIcon, ShieldCheckIcon, AlertIcon, ChatBubbleLeftRightIcon } from './Icons';
+import { UserIcon, MasterPolicyIcon, FormsIcon, SearchIcon, CreditCardIcon, HistoryIcon, DownloadIcon, LoadingIcon, CouponIcon, CheckIcon, FileIcon, ShieldCheckIcon, AlertIcon, ChatBubbleLeftRightIcon, TrendingUpIcon } from './Icons';
 import AdminUserDetailModal from './AdminUserDetailModal';
 import { PageInfo, useDataContext } from '../contexts/DataContext';
 import { POLICIES, FORMS } from '../constants';
@@ -699,7 +699,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
   onSearchUsers,
   onRunRetention
 }) => {
-  type AdminTab = 'dashboard' | 'requests' | 'support' | 'users' | 'analytics' | 'transactions' | 'pricing' | 'coupons' | 'settings' | 'waitlist';
+  type AdminTab = 'dashboard' | 'requests' | 'support' | 'users' | 'analytics' | 'transactions' | 'pricing' | 'coupons' | 'settings' | 'waitlist' | 'billing';
   const { user, handleLogout } = useAuthContext();
   const [activeTab, setActiveTab] = useState<AdminTab>('requests');
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
@@ -725,6 +725,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const NAV_ITEMS = [
     { id: 'dashboard', label: 'Overview', icon: HomeIcon },
     { id: 'requests', label: 'Order Requests', icon: FileIcon, badge: 0 },
+    { id: 'billing', label: 'Billing Run', icon: TrendingUpIcon },
     { id: 'support', label: 'Support Desk', icon: ChatBubbleLeftRightIcon },
     { id: 'users', label: 'Users', icon: UserIcon },
     { id: 'waitlist', label: 'Waitlist Leads', icon: HistoryIcon },
@@ -733,6 +734,152 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
     { id: 'pricing', label: 'Pricing', icon: ShieldCheckIcon },
     { id: 'coupons', label: 'Coupons', icon: CouponIcon },
   ];
+
+  const BillingHub = () => {
+    const [ledger, setLedger] = useState<any[]>([]);
+    const [invoices, setInvoices] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [processing, setProcessing] = useState<string | null>(null);
+
+    const fetchData = async () => {
+      setLoading(true);
+      try {
+        const { getAdminLedger, getAdminInvoices } = await import('../services/dbService');
+        const [l, i] = await Promise.all([getAdminLedger(), getAdminInvoices()]);
+        setLedger(l);
+        setInvoices(i);
+      } catch (e) {
+        console.error("Fetch failed", e);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    useEffect(() => { fetchData(); }, []);
+
+    const handleGenerateInvoice = async (userId: string) => {
+      if (!confirm("Generate draft invoice for this user? This will move all pending items to an invoice.")) return;
+      setProcessing(userId);
+      try {
+        const { generateInvoiceForUser } = await import('../services/dbService');
+        await generateInvoiceForUser(userId);
+        alert("Invoice generated successfully!");
+        await fetchData();
+      } catch (e: any) {
+        alert("Error: " + e.message);
+      } finally {
+        setProcessing(null);
+      }
+    };
+
+    // Group ledger by user
+    const usersWithPending = useMemo(() => {
+      const groups: Record<string, { userId: string, email: string, name: string, total: number, items: any[] }> = {};
+      ledger.forEach(item => {
+        if (!groups[item.user_id]) {
+          groups[item.user_id] = {
+            userId: item.user_id,
+            email: item.profile?.email || 'N/A',
+            name: item.profile?.name || 'User',
+            total: 0,
+            items: []
+          };
+        }
+        groups[item.user_id].total += item.amount;
+        groups[item.user_id].items.push(item);
+      });
+      return Object.values(groups);
+    }, [ledger]);
+
+    return (
+      <div className="space-y-8 animate-in fade-in duration-500">
+        <div className="flex justify-between items-center">
+          <h2 className="text-2xl font-bold text-gray-800">Billing Management</h2>
+          <button onClick={fetchData} className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg">
+            <TrendingUpIcon className="w-5 h-5" />
+          </button>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <div className="lg:col-span-2 space-y-6">
+            <h3 className="text-lg font-bold text-slate-700">Pending Ledger Items</h3>
+            <Card className="overflow-hidden">
+              <table className="min-w-full">
+                <thead className="bg-gray-50 border-b">
+                  <tr>
+                    <th className="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-widest">Consultant</th>
+                    <th className="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-widest">Pending Total</th>
+                    <th className="px-6 py-4 text-right text-xs font-bold text-gray-400 uppercase tracking-widest">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-50">
+                  {usersWithPending.map(u => (
+                    <tr key={u.userId} className="hover:bg-slate-50 transition-colors">
+                      <td className="px-6 py-4">
+                        <div className="text-sm font-bold text-slate-800">{u.name}</div>
+                        <div className="text-xs text-slate-400">{u.email}</div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="text-sm font-black text-indigo-600">R{(u.total / 100).toFixed(2)}</div>
+                        <div className="text-[10px] text-slate-400 font-bold">{u.items.length} items</div>
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        <button
+                          onClick={() => handleGenerateInvoice(u.userId)}
+                          disabled={processing === u.userId}
+                          className="px-4 py-2 bg-indigo-600 text-white text-xs font-black rounded-lg shadow-md hover:bg-indigo-700 disabled:opacity-50"
+                        >
+                          {processing === u.userId ? '...' : 'Generate Invoice'}
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                  {usersWithPending.length === 0 && (
+                    <tr><td colSpan={3} className="px-6 py-12 text-center text-slate-400 italic">No pending items found.</td></tr>
+                  )}
+                </tbody>
+              </table>
+            </Card>
+          </div>
+
+          <div className="space-y-6">
+            <h3 className="text-lg font-bold text-slate-700">Recent Invoices</h3>
+            <Card className="p-4 space-y-4 max-h-[600px] overflow-y-auto">
+              {invoices.map(inv => (
+                <div key={inv.id} className="p-4 bg-slate-50 border border-slate-100 rounded-2xl">
+                  <div className="flex justify-between items-start mb-2">
+                    <div>
+                      <div className="text-xs font-black text-slate-800">{inv.invoice_number}</div>
+                      <div className="text-[10px] text-slate-400 font-bold uppercase">{inv.profile?.name}</div>
+                    </div>
+                    <Badge type={inv.status === 'paid' ? 'success' : 'warning'} text={inv.status.toUpperCase()} />
+                  </div>
+                  <div className="text-lg font-black text-slate-900 mb-2">R{(inv.amount_due / 100).toFixed(2)}</div>
+                  <div className="flex justify-between items-center text-[10px] text-slate-400 font-bold mt-3">
+                    <button onClick={() => inv.pdf_url && window.open(inv.pdf_url, '_blank')} className="text-indigo-600 hover:underline">View PDF</button>
+                    {inv.status !== 'paid' && (
+                      <button
+                        onClick={async () => {
+                          if (!confirm("Mark this invoice as paid?")) return;
+                          const { markInvoicePaid } = await import('../services/dbService');
+                          await markInvoicePaid(inv.id);
+                          fetchData();
+                        }}
+                        className="bg-emerald-100 text-emerald-700 px-2 py-1 rounded hover:bg-emerald-200"
+                      >
+                        Mark Paid
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
+              {invoices.length === 0 && <p className="text-center text-slate-400 text-sm py-8 italic">No invoices issued yet.</p>}
+            </Card>
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   const WaitlistTable = () => {
     const { waitlistLeads } = useDataContext();
@@ -949,6 +1096,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
             {activeTab === 'pricing' && <PricingManager />}
             {/* For brevity, other components would be similar Card-based implementations */}
             {activeTab === 'coupons' && <CouponManager coupons={coupons} adminActions={adminActions} />}
+            {activeTab === 'billing' && <BillingHub />}
           </div>
         </main>
       </div>
