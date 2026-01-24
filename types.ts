@@ -171,6 +171,15 @@ export interface Policy extends Document {
   type: PolicyType;
   industries?: string[];
   price: number; // Price in cents
+  seoMetadata?: {
+    slug: string;
+    keywords: string[];
+    detailedSummary: string;
+    whyItMatters: string;
+    legalRequirements: string[];
+    keyClauses: string[];
+    faqs: Array<{ question: string; answer: string }>;
+  };
 }
 
 export interface Form extends Document {

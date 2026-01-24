@@ -4,7 +4,7 @@ import { PRIVACY_POLICY_CONTENT, TERMS_OF_USE_CONTENT } from '../legalContent';
 
 interface EmailSentPageProps {
   email: string;
-  flowType: 'signup' | 'login' | 'payg_signup';
+  flowType: 'signup' | 'login' | 'payg_signup' | 'consultant_signup';
 }
 
 const EmailSentPage: React.FC<EmailSentPageProps> = ({ email, flowType }) => {
@@ -12,7 +12,7 @@ const EmailSentPage: React.FC<EmailSentPageProps> = ({ email, flowType }) => {
 
   const title = "Account Created! Please Verify Your Email";
   const primaryText = "We've sent a verification link to";
-  
+
   return (
     <div className="min-h-screen bg-light text-secondary flex flex-col">
       <header className="bg-white shadow-sm py-6">
@@ -33,29 +33,29 @@ const EmailSentPage: React.FC<EmailSentPageProps> = ({ email, flowType }) => {
             </p>
             <div className="my-6">
               <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16 text-primary mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
               </svg>
             </div>
             <p className="text-xs text-gray-400 mt-4">
-                Didn't receive an email? Check your spam folder or try signing up again.
+              Didn't receive an email? Check your spam folder or try signing up again.
             </p>
           </div>
         </div>
       </main>
-       <footer className="bg-secondary text-white py-8">
-            <div className="container mx-auto px-6 text-center">
-                <img src="https://i.postimg.cc/h48FMCNY/edited-image-11-removebg-preview.png" alt="HR CoPilot Logo" className="h-10 mx-auto mb-4" />
-                <div className="flex justify-center space-x-6 mb-4">
-                    <button onClick={() => showLegalModal('Privacy Policy', PRIVACY_POLICY_CONTENT)} className="text-sm text-gray-300 hover:text-white hover:underline">
-                        Privacy Policy
-                    </button>
-                    <button onClick={() => showLegalModal('Terms of Use', TERMS_OF_USE_CONTENT)} className="text-sm text-gray-300 hover:text-white hover:underline">
-                        Terms of Use
-                    </button>
-                </div>
-                <p className="text-sm text-gray-300">© {new Date().getFullYear()} HR CoPilot. All rights reserved.</p>
-            </div>
-        </footer>
+      <footer className="bg-secondary text-white py-8">
+        <div className="container mx-auto px-6 text-center">
+          <img src="https://i.postimg.cc/h48FMCNY/edited-image-11-removebg-preview.png" alt="HR CoPilot Logo" className="h-10 mx-auto mb-4" />
+          <div className="flex justify-center space-x-6 mb-4">
+            <button onClick={() => showLegalModal('Privacy Policy', PRIVACY_POLICY_CONTENT)} className="text-sm text-gray-300 hover:text-white hover:underline">
+              Privacy Policy
+            </button>
+            <button onClick={() => showLegalModal('Terms of Use', TERMS_OF_USE_CONTENT)} className="text-sm text-gray-300 hover:text-white hover:underline">
+              Terms of Use
+            </button>
+          </div>
+          <p className="text-sm text-gray-300">© {new Date().getFullYear()} HR CoPilot. All rights reserved.</p>
+        </div>
+      </footer>
     </div>
   );
 };

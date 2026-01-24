@@ -44,6 +44,8 @@ const ConsultantLockoutScreen = lazy(() => import('./components/ConsultantLockou
 const LandingPageV2 = lazy(() => import('./components/LandingPageV2'));
 const ConsultantLandingPage = lazy(() => import('./components/ConsultantLandingPage'));
 const ConsultantSignUp = lazy(() => import('./components/ConsultantSignUp'));
+const PolicyLibrary = lazy(() => import('./components/seo/PolicyLibrary'));
+const PolicyDetailLanding = lazy(() => import('./components/seo/PolicyDetailLanding'));
 
 const AuthHeader = ({ isAdminHeader = false, handleStartOver, handleShowProfile }: { isAdminHeader?: boolean; handleStartOver: () => void; handleShowProfile: () => void }) => {
     const {
@@ -649,6 +651,13 @@ const AppContent: React.FC = () => {
                 return <TransactionsPage
                     onBack={() => navigateTo('profile')}
                 />;
+            case 'library':
+                return <PolicyLibrary />;
+            case 'templates': {
+                const parts = window.location.hash.split('/');
+                const slug = parts[parts.length - 1];
+                return <PolicyDetailLanding slug={slug} />;
+            }
             case 'payment-success':
                 return <PaymentSuccessPage
                     onVerified={() => {
@@ -707,7 +716,7 @@ const AppContent: React.FC = () => {
 
         if (!user) {
             if (authPage === 'email-sent' && authEmail && authFlow) {
-                return <EmailSentPage email={authEmail} flowType={authFlow} />;
+                return <EmailSentPage email={authEmail} flowType={authFlow as any} />;
             }
 
             if (authPage === 'signup') {
@@ -733,6 +742,24 @@ const AppContent: React.FC = () => {
                 return (
                     <Suspense fallback={<FullPageLoader />}>
                         <ConsultantLandingPage />
+                    </Suspense>
+                );
+            }
+
+            if (currentView === 'library') {
+                return (
+                    <Suspense fallback={<FullPageLoader />}>
+                        <PolicyLibrary />
+                    </Suspense>
+                );
+            }
+
+            if (currentView === 'templates') {
+                const parts = window.location.hash.split('/');
+                const slug = parts[parts.length - 1];
+                return (
+                    <Suspense fallback={<FullPageLoader />}>
+                        <PolicyDetailLanding slug={slug} />
                     </Suspense>
                 );
             }
@@ -772,7 +799,7 @@ const AppContent: React.FC = () => {
             if (user.isConsultant && !activeClient) {
                 return (
                     <div className="min-h-screen bg-light text-secondary flex flex-col">
-                        <AuthHeader />
+                        <AuthHeader handleStartOver={handleStartOver} handleShowProfile={handleShowProfile} />
                         <main className="container mx-auto px-6 py-8 flex-grow flex items-center justify-center">
                             <Suspense fallback={<FullPageLoader />}>
                                 <ConsultantClientSelector
