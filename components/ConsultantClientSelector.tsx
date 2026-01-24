@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import type { ClientProfile } from '../types';
 import { useAuthContext } from '../contexts/AuthContext';
+import { useUIContext } from '../contexts/UIContext';
 import { Button } from './ui/button';
 
 interface ConsultantClientSelectorProps {
@@ -26,6 +27,7 @@ interface ConsultantClientSelectorProps {
 
 const ConsultantClientSelector: React.FC<ConsultantClientSelectorProps> = ({ clients, onSelect }) => {
     const { payClientAccessFee, user } = useAuthContext();
+    const { navigateTo } = useUIContext();
     const [search, setSearch] = useState('');
     const [loadingClient, setLoadingClient] = useState<string | null>(null);
 
@@ -117,7 +119,13 @@ const ConsultantClientSelector: React.FC<ConsultantClientSelectorProps> = ({ cli
                 </div>
                 <Button
                     className="h-16 px-8 rounded-2xl w-full sm:w-auto font-black text-sm uppercase tracking-widest"
-                    onClick={() => alert("Navigate to Settings to add clients")}
+                    onClick={() => {
+                        // Navigate to profile page and mention that we want clients tab
+                        // The UIContext/AppContent should handle the tab state if we wanted to be fancy, 
+                        // but navigateTo('profile') is the shortest path.
+                        (window as any).nextProfileTab = 'clients';
+                        navigateTo('profile');
+                    }}
                 >
                     <Plus className="w-5 h-5 mr-2" /> Add Client
                 </Button>

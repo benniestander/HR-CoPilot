@@ -31,7 +31,7 @@ const Dashboard: React.FC<DashboardProps> = ({
 }) => {
   const [activeTab, setActiveTab] = useState<'policies' | 'forms' | 'documents'>('policies');
   const { setSelectedItem, navigateTo, setDocumentToView, setToastMessage, setIsPrePaid } = useUIContext();
-  const { user } = useAuthContext();
+  const { user, activeClient, switchToConsultant } = useAuthContext();
   const { generatedDocuments } = useDataContext();
 
   const handleViewDocument = (doc: GeneratedDocument) => {
@@ -78,6 +78,32 @@ const Dashboard: React.FC<DashboardProps> = ({
       variants={containerVariants}
       className="max-w-7xl mx-auto relative px-4 sm:px-0 pb-20"
     >
+      {/* --- CONSULTANT CLIENT CONTEXT BAR --- */}
+      <AnimatePresence>
+        {user?.isConsultant && activeClient && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="mb-8 p-1.5 bg-slate-900 text-white rounded-[1.25rem] flex items-center justify-between pl-6 shadow-2xl shadow-slate-900/20"
+          >
+            <div className="flex items-center gap-4">
+              <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3">
+                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40">Managing Portfolio:</span>
+                <span className="text-sm font-black tracking-tight">{activeClient.companyName}</span>
+              </div>
+            </div>
+            <button
+              onClick={switchToConsultant}
+              className="px-6 py-2.5 bg-white/10 hover:bg-white/20 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] transition-all border border-white/5"
+            >
+              Return to Command Centre
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* --- HEADER SECTION --- */}
       <motion.div variants={itemVariants} className="mb-12" id="tour-welcome">
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-8">

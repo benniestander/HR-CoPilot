@@ -306,6 +306,11 @@ export const updatePolicy = async (content: string, instructions?: string): Prom
     
     User Instructions: ${instructions || "Ensure compliance and suggest improvements."}
     
+    ### NO-REWRITE MANDATE ###
+    1. If a clause is legally compliant, you are STRICTLY FORBIDDEN from changing its wording or style.
+    2. Suggest changes ONLY for direct legal violations or critical compliance risks.
+    3. Ensure all terminology is South African (e.g., 'Labour', 'BCEA', 'LRA').
+    
     Return a JSON object with:
     1. updatedPolicyText: The full text of the updated policy.
     2. changes: An array of objects, each with:
@@ -317,7 +322,14 @@ export const updatePolicy = async (content: string, instructions?: string): Prom
 
     // Non-streaming call via Invoke (Wait for full response)
     const { data, error } = await supabase.functions.invoke('generate-content', {
-        body: { prompt, model: 'gemini-3-flash-preview', config: { responseMimeType: "application/json" } }
+        body: {
+            prompt,
+            model: 'gemini-3-flash-preview',
+            config: {
+                responseMimeType: "application/json",
+                temperature: 0.0 // DETERMINISTIC
+            }
+        }
     });
 
     if (error) throw new Error(error.message);

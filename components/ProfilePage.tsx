@@ -103,6 +103,13 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
             setProfileData(user.profile || { companyName: '', industry: '' });
             setUserData({ name: user.name || '', contactNumber: user.contactNumber || '' });
         }
+
+        // Handle external tab switching (e.g., from Consultant Dashboard)
+        const nextTab = (window as any).nextProfileTab;
+        if (nextTab && ['profile', 'billing', 'vault', 'clients'].includes(nextTab)) {
+            setActiveTab(nextTab);
+            delete (window as any).nextProfileTab;
+        }
     }, [user, isEditing]);
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {

@@ -31,38 +31,83 @@ Deno.serve(async (req: any) => {
         const fileType = file.type;
         const arrayBuffer = await file.arrayBuffer();
 
-        // 1. Fetch Legal Context
+        // 1. CONTENT HASHING (Prevent wording drift & expensive re-audits)
+        const hashBuffer = await crypto.subtle.digest('SHA-256', arrayBuffer);
+        const contentHash = Array.from(new Uint8Array(hashBuffer))
+            .map(b => b.toString(16).padStart(2, '0'))
+            .join('');
+
+        // 2. CACHE CHECK: Check for existing report with this hash for this user
+        const { data: existingReport } = await supabaseClient
+            .from('auditor_reports')
+            .select('*')
+            .eq('user_id', user?.id)
+            .eq('content_hash', contentHash)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+        if (existingReport) {
+            console.log(`[CACHE] Found existing consistent report for ${file.name} (Hash: ${contentHash.substring(0, 8)})`);
+            return new Response(JSON.stringify(existingReport), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        }
+
+        // 3. Fetch Legal Context
         const { data: lawModules } = await supabaseClient.from('law_modules').select('content');
         const context = lawModules?.map(m => m.content).join('\n') || '';
 
-        // 2. Prepare Tooling
+        // 4. Prepare Tooling
         const genAI = new GoogleGenerativeAI(apiKey!);
         const model = genAI.getGenerativeModel({
             model: "gemini-3-flash-preview",
             generationConfig: {
                 responseMimeType: "application/json",
-                temperature: 0.1
+                temperature: 0.0 // DETERMINISTIC: Fixes hallucinated wording drift
             }
         });
 
-        // 3. IMPROVED PROMPT (SLC LOGIC + POSITIVE FINDINGS)
+        // 3. STRICT COMPLIANCE RUBRIC (SLC LOGIC + BINARY VALIDATION)
         const systemPrompt = `
-        SYSTEM: You are a Senior Labour Consultant (SLC) in South Africa.
-        TASK: Audit the provided document for compliance with SA Labour Law.
-        Retrieved Legal Context: 
+        SYSTEM: You are a Lead Forensic Labour Auditor in South Africa.
+        TASK: Perform a high-precision compliance audit on the provided document using the Law context below.
+        
+        RELEVANT LEGAL CONTEXT:
         ${context}
 
-        AUDIT RULES:
-        1. BE FAIR: If a policy is technically compliant (e.g., "15 working days leave"), do NOT flag it as an error.
-        2. IMPACT LEVELS: 'High' (Illegal), 'Medium' (Risk), 'Low' (Improvement).
-        3. OUTPUT: Return valid JSON with:
+        SOVEREIGN RULES (NON-NEGOTIABLE):
+        1. NO-REWRITE MANDATE: If a clause is legally compliant with the BCEA, LRA, and EEA, you are STRICTLY FORBIDDEN from suggesting wording changes or stylistic improvements. Change ONLY what is illegal or a critical risk.
+        2. BINARY COMPLIANCE: Evaluate against legal requirements. A finding is either PASS or FAIL.
+        3. SOUTH AFRICAN SOVEREIGNTY: Do not apply US or UK standards. Only apply South African law.
+        
+        MANDATORY ANALYSIS POINTS (2024-2025):
+        - BCEA Threshold: R254,371.67 p/a.
+        - Parental Leave (Van Wyk Judgment): Shared 4 months + 10 days for all parents. Siloing into 'Maternity' is now a RISK.
+        - Notice Periods: BCEA Section 37 (1 wk < 6mo, 2 wks 6mo-1yr, 4 wks > 1yr).
+        - Direct Marketing (POPIA 2025): No voice-call marketing without opt-in.
+        
+        OUTPUT FORMAT (STRICT JSON):
         {
           "score": number (0-100),
-          "summary": "Brief executive summary",
-          "red_flags": [{"issue": "...", "law": "...", "impact": "High/Medium/Low", "correction": "..."}],
-          "positive_findings": [{"finding": "...", "law": "...", "benefit": "..."}],
+          "summary": "One sentence executive summary",
+          "red_flags": [
+            {
+              "issue": "Specific legal violation found",
+              "law": "Specific Act and Section violated",
+              "impact": "High (Illegal) | Medium (Risk)",
+              "correction": "The EXACT legal wording required to fix the violation. DO NOT suggest multiple options."
+            }
+          ],
+          "positive_findings": [
+            {
+              "finding": "Specific compliant section found",
+              "law": "The Act it complies with",
+              "benefit": "Legal protection provided"
+            }
+          ],
           "disclaimer": "Standard SLC legal disclaimer"
         }
+        
+        INSTRUCTIONS: If the document is 100% compliant, red_flags must be an empty array [].
         `;
 
         let parts: any[] = [];
@@ -91,7 +136,7 @@ Deno.serve(async (req: any) => {
         const responseText = aiResult.response.text();
         const auditResult = JSON.parse(responseText.replace(/```json/g, '').replace(/```/g, '').trim());
 
-        // 5. Save
+        // 5. Save with Hash
         const { data: report, error: dbError } = await supabaseClient
             .from('auditor_reports')
             .insert({
@@ -99,6 +144,7 @@ Deno.serve(async (req: any) => {
                 document_name: file.name,
                 audit_result: auditResult,
                 overall_score: auditResult.score || 0,
+                content_hash: contentHash,
                 status: 'completed'
             })
             .select().single();
