@@ -20,7 +20,7 @@ const ConsultantLandingPage: React.FC = () => {
         <main className="min-h-screen bg-white overflow-x-hidden">
             <ConsultantNavbar />
 
-            <Suspense fallback={<div className="h-screen bg-slate-900 animate-pulse" />}>
+            <Suspense fallback={<div className="h-screen bg-background animate-pulse" />}>
                 <ConsultantHero />
                 <ConsultantFeatures />
                 <ConsultantRevenueSimulator />

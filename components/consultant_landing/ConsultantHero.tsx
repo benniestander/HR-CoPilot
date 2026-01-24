@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { ArrowRight, ShieldCheck, Zap, TrendingUp } from "lucide-react";
+import { ArrowRight, ShieldCheck, Zap, Sparkles } from "lucide-react";
 import { motion } from "framer-motion";
 import { useAuthContext } from "@/contexts/AuthContext";
 
@@ -7,150 +7,155 @@ const ConsultantHero = () => {
     const { setAuthPage } = useAuthContext();
 
     return (
-        <section className="relative min-h-[90vh] flex items-center overflow-hidden bg-slate-900 pt-20">
-            {/* Background Effects */}
-            <div className="absolute inset-0 z-0">
-                <div className="absolute top-0 right-0 w-2/3 h-2/3 bg-primary/20 rounded-full blur-[120px] -translate-y-1/2 translate-x-1/2" />
-                <div className="absolute bottom-0 left-0 w-1/2 h-1/2 bg-indigo-500/10 rounded-full blur-[120px] translate-y-1/2 -translate-x-1/2" />
-                <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-10" />
+        <section className="relative min-h-screen overflow-hidden bg-background pt-20">
+            {/* Diagonal background slice */}
+            <div className="absolute inset-0 pointer-events-none">
+                <div
+                    className="absolute top-0 right-0 w-[60%] h-full bg-primary/5"
+                    style={{ clipPath: "polygon(30% 0, 100% 0, 100% 100%, 0% 100%)" }}
+                />
+                <div
+                    className="absolute bottom-0 left-0 w-[40%] h-[60%] bg-accent/30"
+                    style={{ clipPath: "polygon(0 40%, 100% 0, 100% 100%, 0 100%)" }}
+                />
             </div>
 
-            <div className="container mx-auto px-6 relative z-10 w-full">
-                <div className="grid lg:grid-cols-2 gap-12 items-center">
+            {/* Floating shapes */}
+            <motion.div
+                className="absolute top-32 right-[15%] w-24 h-24 rounded-full border-4 border-primary/20"
+                animate={{ y: [0, -20, 0], rotate: [0, 90, 0] }}
+                transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
+            />
+            <motion.div
+                className="absolute bottom-40 left-[10%] w-16 h-16 bg-primary/10 rounded-lg"
+                animate={{ y: [0, 15, 0], rotate: [0, -45, 0] }}
+                transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
+            />
+
+            <div className="container mx-auto px-4 pt-28 pb-16 md:pt-36 md:pb-24 relative z-10">
+                <div className="grid lg:grid-cols-2 gap-8 lg:gap-12 items-center min-h-[80vh]">
+                    {/* Text Content - Left side */}
                     <motion.div
-                        initial={{ opacity: 0, x: -30 }}
+                        className="order-1"
+                        initial={{ opacity: 0, x: -60 }}
                         animate={{ opacity: 1, x: 0 }}
                         transition={{ duration: 0.8, ease: "easeOut" }}
                     >
+                        {/* Eyebrow */}
                         <motion.div
-                            initial={{ opacity: 0, y: 10 }}
+                            className="inline-flex items-center gap-2 bg-accent/50 backdrop-blur-sm rounded-full px-4 py-2 mb-6 border border-primary/20"
+                            initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: 0.2 }}
-                            className="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/20 mb-6"
                         >
                             <ShieldCheck className="w-4 h-4 text-primary" />
-                            <span className="text-xs font-bold uppercase tracking-widest text-primary-foreground/80">Institutional Partner Programme</span>
+                            <span className="text-sm font-medium text-foreground">
+                                Partnership Programme for HR Consultants
+                            </span>
                         </motion.div>
 
-                        <h1 className="text-4xl sm:text-5xl md:text-7xl font-black text-white leading-[1.05] tracking-tighter mb-6">
+                        <h1 className="text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-extrabold text-foreground leading-[1.1] mb-6 tracking-tighter">
                             Scalable HR. <br />
-                            <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-indigo-400">
-                                Zero legal bloat.
-                            </span>
+                            <span className="text-gradient">Zero legal bloat.</span>
                         </h1>
 
-                        <p className="text-lg sm:text-xl text-slate-400 leading-relaxed mb-8 sm:mb-10 max-w-xl font-medium">
-                            The purpose-built operating system for South African HR Consultants. Scale from 5 to 50+ clients with automated compliance, branded client workspaces, and institutional-grade legal documents.
+                        <p className="text-lg md:text-xl text-muted-foreground leading-relaxed mb-8 max-w-lg">
+                            The purpose-built OS for <span className="text-foreground font-semibold">South African HR Consultants</span>. Scale from 5 to 50+ clients with automated compliance and branded workspaces.
                         </p>
 
-                        <div className="flex flex-col sm:flex-row items-center gap-4">
+                        <div className="flex flex-col sm:flex-row gap-4 mb-8">
                             <Button
                                 variant="hero"
                                 size="xl"
-                                className="w-full sm:w-auto h-16 px-10 rounded-2xl shadow-2xl shadow-primary/20"
+                                className="group"
                                 onClick={() => setAuthPage('signup')}
                             >
-                                Apply for Access <ArrowRight className="ml-2 w-5 h-5" />
+                                Apply for Access
+                                <ArrowRight className="ml-2 group-hover:translate-x-1 transition-transform" size={20} />
                             </Button>
                             <Button
-                                variant="heroOutline"
+                                variant="outline"
                                 size="xl"
-                                className="w-full sm:w-auto h-16 px-10 rounded-2xl border-slate-700 text-white hover:bg-slate-800"
+                                className="bg-background/50 backdrop-blur-sm border-border hover:bg-accent transition-colors"
                             >
                                 View Demo
                             </Button>
                         </div>
 
-                        <div className="mt-12 grid grid-cols-2 sm:grid-cols-3 gap-6 pt-12 border-t border-slate-800">
+                        {/* Partnership Perks */}
+                        <div className="mt-12 grid grid-cols-2 sm:grid-cols-3 gap-6 pt-10 border-t border-border/30">
                             <div className="flex items-center space-x-3">
-                                <div className="p-2 bg-slate-800 rounded-lg">
+                                <div className="p-2 bg-primary/5 rounded-lg border border-primary/10">
                                     <Zap className="w-5 h-5 text-primary" />
                                 </div>
-                                <span className="text-sm font-bold text-slate-300">60s Generation</span>
+                                <span className="text-sm font-bold text-muted-foreground">60s Generation</span>
                             </div>
                             <div className="flex items-center space-x-3">
-                                <div className="p-2 bg-slate-800 rounded-lg">
-                                    <TrendingUp className="w-5 h-5 text-emerald-500" />
+                                <div className="p-2 bg-emerald-50 rounded-lg border border-emerald-100">
+                                    <Sparkles className="w-5 h-5 text-emerald-500" />
                                 </div>
-                                <span className="text-sm font-bold text-slate-300">Uncapped Margin</span>
+                                <span className="text-sm font-bold text-muted-foreground">Uncapped Margin</span>
                             </div>
                             <div className="flex items-center space-x-3 hidden sm:flex">
-                                <div className="p-2 bg-slate-800 rounded-lg">
-                                    <ShieldCheck className="w-5 h-5 text-indigo-400" />
+                                <div className="p-2 bg-indigo-50 rounded-lg border border-indigo-100">
+                                    <ShieldCheck className="w-5 h-5 text-indigo-500" />
                                 </div>
-                                <span className="text-sm font-bold text-slate-300">Legally Vetted</span>
+                                <span className="text-sm font-bold text-muted-foreground">Legally Vetted</span>
                             </div>
                         </div>
                     </motion.div>
 
+                    {/* Hero Visual - Right side */}
                     <motion.div
-                        className="relative lg:block"
-                        initial={{ opacity: 0, scale: 0.9 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        transition={{ duration: 1, delay: 0.2 }}
+                        className="order-2 relative"
+                        initial={{ opacity: 0, y: 40 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.8, delay: 0.3 }}
                     >
-                        {/* Abstract Portal Visual */}
-                        <div className="relative z-10 bg-slate-800/50 backdrop-blur-xl border border-slate-700 p-2 rounded-[2.5rem] shadow-2xl overflow-hidden group">
-                            <div className="bg-slate-900 rounded-[2rem] overflow-hidden aspect-[4/3] flex flex-col">
-                                {/* Chrome-like header */}
-                                <div className="bg-slate-800/80 p-4 border-b border-slate-700 flex items-center justify-between">
-                                    <div className="flex space-x-2">
-                                        <div className="w-3 h-3 rounded-full bg-red-500/50" />
-                                        <div className="w-3 h-3 rounded-full bg-amber-500/50" />
-                                        <div className="w-3 h-3 rounded-full bg-green-500/50" />
-                                    </div>
-                                    <div className="bg-slate-900/50 px-4 py-1 rounded text-[10px] text-slate-500 font-mono">
-                                        portal.your-agency.co.za
-                                    </div>
-                                    <div className="w-4 h-4" />
-                                </div>
-                                {/* Dashboard Mockup */}
-                                <div className="p-8 flex-grow">
-                                    <div className="flex items-center justify-between mb-8">
-                                        <div className="space-y-2">
-                                            <div className="h-4 w-32 bg-slate-800 rounded-full" />
-                                            <div className="h-2 w-20 bg-slate-800/50 rounded-full" />
+                        <div className="relative">
+                            <motion.div
+                                className="relative z-10"
+                                whileHover={{ scale: 1.02, rotateY: -2 }}
+                                transition={{ type: "spring", stiffness: 300 }}
+                            >
+                                <div className="absolute inset-0 bg-gradient-to-br from-primary/30 to-transparent rounded-2xl blur-3xl transform -rotate-3" />
+
+                                {/* Portal Mockup */}
+                                <div className="relative z-10 bg-white/80 backdrop-blur-xl border border-border/50 p-2 rounded-[2.5rem] shadow-strong overflow-hidden">
+                                    <div className="bg-slate-50 rounded-[2rem] overflow-hidden aspect-[4/3] flex flex-col border border-border/30">
+                                        <div className="bg-white p-4 border-b border-border/50 flex items-center justify-between">
+                                            <div className="flex space-x-2">
+                                                <div className="w-3 h-3 rounded-full bg-slate-200" />
+                                                <div className="w-3 h-3 rounded-full bg-slate-200" />
+                                            </div>
+                                            <div className="bg-slate-100 px-4 py-1 rounded text-[10px] text-slate-400 font-mono">
+                                                portal.your-agency.co.za
+                                            </div>
+                                            <div className="w-4 h-4" />
                                         </div>
-                                        <div className="w-10 h-10 rounded-full bg-primary/20 border border-primary/30" />
-                                    </div>
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <div className="h-24 bg-slate-800/30 border border-slate-700/50 rounded-2xl p-4">
-                                            <div className="h-2 w-12 bg-slate-700 rounded-full mb-3" />
-                                            <div className="h-6 w-16 bg-slate-600 rounded-full" />
-                                        </div>
-                                        <div className="h-24 bg-slate-800/30 border border-slate-700/50 rounded-2xl p-4">
-                                            <div className="h-2 w-12 bg-slate-700 rounded-full mb-3" />
-                                            <div className="h-6 w-16 bg-slate-600 rounded-full" />
-                                        </div>
-                                    </div>
-                                    <div className="mt-6 flex flex-col space-y-3">
-                                        <div className="h-10 bg-slate-800/20 border border-slate-700/30 rounded-xl flex items-center px-4">
-                                            <div className="w-2 h-2 rounded-full bg-emerald-500 mr-3" />
-                                            <div className="h-2 w-48 bg-slate-700/50 rounded-full" />
-                                        </div>
-                                        <div className="h-10 bg-slate-800/20 border border-slate-700/30 rounded-xl flex items-center px-4">
-                                            <div className="w-2 h-2 rounded-full bg-primary mr-3" />
-                                            <div className="h-2 w-[80%] bg-slate-700/50 rounded-full" />
+                                        <div className="p-8 flex-grow">
+                                            <div className="flex items-center justify-between mb-8">
+                                                <div className="space-y-2">
+                                                    <div className="h-4 w-32 bg-slate-200 rounded-full" />
+                                                    <div className="h-2 w-20 bg-slate-200/50 rounded-full" />
+                                                </div>
+                                                <div className="w-10 h-10 rounded-full bg-primary/10 border border-primary/20" />
+                                            </div>
+                                            <div className="grid grid-cols-2 gap-4">
+                                                <div className="h-24 bg-white border border-border/50 rounded-2xl p-4 shadow-sm">
+                                                    <div className="h-2 w-12 bg-slate-100 rounded-full mb-3" />
+                                                    <div className="h-6 w-16 bg-primary/5 rounded-full" />
+                                                </div>
+                                                <div className="h-24 bg-white border border-border/50 rounded-2xl p-4 shadow-sm">
+                                                    <div className="h-2 w-12 bg-slate-100 rounded-full mb-3" />
+                                                    <div className="h-6 w-16 bg-emerald-50 rounded-full" />
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
-                            </div>
+                            </motion.div>
                         </div>
-                        {/* Floating Badges */}
-                        <motion.div
-                            animate={{ y: [0, -10, 0] }}
-                            transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-                            className="absolute -top-6 -right-6 z-20 bg-emerald-500 text-white p-4 rounded-2xl shadow-xl font-bold text-sm flex items-center"
-                        >
-                            <Zap className="w-4 h-4 mr-2" /> 100% Margin
-                        </motion.div>
-                        <motion.div
-                            animate={{ y: [0, 10, 0] }}
-                            transition={{ duration: 5, repeat: Infinity, ease: "easeInOut", delay: 1 }}
-                            className="absolute -bottom-4 -left-8 z-20 bg-indigo-600 text-white p-4 rounded-2xl shadow-xl font-bold text-sm flex items-center border border-indigo-400"
-                        >
-                            <ShieldCheck className="w-4 h-4 mr-2" /> White-Label Ready
-                        </motion.div>
                     </motion.div>
                 </div>
             </div>

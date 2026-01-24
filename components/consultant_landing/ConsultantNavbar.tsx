@@ -8,7 +8,7 @@ const navLinks = [
     { name: "Infrastructure", href: "#features" },
     { name: "Economics", href: "#economics" },
     { name: "The Portal", href: "#portal" },
-    { name: "For Businesses", href: "#/" },
+    { name: "For Businesses", href: "/" },
 ];
 
 const ConsultantNavbar = () => {
@@ -26,48 +26,46 @@ const ConsultantNavbar = () => {
 
     return (
         <nav
-            className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${isScrolled
-                ? "bg-slate-900/95 backdrop-blur-xl border-b border-slate-800 py-3 shadow-2xl"
-                : "bg-transparent py-6"
+            className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${isScrolled
+                ? "glass shadow-soft py-3"
+                : "bg-transparent py-5"
                 }`}
         >
-            <div className="container mx-auto px-6 flex items-center justify-between">
+            <div className="container mx-auto px-4 flex items-center justify-between">
                 {/* Logo */}
-                <a href="#" className="flex items-center space-x-3 group">
-                    <img src={logo} alt="HR CoPilot" className="h-10 md:h-12 w-auto brightness-0 invert" />
-                    <div className="hidden lg:block h-6 w-px bg-slate-700" />
+                <a href="/" className="flex items-center space-x-3 group">
+                    <img src={logo} alt="HR CoPilot" className="h-10 md:h-12 w-auto" />
+                    <div className="hidden lg:block h-6 w-px bg-border" />
                     <div className="hidden lg:flex items-center space-x-2">
                         <ShieldCheck className="w-4 h-4 text-primary" />
-                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Institutional</span>
+                        <span className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em]">Institutional</span>
                     </div>
                 </a>
 
                 {/* Desktop Navigation */}
-                <div className="hidden md:flex items-center gap-10">
+                <div className="hidden md:flex items-center gap-8">
                     {navLinks.map((link) => (
                         <a
                             key={link.name}
                             href={link.href}
-                            className="text-slate-400 hover:text-white text-sm font-bold uppercase tracking-widest transition-all duration-300 relative group"
+                            className="text-foreground/80 hover:text-primary font-medium transition-colors duration-200"
                         >
                             {link.name}
-                            <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-primary transition-all duration-300 group-hover:w-full" />
                         </a>
                     ))}
                 </div>
 
                 {/* CTA Buttons */}
-                <div className="hidden md:flex items-center gap-6">
+                <div className="hidden md:flex items-center gap-4">
                     <button
                         onClick={() => setAuthPage('login')}
-                        className="text-xs font-black text-slate-400 hover:text-white uppercase tracking-widest transition-colors"
+                        className="text-sm font-semibold text-foreground/70 hover:text-primary transition-colors"
                     >
-                        Entry
+                        Sign In
                     </button>
                     <Button
-                        variant="hero"
+                        variant="nav"
                         size="lg"
-                        className="h-12 px-8 rounded-xl font-black text-xs uppercase tracking-widest"
                         onClick={() => setAuthPage('signup')}
                     >
                         Apply for Access
@@ -76,7 +74,7 @@ const ConsultantNavbar = () => {
 
                 {/* Mobile Menu Button */}
                 <button
-                    className="md:hidden p-2 text-white"
+                    className="md:hidden p-2 text-foreground"
                     onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
                 >
                     {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
@@ -85,23 +83,22 @@ const ConsultantNavbar = () => {
 
             {/* Mobile Menu */}
             {isMobileMenuOpen && (
-                <div className="md:hidden bg-slate-950/95 backdrop-blur-2xl mt-2 mx-4 rounded-[2rem] p-8 border border-slate-800 animate-in fade-in zoom-in duration-300">
-                    <div className="flex flex-col gap-6">
+                <div className="md:hidden glass mt-2 mx-4 rounded-xl p-4 animate-fade-in">
+                    <div className="flex flex-col gap-4">
                         {navLinks.map((link) => (
                             <a
                                 key={link.name}
                                 href={link.href}
-                                className="text-slate-300 hover:text-primary font-bold text-lg transition-colors"
+                                className="text-foreground/80 hover:text-primary font-medium py-2 transition-colors"
                                 onClick={() => setIsMobileMenuOpen(false)}
                             >
                                 {link.name}
                             </a>
                         ))}
-                        <div className="h-px bg-slate-800 my-2" />
                         <Button
-                            variant="hero"
-                            size="xl"
-                            className="w-full h-16 rounded-2xl font-black text-lg"
+                            variant="nav"
+                            size="lg"
+                            className="w-full mt-2"
                             onClick={() => {
                                 setIsMobileMenuOpen(false);
                                 setAuthPage('signup');

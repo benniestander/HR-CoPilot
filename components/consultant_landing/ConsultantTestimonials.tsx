@@ -1,25 +1,22 @@
 import { motion, useInView } from "framer-motion";
 import { useRef } from "react";
-import { Star, Quote } from "lucide-react";
+import { Star, ShieldCheck } from "lucide-react";
 
 const testimonials = [
     {
-        quote: "HR CoPilot transformed my solo practice into a tech-enabled agency. I produced more in one month than I did in the entire previous quarter, with zero legal anxiety.",
-        author: "Sarah Mvuyana",
-        role: "Independent HR Consultant, Cape Town",
-        stats: "300% Growth in Client Capacity"
+        quote: "HR CoPilot changed the game for my consultancy. I used to spend 4-5 hours drafting a single disciplinary code. Now I generate the base in 60 seconds and spend my time on the actual strategy. My margins have tripled.",
+        author: "Jennifer Botha",
+        role: "Senior HR Consultant, Sandton",
     },
     {
-        quote: "The white-labeling is seamless. My clients think I've invested millions in my own tech stack. It's the ultimate competitive advantage for a small boutique agency.",
-        author: "Johan Pretorius",
-        role: "Director, Pretoria HR Solutions",
-        stats: "R250k saved in drafting time"
+        quote: "The multi-tenant dashboard is a lifesaver. I can manage 20 clients from one screen without losing track of their unique POPIA statuses. It's the infrastructure I didn't know I needed.",
+        author: "Sipho Mokoena",
+        role: "Founder, Mokoena & Associates",
     },
     {
-        quote: "Finally, a platform that understands South African labour law. The automatic updates on BCEA and LRA changes mean I never have to worry about outdated templates again.",
-        author: "Nomsa Dladla",
-        role: "Senior Consultant, Durban Compliance Group",
-        stats: "Zero compliance errors recorded"
+        quote: "Institutional-grade documents at the touch of a button. My clients are wowed by the quality, and because I can white-label the portal, it reinforces my brand every day.",
+        author: "Karin Pretorius",
+        role: "Independent HR Advisor, Cape Town",
     },
 ];
 
@@ -28,54 +25,68 @@ const ConsultantTestimonials = () => {
     const isInView = useInView(ref, { once: true, margin: "-100px" });
 
     return (
-        <section className="py-24 md:py-32 bg-slate-50 relative overflow-hidden">
+        <section className="py-24 md:py-32 bg-background relative overflow-hidden">
             {/* Decorative elements */}
-            <div className="absolute top-1/2 left-0 w-96 h-96 bg-indigo-100/30 rounded-full blur-[120px] -translate-y-1/2 -translate-x-1/2" />
-            <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full blur-[100px] translate-x-1/2" />
+            <div className="absolute top-1/2 left-0 w-64 h-64 bg-accent/30 rounded-full blur-3xl -translate-y-1/2 -translate-x-1/2" />
+            <div className="absolute top-1/4 right-0 w-48 h-48 bg-primary/10 rounded-full blur-3xl translate-x-1/2" />
 
-            <div className="container mx-auto px-6 relative z-10" ref={ref}>
+            <div className="container mx-auto px-4 relative z-10" ref={ref}>
                 {/* Header */}
                 <motion.div
-                    className="max-w-3xl mx-auto text-center mb-20"
+                    className="mb-16 md:mb-24"
                     initial={{ opacity: 0, y: 40 }}
                     animate={isInView ? { opacity: 1, y: 0 } : {}}
                     transition={{ duration: 0.6 }}
                 >
-                    <h2 className="text-4xl md:text-6xl font-black text-slate-900 mb-6 tracking-tighter">
-                        Trusted by the <br />
-                        <span className="text-primary">Best in the Business</span>
+                    <div className="inline-flex items-center gap-2 bg-accent/50 rounded-full px-4 py-2 mb-6 border border-primary/20">
+                        <ShieldCheck className="w-4 h-4 text-primary" />
+                        <span className="text-xs font-bold uppercase tracking-widest text-foreground">Established Success</span>
+                    </div>
+                    <h2 className="text-4xl md:text-5xl lg:text-7xl font-extrabold text-foreground mb-6 leading-tight tracking-tighter">
+                        Don't take our word for it
                     </h2>
-                    <p className="text-xl text-slate-500 font-medium">
-                        Join the community of elite South African HR professionals scaling their impact with HR CoPilot.
+                    <p className="text-xl text-muted-foreground max-w-2xl leading-relaxed">
+                        Join dozens of elite South African HR consultants who have scaled their practice with HR CoPilot.
                     </p>
                 </motion.div>
 
-                {/* Testimonials grid */}
-                <div className="grid md:grid-cols-3 gap-8">
+                {/* Testimonials grid - asymmetric like the main landing */}
+                <div className="grid md:grid-cols-12 gap-6">
                     {testimonials.map((testimonial, index) => (
                         <motion.div
                             key={testimonial.author}
-                            initial={{ opacity: 0, y: 30 }}
+                            className={`${index === 0
+                                ? "md:col-span-7"
+                                : index === 1
+                                    ? "md:col-span-5"
+                                    : "md:col-span-6 md:col-start-4"
+                                }`}
+                            initial={{ opacity: 0, y: 40 }}
                             animate={isInView ? { opacity: 1, y: 0 } : {}}
                             transition={{ duration: 0.5, delay: index * 0.15 }}
-                            className="bg-white rounded-[2.5rem] p-6 sm:p-10 border border-slate-100 shadow-xl shadow-slate-200/50 flex flex-col h-full group"
                         >
-                            {/* Quote Icon */}
-                            <div className="mb-8">
-                                <Quote className="w-10 h-10 text-primary opacity-20 group-hover:opacity-100 transition-opacity duration-500" />
-                            </div>
+                            <div className="bg-card rounded-3xl p-8 md:p-12 border border-border/50 shadow-soft h-full flex flex-col justify-between">
+                                <div>
+                                    {/* Stars */}
+                                    <div className="flex gap-1 mb-8">
+                                        {[...Array(5)].map((_, i) => (
+                                            <Star key={i} className="w-5 h-5 fill-primary text-primary" />
+                                        ))}
+                                    </div>
 
-                            <blockquote className="text-xl text-slate-800 leading-relaxed mb-8 flex-grow font-semibold">
-                                "{testimonial.quote}"
-                            </blockquote>
+                                    <blockquote className="text-lg md:text-xl text-foreground font-medium leading-relaxed mb-10">
+                                        "{testimonial.quote}"
+                                    </blockquote>
+                                </div>
 
-                            <div className="pt-8 border-t border-slate-50 mt-auto">
-                                <p className="font-black text-slate-900 text-lg leading-tight">{testimonial.author}</p>
-                                <p className="text-sm text-slate-500 font-bold uppercase tracking-widest mt-1 mb-4">{testimonial.role}</p>
-
-                                <div className="inline-flex items-center space-x-2 px-3 py-1.5 bg-emerald-50 rounded-xl border border-emerald-100">
-                                    <Star className="w-3.5 h-3.5 fill-emerald-500 text-emerald-500" />
-                                    <span className="text-xs font-black text-emerald-700 uppercase tracking-tighter">{testimonial.stats}</span>
+                                <div className="flex items-center gap-4 pt-8 border-t border-border/10">
+                                    <div className="w-14 h-14 rounded-full border-2 border-primary/20 bg-muted flex items-center justify-center text-primary font-black text-xl">
+                                        {testimonial.author.split(' ').map(n => n[0]).join('')}
+                                    </div>
+                                    <div>
+                                        <p className="font-bold text-lg text-foreground leading-tight">{testimonial.author}</p>
+                                        <p className="text-sm text-muted-foreground font-semibold">{testimonial.role}</p>
+                                    </div>
                                 </div>
                             </div>
                         </motion.div>
