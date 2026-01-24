@@ -119,7 +119,7 @@ const INDUSTRY_SPECIFIC_GUIDANCE: Record<string, Record<string, string>> = {
     }
 };
 
-const formatDiagnosticContext = (profile: CompanyProfile): string => {
+const formatDiagnosticContext = (profile: CompanyProfile, docType?: string): string => {
     let context = "CRITICAL HR DIAGNOSTIC CONTEXT (MUST BE REFLECTED IN POLICY WHERE RELEVANT):\n";
 
     // Part 1: Jurisdictional & Legislative Status
@@ -127,7 +127,7 @@ const formatDiagnosticContext = (profile: CompanyProfile): string => {
         context += `- JURISDICTION: User falls under a Bargaining Council (${profile.bargainingCouncil}). WARNING: Sectoral Determination/Main Agreement overrides BCEA. Ensure policy aligns with Council rules.\n`;
     }
     if (profile.unionized === 'Yes') {
-        context += `- UNIONS: Active Union Recognition. Changes to conditions of employment require consultation. Include consultation clauses where applicable.\n`;
+        context += `- UNIONS: Active Union Recognition. Changes to consultation require consultation. Include consultation clauses where applicable.\n`;
     }
 
     // Check for EEA Designated Employer Status (Legislative Source: EEA 2025)
@@ -137,7 +137,10 @@ const formatDiagnosticContext = (profile: CompanyProfile): string => {
     }
 
     // Part 2: Operational & Leave (Van Wyk Judgment Source: Oct 2025)
-    context += `- PARENTAL LEAVE (VAN WYK): Following the Oct 2025 Constitutional Court judgment, all parents (biological/adoptive/surrogacy) share ${LEGISLATIVE_CONSTANTS.VAN_WYK_PARENTAL_LEAVE_MONTHS} months and ${LEGISLATIVE_CONSTANTS.VAN_WYK_PARENTAL_LEAVE_DAYS} days of leave. This replaces old 'Maternity/Paternity' silos with a unified 'Parental Leave' pool. Ensure this is reflected.\n`;
+    const isLeaveRelated = docType === 'leave' || docType === 'employee-handbook' || docType === 'master' || docType?.includes('leave') || docType === 'employment-contract';
+    if (isLeaveRelated) {
+        context += `- PARENTAL LEAVE (VAN WYK): Following the Oct 2025 Constitutional Court judgment, all parents (biological/adoptive/surrogacy) share ${LEGISLATIVE_CONSTANTS.VAN_WYK_PARENTAL_LEAVE_MONTHS} months and ${LEGISLATIVE_CONSTANTS.VAN_WYK_PARENTAL_LEAVE_DAYS} days of leave. This replaces old 'Maternity/Paternity' silos with a unified 'Parental Leave' pool. Ensure this is reflected.\n`;
+    }
 
     if (profile.annualShutdown === 'Yes') {
         context += `- LEAVE: Company has Annual Shutdown (Dec/Jan). Policy MUST mandate employees save leave for this period to avoid double payment liability.\n`;
@@ -218,7 +221,7 @@ export const generatePolicyStream = async function* (type: string, answers: Form
     }
 
     // Inject HR Diagnostic Context
-    const diagnosticContext = formatDiagnosticContext(answers as CompanyProfile);
+    const diagnosticContext = formatDiagnosticContext(answers as CompanyProfile, type);
 
     const prompt = `Generate a comprehensive HR Policy for "${type}".
   Company Name: ${companyName}
@@ -273,7 +276,7 @@ export const generatePolicyStream = async function* (type: string, answers: Form
 
 export const generateFormStream = async function* (type: string, answers: FormAnswers) {
     // Inject HR Diagnostic Context for Forms too (e.g. contracts needing retirement age)
-    const diagnosticContext = formatDiagnosticContext(answers as CompanyProfile);
+    const diagnosticContext = formatDiagnosticContext(answers as CompanyProfile, type);
 
     const prompt = `Generate a professional HR Form for "${type}".
     Company Name: ${answers.companyName}
@@ -286,9 +289,11 @@ export const generateFormStream = async function* (type: string, answers: FormAn
     This form is for South African HR compliance.
     
     Instructions:
-    1. Create a clean, structured form using Markdown tables and clear headings.
-    2. Include sections for Employee Details, Date, Signatures, and the specific content required for a "${type}".
-    3. Ensure it looks professional and is ready to print.
+    1. USE STRICT SOUTH AFRICAN ENGLISH ONLY (e.g., 'Labour', 'Programme', 'Licence', 'Practise'). No US spellings or terms.
+    2. Create a clean, structured form using Markdown tables and clear headings.
+    3. Include sections for Employee Details, Date, Signatures, and the specific content required for a "${type}".
+    4. Ensure it looks professional and is ready to print.
+    5. If a governing policy is mentioned in the context (like a Disciplinary Code or Leave Policy), reference that this form is issued in accordance with said policy.
     `;
 
     const stream = streamFromEdge(prompt, 'gemini-3-flash-preview');

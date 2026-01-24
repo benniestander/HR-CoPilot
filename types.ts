@@ -178,6 +178,7 @@ export interface Form extends Document {
   type: FormType;
   outputFormat?: 'word' | 'excel';
   price: number; // Price in cents
+  requiredPolicy?: PolicyType;
 }
 
 export type CompanyProfile = {

@@ -13,6 +13,10 @@ import { useDataContext } from '../contexts/DataContext';
 import { useAuthContext } from '../contexts/AuthContext';
 import { useUIContext } from '../contexts/UIContext';
 import { createAdminNotification, getNextSemanticVersion } from '../services/dbService';
+import { POLICIES } from '../constants';
+import { AlertTriangle } from 'lucide-react';
+import EmptyState from './EmptyState';
+import { MasterPolicyIcon } from './Icons';
 
 interface GeneratorPageProps {
     selectedItem: Policy | Form;
@@ -39,8 +43,13 @@ const formLoadingMessages = [
 
 const GeneratorPage: React.FC<GeneratorPageProps> = ({ selectedItem, initialData, userProfile, onDocumentGenerated, onBack }) => {
     const { user } = useAuthContext();
-    const { handleDeductCredit, getDocPrice } = useDataContext();
-    const { isPrePaid, setIsPrePaid, setToastMessage } = useUIContext();
+    const { handleDeductCredit, getDocPrice, generatedDocuments } = useDataContext();
+    const { isPrePaid, setIsPrePaid, setToastMessage, navigateTo, setSelectedItem } = useUIContext();
+
+    // 1. Dependency Check
+    const requiredPolicyId = (selectedItem as Form).requiredPolicy;
+    const hasRequiredPolicy = !requiredPolicyId || generatedDocuments.some(doc => doc.type === requiredPolicyId);
+    const missingPolicyTitle = requiredPolicyId ? POLICIES[requiredPolicyId]?.title : '';
 
     const isPolicy = selectedItem.kind === 'policy';
     const isProfileSufficient = userProfile && userProfile.companyName && (!isPolicy || userProfile.industry);
@@ -48,6 +57,7 @@ const GeneratorPage: React.FC<GeneratorPageProps> = ({ selectedItem, initialData
     const STEPS = ["Profile", "Customize", "Finalize"];
     const [currentStep, setCurrentStep] = useState(() => {
         if (initialData) return 3;
+        if (!hasRequiredPolicy) return 0; // Lock state
         if (isProfileSufficient) return 2;
         return 1;
     });
@@ -74,6 +84,34 @@ const GeneratorPage: React.FC<GeneratorPageProps> = ({ selectedItem, initialData
             setIsPrePaid(false);
         }
     }, []);
+
+    // Effect to handle navigation to required policy
+    const handleGoToRequiredPolicy = () => {
+        if (requiredPolicyId) {
+            setSelectedItem(POLICIES[requiredPolicyId]);
+            // Stay in generator but with new item
+        }
+    };
+
+    if (!hasRequiredPolicy && !initialData) {
+        return (
+            <div className="max-w-4xl mx-auto py-12">
+                <EmptyState
+                    title="Governing Policy Required"
+                    description={`To generate the ${selectedItem.title}, you must first generate the ${missingPolicyTitle}. This ensures the form complies with your specific company rules.`}
+                    icon={MasterPolicyIcon}
+                    actionLabel={`Generate ${missingPolicyTitle}`}
+                    onAction={handleGoToRequiredPolicy}
+                />
+                <button
+                    onClick={onBack}
+                    className="mt-8 text-xs font-black uppercase tracking-widest text-gray-400 hover:text-primary transition-colors block mx-auto"
+                >
+                    Back to Selection
+                </button>
+            </div>
+        );
+    }
 
     const handleProfileSubmit = (profile: CompanyProfile) => {
         setCompanyProfile(profile);
@@ -110,7 +148,11 @@ const GeneratorPage: React.FC<GeneratorPageProps> = ({ selectedItem, initialData
         setSources([]);
         setErrorMessage(null);
 
-        const allAnswers: FormAnswers = { ...companyProfile, ...questionAnswers };
+        const allAnswers: FormAnswers = {
+            ...companyProfile,
+            ...questionAnswers,
+            governingPolicy: requiredPolicyId ? POLICIES[requiredPolicyId]?.title : undefined
+        };
 
         try {
             let fullText = '';
