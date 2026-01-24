@@ -22,8 +22,8 @@ import type { Policy, Form } from './types';
 import { emailService } from './services/emailService';
 import { logMarketingEvent } from './services/dbService';
 
-export type AuthPage = 'landing' | 'login' | 'email-sent' | 'verify-email';
-export type AuthFlow = 'signup' | 'login' | 'payg_signup';
+export type AuthPage = 'landing' | 'login' | 'signup' | 'email-sent' | 'verify-email';
+export type AuthFlow = 'signup' | 'login' | 'payg_signup' | 'consultant_signup';
 
 // Lazy-loaded components
 const AdminDashboard = lazy(() => import('./components/AdminDashboard'));
@@ -43,6 +43,7 @@ const WaitlistLanding = lazy(() => import('./components/WaitlistLanding'));
 const ConsultantLockoutScreen = lazy(() => import('./components/ConsultantLockoutScreen'));
 const LandingPageV2 = lazy(() => import('./components/LandingPageV2'));
 const ConsultantLandingPage = lazy(() => import('./components/ConsultantLandingPage'));
+const ConsultantSignUp = lazy(() => import('./components/ConsultantSignUp'));
 
 const AuthHeader = ({ isAdminHeader = false, handleStartOver, handleShowProfile }: { isAdminHeader?: boolean; handleStartOver: () => void; handleShowProfile: () => void }) => {
     const {
@@ -707,6 +708,10 @@ const AppContent: React.FC = () => {
         if (!user) {
             if (authPage === 'email-sent' && authEmail && authFlow) {
                 return <EmailSentPage email={authEmail} flowType={authFlow} />;
+            }
+
+            if (authPage === 'signup') {
+                return <ConsultantSignUp />;
             }
 
             if (authPage === 'login') {

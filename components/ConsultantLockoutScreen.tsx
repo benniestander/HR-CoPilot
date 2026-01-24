@@ -1,8 +1,8 @@
-
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { ShieldAlertIcon, CreditCardIcon, AlertIcon } from './Icons';
+import { ShieldAlert, CreditCard, AlertTriangle, LogOut, Lock } from 'lucide-react';
 import { useAuthContext } from '../contexts/AuthContext';
+import { Button } from './ui/button';
 
 const ConsultantLockoutScreen: React.FC = () => {
     const { user, payConsultantPlatformFee, handleLogout } = useAuthContext();
@@ -23,79 +23,109 @@ const ConsultantLockoutScreen: React.FC = () => {
 
     return (
         <div className="fixed inset-0 z-[100] bg-slate-900 flex items-center justify-center p-6 overflow-y-auto">
-            <div className="absolute inset-0 opacity-20 pointer-events-none">
-                <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_50%_50%,#4f46e5,transparent_70%)]"></div>
+            {/* Background Effects */}
+            <div className="absolute inset-0 z-0">
+                <div className="absolute top-0 right-0 w-2/3 h-2/3 bg-red-500/10 rounded-full blur-[120px] -translate-y-1/2 translate-x-1/2" />
+                <div className="absolute bottom-0 left-0 w-1/2 h-1/2 bg-slate-800/50 rounded-full blur-[120px] translate-y-1/2 -translate-x-1/2" />
             </div>
 
             <motion.div
-                initial={{ opacity: 0, scale: 0.9 }}
+                initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
-                className="bg-white rounded-[2rem] shadow-2xl max-w-xl w-full p-8 md:p-12 text-center relative z-10 border border-white/20"
+                className="bg-white rounded-[3rem] shadow-[0_32px_64px_-16px_rgba(0,0,0,0.5)] max-w-xl w-full p-10 md:p-14 text-center relative z-10 border border-slate-100"
             >
-                <div className="w-20 h-20 bg-red-50 rounded-2xl flex items-center justify-center mx-auto mb-8 animate-pulse">
-                    <ShieldAlertIcon className="w-10 h-10 text-red-500" />
+                <div className="relative mb-10">
+                    <div className="w-24 h-24 bg-red-50 rounded-[2rem] flex items-center justify-center mx-auto relative z-10">
+                        <Lock className="w-10 h-10 text-red-500" />
+                    </div>
+                    <motion.div
+                        animate={{ scale: [1, 1.2, 1], opacity: [0.1, 0.3, 0.1] }}
+                        transition={{ duration: 2, repeat: Infinity }}
+                        className="absolute inset-0 bg-red-500 rounded-full blur-2xl -z-0"
+                    />
                 </div>
 
-                <h1 className="text-3xl md:text-4xl font-black text-slate-900 mb-4 tracking-tight leading-tight">
-                    ACCOUNT LOCKED
+                <div className="inline-flex items-center space-x-2 px-3 py-1 bg-red-50 border border-red-100 rounded-full mb-6">
+                    <ShieldAlert className="w-4 h-4 text-red-600" />
+                    <span className="text-[10px] font-black text-red-600 uppercase tracking-widest">Platform Access Denied</span>
+                </div>
+
+                <h1 className="text-4xl font-black text-slate-900 mb-4 tracking-tighter leading-[1.1]">
+                    COMMAND CENTRE <br />
+                    <span className="text-red-600">LOCKED.</span>
                 </h1>
 
-                <p className="text-lg text-slate-600 font-bold mb-8">
-                    Your Consultant Platform Fee is overdue. Access to all client data, documents, and history has been restricted.
+                <p className="text-lg text-slate-500 font-medium mb-10 leading-relaxed">
+                    Account access restricted due to an overdue Platform Fee. To restore your agency's portal, client data, and history, please renew your subscription.
                 </p>
 
-                <div className="bg-red-50 border border-red-100 rounded-2xl p-6 mb-8 text-left">
-                    <div className="flex items-center gap-3 mb-2">
-                        <AlertIcon className="w-5 h-5 text-red-600" />
-                        <span className="font-black text-red-600 uppercase tracking-widest text-xs">Payment Required</span>
+                <div className="bg-slate-50 rounded-3xl p-8 mb-10 border border-slate-100 text-left">
+                    <div className="flex justify-between items-center mb-6">
+                        <div className="flex items-center space-x-3">
+                            <div className="p-2 bg-white rounded-lg shadow-sm">
+                                <AlertTriangle className="w-5 h-5 text-amber-500" />
+                            </div>
+                            <span className="text-sm font-bold text-slate-600">Annual Platform Fee</span>
+                        </div>
+                        <span className="text-xl font-black text-slate-900">R500.00</span>
                     </div>
-                    <p className="text-sm font-bold text-red-900 mb-4">
-                        "Pay your fee or lose your work." Consistent access requires a R500.00 monthly platform fee.
-                    </p>
-                    <div className="flex justify-between items-center py-3 border-t border-red-200">
-                        <span className="text-sm font-bold text-red-700">Monthly Platform Fee</span>
-                        <span className="text-xl font-black text-red-900">R500.00</span>
-                    </div>
-                    <div className="flex justify-between items-center py-3 border-t border-red-200">
-                        <span className="text-sm font-bold text-red-700">Current Balance</span>
-                        <span className="text-sm font-bold text-slate-900">R{((user?.creditBalance || 0) / 100).toFixed(2)}</span>
+
+                    <div className="h-px bg-slate-200 mb-6" />
+
+                    <div className="flex justify-between items-center">
+                        <div>
+                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Current Agency Balance</p>
+                            <span className="text-lg font-black text-slate-900">R{((user?.creditBalance || 0) / 100).toFixed(2)}</span>
+                        </div>
+                        <div className="flex items-center space-x-2 px-3 py-1.5 bg-white rounded-xl border border-slate-100 shadow-sm">
+                            <CreditCard className="w-4 h-4 text-primary" />
+                            <span className="text-[10px] font-black text-slate-600 uppercase tracking-tighter">Yoco Protected</span>
+                        </div>
                     </div>
                 </div>
 
                 {error && (
-                    <div className="mb-6 p-4 bg-red-100 text-red-700 rounded-xl text-sm font-bold">
+                    <motion.div
+                        initial={{ opacity: 0, y: -10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="mb-8 p-4 bg-red-50 text-red-600 rounded-2xl text-xs font-bold border border-red-100"
+                    >
                         {error}
                         {(user?.creditBalance || 0) < 50000 && (
-                            <p className="mt-2 text-xs">Please contact support or use the top-up link to add credits.</p>
+                            <p className="mt-2 text-[10px] opacity-80">Please top-up your balance to continue.</p>
                         )}
-                    </div>
+                    </motion.div>
                 )}
 
                 <div className="flex flex-col gap-4">
-                    <button
+                    <Button
                         onClick={handlePay}
                         disabled={isPaying}
-                        className="w-full py-4 bg-slate-900 text-white font-black rounded-2xl shadow-xl hover:bg-black transition-all transform hover:-translate-y-1 active:scale-95 disabled:opacity-50 flex items-center justify-center gap-3"
+                        size="xl"
+                        className="w-full h-16 rounded-2xl bg-slate-900 text-white font-black hover:bg-black shadow-2xl shadow-slate-200"
                     >
-                        {isPaying ? "Processing..." : (
+                        {isPaying ? "Unlocking Command Centre..." : (
                             <>
-                                <CreditCardIcon className="w-5 h-5" />
-                                UNLOCK ACCOUNT (R500)
+                                <CreditCard className="w-5 h-5 mr-3" />
+                                RENEW ACCESS (R500.00)
                             </>
                         )}
-                    </button>
+                    </Button>
 
                     <button
                         onClick={() => handleLogout()}
-                        className="w-full py-4 text-slate-400 font-black hover:text-slate-600 transition-colors"
+                        className="inline-flex items-center justify-center space-x-2 w-full py-4 text-slate-400 font-bold hover:text-red-500 transition-colors duration-300"
                     >
-                        Sign Out
+                        <LogOut className="w-4 h-4" />
+                        <span className="text-xs uppercase tracking-widest">Exit Secure Portal</span>
                     </button>
                 </div>
 
-                <p className="mt-8 text-[10px] text-slate-400 font-bold uppercase tracking-[0.2em]">
-                    HR COPILOT FOR CONSULTANTS v2.0
-                </p>
+                <div className="mt-12 pt-8 border-t border-slate-50">
+                    <p className="text-[10px] text-slate-300 font-black uppercase tracking-[0.3em]">
+                        HR CoPilot Institutional v2.4.0
+                    </p>
+                </div>
             </motion.div>
         </div>
     );
