@@ -52,7 +52,7 @@ const PolicyDetailLanding: React.FC<PolicyDetailLandingProps> = ({ slug }) => {
     useSEO({
         title: docData.title,
         description: docData.metaDescription,
-        canonical: `https://hrcopilot.co.za/#/templates/${slug}`
+        canonical: `https://hrcopilot.co.za/templates/${slug}`
     });
 
     return (
@@ -325,7 +325,7 @@ const PolicyDetailLanding: React.FC<PolicyDetailLandingProps> = ({ slug }) => {
                                     key={rSlug}
                                     onClick={() => {
                                         window.scrollTo(0, 0);
-                                        window.location.hash = `#/templates/${rSlug}`;
+                                        navigateTo('templates' as any, { slug: rSlug });
                                     }}
                                     className="p-6 bg-white rounded-[2rem] border border-slate-200 hover:border-indigo-400 hover:shadow-xl transition-all text-left group"
                                 >

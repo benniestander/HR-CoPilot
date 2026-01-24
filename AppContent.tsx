@@ -654,7 +654,7 @@ const AppContent: React.FC = () => {
             case 'library':
                 return <PolicyLibrary />;
             case 'templates': {
-                const parts = window.location.hash.split('/');
+                const parts = window.location.pathname.split('/');
                 const slug = parts[parts.length - 1];
                 return <PolicyDetailLanding slug={slug} />;
             }
@@ -755,7 +755,7 @@ const AppContent: React.FC = () => {
             }
 
             if (currentView === 'templates') {
-                const parts = window.location.hash.split('/');
+                const parts = window.location.pathname.split('/');
                 const slug = parts[parts.length - 1];
                 return (
                     <Suspense fallback={<FullPageLoader />}>

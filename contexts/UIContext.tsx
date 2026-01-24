@@ -24,14 +24,14 @@ interface UIContextType {
 
 const UIContext = createContext<UIContextType | undefined>(undefined);
 
-const getViewFromHash = (): View => {
-    const hash = window.location.hash.slice(2); // Remove #/
-    const baseView = hash.split('?')[0].split('/')[0];
+const getViewFromPath = (): View => {
+    const path = window.location.pathname.slice(1); // Remove leading /
+    const baseView = path.split('?')[0].split('/')[0];
     return (baseView || 'dashboard') as View;
 };
 
 export const UIProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-    const [currentView, setCurrentView] = useState<View>(getViewFromHash());
+    const [currentView, setCurrentView] = useState<View>(getViewFromPath());
     const [selectedItem, setSelectedItem] = useState<Policy | Form | null>(null);
     const [documentToView, setDocumentToView] = useState<GeneratedDocument | null>(null);
     const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -40,24 +40,40 @@ export const UIProvider: React.FC<{ children: React.ReactNode }> = ({ children }
     const [isPrePaid, setIsPrePaid] = useState(false);
 
     useEffect(() => {
-        const handleHashChange = () => {
-            setCurrentView(getViewFromHash());
+        const handleLocationChange = () => {
+            setCurrentView(getViewFromPath());
         };
-        window.addEventListener('hashchange', handleHashChange);
-        // Set initial hash if none exists
-        if (!window.location.hash) {
-            window.location.hash = '#/dashboard';
-        }
-        return () => window.removeEventListener('hashchange', handleHashChange);
+
+        window.addEventListener('popstate', handleLocationChange);
+
+        // Listen for internal navigation
+        window.addEventListener('pushstate', handleLocationChange);
+        window.addEventListener('replacestate', handleLocationChange);
+
+        return () => {
+            window.removeEventListener('popstate', handleLocationChange);
+            window.removeEventListener('pushstate', handleLocationChange);
+            window.removeEventListener('replacestate', handleLocationChange);
+        };
     }, []);
 
     const navigateTo = useCallback((view: View, params?: Record<string, string>) => {
-        let path = `/${view}`;
-        if (params) {
-            const query = new URLSearchParams(params).toString();
-            path += `?${query}`;
+        let path = view === 'dashboard' ? '/' : `/${view}`;
+
+        // Handle sub-paths for templates
+        if (view === 'templates' && params?.slug) {
+            path += `/${params.slug}`;
+            // Remove slug from remaining params so it's not in the query string
+            const { slug, ...rest } = params;
+            if (Object.keys(rest).length > 0) {
+                path += `?${new URLSearchParams(rest).toString()}`;
+            }
+        } else if (params) {
+            path += `?${new URLSearchParams(params).toString()}`;
         }
-        window.location.hash = path;
+
+        window.history.pushState({}, '', path);
+        window.dispatchEvent(new Event('pushstate'));
     }, []);
 
 

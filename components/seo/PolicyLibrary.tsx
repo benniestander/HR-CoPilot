@@ -15,7 +15,7 @@ const PolicyLibrary: React.FC = () => {
     useSEO({
         title: "HR Policy Library | 50+ Vetted SA Templates",
         description: "Browse our comprehensive library of South African HR templates. BCEA, LRA, and POPIA compliant policies and contracts for small businesses.",
-        canonical: "https://hrcopilot.co.za/#/library"
+        canonical: "https://hrcopilot.co.za/library"
     });
 
     const allTemplates = [...Object.values(POLICIES), ...Object.values(FORMS)];
@@ -84,7 +84,7 @@ const PolicyLibrary: React.FC = () => {
                                     transition={{ delay: Math.min(idx * 0.05, 1) }}
                                 >
                                     <button
-                                        onClick={() => window.location.hash = `#/templates/${slug}`}
+                                        onClick={() => navigateTo('templates' as any, { slug })}
                                         className="w-full group bg-white p-8 rounded-[2.5rem] border border-slate-200 hover:border-indigo-400 hover:shadow-2xl transition-all text-left flex flex-col h-full"
                                     >
                                         <div className="w-16 h-16 rounded-2xl bg-slate-50 flex items-center justify-center mb-8 group-hover:bg-indigo-50 transition-colors">
@@ -134,7 +134,7 @@ const PolicyLibrary: React.FC = () => {
                         <Button variant="hero" size="xl" onClick={() => navigateTo('upgrade')} className="bg-white text-indigo-600 hover:bg-slate-100">
                             See Pro Pricing
                         </Button>
-                        <Button variant="heroOutline" size="xl" onClick={() => window.location.hash = '#/'} className="border-white text-white hover:bg-indigo-500">
+                        <Button variant="heroOutline" size="xl" onClick={() => navigateTo('dashboard' as any)} className="border-white text-white hover:bg-indigo-500">
                             Back to Home
                         </Button>
                     </div>

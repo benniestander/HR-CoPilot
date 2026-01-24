@@ -13,7 +13,7 @@ const ConsultantLandingPage: React.FC = () => {
     useSEO({
         title: "Partnership Programme | HR CoPilot for Consultants",
         description: "Scale your HR consultancy with automated compliance, branded client portals, and institutional-grade legal documents.",
-        canonical: "https://hrcopilot.co.za/#/consultants"
+        canonical: "https://hrcopilot.co.za/consultants"
     });
 
     return (
