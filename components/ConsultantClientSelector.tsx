@@ -20,6 +20,8 @@ import { useAuthContext } from '../contexts/AuthContext';
 import { useUIContext } from '../contexts/UIContext';
 import { Button } from './ui/button';
 
+import BulkImportModal from './BulkImportModal';
+
 interface ConsultantClientSelectorProps {
     clients: ClientProfile[];
     onSelect: (client: ClientProfile) => void;
@@ -30,6 +32,7 @@ const ConsultantClientSelector: React.FC<ConsultantClientSelectorProps> = ({ cli
     const { navigateTo } = useUIContext();
     const [search, setSearch] = useState('');
     const [loadingClient, setLoadingClient] = useState<string | null>(null);
+    const [isImportModalOpen, setIsImportModalOpen] = useState(false);
 
     const handlePayClient = async (e: React.MouseEvent, clientId: string) => {
         e.stopPropagation();
@@ -96,9 +99,14 @@ const ConsultantClientSelector: React.FC<ConsultantClientSelectorProps> = ({ cli
                     <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex flex-col justify-between min-w-[140px]">
                         <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Health Index</span>
                         <div className="flex items-end justify-between">
-                            <span className="text-2xl font-black text-primary">84%</span>
-                            <div className="p-1.5 bg-primary/5 rounded-lg">
-                                <TrendingUp className="w-4 h-4 text-primary" />
+                            <span className={`text-2xl font-black ${(clients.length > 0 && (activeClientsCount / clients.length) < 0.5) ? 'text-red-500' : 'text-primary'
+                                }`}>
+                                {clients.length > 0 ? Math.round((activeClientsCount / clients.length) * 100) : 0}%
+                            </span>
+                            <div className={`p-1.5 rounded-lg ${(clients.length > 0 && (activeClientsCount / clients.length) < 0.5) ? 'bg-red-50' : 'bg-primary/5'
+                                }`}>
+                                <TrendingUp className={`w-4 h-4 ${(clients.length > 0 && (activeClientsCount / clients.length) < 0.5) ? 'text-red-500' : 'text-primary'
+                                    }`} />
                             </div>
                         </div>
                     </div>
@@ -142,7 +150,8 @@ const ConsultantClientSelector: React.FC<ConsultantClientSelectorProps> = ({ cli
                 <div className="flex items-center space-x-3 w-full sm:w-auto">
                     <Button
                         variant="outline"
-                        className="h-16 px-6 rounded-2xl flex-grow sm:flex-initial font-bold text-xs uppercase tracking-widest border-slate-200"
+                        onClick={() => setIsImportModalOpen(true)}
+                        className="h-16 px-6 rounded-2xl flex-grow sm:flex-initial font-bold text-xs uppercase tracking-widest border-slate-200 hover:border-primary/30 hover:text-primary transition-colors"
                     >
                         Bulk Import
                     </Button>
@@ -281,14 +290,33 @@ const ConsultantClientSelector: React.FC<ConsultantClientSelectorProps> = ({ cli
                     </div>
                     <h3 className="text-2xl font-black text-slate-900 mb-2">Portfolio Empty</h3>
                     <p className="text-slate-500 font-medium mb-8">You haven't added any clients to your institutional portal yet.</p>
-                    <Button
-                        size="lg"
-                        className="rounded-2xl px-10 h-14 font-black text-sm uppercase tracking-widest shadow-xl shadow-primary/20"
-                    >
-                        Onboard Your First Client
-                    </Button>
+                    <div className="flex justify-center gap-4">
+                        <Button
+                            variant="outline"
+                            onClick={() => setIsImportModalOpen(true)}
+                            className="rounded-2xl px-8 h-14 font-bold text-xs uppercase tracking-widest border-slate-200"
+                        >
+                            Bulk Import
+                        </Button>
+                        <Button
+                            size="lg"
+                            className="rounded-2xl px-10 h-14 font-black text-sm uppercase tracking-widest shadow-xl shadow-primary/20"
+                            onClick={() => {
+                                (window as any).nextProfileTab = 'clients';
+                                navigateTo('profile');
+                            }}
+                        >
+                            Onboard First Client
+                        </Button>
+                    </div>
                 </motion.div>
             )}
+
+            <BulkImportModal
+                isOpen={isImportModalOpen}
+                onClose={() => setIsImportModalOpen(false)}
+                onSuccess={() => window.location.reload()} // Force refresh to show new clients
+            />
         </div>
     );
 };
