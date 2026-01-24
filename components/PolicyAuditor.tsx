@@ -325,46 +325,69 @@ const PolicyAuditor: React.FC<PolicyAuditorProps> = ({ onBack }) => {
 
                         {/* Red Flags Section */}
                         <div className="space-y-4">
-                            <div className="flex items-center justify-between px-6">
-                                <h3 className="text-xl font-black text-secondary tracking-tight">Identified Red Flags ({result.red_flags.length})</h3>
-                                <span className={`${result.red_flags.length > 0 ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-600'} px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest`}>
-                                    {result.red_flags.length > 0 ? 'Action Required' : 'No Critical Issues'}
-                                </span>
-                            </div>
+                            {result.red_flags.length > 0 ? (
+                                <>
+                                    <div className="flex items-center justify-between px-6">
+                                        <h3 className="text-xl font-black text-secondary tracking-tight">Identified Red Flags ({result.red_flags.length})</h3>
+                                        <span className="bg-red-50 text-red-600 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest">
+                                            Action Required
+                                        </span>
+                                    </div>
 
-                            <div className="grid grid-cols-1 gap-4">
-                                {result.red_flags.map((flag, idx) => (
-                                    <motion.div
-                                        key={idx}
-                                        initial={{ opacity: 0, x: -20 }}
-                                        animate={{ opacity: 1, x: 0 }}
-                                        transition={{ delay: idx * 0.1 }}
-                                        className="bg-white p-8 rounded-[2rem] border border-gray-100 shadow-sm group hover:border-primary/30 transition-all"
-                                    >
-                                        <div className="flex flex-col md:flex-row gap-6">
-                                            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 border ${getImpactColor(flag.impact)}`}>
-                                                <AlertIcon className="w-6 h-6" />
-                                            </div>
-                                            <div className="flex-1">
-                                                <div className="flex flex-wrap items-center gap-3 mb-2">
-                                                    <span className={`text-[10px] font-black uppercase tracking-widest border px-3 py-1 rounded-lg ${getImpactColor(flag.impact)}`}>
-                                                        {flag.impact} Impact
-                                                    </span>
-                                                    <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 bg-gray-50 px-3 py-1 rounded-lg">
-                                                        {flag.law}
-                                                    </span>
-                                                </div>
-                                                <h4 className="text-xl font-black text-secondary mb-3">{flag.issue}</h4>
+                                    <div className="grid grid-cols-1 gap-4">
+                                        {result.red_flags.map((flag, idx) => (
+                                            <motion.div
+                                                key={idx}
+                                                initial={{ opacity: 0, x: -20 }}
+                                                animate={{ opacity: 1, x: 0 }}
+                                                transition={{ delay: idx * 0.1 }}
+                                                className="bg-white p-8 rounded-[2rem] border border-gray-100 shadow-sm group hover:border-primary/30 transition-all"
+                                            >
+                                                <div className="flex flex-col md:flex-row gap-6">
+                                                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 border ${getImpactColor(flag.impact)}`}>
+                                                        <AlertIcon className="w-6 h-6" />
+                                                    </div>
+                                                    <div className="flex-1">
+                                                        <div className="flex flex-wrap items-center gap-3 mb-2">
+                                                            <span className={`text-[10px] font-black uppercase tracking-widest border px-3 py-1 rounded-lg ${getImpactColor(flag.impact)}`}>
+                                                                {flag.impact} Impact
+                                                            </span>
+                                                            <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 bg-gray-50 px-3 py-1 rounded-lg">
+                                                                {flag.law}
+                                                            </span>
+                                                        </div>
+                                                        <h4 className="text-xl font-black text-secondary mb-3">{flag.issue}</h4>
 
-                                                <div className="bg-gray-50 p-6 rounded-2xl border border-gray-100 mt-4">
-                                                    <p className="text-[10px] font-black uppercase tracking-widest text-primary mb-2">SLC Recommendation:</p>
-                                                    <p className="text-sm font-medium text-gray-600 leading-relaxed italic">"{flag.correction}"</p>
+                                                        <div className="bg-gray-50 p-6 rounded-2xl border border-gray-100 mt-4">
+                                                            <p className="text-[10px] font-black uppercase tracking-widest text-primary mb-2">SLC Recommendation:</p>
+                                                            <p className="text-sm font-medium text-gray-600 leading-relaxed italic">"{flag.correction}"</p>
+                                                        </div>
+                                                    </div>
                                                 </div>
-                                            </div>
-                                        </div>
-                                    </motion.div>
-                                ))}
-                            </div>
+                                            </motion.div>
+                                        ))}
+                                    </div>
+                                </>
+                            ) : (
+                                <motion.div
+                                    initial={{ opacity: 0, scale: 0.9 }}
+                                    animate={{ opacity: 1, scale: 1 }}
+                                    className="bg-emerald-50/50 border-2 border-dashed border-emerald-200 rounded-[3rem] p-12 text-center"
+                                >
+                                    <div className="w-20 h-20 bg-emerald-500 text-white rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-xl shadow-emerald-500/20">
+                                        <ShieldCheckIcon className="w-10 h-10" />
+                                    </div>
+                                    <h3 className="text-3xl font-black text-emerald-900 mb-2">Perfect Compliance</h3>
+                                    <p className="text-emerald-700 font-medium max-w-md mx-auto italic">
+                                        "This document is fully aligned with current South African Labour Law. No modifications or corrections are required at this time."
+                                    </p>
+                                    <div className="mt-8 flex justify-center gap-2">
+                                        <span className="px-3 py-1 bg-white border border-emerald-100 rounded-lg text-[10px] font-black text-emerald-600 uppercase tracking-widest">BCEA Verified</span>
+                                        <span className="px-3 py-1 bg-white border border-emerald-100 rounded-lg text-[10px] font-black text-emerald-600 uppercase tracking-widest">LRA Secure</span>
+                                        <span className="px-3 py-1 bg-white border border-emerald-100 rounded-lg text-[10px] font-black text-emerald-600 uppercase tracking-widest">POPIA Compliant</span>
+                                    </div>
+                                </motion.div>
+                            )}
                         </div>
 
                         {/* Positive Findings Section */}
