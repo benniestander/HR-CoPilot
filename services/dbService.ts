@@ -137,6 +137,42 @@ export const updateConsultantPlatformFee = async (uid: string, newExpiry: string
     if (error) throw error;
 };
 
+export const getNextSemanticVersion = async (uid: string, type: string, isMinorUpdate: boolean): Promise<string> => {
+    const { data: existingDocs } = await supabase
+        .from('generated_documents')
+        .select('version')
+        .eq('user_id', uid)
+        .eq('type', type);
+
+    if (!existingDocs || existingDocs.length === 0) {
+        return "1";
+    }
+
+    // Find the latest version
+    const versions = existingDocs.map(d => String(d.version));
+    const sorted = versions.sort((a, b) => {
+        const partsA = a.split('.').map(Number);
+        const partsB = b.split('.').map(Number);
+        for (let i = 0; i < Math.max(partsA.length, partsB.length); i++) {
+            const vA = partsA[i] || 0;
+            const vB = partsB[i] || 0;
+            if (vA !== vB) return vB - vA;
+        }
+        return 0;
+    });
+
+    const latest = sorted[0] || "1";
+    const parts = latest.split('.').map(Number);
+    const major = parts[0] || 1;
+    const minor = parts[1] || 0;
+
+    if (isMinorUpdate) {
+        return `${major}.${minor + 1}`;
+    } else {
+        return `${major + 1}`;
+    }
+};
+
 // ... (Documents, Transactions, etc. unchanged)
 export const getGeneratedDocuments = async (uid: string): Promise<GeneratedDocument[]> => {
     const { data, error } = await supabase.from('generated_documents').select('*').eq('user_id', uid).order('created_at', { ascending: false });

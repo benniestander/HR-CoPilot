@@ -335,11 +335,11 @@ export interface GeneratedDocument {
   questionAnswers: FormAnswers;
   outputFormat?: 'word' | 'excel';
   sources?: Source[];
-  version: number;
+  version: string;
   brainVersion?: string;
   promptFingerprint?: string;
   history?: Array<{
-    version: number;
+    version: string;
     createdAt: string;
     content: string;
   }>;

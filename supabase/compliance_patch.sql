@@ -23,5 +23,10 @@ ADD COLUMN IF NOT EXISTS content_hash TEXT;
 
 COMMENT ON COLUMN auditor_reports.content_hash IS 'SHA-256 hash of the audited document content to prevent redundant AI calls and wording drift';
 
+ALTER TABLE generated_documents 
+ALTER COLUMN version TYPE TEXT USING version::TEXT;
+
+COMMENT ON COLUMN generated_documents.version IS 'Semantic versioning: Major.Minor (e.g. 1.1, 2.0)';
+
 -- 4. Reload PostgREST schema cache
 NOTIFY pgrst, 'reload config';

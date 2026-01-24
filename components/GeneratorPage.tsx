@@ -12,7 +12,7 @@ import { CheckIcon, LoadingIcon, EditIcon } from './Icons';
 import { useDataContext } from '../contexts/DataContext';
 import { useAuthContext } from '../contexts/AuthContext';
 import { useUIContext } from '../contexts/UIContext';
-import { createAdminNotification } from '../services/dbService';
+import { createAdminNotification, getNextSemanticVersion } from '../services/dbService';
 
 interface GeneratorPageProps {
     selectedItem: Policy | Form;
@@ -154,6 +154,8 @@ const GeneratorPage: React.FC<GeneratorPageProps> = ({ selectedItem, initialData
             }
             setStatus('success');
 
+            const nextVersion = await getNextSemanticVersion(user.uid, selectedItem.type, false);
+
             const newDoc: GeneratedDocument = {
                 id: docId || `${selectedItem.type}-${Date.now()}`,
                 title: selectedItem.title,
@@ -165,9 +167,10 @@ const GeneratorPage: React.FC<GeneratorPageProps> = ({ selectedItem, initialData
                 questionAnswers,
                 outputFormat: selectedItem.kind === 'form' ? selectedItem.outputFormat : 'word',
                 sources: finalSources,
-                version: initialData?.version || 0,
+                version: nextVersion,
                 brainVersion,
-                promptFingerprint
+                promptFingerprint,
+                history: initialData?.history || []
             };
             setFinalizedDoc(newDoc);
 

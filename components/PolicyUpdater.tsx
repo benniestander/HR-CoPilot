@@ -1,6 +1,7 @@
 
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { updatePolicy } from '../services/geminiService';
+import { getNextSemanticVersion } from '../services/dbService';
 import type { GeneratedDocument, PolicyUpdateResult, CompanyProfile, PolicyDraft } from '../types';
 import { LoadingIcon, UpdateIcon, CheckIcon, HistoryIcon, CreditCardIcon, FileUploadIcon, FileIcon, EditIcon, InfoIcon } from './Icons';
 import ConfirmationModal from './ConfirmationModal';
@@ -492,9 +493,11 @@ const PolicyUpdater: React.FC<PolicyUpdaterProps> = ({ onBack }) => {
                 newDoc.companyProfile = user.profile;
             }
         } else {
+            const nextVersion = await getNextSemanticVersion(user!.uid, selectedDocument.type, true);
             newDoc = {
                 ...selectedDocument,
                 content: finalContent,
+                version: nextVersion
             };
         }
 
