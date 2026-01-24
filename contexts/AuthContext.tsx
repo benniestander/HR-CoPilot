@@ -63,7 +63,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
 
   useEffect(() => {
-    const isWaitlist = window.location.hash.includes('waitlist');
+    const isWaitlist = window.location.pathname.includes('waitlist');
     if (isLocalhost && !user && !isLoading && !isWaitlist) {
       console.log("🛠️ SANDBOX MODE: Injecting Mock Pro User...");
       const mockUser: User = {
@@ -195,7 +195,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setAuthPage('login');
     setRealConsultantUser(null);
     setActiveClient(null);
-    window.location.hash = '';
+    window.history.pushState({}, '', '/');
   };
 
   const handleForgotPassword = async (email: string) => {
@@ -275,7 +275,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const handleGoToProfileSetup = () => {
     setNeedsOnboarding(true);
     setOnboardingSkipped(false);
-    window.location.hash = '#/dashboard';
+    window.history.pushState({}, '', '/');
   };
 
   const isSubscribed = useMemo(() => {

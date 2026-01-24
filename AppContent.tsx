@@ -369,13 +369,13 @@ const AppContent: React.FC = () => {
             console.log("Detected success redirect from Yoco...");
             navigateTo('payment-success' as any);
             setTimeout(() => {
-                window.history.replaceState({}, document.title, window.location.pathname + window.location.hash);
+                window.history.replaceState({}, document.title, window.location.pathname);
             }, 500);
         } else if (params.get('payment') === 'cancel') {
-            const lastView = window.location.hash.includes('upgrade') ? 'upgrade' : 'topup';
+            const lastView = window.location.pathname.includes('upgrade') ? 'upgrade' : 'topup';
             navigateTo(lastView as any);
             setTimeout(() => {
-                window.history.replaceState({}, document.title, window.location.pathname + window.location.hash);
+                window.history.replaceState({}, document.title, window.location.pathname);
             }, 500);
         }
     }, [navigateTo]);
@@ -395,13 +395,14 @@ const AppContent: React.FC = () => {
     }, [setNotificationPanelOpen]);
 
     useEffect(() => {
-        if (!user) {
+        const PUBLIC_VIEWS = ['dashboard', 'consultants', 'library', 'templates', 'waitlist'];
+        if (!user && !PUBLIC_VIEWS.includes(currentView)) {
             navigateTo('dashboard');
             setSelectedItem(null);
             setDocumentToView(null);
             setShowOnboardingWalkthrough(false);
         }
-    }, [user, navigateTo, setSelectedItem, setDocumentToView, setShowOnboardingWalkthrough]);
+    }, [user, currentView, navigateTo, setSelectedItem, setDocumentToView, setShowOnboardingWalkthrough]);
 
     // Apply branding colors
     useEffect(() => {
@@ -654,8 +655,7 @@ const AppContent: React.FC = () => {
             case 'library':
                 return <PolicyLibrary />;
             case 'templates': {
-                const parts = window.location.pathname.split('/');
-                const slug = parts[parts.length - 1];
+                const slug = window.location.pathname.split('/').filter(Boolean).pop() || '';
                 return <PolicyDetailLanding slug={slug} />;
             }
             case 'payment-success':
@@ -755,8 +755,7 @@ const AppContent: React.FC = () => {
             }
 
             if (currentView === 'templates') {
-                const parts = window.location.pathname.split('/');
-                const slug = parts[parts.length - 1];
+                const slug = window.location.pathname.split('/').filter(Boolean).pop() || '';
                 return (
                     <Suspense fallback={<FullPageLoader />}>
                         <PolicyDetailLanding slug={slug} />

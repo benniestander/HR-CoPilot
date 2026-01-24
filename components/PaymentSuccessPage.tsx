@@ -23,12 +23,7 @@ const PaymentSuccessPage: React.FC<PaymentSuccessPageProps> = ({ onVerified, onB
         const verify = async () => {
             try {
                 // Get checkoutId from URL hash/query or localStorage fallback
-                const hash = window.location.hash;
-                const search = window.location.search;
-                const urlParams = new URLSearchParams(hash.split('?')[1] || search);
-
-                // Try URL first, then localStorage
-                let id = urlParams.get('id') || localStorage.getItem('pendingCheckoutId');
+                const id = new URLSearchParams(window.location.search).get('id') || localStorage.getItem('pendingCheckoutId');
 
                 if (!id) {
                     console.error("No ID found in URL or localStorage");
