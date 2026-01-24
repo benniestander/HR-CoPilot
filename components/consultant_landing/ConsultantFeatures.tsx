@@ -16,7 +16,7 @@ const features: Feature[] = [
         icon: Palette,
         iconColor: "text-indigo-500",
         headline: "Every client touchpoint is YOUR brand",
-        body: "Enable full white-labeling in 60 seconds. Your logo, your colors, and your agency's domain. Your clients interact with your institutionalized portal, reinforcing your value every single day.",
+        body: "Configure your branding in 60 seconds. Your logo, your colors, and your agency's domain. Your clients interact with your branded portal, reinforcing your value every single day.",
         benefits: [
             "Custom CSS & Branding Overrides",
             "White-labeled PDF Metadata",

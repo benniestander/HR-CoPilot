@@ -40,7 +40,7 @@ const ConsultantHero = () => {
                         </h1>
 
                         <p className="text-xl text-slate-400 leading-relaxed mb-10 max-w-xl font-medium">
-                            The purpose-built operating system for South African HR Consultants. Scale from 5 to 50+ clients with automated compliance, white-labeled portals, and institutional-grade legal documents.
+                            The purpose-built operating system for South African HR Consultants. Scale from 5 to 50+ clients with automated compliance, branded client workspaces, and institutional-grade legal documents.
                         </p>
 
                         <div className="flex flex-col sm:flex-row items-center gap-4">

@@ -8,7 +8,16 @@ const ConsultantRevenueSimulator = () => {
     const [rate, setRate] = useState(1200);
 
     const annualRevenue = clients * rate * 2 * 12; // Assuming 2 hours per client per month
-    const copilotCost = 500 * 12 + (clients * 750);
+
+    // New Agency Pricing Logic:
+    // Standard: R500/mo + R750/client/year
+    // Agency (6+ clients): R5,000/year (All-in)
+    const standardCost = (500 * 12) + (clients * 750);
+    const agencyCost = 5000;
+
+    // Auto-apply Agency Tier if cheaper (which is always true for > 0 clients basically, but strictly modeled for scale)
+    const copilotCost = (clients >= 6) ? agencyCost : standardCost;
+
     const profit = annualRevenue - copilotCost;
 
     return (
@@ -83,6 +92,11 @@ const ConsultantRevenueSimulator = () => {
                                         <div>
                                             <p className="text-[10px] font-bold uppercase opacity-60 mb-1">CoPilot Cost</p>
                                             <p className="text-lg font-black text-white/90">R{copilotCost.toLocaleString()}</p>
+                                            {clients >= 6 && (
+                                                <span className="inline-block mt-1 px-2 py-0.5 bg-emerald-500/20 text-emerald-300 text-[10px] font-bold rounded-full border border-emerald-500/30">
+                                                    Agency Tier Capped
+                                                </span>
+                                            )}
                                         </div>
                                         <div>
                                             <p className="text-[10px] font-bold uppercase opacity-60 mb-1">Time Saved</p>
