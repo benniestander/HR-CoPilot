@@ -171,7 +171,11 @@ const UserList: React.FC<{
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    {user.plan === 'pro' ? (
+                    {user.plan === 'agency' ? (
+                      <Badge type="info" text="AGENCY TIER" />
+                    ) : user.plan === 'consultant' ? (
+                      <Badge type="warning" text="CONSULTANT" />
+                    ) : user.plan === 'pro' ? (
                       <Badge type="success" text="PRO PLAN" />
                     ) : (
                       <Badge type="default" text="Pay-As-You-Go" />
