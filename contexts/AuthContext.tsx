@@ -309,8 +309,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const payClientAccessFee = async (clientId: string) => {
     if (!user || !user.clients) return;
-    const FEE = 75000; // R750
-    if (user.creditBalance < FEE) throw new Error("Insufficient balance. R750 required.");
+    const FEE = 75000; // R750/year per client
+
+    const isPostPaid = user.plan === 'agency'; // Agency Tier uses Ledger (Bill later)
+
+    // Pre-Paid Check (Consultant/Pro)
+    if (!isPostPaid && user.creditBalance < FEE) {
+      throw new Error("Insufficient balance. R750 required.");
+    }
 
     const newExpiry = new Date();
     newExpiry.setFullYear(newExpiry.getFullYear() + 1);
@@ -320,7 +326,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     );
 
     const { updateConsultantClients } = await import('../services/dbService');
-    await updateConsultantClients(user.uid, updatedClients, FEE, `Annual access for ${clientId}`);
+
+    // Pass 'useLedger = true' if isPostPaid
+    await updateConsultantClients(user.uid, updatedClients, FEE, `Annual access for ${clientId}`, isPostPaid);
     await refetchProfile();
   };
 

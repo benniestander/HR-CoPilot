@@ -74,7 +74,7 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
         }
     };
 
-    const [activeTab, setActiveTab] = useState<'profile' | 'billing' | 'vault' | 'clients'>('profile');
+    const [activeTab, setActiveTab] = useState<'profile' | 'billing' | 'vault' | 'clients' | 'finances'>('profile');
     const [isEditing, setIsEditing] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
 
@@ -609,6 +609,12 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
                                 )}
                             </div>
                         )}
+                        {/* FINANCES TAB */}
+                        {activeTab === 'finances' && (
+                            <div id="finances-panel" className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                                <FinancesSection userId={user.uid} />
+                            </div>
+                        )}
                     </div>
                 </main>
             </div>
@@ -711,6 +717,129 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
                 </div>
             )}
         </div>
+    );
+};
+
+const FinancesSection: React.FC<{ userId: string }> = ({ userId }) => {
+    const [ledger, setLedger] = useState<{ balance: number, items: any[] }>({ balance: 0, items: [] });
+    const [invoices, setInvoices] = useState<any[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+
+    useEffect(() => {
+        const loadData = async () => {
+            try {
+                // Dynamically import to avoid circular dep issues if any
+                const { getConsultantLedger, getConsultantInvoices } = await import('../services/dbService');
+                const [l, i] = await Promise.all([
+                    getConsultantLedger(userId),
+                    getConsultantInvoices(userId)
+                ]);
+                setLedger(l);
+                setInvoices(i);
+            } catch (error) {
+                console.error("Failed to load finances", error);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+        loadData();
+    }, [userId]);
+
+    if (isLoading) return <div className="p-12 flex justify-center"><LoadingIcon className="w-8 h-8 animate-spin text-primary" /></div>;
+
+    return (
+        <>
+            <div className="p-8 bg-slate-900 rounded-[2.5rem] relative overflow-hidden shadow-2xl">
+                <div className="relative z-10 grid md:grid-cols-2 gap-8">
+                    <div>
+                        <div className="inline-flex items-center space-x-2 bg-white/10 rounded-full px-3 py-1 mb-4 backdrop-blur-sm border border-white/10">
+                            <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                            <span className="text-[10px] font-black uppercase text-emerald-300 tracking-widest">Billing Active</span>
+                        </div>
+                        <h2 className="text-3xl font-black text-white mb-2">My Finances</h2>
+                        <p className="text-slate-400 font-medium text-sm">Monitor your unbilled activity and invoices.</p>
+                    </div>
+                    <div className="bg-white/5 rounded-3xl p-6 border border-white/10 flex items-center justify-between">
+                        <div>
+                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Unbilled Amount</p>
+                            <p className="text-3xl font-black text-white">R{(ledger.balance / 100).toFixed(2)}</p>
+                            <p className="text-[10px] text-slate-500 font-bold mt-1">Next Invoice: 25th {new Date().toLocaleString('default', { month: 'short' })}</p>
+                        </div>
+                        <div className="h-12 w-12 rounded-2xl bg-white/10 flex items-center justify-center">
+                            <CreditCardIcon className="w-6 h-6 text-white" />
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div className="grid md:grid-cols-2 gap-8">
+                <div className="p-8 bg-white border border-gray-100 rounded-[2.5rem] shadow-sm">
+                    <h3 className="text-lg font-black text-slate-900 mb-6 flex items-center">
+                        <HistoryIcon className="w-5 h-5 mr-2 text-slate-400" />
+                        Unbilled Activity ({ledger.items.length})
+                    </h3>
+                    <div className="space-y-4 max-h-[300px] overflow-y-auto custom-scrollbar">
+                        {ledger.items.length === 0 ? (
+                            <div className="text-center py-12 bg-slate-50 rounded-3xl border border-slate-100 border-dashed">
+                                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">No activity this month</p>
+                            </div>
+                        ) : (
+                            ledger.items.map((item: any) => (
+                                <div key={item.id} className="flex justify-between items-center p-3 bg-slate-50 rounded-xl">
+                                    <div>
+                                        <p className="text-sm font-bold text-slate-800">{item.description}</p>
+                                        <p className="text-[10px] text-slate-400 font-bold">{new Date(item.created_at).toLocaleDateString()}</p>
+                                    </div>
+                                    <span className="text-sm font-black text-slate-700">R{(item.amount / 100).toFixed(2)}</span>
+                                </div>
+                            ))
+                        )}
+                    </div>
+                </div>
+
+                <div className="p-8 bg-white border border-gray-100 rounded-[2.5rem] shadow-sm">
+                    <h3 className="text-lg font-black text-slate-900 mb-6 flex items-center">
+                        <FileIcon className="w-5 h-5 mr-2 text-slate-400" />
+                        Invoice History
+                    </h3>
+                    <div className="space-y-4 max-h-[300px] overflow-y-auto custom-scrollbar">
+                        {invoices.length === 0 ? (
+                            <div className="text-center py-12 bg-slate-50 rounded-3xl border border-slate-100 border-dashed">
+                                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">No previous invoices</p>
+                            </div>
+                        ) : (
+                            invoices.map((inv: any) => (
+                                <div key={inv.id} className="flex justify-between items-center p-4 bg-slate-50 rounded-xl hover:bg-slate-100 transition-colors group cursor-pointer" onClick={() => inv.pdf_url ? window.open(inv.pdf_url, '_blank') : alert("PDF generating...")}>
+                                    <div className="flex items-center gap-3">
+                                        <div className="p-2 bg-indigo-100 text-indigo-600 rounded-lg">
+                                            <FileIcon className="w-4 h-4" />
+                                        </div>
+                                        <div>
+                                            <p className="text-sm font-bold text-slate-800">{inv.invoice_number}</p>
+                                            <p className={`text-[10px] font-black uppercase tracking-widest ${inv.status === 'paid' ? 'text-green-500' : 'text-orange-500'}`}>{inv.status}</p>
+                                        </div>
+                                    </div>
+                                    <div className="text-right">
+                                        <p className="text-sm font-black text-slate-900">R{(inv.amount_due / 100).toFixed(2)}</p>
+                                        <p className="text-[10px] text-slate-400 font-bold">{new Date(inv.created_at).toLocaleDateString()}</p>
+                                    </div>
+                                </div>
+                            ))
+                        )}
+                    </div>
+                </div>
+            </div>
+            <div className="p-6 bg-blue-50 border border-blue-100 rounded-3xl flex items-start gap-4">
+                <div className="p-2 bg-blue-100 rounded-xl">
+                    <CreditCardIcon className="w-5 h-5 text-blue-600" />
+                </div>
+                <div className="flex-1">
+                    <h4 className="font-bold text-blue-900 text-sm mb-1">Banking Details for EFT</h4>
+                    <p className="text-xs text-blue-700 font-medium mb-1">Bank: <span className="font-bold">FNB</span> &bull; Account: <span className="font-bold">62123456789</span> &bull; Branch: <span className="font-bold">250655</span></p>
+                    <p className="text-[10px] text-blue-500 font-bold uppercase tracking-widest">Use Reference: {userId.substring(0, 8).toUpperCase()}</p>
+                </div>
+            </div>
+        </>
     );
 };
 

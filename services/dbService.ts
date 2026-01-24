@@ -121,9 +121,13 @@ export const updateUser = async (uid: string, updates: Partial<User>) => {
     if (error) throw error;
 };
 
-export const updateConsultantClients = async (uid: string, clients: any[], amount?: number, reason?: string) => {
+export const updateConsultantClients = async (uid: string, clients: any[], amount?: number, reason?: string, useLedger: boolean = false) => {
     if (amount) {
-        await addTransactionToUser(uid, { amount: -amount, description: reason || 'Client Access Fee' }, true);
+        if (useLedger) {
+            await addToBillingLedger(uid, amount, reason || 'Client Access Fee', { clientCount: clients.length });
+        } else {
+            await addTransactionToUser(uid, { amount: -amount, description: reason || 'Client Access Fee' }, true);
+        }
     }
     const { error } = await supabase.from('profiles').update({ clients: clients }).eq('id', uid);
     if (error) throw error;
@@ -616,6 +620,56 @@ export const getMarketingEvents = async (limit: number = 100) => {
 
     if (error) throw error;
     return data;
+};
+
+/**
+ * Adds an unbilled item to the user's ledger (Post-Paid model).
+ */
+export const addToBillingLedger = async (userId: string, amount: number, description: string, metadata: any = {}) => {
+    const { error } = await supabase.from('billing_ledger').insert({
+        user_id: userId,
+        amount: amount,
+        description: description,
+        status: 'pending',
+        metadata: metadata,
+        created_at: new Date().toISOString()
+    });
+
+    if (error) {
+        console.error("Ledger Error:", error);
+        throw new Error("Failed to record billable item.");
+    }
+};
+
+/**
+ * Gets the current unbilled ledger balance and items for a consultant.
+ */
+export const getConsultantLedger = async (userId: string) => {
+    const { data, error } = await supabase
+        .from('billing_ledger')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('status', 'pending')
+        .order('created_at', { ascending: false });
+
+    if (error) throw error;
+
+    const totalUnbilled = data?.reduce((acc, item) => acc + item.amount, 0) || 0;
+    return { balance: totalUnbilled, items: data || [] };
+};
+
+/**
+ * Gets past invoices for a consultant.
+ */
+export const getConsultantInvoices = async (userId: string) => {
+    const { data, error } = await supabase
+        .from('invoices')
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false });
+
+    if (error) throw error;
+    return data || [];
 };
 
 /**
