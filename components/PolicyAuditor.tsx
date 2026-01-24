@@ -13,6 +13,8 @@ import {
     ShieldCheckIcon
 } from './Icons';
 import { useUIContext } from '../contexts/UIContext';
+import { useAuthContext } from '../contexts/AuthContext';
+import { getLastAuditByFilename } from '../services/dbService';
 
 interface AuditResult {
     score: number;
@@ -37,6 +39,7 @@ interface PolicyAuditorProps {
 
 const PolicyAuditor: React.FC<PolicyAuditorProps> = ({ onBack }) => {
     const { setToastMessage } = useUIContext();
+    const { user } = useAuthContext();
     const [status, setStatus] = useState<'idle' | 'analyzing' | 'complete' | 'error'>('idle');
     const [file, setFile] = useState<File | null>(null);
     const [result, setResult] = useState<AuditResult | null>(null);
@@ -60,10 +63,34 @@ const PolicyAuditor: React.FC<PolicyAuditorProps> = ({ onBack }) => {
     };
 
     const runAudit = async () => {
-        if (!file) return;
+        if (!file || !user) return;
 
         setStatus('analyzing');
         setProgress(10);
+
+        // 1. CHECK COOLDOWN (Once every 30 days per unique filename)
+        try {
+            const lastAudit = await getLastAuditByFilename(user.uid, file.name);
+            if (lastAudit) {
+                const lastDate = new Date(lastAudit.created_at);
+                const daysSince = (Date.now() - lastDate.getTime()) / (1000 * 60 * 60 * 24);
+
+                if (daysSince < 30) {
+                    console.log(`[COOLDOWN] Document was audited ${daysSince.toFixed(1)} days ago. Returning cached result.`);
+
+                    // Small delay to make it feel like it worked
+                    await new Promise(r => setTimeout(r, 1500));
+
+                    setResult(lastAudit.audit_result);
+                    setStatus('complete');
+                    setProgress(100);
+                    setToastMessage("Policy is updated. Note: Re-audits are limited to once every 30 days.");
+                    return;
+                }
+            }
+        } catch (e) {
+            console.warn("Cooldown check failed, proceeding with audit:", e);
+        }
 
         // Simulated progress steps for better UX
         const interval = setInterval(() => {
@@ -78,7 +105,6 @@ const PolicyAuditor: React.FC<PolicyAuditorProps> = ({ onBack }) => {
 
         try {
             const auditData = await auditPolicy(file);
-            // auditData is the full DB record, we want the audit_result jsonb
             setResult(auditData.audit_result);
             setStatus('complete');
             setProgress(100);

@@ -182,6 +182,20 @@ export const getGeneratedDocuments = async (uid: string): Promise<GeneratedDocum
     }));
 };
 
+export const getLastAuditByFilename = async (uid: string, filename: string) => {
+    const { data, error } = await supabase
+        .from('auditor_reports')
+        .select('created_at, audit_result')
+        .eq('user_id', uid)
+        .eq('document_name', filename)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+    if (error) throw error;
+    return data;
+};
+
 export const saveGeneratedDocument = async (uid: string, doc: GeneratedDocument): Promise<GeneratedDocument> => {
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
     const isUpdate = doc.id && uuidRegex.test(doc.id);
