@@ -26,7 +26,8 @@ const UIContext = createContext<UIContextType | undefined>(undefined);
 
 const getViewFromHash = (): View => {
     const hash = window.location.hash.slice(2); // Remove #/
-    return (hash || 'dashboard') as View;
+    const baseView = hash.split('?')[0].split('/')[0];
+    return (baseView || 'dashboard') as View;
 };
 
 export const UIProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
