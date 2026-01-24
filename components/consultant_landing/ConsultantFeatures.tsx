@@ -90,7 +90,7 @@ const ConsultantFeatures = () => {
                 </motion.div>
 
                 {/* Features - Zig-Zag Layout */}
-                <div className="space-y-32 md:space-y-48">
+                <div className="space-y-16 sm:space-y-32 md:space-y-48">
                     {features.map((feature, index) => {
                         const Icon = feature.icon;
                         const isReversed = index % 2 !== 0;

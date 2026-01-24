@@ -45,12 +45,12 @@ const ConsultantCTA = () => {
                         </span>
                     </motion.div>
 
-                    <h2 className="text-5xl md:text-7xl font-black text-white mb-8 leading-tight tracking-tighter">
+                    <h2 className="text-4xl sm:text-5xl md:text-7xl font-black text-white mb-6 leading-tight tracking-tighter">
                         Scale your practice <br />
                         <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-indigo-400">without the legal overhead.</span>
                     </h2>
 
-                    <p className="text-xl md:text-2xl text-slate-400 mb-12 max-w-2xl mx-auto font-medium leading-relaxed">
+                    <p className="text-lg sm:text-2xl text-slate-400 mb-10 max-w-2xl mx-auto font-medium leading-relaxed">
                         Join the waiting list for our Institutional Partner Program. Empower your consultancy with the tech stack it deserves.
                     </p>
 
@@ -58,7 +58,7 @@ const ConsultantCTA = () => {
                         <Button
                             variant="hero"
                             size="xl"
-                            className="group h-16 px-12 rounded-2xl shadow-2xl shadow-primary/20"
+                            className="group h-16 w-full sm:w-auto px-12 rounded-2xl shadow-2xl shadow-primary/20"
                             onClick={() => setAuthPage('signup')}
                         >
                             Apply for Platform Access
@@ -67,7 +67,7 @@ const ConsultantCTA = () => {
                         <Button
                             variant="heroOutline"
                             size="xl"
-                            className="h-16 px-12 rounded-2xl border-white/20 text-white hover:bg-white/5"
+                            className="h-16 w-full sm:w-auto px-12 rounded-2xl border-white/20 text-white hover:bg-white/5"
                         >
                             Speak to an Advisor
                         </Button>

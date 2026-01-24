@@ -32,14 +32,14 @@ const ConsultantHero = () => {
                             <span className="text-xs font-bold uppercase tracking-widest text-primary-foreground/80">Institutional Partner Programme</span>
                         </motion.div>
 
-                        <h1 className="text-5xl md:text-7xl font-black text-white leading-[1.05] tracking-tighter mb-6">
+                        <h1 className="text-4xl sm:text-5xl md:text-7xl font-black text-white leading-[1.05] tracking-tighter mb-6">
                             Scalable HR. <br />
                             <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-indigo-400">
                                 Zero legal bloat.
                             </span>
                         </h1>
 
-                        <p className="text-xl text-slate-400 leading-relaxed mb-10 max-w-xl font-medium">
+                        <p className="text-lg sm:text-xl text-slate-400 leading-relaxed mb-8 sm:mb-10 max-w-xl font-medium">
                             The purpose-built operating system for South African HR Consultants. Scale from 5 to 50+ clients with automated compliance, branded client workspaces, and institutional-grade legal documents.
                         </p>
 

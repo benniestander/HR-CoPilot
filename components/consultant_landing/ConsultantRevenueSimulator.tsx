@@ -83,7 +83,7 @@ const ConsultantRevenueSimulator = () => {
                                         key={profit}
                                         initial={{ scale: 0.95, opacity: 0 }}
                                         animate={{ scale: 1, opacity: 1 }}
-                                        className="text-6xl md:text-8xl font-black tracking-tighter mb-8"
+                                        className="text-5xl sm:text-6xl md:text-8xl font-black tracking-tighter mb-8"
                                     >
                                         R{profit.toLocaleString()}
                                     </motion.div>
@@ -111,7 +111,7 @@ const ConsultantRevenueSimulator = () => {
                             </motion.div>
 
                             {/* Annotation */}
-                            <div className="absolute -bottom-6 -right-6 bg-slate-800 text-slate-300 p-4 rounded-2xl border border-slate-700 shadow-xl max-w-[200px]">
+                            <div className="relative mt-4 sm:absolute sm:-bottom-6 sm:-right-6 bg-slate-800 text-slate-300 p-4 rounded-2xl border border-slate-700 shadow-xl max-w-full sm:max-w-[200px] z-20">
                                 <p className="text-[10px] font-bold leading-relaxed">
                                     "Based on average consultant efficiency gains using auto-drafting."
                                 </p>

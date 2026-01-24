@@ -58,7 +58,7 @@ const ConsultantTestimonials = () => {
                             initial={{ opacity: 0, y: 30 }}
                             animate={isInView ? { opacity: 1, y: 0 } : {}}
                             transition={{ duration: 0.5, delay: index * 0.15 }}
-                            className="bg-white rounded-[2.5rem] p-10 border border-slate-100 shadow-xl shadow-slate-200/50 flex flex-col h-full group"
+                            className="bg-white rounded-[2.5rem] p-6 sm:p-10 border border-slate-100 shadow-xl shadow-slate-200/50 flex flex-col h-full group"
                         >
                             {/* Quote Icon */}
                             <div className="mb-8">
