@@ -3,6 +3,8 @@ import React from 'react';
 import type { GeneratedDocument } from '../types';
 import { WordIcon, ExcelIcon, MasterPolicyIcon, FormsIcon } from './Icons';
 import EmptyState from './EmptyState';
+import { LEGISLATIVE_CONSTANTS } from '../services/LegislativeConstants';
+import { AlertTriangle } from 'lucide-react';
 
 interface DocumentHistoryProps {
   documents: GeneratedDocument[];
@@ -49,6 +51,12 @@ const DocumentHistory: React.FC<DocumentHistoryProps> = ({ documents, onViewDocu
                 </span>
                 <span>v{doc.version}</span>
                 <span>{new Date(doc.createdAt).toLocaleDateString()}</span>
+                {doc.kind === 'policy' && doc.brainVersion !== LEGISLATIVE_CONSTANTS.BRAIN_VERSION && (
+                  <span className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-red-50 text-red-600 border border-red-100 animate-pulse">
+                    <AlertTriangle className="w-3 h-3" />
+                    Compliance Risk
+                  </span>
+                )}
               </div>
             </div>
           </div>

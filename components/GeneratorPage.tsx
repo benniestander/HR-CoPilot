@@ -115,6 +115,8 @@ const GeneratorPage: React.FC<GeneratorPageProps> = ({ selectedItem, initialData
         try {
             let fullText = '';
             let finalSources: Source[] = [];
+            let brainVersion = '';
+            let promptFingerprint = '';
             if (selectedItem.kind === 'policy') {
                 const stream = generatePolicyStream(selectedItem.type, allAnswers);
                 for await (const chunk of stream) {
@@ -122,6 +124,8 @@ const GeneratorPage: React.FC<GeneratorPageProps> = ({ selectedItem, initialData
                         fullText += chunk.text;
                         setGeneratedDocument(prev => prev + chunk.text);
                     }
+                    if (chunk.brainVersion) brainVersion = chunk.brainVersion;
+                    if (chunk.promptFingerprint) promptFingerprint = chunk.promptFingerprint;
                     // Handle Grounding Metadata from Edge Function Chunk
                     if (chunk.groundingMetadata?.groundingChunks) {
                         const newSources = chunk.groundingMetadata.groundingChunks;
@@ -161,7 +165,9 @@ const GeneratorPage: React.FC<GeneratorPageProps> = ({ selectedItem, initialData
                 questionAnswers,
                 outputFormat: selectedItem.kind === 'form' ? selectedItem.outputFormat : 'word',
                 sources: finalSources,
-                version: initialData?.version || 0
+                version: initialData?.version || 0,
+                brainVersion,
+                promptFingerprint
             };
             setFinalizedDoc(newDoc);
 

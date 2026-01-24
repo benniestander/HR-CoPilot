@@ -336,6 +336,8 @@ export interface GeneratedDocument {
   outputFormat?: 'word' | 'excel';
   sources?: Source[];
   version: number;
+  brainVersion?: string;
+  promptFingerprint?: string;
   history?: Array<{
     version: number;
     createdAt: string;

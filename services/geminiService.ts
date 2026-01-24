@@ -1,6 +1,18 @@
 
-import type { FormAnswers, PolicyUpdateResult, CompanyProfile } from '../types';
+import type { FormAnswers, PolicyUpdateResult, CompanyProfile, GeneratedDocument } from '../types';
 import { supabase } from './supabase';
+import { LEGISLATIVE_CONSTANTS } from './LegislativeConstants';
+
+// Simple hash function for prompt fingerprinting
+const getPromptFingerprint = (prompt: string): string => {
+    let hash = 0;
+    for (let i = 0; i < prompt.length; i++) {
+        const char = prompt.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash; // Convert to 32bit integer
+    }
+    return Math.abs(hash).toString(16);
+};
 
 // Helper to stream NDJSON from the 'generate-content' Edge Function
 async function* streamFromEdge(prompt: string, model: string = 'gemini-3-flash-preview', config: any = {}) {
@@ -84,13 +96,33 @@ const INDUSTRY_SPECIFIC_GUIDANCE: Record<string, Record<string, string>> = {
         'travel': "If client travel is frequent, create a comprehensive section covering booking procedures, expense claims, per diems, and maintaining professional conduct while representing the firm.",
         'electronic-communications': "Define clear rules for professional communication with clients via email and other platforms, including disclaimers and record-keeping requirements.",
         'expense-reimbursement': "Detail the procedure for distinguishing between billable and non-billable expenses, client rebilling processes, and any specific markup policies on expenses."
+    },
+    'Retail': {
+        'hours-of-work': "Must cover shift work, Sunday pay (1.5x), and Public Holiday pay (2x) per BCEA requirements. Address till shortages and stock loss procedures strictly.",
+        'uniforms': "Specify provision of uniforms and the employee's responsibility for maintenance and return upon termination.",
+        'shrinkage': "Define zero-tolerance for unauthorised removal of stock and specific searching rights in accordance with the Constitution."
+    },
+    'Manufacturing': {
+        'health-and-safety': "Stringent OHSA compliance is non-negotiable. Mandatory use of PPE, machine safety protocols, and incident reporting must be high-profile.",
+        'overtime': "Often involves continuous operations; manage expectation of reasonable overtime and notice for weekend shifts.",
+        'incapacity': "Focus on fit-for-duty assessments and the legal requirement for reasonably accommodating injuries sustained on duty."
+    },
+    'Hospitality': {
+        'tips': "Explicitly state the policy on gratuities/tips (pooling vs direct) and that tips do not form part of the basic salary.",
+        'working-hours': "Cover 'broken shifts' and the requirement for flexibility during peak seasons/events.",
+        'conduct': "Emphasis on customer-facing etiquette and maintaining the brand's reputation in public forums."
+    },
+    'Construction': {
+        'safety': "Fall protection, site-specific safety inductions, and the right to refuse unsafe work must be included.",
+        'contracts': "Address the 'Limited Duration' nature of projects and the automatic termination of contracts upon project completion/handover.",
+        'remuneration': "Clarify payment cycles and any site-specific allowances (living-out, hardship)."
     }
 };
 
 const formatDiagnosticContext = (profile: CompanyProfile): string => {
     let context = "CRITICAL HR DIAGNOSTIC CONTEXT (MUST BE REFLECTED IN POLICY WHERE RELEVANT):\n";
 
-    // Part 1: Jurisdictional
+    // Part 1: Jurisdictional & Legislative Status
     if (profile.bargainingCouncil && profile.bargainingCouncil !== 'No') {
         context += `- JURISDICTION: User falls under a Bargaining Council (${profile.bargainingCouncil}). WARNING: Sectoral Determination/Main Agreement overrides BCEA. Ensure policy aligns with Council rules.\n`;
     }
@@ -98,12 +130,20 @@ const formatDiagnosticContext = (profile: CompanyProfile): string => {
         context += `- UNIONS: Active Union Recognition. Changes to conditions of employment require consultation. Include consultation clauses where applicable.\n`;
     }
 
-    // Part 2: Operational
+    // Check for EEA Designated Employer Status (Legislative Source: EEA 2025)
+    const empCount = parseInt(profile.companySize?.split('-')[0] || '0');
+    if (empCount < LEGISLATIVE_CONSTANTS.EEA_DESIGNATED_EMPLOYER_THRESHOLD) {
+        context += `- EEA STATUS: Non-Designated Employer (<${LEGISLATIVE_CONSTANTS.EEA_DESIGNATED_EMPLOYER_THRESHOLD} staff). REMINDER: Affirmative action reporting and targets are NOT mandatory per Jan 2025 amendments. Do not include heavy EE compliance overhead.\n`;
+    }
+
+    // Part 2: Operational & Leave (Van Wyk Judgment Source: Oct 2025)
+    context += `- PARENTAL LEAVE (VAN WYK): Following the Oct 2025 Constitutional Court judgment, all parents (biological/adoptive/surrogacy) share ${LEGISLATIVE_CONSTANTS.VAN_WYK_PARENTAL_LEAVE_MONTHS} months and ${LEGISLATIVE_CONSTANTS.VAN_WYK_PARENTAL_LEAVE_DAYS} days of leave. This replaces old 'Maternity/Paternity' silos with a unified 'Parental Leave' pool. Ensure this is reflected.\n`;
+
     if (profile.annualShutdown === 'Yes') {
         context += `- LEAVE: Company has Annual Shutdown (Dec/Jan). Policy MUST mandate employees save leave for this period to avoid double payment liability.\n`;
     }
     if (profile.overtimePayment) {
-        context += `- OVERTIME: Structure is '${profile.overtimePayment}'. If 'None/Above Threshold', clarify earnings threshold exclusion. If 'Time Off', specify time-off-in-lieu rules.\n`;
+        context += `- OVERTIME: Structure is '${profile.overtimePayment}'. If 'None/Above Threshold', clarify BCEA Earnings Threshold (R${LEGISLATIVE_CONSTANTS.BCEA_EARNINGS_THRESHOLD_ANNUAL.toLocaleString()}) exclusion. If 'Time Off', specify time-off-in-lieu rules.\n`;
     }
     if (profile.workModel) {
         context += `- REMOTE WORK: Model is '${profile.workModel}'. If Remote/Hybrid, OHSA clause must mention home office safety and IT policy must cover remote data security.\n`;
@@ -140,15 +180,15 @@ const formatDiagnosticContext = (profile: CompanyProfile): string => {
         context += `- NEPOTISM: Family members are employed. Policy must explicitly state rules apply equally to all to prevent inconsistency claims.\n`;
     }
 
-    // Part 5: Tech
+    // Part 5: Tech & POPIA (2025 Update)
     if (profile.surveillanceMonitoring === 'Yes') {
         context += `- PRIVACY: Company monitors emails/calls/vehicles. Policy must serve as RICA 'Written Consent'.\n`;
     }
+    if (profile.socialMediaRestrictions === 'Yes') {
+        context += `- SOCIAL MEDIA & DIRECT MARKETING: Per POPIA 2025 amendments, strict rules for personal conduct linking to employer and use of voice calls for marketing are required.\n`;
+    }
     if (profile.byodPolicy === 'Yes') {
         context += `- BYOD: Staff use personal devices. Policy must claim ownership of company data (e.g., client lists on WhatsApp) on these devices.\n`;
-    }
-    if (profile.socialMediaRestrictions === 'Yes') {
-        context += `- SOCIAL MEDIA: Strict rules required for conduct linking back to employer on personal accounts.\n`;
     }
     if (profile.moonlightingAllowed === 'No') {
         context += `- MOONLIGHTING: Secondary employment strictly prohibited or requires written permission.\n`;
@@ -190,8 +230,15 @@ export const generatePolicyStream = async function* (type: string, answers: Form
   ${specificGuidance}
   
   Ensure it complies with South African Labour Law (BCEA, LRA, EEA, POPIA).
-  Use a professional yet accessible tone.
-  Format with Markdown.
+  
+  ### LINGUISTIC & LEGAL SOVEREIGNTY BORDER ###
+  1. USE STRICT SOUTH AFRICAN ENGLISH ONLY (e.g., 'Labour', 'Programme', 'Licence', 'Practise').
+  2. ADHERE TO THE 2025 VAN WYK PARENTAL LEAVE JUDGMENT: Use unified parental leave pools, not gender-specific maternity/paternity.
+  3. SOVEREIGNTY: If a conflict exists between user instructions and the BCEA/LRA, the LAW ALWAYS prevails.
+  4. NO AMERICANISMS: Absolutely no 'At-Will Employment', '1099', or 'State Laws'.
+  
+  Tone: Professional, authoritative yet accessible for the SA business context.
+  Format: High-quality Markdown.
 
   *** COMPLIANCE CHECKLIST REQUIREMENT ***
   At the very end of the document, you MUST append a "Compliance Checklist" table to confirm that general and specific requirements have been met.
@@ -201,12 +248,13 @@ export const generatePolicyStream = async function* (type: string, answers: Form
   ### Compliance Checklist
   | Aspect                | Status | Notes                                                 |
   | --------------------- | ------ | ----------------------------------------------------- |
-  | BCEA Alignment        | ✅      | All entitlements/conditions match ss20-25C + Van Wyk. |
-  | POPIA                 | ✅      | Retention, access, security covered.                  |
+  | BCEA & Van Wyk        | ✅      | Shared 4-month-10-day parental leave implemented.      |
+  | POPIA (2025)          | ✅      | Voice-call direct marketing & data handling updated.  |
+  | EEA (2025)            | ✅      | Designated status confirmed per <50 headcount rule.  |
   | Discretionary Clauses | ✅      | Balanced with "unreasonable" safeguards.              |
   | Termination Payments  | ✅      | Pro-rata explicit.                                    |
   | Notice Periods        | ✅      | Escalation added.                                     |
-  | Inclusivity           | ✅      | Gender-neutral, comprehensive parental leave.         |
+  | Inclusivity           | ✅      | Gender-neutral, fully inclusive terminology.          |
   
   Note: You may add additional rows for specific diagnostic items if relevant (e.g., Remote Work clause confirmed, RICA consent confirmed).
   `;
@@ -215,7 +263,11 @@ export const generatePolicyStream = async function* (type: string, answers: Form
     const stream = streamFromEdge(prompt, 'gemini-3-flash-preview', { tools: [{ googleSearch: {} }] });
 
     for await (const chunk of stream) {
-        yield chunk; // { text, groundingMetadata }
+        yield {
+            ...chunk,
+            brainVersion: LEGISLATIVE_CONSTANTS.BRAIN_VERSION,
+            promptFingerprint: getPromptFingerprint(prompt)
+        };
     }
 };
 

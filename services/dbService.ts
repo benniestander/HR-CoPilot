@@ -142,7 +142,7 @@ export const getGeneratedDocuments = async (uid: string): Promise<GeneratedDocum
     const { data, error } = await supabase.from('generated_documents').select('*').eq('user_id', uid).order('created_at', { ascending: false });
     if (error) throw error;
     return data.map((doc: any) => ({
-        id: doc.id, title: doc.title, kind: doc.kind, type: doc.type, content: doc.content, createdAt: doc.created_at, companyProfile: doc.company_profile, questionAnswers: doc.question_answers, outputFormat: doc.output_format, sources: doc.sources, version: doc.version, history: doc.history,
+        id: doc.id, title: doc.title, kind: doc.kind, type: doc.type, content: doc.content, createdAt: doc.created_at, companyProfile: doc.company_profile, questionAnswers: doc.question_answers, outputFormat: doc.output_format, sources: doc.sources, version: doc.version, brainVersion: doc.brain_version, promptFingerprint: doc.prompt_fingerprint, history: doc.history,
     }));
 };
 
@@ -150,7 +150,20 @@ export const saveGeneratedDocument = async (uid: string, doc: GeneratedDocument)
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
     const isUpdate = doc.id && uuidRegex.test(doc.id);
     const dbDoc: any = {
-        user_id: uid, title: doc.title, kind: doc.kind, type: doc.type, content: doc.content || "", created_at: doc.createdAt, company_profile: doc.companyProfile || {}, question_answers: doc.questionAnswers || {}, output_format: doc.outputFormat || 'word', sources: doc.sources || [], version: doc.version, history: doc.history || [],
+        user_id: uid,
+        title: doc.title,
+        kind: doc.kind,
+        type: doc.type,
+        content: doc.content || "",
+        created_at: doc.createdAt,
+        company_profile: doc.companyProfile || {},
+        question_answers: doc.questionAnswers || {},
+        output_format: doc.outputFormat || 'word',
+        sources: doc.sources || [],
+        version: doc.version,
+        brain_version: doc.brainVersion,
+        prompt_fingerprint: doc.promptFingerprint,
+        history: doc.history || [],
     };
     let data, error;
     if (isUpdate) {
@@ -320,7 +333,7 @@ export const getAllDocumentsForAllUsers = async (pageSize: number, lastVisible?:
     const { data, error } = await query;
     if (error) throw error;
     const docs = data.map((doc: any) => ({
-        id: doc.id, title: doc.title, kind: doc.kind, type: doc.type, content: doc.content, createdAt: doc.created_at, companyProfile: doc.company_profile || { companyName: doc.profiles?.company_name || 'N/A', industry: 'Unknown' }, questionAnswers: doc.question_answers, version: doc.version,
+        id: doc.id, title: doc.title, kind: doc.kind, type: doc.type, content: doc.content, createdAt: doc.created_at, companyProfile: doc.company_profile || { companyName: doc.profiles?.company_name || 'N/A', industry: 'Unknown' }, questionAnswers: doc.question_answers, version: doc.version, brainVersion: doc.brain_version, promptFingerprint: doc.prompt_fingerprint,
     }));
     return { data: docs, lastVisible: offset + pageSize };
 };
