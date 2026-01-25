@@ -33,7 +33,7 @@ const ConsultantHero = () => {
                 transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
             />
 
-            <div className="container mx-auto px-4 pt-28 pb-16 md:pt-36 md:pb-24 relative z-10">
+            <div className="container mx-auto px-4 pt-16 pb-16 md:pt-24 md:pb-24 relative z-10">
                 <div className="grid lg:grid-cols-2 gap-8 lg:gap-12 items-center min-h-[80vh]">
                     {/* Text Content - Left side */}
                     <motion.div

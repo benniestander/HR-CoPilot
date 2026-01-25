@@ -58,7 +58,7 @@ const PolicyDetailLanding: React.FC<PolicyDetailLandingProps> = ({ slug }) => {
     });
 
     return (
-        <div className="bg-slate-50 min-h-screen">
+        <div className="bg-slate-50 min-h-screen pt-20">
             <Navbar />
             {/* Header / Breadcrumbs */}
             <div className="bg-white border-b border-gray-200">

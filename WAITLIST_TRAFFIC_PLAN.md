@@ -112,4 +112,44 @@ If you want to be part of the cohort that never worries about a CCMA referral ag
 
 **CTA:** Grab one of the remaining 50 spots here: [Link: #/waitlist]
 
-#SouthAfricaBusiness #SME #HRTech #Compliance #FounderLife
+## 🤝 6. Consultant Partnership Program (The B2B Pillar)
+
+### LinkedIn Post: "The Agency Scale" (Target: HR Consultants/Agencies)
+**Visual:** The high-fidelity Consultant Dashboard mockup (`ConsultantHeroMockup.tsx`).
+**Hook:** Stop selling your time. Start selling your *infrastructure*. 🇿🇦
+
+**Copy:**
+As an HR Consultant, your biggest bottleneck is *time*.
+Writing manual employment contracts and auditing compliance for 10 clients takes weeks. Scaling to 50 is impossible.
+
+Until now.
+
+We're launching the **HR CoPilot Consultant OS**.
+✓ **White-Label Portals:** Your brand, our legally-vetted engine.
+✓ **Multi-Tenant Management:** Manage 50 clients from one dashboard.
+✓ **Uncapped Margin:** Charge your clients for the document, we charge you for the portal.
+
+We're onboarding 5 agencies on launch day. Apply for the Partnership Programme now.
+
+**CTA:** 👉 [Link: #/consultants]
+
+---
+
+### Direct DM/Email: The Agency Outreach
+**Subject:** Question about [Agency Name]'s client document workflow 🇿🇦
+
+**Body:**
+Hi [Name],
+
+I’ve been following [Agency Name]’s work in the [Industry] sector—impressive stuff! 
+
+Quick question: How much time is your team currently spending on manual BCEA/LRA document generation for clients?
+
+We’re launching **HR CoPilot for Consultants** tomorrow. It’s a white-label "HR OS" that lets agencies automate their entire compliance workflow. You can generate institutional-grade SA contracts for your clients in under 60 seconds.
+
+I’d love to show you a quick demo before the public launch day.
+
+Are you free for a 10-minute chat tomorrow morning?
+
+Best,
+[Your Name]

@@ -89,7 +89,7 @@ Best,
 
 ---
 
-## 📨 Email 4: Launch Day (Conversion)
+## 📨 Email 4: Launch Day (Founders)
 **Subject:** 🚀 WE ARE LIVE: Claim your Founder's Legacy Rate
 
 **Body:**
@@ -97,22 +97,42 @@ Hi [Name],
 
 The wait is over. **HR CoPilot is officially live.**
 
-As a priority waitlist member, you have **24-hour early access** before we open this to the public. 
+As a priority waitlist member, you have **limited early access** to the smartest HR engine in South Africa.
 
 **Your Exclusive Offer:**
-Because you joined the waitlist, you can claim our **Founder’s Legacy Plan** for just [Price]. 
+Because you joined the waitlist, you can claim our **Founder’s Legacy Plan** for just R1,499/year. 
 
 This includes:
 ✓ Unlimited Policy Generation
 ✓ Full Compliance Audits
-✓ Custom Disciplinary Codes
-✓ Lifetime access to new legal updates (LRA/POPIA)
+✓ Custom Disciplinary Codes (BCEA/LRA Vetted)
+✓ Lifetime access to new legal updates
 
 **Claim your spot now:** [Link: #/auth?plan=pro]
 
-*Note: We only have 100 slots at this legacy price. Once they are gone, the price increases to our standard market rate.*
+Stay compliant,
+**Bennie & the HR CoPilot Team**
 
-Don't leave your compliance to chance.
+---
+
+## 📨 Email 5: The Consultant Special (Launch Day)
+**Subject:** 🤝 Your Agency’s New HR OS is Live
+
+**Body:**
+Hi [Name],
+
+Today, we're not just launching a tool for businesses—we're launching an engine for **HR Consultants**.
+
+The **HR CoPilot Partnership Programme** is officially open.
+
+**Why join the first 5 Agencies?**
+1. **White-Label Control:** Drop your logo into the system and offer it as a premium service to your clients.
+2. **Infinite Scale:** Manage 50+ clients from one dashboard without hiring more admin staff.
+3. **Automated Audits:** Run a full compliance scan for any client in 3 seconds.
+
+This is the end of the "hourly rate" grind. Start building institutional value.
+
+**Apply for Partnership:** [Link: #/consultants]
 
 Best,
-**Bennie & the HR CoPilot Team**
+**Bennie | Founder, HR CoPilot**

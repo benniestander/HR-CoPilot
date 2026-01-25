@@ -2,6 +2,11 @@ import { motion, useInView } from "framer-motion";
 import { useRef } from "react";
 import { Check, LayoutDashboard, Palette, Shield, Zap, BarChart3 } from "lucide-react";
 
+import imgBranding from "@/assets/hr_white_label_preview.png";
+import imgMultiTenant from "@/assets/hr_multi_tenant_preview.png";
+import imgContracts from "@/assets/hr_automation_preview.png";
+import imgProfit from "@/assets/hr_revenue_preview.png";
+
 interface Feature {
     icon: any;
     iconColor: string;
@@ -150,32 +155,32 @@ const ConsultantFeatures = () => {
                                                 <div className="w-6 h-6 rounded-full bg-primary/10" />
                                             </div>
 
-                                            {/* Inner View Mockup - Replaced with High Quality Generated Images */}
+                                            {/* Inner View Mockup - Replaced with High Quality Imports */}
                                             <div className="flex-grow relative h-full">
                                                 {feature.mockupType === "branding" && (
                                                     <img
-                                                        src="/assets/hr_white_label_preview.png"
+                                                        src={imgBranding}
                                                         alt="White Labeling Interface"
                                                         className="w-full h-full object-cover"
                                                     />
                                                 )}
                                                 {feature.mockupType === "multi-tenant" && (
                                                     <img
-                                                        src="/assets/hr_multi_tenant_preview.png"
+                                                        src={imgMultiTenant}
                                                         alt="Multi-tenant Dashboard"
                                                         className="w-full h-full object-cover"
                                                     />
                                                 )}
                                                 {feature.mockupType === "contracts" && (
                                                     <img
-                                                        src="/assets/hr_automation_preview.png"
+                                                        src={imgContracts}
                                                         alt="Automated Document Drafting"
                                                         className="w-full h-full object-cover"
                                                     />
                                                 )}
                                                 {feature.mockupType === "profit" && (
                                                     <img
-                                                        src="/assets/hr_revenue_preview.png"
+                                                        src={imgProfit}
                                                         alt="Consultancy Revenue Growth"
                                                         className="w-full h-full object-cover"
                                                     />

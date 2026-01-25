@@ -41,6 +41,21 @@
 - **Headline:** 🇿🇦 Instant SA HR Contracts | 100% Legally Compliant.
 - **Description:** No lawyers needed. Generate BCEA, LRA & POPIA compliant HR documents in 60 seconds. Trusted by 500+ SA owners.
 
-### Meta/Facebook Ads
-- **Creative:** The 'Hero' Dashboard image showing 98% compliance.
-- **Copy:** Stop losing sleep over your staff documentation. HR CoPilot gives you a full legal department for R35/doc.
+---
+
+## 🤝 5. Consultant Partnership Programme (The Multiplier)
+**Goal:** Recruit HR Agencies & Independent Consultants to use our White-Label OS.
+- **Hook:** "Stop selling hours. Start selling an Institutional HR Infrastructure."
+- **Offer:** 100% Margin White-Label Workspace for your clients.
+- **CTA:** "Join the Partnership Programme" (Separate Landing Page: `/consultants`).
+- **Direct Outreach:** Target SA HR Freelancers on LinkedIn/Upwork.
+
+---
+
+## 🚀 6. Launch Day "Zero Hour" Checklist (Jan 26)
+**08:00:** Go-Live Email to Waitlist (Email 5).
+**09:00:** LinkedIn Main Launch Post (The 'Big Bang' Carousel).
+**10:00:** Direct Outreach to 20 "Top Tier" HR Consultants.
+**12:00:** Community Blast (FB Groups, Biz Forums).
+**15:00:** "50% Spots Gone" FOMO Update on Socials.
+**20:00:** End of Day 1 "Wins & Feedback" post.
