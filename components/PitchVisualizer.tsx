@@ -542,16 +542,17 @@ const PitchVisualizer: React.FC = () => {
 
     const slides = getCurrentSlides();
 
-    // MODE SELECTION SCREEN
-    if (!presentationMode) {
-        return (
-            <div className="min-h-screen bg-[#020203] text-white flex items-center justify-center p-4 md:p-8" style={{ fontFamily: "'Inter', sans-serif" }}>
-                <div className="absolute inset-0 overflow-hidden pointer-events-none">
-                    <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-primary/20 blur-[120px]" />
-                    <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] rounded-full bg-indigo-500/10 blur-[120px]" />
-                </div>
-
-                <div className="relative z-10 max-w-6xl w-full">
+    const renderContent = () => {
+        if (!presentationMode) {
+            return (
+                <motion.div
+                    key="selection"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.5 }}
+                    className="w-full max-w-6xl mx-auto relative z-10 p-4 md:p-8 flex flex-col items-center justify-center min-h-screen"
+                >
                     <motion.div
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
@@ -562,7 +563,7 @@ const PitchVisualizer: React.FC = () => {
                         <p className="text-xl text-gray-400">Select the presentation tailored to your stakeholders</p>
                     </motion.div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full">
                         {[
                             {
                                 mode: 'investors' as PresentationMode,
@@ -592,7 +593,7 @@ const PitchVisualizer: React.FC = () => {
                                 animate={{ opacity: 1, y: 0 }}
                                 transition={{ delay: i * 0.1 }}
                                 onClick={() => setPresentationMode(option.mode)}
-                                className="group relative p-1 rounded-3xl bg-gradient-to-b from-white/10 to-transparent hover:from-white/20 transition-all duration-500"
+                                className="group relative p-1 rounded-3xl bg-gradient-to-b from-white/10 to-transparent hover:from-white/20 transition-all duration-500 w-full text-left"
                             >
                                 <div className="bg-[#0a0a0b] p-8 rounded-[1.4rem] h-full flex flex-col items-center text-center">
                                     <div className={`w-20 h-20 rounded-2xl bg-gradient-to-br ${option.color} flex items-center justify-center mb-6 shadow-lg group-hover:scale-110 transition-transform`}>
@@ -619,26 +620,140 @@ const PitchVisualizer: React.FC = () => {
                         <ArrowLeft className="w-4 h-4" />
                         <span>Back to Dashboard</span>
                     </motion.button>
-                </div>
+                </motion.div>
+            );
+        }
 
-                <style dangerouslySetInnerHTML={{
-                    __html: `
-                    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
-                    :root {
-                        --primary: #188693;
-                    }
-                    .bg-primary { background-color: var(--primary); }
-                    .text-primary { color: var(--primary); }
-                ` }} />
-            </div>
+        return (
+            <motion.div
+                key="presentation"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.5 }}
+                className="w-full flex-grow flex flex-col"
+            >
+                {!isFullscreen && (
+                    <motion.header
+                        initial={{ y: -20, opacity: 0 }}
+                        animate={{ y: 0, opacity: 1 }}
+                        className="relative z-20 flex justify-between items-center mb-12 p-6 md:p-8"
+                    >
+                        <div className="flex items-center gap-3">
+                            <img src="https://i.postimg.cc/h48FMCNY/edited-image-11-removebg-preview.png" alt="Logo" className="h-10" />
+                            <div className="h-6 w-px bg-white/10" />
+                            <span className="text-xs font-black uppercase tracking-[0.2em] text-white/40">
+                                {presentationMode === 'investors' ? 'Investor Deck' : presentationMode === 'businesses' ? 'Business Pitch' : 'Consultant Pitch'} 2026
+                            </span>
+                        </div>
+                        <div className="flex items-center gap-4">
+                            <button
+                                onClick={resetPresentation}
+                                className="p-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl transition-all text-gray-400 hover:text-white"
+                            >
+                                <ArrowLeft className="w-5 h-5" />
+                            </button>
+                            <button
+                                onClick={toggleFullscreen}
+                                className="p-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl transition-all group"
+                            >
+                                {isFullscreen ? <Minimize2 className="w-5 h-5" /> : <Maximize2 className="w-5 h-5 group-hover:scale-110 transition-transform" />}
+                            </button>
+                            <button
+                                onClick={() => navigateTo('dashboard')}
+                                className="p-3 bg-white/5 hover:bg-red-500/20 hover:border-red-500/20 border border-white/10 rounded-2xl transition-all text-gray-400 hover:text-red-500 group"
+                            >
+                                <X className="w-5 h-5 group-hover:rotate-90 transition-transform" />
+                            </button>
+                        </div>
+                    </motion.header>
+                )}
+
+                <main className={`relative z-10 flex-grow flex flex-col items-center justify-center max-w-6xl mx-auto w-full px-4 overflow-y-auto custom-scrollbar ${isFullscreen ? 'pt-0' : 'pt-0'} pb-32`}>
+                    <AnimatePresence mode="wait">
+                        <motion.div
+                            key={currentSlide}
+                            initial={{ opacity: 0, y: 40, filter: "blur(10px)" }}
+                            animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+                            exit={{ opacity: 0, y: -40, filter: "blur(10px)" }}
+                            transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+                            className="w-full"
+                        >
+                            <div className="text-center mb-16">
+                                <motion.span
+                                    initial={{ opacity: 0 }}
+                                    animate={{ opacity: 1 }}
+                                    transition={{ delay: 0.2 }}
+                                    className="text-primary font-black uppercase tracking-widest text-xs mb-4 inline-block"
+                                >
+                                    {presentationMode === 'investors' ? 'Investment Opportunity' : presentationMode === 'businesses' ? 'For Your Business' : 'For Consultants'} • Slide 0{currentSlide + 1}
+                                </motion.span>
+                                <h1 className="text-4xl md:text-7xl font-black text-white tracking-tighter leading-none mb-6">
+                                    {slides[currentSlide].title}
+                                </h1>
+                                <p className="text-xl md:text-2xl text-gray-400 font-medium">
+                                    {slides[currentSlide].subtitle}
+                                </p>
+                            </div>
+
+                            {slides[currentSlide].content}
+                        </motion.div>
+                    </AnimatePresence>
+                </main>
+
+                <footer className="fixed bottom-0 left-0 right-0 p-6 md:p-12 z-50 pointer-events-none">
+                    <div className="max-w-6xl mx-auto flex justify-between items-center pointer-events-auto">
+                        <motion.div
+                            initial={{ opacity: 0, x: -20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            className="flex gap-2"
+                        >
+                            {Array.from({ length: 3 }).map((_, i) => (
+                                <div
+                                    key={i}
+                                    className={`h-1 transition-all duration-500 rounded-full ${i === currentSlide ? 'w-12 bg-primary' : 'w-4 bg-white/10'}`}
+                                />
+                            ))}
+                        </motion.div>
+
+                        <div className="flex gap-4">
+                            <button
+                                onClick={prevSlide}
+                                disabled={currentSlide === 0}
+                                className={`p-4 rounded-3xl border transition-all flex items-center gap-2 font-bold ${currentSlide === 0 ? 'opacity-0 pointer-events-none' : 'bg-white/5 border-white/10 hover:bg-white/10 text-white'}`}
+                            >
+                                <ArrowLeft className="w-5 h-5" />
+                                <span className="hidden sm:inline">Previous</span>
+                            </button>
+
+                            {currentSlide < 2 ? (
+                                <button
+                                    onClick={nextSlide}
+                                    className="p-4 px-8 rounded-3xl bg-primary hover:bg-primary-hover border border-primary/20 transition-all flex items-center gap-2 font-black shadow-lg shadow-primary/20 text-white group"
+                                >
+                                    <span>Next Insight</span>
+                                    <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                                </button>
+                            ) : (
+                                <button
+                                    onClick={resetPresentation}
+                                    className="p-4 px-8 rounded-3xl bg-white text-[#020203] hover:bg-gray-200 transition-all flex items-center gap-2 font-black shadow-lg shadow-white/10 group"
+                                >
+                                    <ArrowLeft className="w-5 h-5" />
+                                    <span>Choose Another</span>
+                                </button>
+                            )}
+                        </div>
+                    </div>
+                </footer>
+            </motion.div>
         );
-    }
+    };
 
-    // PRESENTATION VIEW
     return (
         <div
             ref={containerRef}
-            className={`min-h-screen bg-[#020203] text-white selection:bg-primary selection:text-white transition-all duration-500 relative flex flex-col ${isFullscreen ? 'p-0' : 'p-4 md:p-8'}`}
+            className={`min-h-screen bg-[#020203] text-white selection:bg-primary selection:text-white transition-all duration-500 relative flex flex-col ${isFullscreen ? 'p-0' : 'p-0'}`}
             style={{ fontFamily: "'Inter', sans-serif" }}
         >
             <div className="absolute inset-0 overflow-hidden pointer-events-none">
@@ -646,119 +761,9 @@ const PitchVisualizer: React.FC = () => {
                 <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] rounded-full bg-indigo-500/10 blur-[120px]" />
             </div>
 
-            {!isFullscreen && (
-                <motion.header
-                    initial={{ y: -20, opacity: 0 }}
-                    animate={{ y: 0, opacity: 1 }}
-                    className="relative z-20 flex justify-between items-center mb-12"
-                >
-                    <div className="flex items-center gap-3">
-                        <img src="https://i.postimg.cc/h48FMCNY/edited-image-11-removebg-preview.png" alt="Logo" className="h-10" />
-                        <div className="h-6 w-px bg-white/10" />
-                        <span className="text-xs font-black uppercase tracking-[0.2em] text-white/40">
-                            {presentationMode === 'investors' ? 'Investor Deck' : presentationMode === 'businesses' ? 'Business Pitch' : 'Consultant Pitch'} 2026
-                        </span>
-                    </div>
-                    <div className="flex items-center gap-4">
-                        <button
-                            onClick={resetPresentation}
-                            className="p-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl transition-all text-gray-400 hover:text-white"
-                        >
-                            <ArrowLeft className="w-5 h-5" />
-                        </button>
-                        <button
-                            onClick={toggleFullscreen}
-                            className="p-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl transition-all group"
-                        >
-                            {isFullscreen ? <Minimize2 className="w-5 h-5" /> : <Maximize2 className="w-5 h-5 group-hover:scale-110 transition-transform" />}
-                        </button>
-                        <button
-                            onClick={() => navigateTo('dashboard')}
-                            className="p-3 bg-white/5 hover:bg-red-500/20 hover:border-red-500/20 border border-white/10 rounded-2xl transition-all text-gray-400 hover:text-red-500 group"
-                        >
-                            <X className="w-5 h-5 group-hover:rotate-90 transition-transform" />
-                        </button>
-                    </div>
-                </motion.header>
-            )}
-
-            <main className="relative z-10 flex-grow flex flex-col items-center justify-center max-w-6xl mx-auto w-full px-4 overflow-y-auto custom-scrollbar pt-20 pb-32">
-                <AnimatePresence mode="wait">
-                    <motion.div
-                        key={currentSlide}
-                        initial={{ opacity: 0, y: 40, filter: "blur(10px)" }}
-                        animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-                        exit={{ opacity: 0, y: -40, filter: "blur(10px)" }}
-                        transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-                        className="w-full"
-                    >
-                        <div className="text-center mb-16">
-                            <motion.span
-                                initial={{ opacity: 0 }}
-                                animate={{ opacity: 1 }}
-                                transition={{ delay: 0.2 }}
-                                className="text-primary font-black uppercase tracking-widest text-xs mb-4 inline-block"
-                            >
-                                {presentationMode === 'investors' ? 'Investment Opportunity' : presentationMode === 'businesses' ? 'For Your Business' : 'For Consultants'} • Slide 0{currentSlide + 1}
-                            </motion.span>
-                            <h1 className="text-4xl md:text-7xl font-black text-white tracking-tighter leading-none mb-6">
-                                {slides[currentSlide].title}
-                            </h1>
-                            <p className="text-xl md:text-2xl text-gray-400 font-medium">
-                                {slides[currentSlide].subtitle}
-                            </p>
-                        </div>
-
-                        {slides[currentSlide].content}
-                    </motion.div>
-                </AnimatePresence>
-            </main>
-
-            <footer className="fixed bottom-0 left-0 right-0 p-6 md:p-12 z-50 pointer-events-none">
-                <div className="max-w-6xl mx-auto flex justify-between items-center pointer-events-auto">
-                    <motion.div
-                        initial={{ opacity: 0, x: -20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        className="flex gap-2"
-                    >
-                        {Array.from({ length: 3 }).map((_, i) => (
-                            <div
-                                key={i}
-                                className={`h-1 transition-all duration-500 rounded-full ${i === currentSlide ? 'w-12 bg-primary' : 'w-4 bg-white/10'}`}
-                            />
-                        ))}
-                    </motion.div>
-
-                    <div className="flex gap-4">
-                        <button
-                            onClick={prevSlide}
-                            disabled={currentSlide === 0}
-                            className={`p-4 rounded-3xl border transition-all flex items-center gap-2 font-bold ${currentSlide === 0 ? 'opacity-0 pointer-events-none' : 'bg-white/5 border-white/10 hover:bg-white/10 text-white'}`}
-                        >
-                            <ArrowLeft className="w-5 h-5" />
-                            <span className="hidden sm:inline">Previous</span>
-                        </button>
-
-                        {currentSlide < 2 ? (
-                            <button
-                                onClick={nextSlide}
-                                className="p-4 px-8 rounded-3xl bg-primary hover:bg-primary-hover border border-primary/20 transition-all flex items-center gap-2 font-black shadow-lg shadow-primary/20 text-white group"
-                            >
-                                <span>Next Insight</span>
-                                <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-                            </button>
-                        ) : (
-                            <button
-                                onClick={resetPresentation}
-                                className="p-4 px-8 rounded-3xl bg-white text-[#020203] hover:bg-gray-200 transition-all flex items-center gap-2 font-black shadow-lg shadow-white/10 group"
-                            >
-                                <ArrowLeft className="w-5 h-5" />
-                                <span>Choose Another</span>
-                            </button>
-                        )}
-                    </div>
-                </div>
-            </footer>
+            <AnimatePresence mode="wait">
+                {renderContent()}
+            </AnimatePresence>
 
             <style dangerouslySetInnerHTML={{
                 __html: `
@@ -781,13 +786,8 @@ const PitchVisualizer: React.FC = () => {
                 :fullscreen header {
                     display: none;
                 }
-                
-                :fullscreen main {
-                    padding-top: 0;
-                }
             ` }} />
         </div>
     );
 };
-
 export default PitchVisualizer;
