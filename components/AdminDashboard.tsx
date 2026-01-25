@@ -1022,8 +1022,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
               onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                console.log("Launching Pitch Visualizer...");
-                navigateTo('pitch');
+                console.log("Force Launching Pitch Visualizer...");
+                window.location.href = '/pitch';
               }}
               className="px-8 py-4 bg-white text-indigo-950 font-black rounded-2xl hover:bg-indigo-50 active:scale-95 transition-all shadow-xl shadow-indigo-500/20 flex items-center gap-3 group/btn whitespace-nowrap relative z-[50] cursor-pointer pointer-events-auto"
             >

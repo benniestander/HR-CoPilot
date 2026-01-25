@@ -396,7 +396,7 @@ const AppContent: React.FC = () => {
     }, [setNotificationPanelOpen]);
 
     useEffect(() => {
-        const PUBLIC_VIEWS = ['dashboard', 'consultants', 'library', 'templates', 'waitlist'];
+        const PUBLIC_VIEWS = ['dashboard', 'consultants', 'library', 'templates', 'waitlist', 'pitch'];
         if (!user && !PUBLIC_VIEWS.includes(currentView)) {
             navigateTo('dashboard');
             setSelectedItem(null);
