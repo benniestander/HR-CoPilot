@@ -5,7 +5,46 @@ import { Check, LayoutDashboard, Palette, Shield, Zap, BarChart3 } from "lucide-
 import imgBranding from "@/assets/hr_white_label_preview.png";
 import imgMultiTenant from "@/assets/hr_multi_tenant_preview.jpg";
 import imgContracts from "@/assets/hr_automation_preview.jpg";
-import imgProfit from "@/assets/hr_revenue_preview.jpg";
+
+const RevenueMockup = () => (
+    <div className="w-full h-full bg-slate-950 p-8 flex flex-col justify-center items-start space-y-8 relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-64 h-64 bg-primary/20 blur-[100px] -translate-y-1/2 translate-x-1/2" />
+
+        <div className="relative z-10 w-full">
+            <h4 className="text-primary text-[10px] font-black uppercase tracking-[0.3em] mb-4">Practice Economics</h4>
+            <h3 className="text-white text-3xl font-black leading-tight mb-8">
+                Exponential <br />
+                Revenue Growth
+            </h3>
+
+            <div className="grid grid-cols-2 gap-4 w-full">
+                <div className="bg-white/5 backdrop-blur-md border border-white/10 p-5 rounded-2xl">
+                    <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest mb-2">New Clients</p>
+                    <p className="text-white text-2xl font-black">150+</p>
+                    <div className="flex items-center text-emerald-400 text-[10px] font-black mt-2">
+                        <Zap size={10} className="mr-1" /> +28% MOY
+                    </div>
+                </div>
+                <div className="bg-white/5 backdrop-blur-md border border-white/10 p-5 rounded-2xl">
+                    <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest mb-2">Total Billing</p>
+                    <p className="text-white text-2xl font-black">R2.5M+</p>
+                    <div className="flex items-center text-primary text-[10px] font-black mt-2">
+                        BCEA AUDITS ACTIVE
+                    </div>
+                </div>
+            </div>
+
+            <div className="mt-8 bg-gradient-to-r from-primary to-teal-500 h-1.5 w-full rounded-full overflow-hidden">
+                <motion.div
+                    className="h-full bg-white/40"
+                    initial={{ width: 0 }}
+                    animate={{ width: '85%' }}
+                    transition={{ duration: 2, repeat: Infinity }}
+                />
+            </div>
+        </div>
+    </div>
+);
 
 interface Feature {
     icon: any;
@@ -179,11 +218,7 @@ const ConsultantFeatures = () => {
                                                     />
                                                 )}
                                                 {feature.mockupType === "profit" && (
-                                                    <img
-                                                        src={imgProfit}
-                                                        alt="Consultancy Revenue Growth"
-                                                        className="w-full h-full object-cover"
-                                                    />
+                                                    <RevenueMockup />
                                                 )}
                                                 {/* Overlay gradient for depth */}
                                                 <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent pointer-events-none" />

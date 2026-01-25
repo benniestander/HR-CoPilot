@@ -87,8 +87,12 @@ const PolicyLibrary: React.FC = () => {
                                     animate={{ opacity: 1, y: 0 }}
                                     transition={{ delay: Math.min(idx * 0.05, 1) }}
                                 >
-                                    <button
-                                        onClick={() => navigateTo('templates' as any, { slug })}
+                                    <a
+                                        href={`/templates/${slug}`}
+                                        onClick={(e) => {
+                                            e.preventDefault();
+                                            navigateTo('templates' as any, { slug });
+                                        }}
                                         className="w-full group bg-white p-8 rounded-[2.5rem] border border-slate-200 hover:border-primary/40 hover:shadow-strong transition-all text-left flex flex-col h-full"
                                     >
                                         <div className="w-16 h-16 rounded-2xl bg-slate-50 flex items-center justify-center mb-8 group-hover:bg-primary/5 transition-colors">
@@ -111,7 +115,7 @@ const PolicyLibrary: React.FC = () => {
                                                 R35 / doc
                                             </div>
                                         </div>
-                                    </button>
+                                    </a>
                                 </motion.div>
                             );
                         })}

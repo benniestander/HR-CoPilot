@@ -58,7 +58,7 @@ const PolicyDetailLanding: React.FC<PolicyDetailLandingProps> = ({ slug }) => {
     });
 
     return (
-        <div className="bg-slate-50 min-h-screen pt-20">
+        <div className="bg-slate-50 min-h-screen pt-24 md:pt-28">
             <Navbar />
             {/* Header / Breadcrumbs */}
             <div className="bg-white border-b border-gray-200">
@@ -324,24 +324,26 @@ const PolicyDetailLanding: React.FC<PolicyDetailLandingProps> = ({ slug }) => {
                             const title = related?.title || rSlug.replace(/-/g, ' ').replace('template south africa', '').trim();
 
                             return (
-                                <button
+                                <a
                                     key={rSlug}
-                                    onClick={() => {
+                                    href={`/templates/${rSlug}`}
+                                    onClick={(e) => {
+                                        e.preventDefault();
                                         window.scrollTo(0, 0);
                                         navigateTo('templates' as any, { slug: rSlug });
                                     }}
-                                    className="p-6 bg-white rounded-[2rem] border border-slate-200 hover:border-indigo-400 hover:shadow-xl transition-all text-left group"
+                                    className="p-8 bg-white rounded-[2rem] border border-slate-200 hover:border-primary hover:shadow-2xl transition-all text-left group flex flex-col h-full"
                                 >
-                                    <div className="w-12 h-12 rounded-2xl bg-slate-50 flex items-center justify-center mb-6 group-hover:bg-indigo-50 transition-colors">
-                                        <FileText className="w-6 h-6 text-slate-400 group-hover:text-indigo-600" />
+                                    <div className="w-14 h-14 rounded-2xl bg-slate-50 flex items-center justify-center mb-6 group-hover:bg-primary/10 transition-colors">
+                                        <FileText className="w-7 h-7 text-slate-400 group-hover:text-primary" />
                                     </div>
-                                    <h4 className="text-lg font-bold text-slate-800 mb-3 capitalize line-clamp-2">
+                                    <h4 className="text-xl font-black text-slate-800 mb-4 capitalize line-clamp-3 leading-snug">
                                         {title}
                                     </h4>
-                                    <div className="flex items-center text-xs font-black text-indigo-600 uppercase tracking-widest">
-                                        View Template <ArrowRight className="ml-2 w-3.5 h-3.5" />
+                                    <div className="mt-auto flex items-center text-xs font-black text-primary uppercase tracking-widest pt-4">
+                                        View Template <ArrowRight className="ml-2 w-4 h-4 group-hover:translate-x-1 transition-transform" />
                                     </div>
-                                </button>
+                                </a>
                             );
                         })}
                     </div>
