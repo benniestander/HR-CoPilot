@@ -992,7 +992,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
     DASHBOARD OVERVIEW WIDGETS
     Shown when activeTab === 'dashboard'
   */
-  const DashboardOverview = () => {
+  // Standalone Dashboard Overview Component
+  const DashboardOverview = ({ stats }: { stats: any }) => {
     const { navigateTo } = useUIContext();
     return (
       <div className="space-y-8">
@@ -1003,11 +1004,11 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
         {/* HIGH IMPACT PITCH CARD */}
         <Card className="p-1 px-8 py-10 bg-gradient-to-br from-indigo-900 via-slate-900 to-black text-white relative overflow-hidden group border-none shadow-2xl">
-          <div className="absolute inset-0 bg-grid-white/[0.05] bg-[size:20px_20px]" />
-          <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/20 blur-3xl -mr-32 -mt-32 group-hover:bg-indigo-500/30 transition-all duration-700" />
+          <div className="absolute inset-0 bg-grid-white/[0.05] bg-[size:20px_20px] pointer-events-none" />
+          <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/20 blur-3xl -mr-32 -mt-32 group-hover:bg-indigo-500/30 transition-all duration-700 pointer-events-none" />
 
           <div className="relative z-10 flex flex-col md:flex-row justify-between items-center gap-8">
-            <div className="text-center md:text-left">
+            <div className="text-center md:text-left pointer-events-none">
               <span className="px-3 py-1 bg-indigo-500/20 text-indigo-300 text-[10px] font-black uppercase tracking-widest rounded-full mb-4 inline-block border border-indigo-500/30">
                 Strategic Asset
               </span>
@@ -1019,7 +1020,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
             <button
               onClick={() => navigateTo('pitch')}
-              className="px-8 py-4 bg-white text-indigo-950 font-black rounded-2xl hover:bg-indigo-50 active:scale-95 transition-all shadow-xl shadow-indigo-500/20 flex items-center gap-3 group/btn whitespace-nowrap"
+              className="px-8 py-4 bg-white text-indigo-950 font-black rounded-2xl hover:bg-indigo-50 active:scale-95 transition-all shadow-xl shadow-indigo-500/20 flex items-center gap-3 group/btn whitespace-nowrap z-20 cursor-pointer"
             >
               <TrendingUpIcon className="w-5 h-5 group-hover/btn:scale-110 transition-transform" />
               Launch Pitch Visualizer
@@ -1106,7 +1107,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
         {/* SCROLLABLE CONTENT */}
         <main className="flex-1 overflow-y-auto p-8 relative">
           <div className="max-w-7xl mx-auto pb-12">
-            {activeTab === 'dashboard' && <DashboardOverview />}
+            {activeTab === 'dashboard' && <DashboardOverview stats={stats} />}
             {activeTab === 'requests' && <OrderRequestList userEmail={user?.email || ''} />}
             {activeTab === 'support' && <SupportTicketsDesk />}
             {activeTab === 'users' && (
