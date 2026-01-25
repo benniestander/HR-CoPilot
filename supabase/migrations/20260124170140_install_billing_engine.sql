@@ -48,6 +48,14 @@ ALTER TABLE invoices ENABLE ROW LEVEL SECURITY;
 ALTER TABLE invoice_items ENABLE ROW LEVEL SECURITY;
 ALTER TABLE billing_ledger ENABLE ROW LEVEL SECURITY;
 
+DO $$ 
+BEGIN
+    DROP POLICY IF EXISTS "Users view their own invoices" ON invoices;
+    DROP POLICY IF EXISTS "Admins view all invoices" ON invoices;
+    DROP POLICY IF EXISTS "Users view own ledger" ON billing_ledger;
+    DROP POLICY IF EXISTS "Admins manage ledger" ON billing_ledger;
+END $$;
+
 CREATE POLICY "Users view their own invoices" ON invoices FOR SELECT USING (auth.uid() = user_id);
 CREATE POLICY "Admins view all invoices" ON invoices FOR ALL USING (
     EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND is_admin = true)
