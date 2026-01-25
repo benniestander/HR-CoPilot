@@ -3,9 +3,9 @@ import { useRef } from "react";
 import { Check, LayoutDashboard, Palette, Shield, Zap, BarChart3 } from "lucide-react";
 
 import imgBranding from "@/assets/hr_white_label_preview.png";
-import imgMultiTenant from "@/assets/hr_multi_tenant_preview.png";
-import imgContracts from "@/assets/hr_automation_preview.png";
-import imgProfit from "@/assets/hr_revenue_preview.png";
+import imgMultiTenant from "@/assets/hr_multi_tenant_preview.jpg";
+import imgContracts from "@/assets/hr_automation_preview.jpg";
+import imgProfit from "@/assets/hr_revenue_preview.jpg";
 
 interface Feature {
     icon: any;
