@@ -25,9 +25,16 @@ CREATE TABLE auditor_reports (
 
 -- RLS Policies
 ALTER TABLE law_modules ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Public Read Law Modules" ON law_modules FOR SELECT TO authenticated USING (true);
-
 ALTER TABLE auditor_reports ENABLE ROW LEVEL SECURITY;
+
+DO $$ 
+BEGIN
+    DROP POLICY IF EXISTS "Public Read Law Modules" ON law_modules;
+    DROP POLICY IF EXISTS "Users view own audits" ON auditor_reports;
+    DROP POLICY IF EXISTS "Users create own audits" ON auditor_reports;
+END $$;
+
+CREATE POLICY "Public Read Law Modules" ON law_modules FOR SELECT TO authenticated USING (true);
 CREATE POLICY "Users view own audits" ON auditor_reports FOR SELECT TO authenticated USING (auth.uid() = user_id);
 CREATE POLICY "Users create own audits" ON auditor_reports FOR INSERT TO authenticated WITH CHECK (auth.uid() = user_id);
 
