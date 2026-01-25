@@ -35,7 +35,7 @@ export const CORE_POLICY_SEO: Record<string, PolicySEOData> = {
             { q: 'Is a disciplinary code required by law in SA?', a: 'While the LRA doesn\'t explicitly say you must have a written code, it does say you must have clear rules. A written code is the only reliable way to prove rules were communicated.' },
             { q: 'Can I dismiss an employee for first-time theft?', a: 'Yes, theft is generally classified as a "very serious" offence that justifies dismissal on the first instance, provided fair procedure is followed.' }
         ],
-        relatedSlugs: ['employment-contract-template', 'grievance-procedure-template', 'sexual-harassment-policy']
+        relatedSlugs: ['employment-contract-template-south-africa', 'grievance-procedure-template-south-africa', 'sexual-harassment-policy-template-south-africa']
     },
     'employment-contract': {
         slug: 'employment-contract-template-south-africa',
@@ -57,7 +57,7 @@ export const CORE_POLICY_SEO: Record<string, PolicySEOData> = {
             { q: 'What is the minimum notice period in South Africa?', a: 'Under the BCEA, 1 week for first 6 months, 2 weeks for 6-12 months, and 4 weeks after 1 year of employment.' },
             { q: 'Do I have to pay for overtime?', a: 'Yes, unless the employee earns above the BCEA threshold or it is specifically contracted otherwise (within legal limits).' }
         ],
-        relatedSlugs: ['disciplinary-code-template', 'leave-policy-template', 'confidentiality-agreement-template']
+        relatedSlugs: ['disciplinary-code-template-south-africa', 'leave-policy-template-south-africa', 'confidentiality-agreement-template-south-africa']
     },
     'data-protection-privacy': {
         slug: 'popia-policy-template-south-africa',
@@ -79,7 +79,7 @@ export const CORE_POLICY_SEO: Record<string, PolicySEOData> = {
             { q: 'Does every company need a POPIA policy?', a: 'Yes, if you process any personal information (including employee IDs or client emails), you must comply with POPIA.' },
             { q: 'Who should be the Information Officer?', a: 'By default, the CEO or MD, but they can delegate this role to a senior manager.' }
         ],
-        relatedSlugs: ['paia-manual-template', 'confidentiality-agreement-template', 'it-security-policy']
+        relatedSlugs: ['paia-manual-template-south-africa', 'confidentiality-agreement-template-south-africa', 'it-security-policy-template-south-africa']
     }
 };
 

@@ -2,6 +2,7 @@ import { Button } from "@/components/ui/button";
 import { ArrowRight, ShieldCheck, Zap, Sparkles } from "lucide-react";
 import { motion } from "framer-motion";
 import { useAuthContext } from "@/contexts/AuthContext";
+import { ConsultantHeroMockup } from "./ConsultantHeroMockup";
 
 const ConsultantHero = () => {
     const { setAuthPage } = useAuthContext();
@@ -97,8 +98,8 @@ const ConsultantHero = () => {
                                 <span className="text-sm font-bold text-muted-foreground">Uncapped Margin</span>
                             </div>
                             <div className="flex items-center space-x-3 hidden sm:flex">
-                                <div className="p-2 bg-indigo-50 rounded-lg border border-indigo-100">
-                                    <ShieldCheck className="w-5 h-5 text-indigo-500" />
+                                <div className="p-2 bg-primary/5 rounded-lg border border-primary/10">
+                                    <ShieldCheck className="w-5 h-5 text-primary" />
                                 </div>
                                 <span className="text-sm font-bold text-muted-foreground">Legally Vetted</span>
                             </div>
@@ -112,52 +113,7 @@ const ConsultantHero = () => {
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.8, delay: 0.3 }}
                     >
-                        <div className="relative">
-                            <motion.div
-                                className="relative z-10"
-                                whileHover={{ scale: 1.02, rotateY: -2 }}
-                                transition={{ type: "spring", stiffness: 300 }}
-                            >
-                                <div className="absolute inset-0 bg-gradient-to-br from-primary/30 to-transparent rounded-2xl blur-3xl transform -rotate-3" />
-
-                                {/* Premium Image Frame */}
-                                <div className="relative z-10 bg-white/80 backdrop-blur-xl border border-border/50 p-2 rounded-[2.5rem] shadow-strong overflow-hidden">
-                                    <div className="rounded-[2rem] overflow-hidden aspect-[4/3] flex flex-col border border-border/30 relative">
-                                        <img
-                                            src="/assets/hr_consultant_preview.png"
-                                            alt="HR Consultant Management Platform"
-                                            className="w-full h-full object-cover"
-                                        />
-                                        {/* Overlay gradient for depth */}
-                                        <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent pointer-events-none" />
-                                    </div>
-                                </div>
-                            </motion.div>
-
-                            {/* Floating Stats Card */}
-                            <motion.div
-                                className="absolute -bottom-6 -left-6 z-20 bg-background/90 backdrop-blur-md border border-border p-4 rounded-2xl shadow-xl flex items-center gap-4"
-                                animate={{ y: [0, -10, 0] }}
-                                transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-                            >
-                                <div className="w-10 h-10 rounded-full bg-emerald-500/10 flex items-center justify-center">
-                                    <ShieldCheck className="w-6 h-6 text-emerald-600" />
-                                </div>
-                                <div>
-                                    <p className="text-[10px] font-bold text-muted-foreground uppercase leading-none mb-1">Protection</p>
-                                    <p className="text-sm font-black text-foreground">100% Compliant</p>
-                                </div>
-                            </motion.div>
-
-                            {/* Floating Margin Badge */}
-                            <motion.div
-                                className="absolute -top-6 -right-6 z-20 bg-primary text-white px-6 py-3 rounded-full shadow-2xl font-black text-sm flex items-center gap-2 border-2 border-background"
-                                animate={{ y: [0, 10, 0] }}
-                                transition={{ duration: 5, repeat: Infinity, ease: "easeInOut", delay: 1 }}
-                            >
-                                <Zap className="w-4 h-4" /> 100% Margin
-                            </motion.div>
-                        </div>
+                        <ConsultantHeroMockup />
                     </motion.div>
                 </div>
             </div>

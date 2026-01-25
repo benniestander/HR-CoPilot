@@ -57,7 +57,7 @@ const features: Feature[] = [
     },
     {
         icon: Users,
-        iconColor: "text-purple-600",
+        iconColor: "text-primary",
         headline: "Case Study: ATLAS Tech avoided a R50k CCMA payout",
         body: "A fast-growing Cape Town startup was using outdated 'Google' contracts. After a dispute, they switched to HR CoPilot. Within 2 hours, they audited their entire team and generated legally-sound documents that held up in court.",
         benefits: [

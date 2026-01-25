@@ -29,9 +29,16 @@ const Footer = () => {
           <div>
             <h4 className="font-semibold text-background mb-6">Quick Links</h4>
             <ul className="space-y-3">
-              {["Features", "How It Works", "Pricing", "FAQ", "For Consultants"].map((link) => (
+              {["Features", "How It Works", "Pricing", "FAQ", "Policy Library", "For Consultants"].map((link) => (
                 <li key={link}>
-                  <a href={link === "For Consultants" ? "/consultants" : `#${link.toLowerCase().replace(/\s+/g, '-')}`} className="text-background/70 hover:text-primary transition-colors">
+                  <a
+                    href={
+                      link === "For Consultants" ? "/consultants" :
+                        link === "Policy Library" ? "/library" :
+                          `/#${link.toLowerCase().replace(/\s+/g, '-')}`
+                    }
+                    className="text-background/70 hover:text-primary transition-colors"
+                  >
                     {link}
                   </a>
                 </li>
@@ -77,7 +84,7 @@ const Footer = () => {
         <div className="border-t border-background/10 pt-8">
           <div className="flex flex-col md:flex-row justify-between items-center gap-4">
             <p className="text-background/60 text-sm">
-              © 2024 HR CoPilot. All rights reserved.
+              © 2026 HR CoPilot. All rights reserved.
             </p>
             <p className="text-background/60 text-sm">
               Built with ❤️ for South African businesses

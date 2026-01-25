@@ -10,6 +10,8 @@ import { useUIContext } from '@/contexts/UIContext';
 import { PolicySEOData, CORE_POLICY_SEO, generateGenericSEOData } from '@/utils/policySeoData';
 import { POLICIES, FORMS } from '@/constants';
 import { useSEO } from '@/hooks/useSEO';
+import Navbar from '../landing_new/Navbar';
+import Footer from '../landing_new/Footer';
 
 interface PolicyDetailLandingProps {
     slug: string;
@@ -57,6 +59,7 @@ const PolicyDetailLanding: React.FC<PolicyDetailLandingProps> = ({ slug }) => {
 
     return (
         <div className="bg-slate-50 min-h-screen">
+            <Navbar />
             {/* Header / Breadcrumbs */}
             <div className="bg-white border-b border-gray-200">
                 <div className="container mx-auto px-6 py-4">
@@ -79,14 +82,14 @@ const PolicyDetailLanding: React.FC<PolicyDetailLandingProps> = ({ slug }) => {
                             animate={{ opacity: 1, x: 0 }}
                             transition={{ duration: 0.6 }}
                         >
-                            <Badge className="bg-indigo-50 text-indigo-700 border-indigo-100 mb-6 py-1.5 px-4 rounded-full text-xs font-bold uppercase tracking-wider">
+                            <Badge className="bg-primary/10 text-primary border-primary/20 mb-6 py-1.5 px-4 rounded-full text-xs font-bold uppercase tracking-wider">
                                 South African Template
                             </Badge>
                             <h1 className="text-4xl md:text-5xl lg:text-6xl font-black text-slate-900 leading-[1.1] mb-6">
                                 {docData.h1}
                             </h1>
                             <p className="text-lg text-slate-500 mb-8 leading-relaxed max-w-xl">
-                                {docData.summary} Vetted for current 2024 SA labour regulations and easy to customize for your specific business.
+                                {docData.summary} Vetted for current 2026 SA labour regulations and easy to customize for your specific business.
                             </p>
 
                             <div className="flex flex-col sm:flex-row gap-4 mb-10">
@@ -132,12 +135,12 @@ const PolicyDetailLanding: React.FC<PolicyDetailLandingProps> = ({ slug }) => {
                             <Card className="bg-white p-8 rounded-[2rem] shadow-strong border-slate-100 relative z-10 overflow-hidden min-h-[500px]">
                                 <div className="flex justify-between items-center pb-6 border-b border-slate-100 mb-8">
                                     <div className="flex items-center space-x-3">
-                                        <div className="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center">
-                                            <FileText className="w-5 h-5 text-indigo-600" />
+                                        <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                                            <FileText className="w-5 h-5 text-primary" />
                                         </div>
                                         <div>
                                             <p className="text-xs font-black text-slate-800 uppercase tracking-tighter">{docData.h1}</p>
-                                            <p className="text-[10px] text-slate-400 font-bold uppercase">South Africa • 2024</p>
+                                            <p className="text-[10px] text-slate-400 font-bold uppercase">South Africa • 2026</p>
                                         </div>
                                     </div>
                                     <Lock className="w-4 h-4 text-slate-200" />
@@ -151,12 +154,12 @@ const PolicyDetailLanding: React.FC<PolicyDetailLandingProps> = ({ slug }) => {
 
                                     <div className="py-8">
                                         <div className="flex items-center mb-4">
-                                            <div className="w-1.5 h-1.5 rounded-full bg-indigo-600 mr-3" />
-                                            <div className="h-3 w-2/3 bg-indigo-50 rounded" />
+                                            <div className="w-1.5 h-1.5 rounded-full bg-primary mr-3" />
+                                            <div className="h-3 w-2/3 bg-primary/10 rounded" />
                                         </div>
                                         <div className="flex items-center">
-                                            <div className="w-1.5 h-1.5 rounded-full bg-indigo-600 mr-3" />
-                                            <div className="h-3 w-1/2 bg-indigo-50 rounded" />
+                                            <div className="w-1.5 h-1.5 rounded-full bg-primary mr-3" />
+                                            <div className="h-3 w-1/2 bg-primary/10 rounded" />
                                         </div>
                                     </div>
 
@@ -176,7 +179,7 @@ const PolicyDetailLanding: React.FC<PolicyDetailLandingProps> = ({ slug }) => {
                             </Card>
 
                             {/* Decorative Blobs */}
-                            <div className="absolute -top-10 -right-10 w-64 h-64 bg-indigo-200/30 rounded-full blur-3xl z-0" />
+                            <div className="absolute -top-10 -right-10 w-64 h-64 bg-primary/30 rounded-full blur-3xl z-0" />
                             <div className="absolute -bottom-10 -left-10 w-64 h-64 bg-teal-200/20 rounded-full blur-3xl z-0" />
                         </motion.div>
                     </div>
@@ -191,7 +194,7 @@ const PolicyDetailLanding: React.FC<PolicyDetailLandingProps> = ({ slug }) => {
                             {/* Overview */}
                             <div>
                                 <h2 className="text-3xl font-black text-slate-900 mb-6 flex items-center">
-                                    <div className="w-1.5 h-8 bg-indigo-600 rounded-full mr-4" />
+                                    <div className="w-1.5 h-8 bg-primary rounded-full mr-4" />
                                     Why this document is essential
                                 </h2>
                                 <p className="text-xl text-slate-600 leading-relaxed">
@@ -205,7 +208,7 @@ const PolicyDetailLanding: React.FC<PolicyDetailLandingProps> = ({ slug }) => {
                                 <div className="grid sm:grid-cols-2 gap-4">
                                     {docData.keyClauses.map((clause, idx) => (
                                         <div key={idx} className="flex items-start p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                                            <div className="w-6 h-6 rounded-full bg-indigo-600 flex items-center justify-center shrink-0 mt-1 mr-4">
+                                            <div className="w-6 h-6 rounded-full bg-primary flex items-center justify-center shrink-0 mt-1 mr-4">
                                                 <Check className="w-3.5 h-3.5 text-white" />
                                             </div>
                                             <p className="text-slate-700 font-bold leading-tight">{clause}</p>
@@ -215,14 +218,14 @@ const PolicyDetailLanding: React.FC<PolicyDetailLandingProps> = ({ slug }) => {
                             </div>
 
                             {/* Legal Context */}
-                            <Card className="p-10 bg-indigo-900 text-white rounded-[2.5rem] border-none shadow-2xl relative overflow-hidden">
+                            <Card className="p-10 bg-secondary text-white rounded-[2.5rem] border-none shadow-2xl relative overflow-hidden">
                                 <div className="relative z-10">
-                                    <Shield className="w-12 h-12 text-indigo-400 mb-6" />
+                                    <Shield className="w-12 h-12 text-secondary/60 mb-6" />
                                     <h2 className="text-3xl font-black mb-4">Legal Benchmark & Context</h2>
-                                    <p className="text-xl text-indigo-200 leading-relaxed mb-8">
+                                    <p className="text-xl text-primary/70 leading-relaxed mb-8">
                                         {docData.legalContext}
                                     </p>
-                                    <div className="h-1 w-24 bg-indigo-400 rounded-full" />
+                                    <div className="h-1 w-24 bg-secondary/60 rounded-full" />
                                 </div>
                                 <div className="absolute top-0 right-0 p-12 opacity-10">
                                     <Lock className="w-48 h-48" />
@@ -232,13 +235,13 @@ const PolicyDetailLanding: React.FC<PolicyDetailLandingProps> = ({ slug }) => {
                             {/* FAQ Section */}
                             <div>
                                 <h2 className="text-3xl font-black text-slate-900 mb-8 flex items-center">
-                                    <HelpCircle className="w-8 h-8 text-indigo-600 mr-4" />
+                                    <HelpCircle className="w-8 h-8 text-primary mr-4" />
                                     Frequently Asked Questions
                                 </h2>
                                 <Accordion type="single" collapsible className="w-full space-y-4">
                                     {docData.faqs.map((faq, idx) => (
                                         <AccordionItem key={idx} value={`item-${idx}`} className="border-none">
-                                            <AccordionTrigger className="text-lg font-bold text-slate-800 hover:text-indigo-600 hover:no-underline bg-slate-50 px-8 py-6 rounded-2xl group transition-all">
+                                            <AccordionTrigger className="text-lg font-bold text-slate-800 hover:text-primary hover:no-underline bg-slate-50 px-8 py-6 rounded-2xl group transition-all">
                                                 {faq.q}
                                             </AccordionTrigger>
                                             <AccordionContent className="text-lg text-slate-600 leading-relaxed px-8 py-6">
@@ -265,7 +268,7 @@ const PolicyDetailLanding: React.FC<PolicyDetailLandingProps> = ({ slug }) => {
 
                         {/* Sidebar */}
                         <div className="lg:col-span-4 lg:sticky lg:top-32 h-fit space-y-8">
-                            <Card className="p-8 border-indigo-100 bg-white rounded-3xl shadow-soft">
+                            <Card className="p-8 border-primary/10 bg-white rounded-3xl shadow-soft">
                                 <div className="text-center mb-8">
                                     <p className="text-xs font-black text-slate-400 uppercase mb-2">Price for instant access</p>
                                     <div className="flex items-center justify-center">
@@ -344,6 +347,7 @@ const PolicyDetailLanding: React.FC<PolicyDetailLandingProps> = ({ slug }) => {
                     </div>
                 </div>
             </section>
+            <Footer />
         </div>
     );
 };
