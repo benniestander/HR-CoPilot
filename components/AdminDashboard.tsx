@@ -6,6 +6,7 @@ import { PageInfo, useDataContext } from '../contexts/DataContext';
 import { POLICIES, FORMS } from '../constants';
 import { getOpenInvoiceRequests, processManualOrder, getAppSetting, setAppSetting } from '../services/dbService';
 import { useAuthContext } from '../contexts/AuthContext';
+import { useUIContext } from '../contexts/UIContext';
 
 // --- Interfaces ---
 interface AdminDashboardProps {
@@ -991,119 +992,148 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
     DASHBOARD OVERVIEW WIDGETS
     Shown when activeTab === 'dashboard'
   */
-  const DashboardOverview = () => (
-    <div className="space-y-8">
-      <div className="flex justify-between items-center">
-        <h2 className="text-3xl font-bold text-gray-800">Dashboard Overview</h2>
-        <div className="text-sm text-gray-500">Last updated: {new Date().toLocaleTimeString()}</div>
-      </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <StatWidget title="Total Users" value={stats.totalUsers} icon={UserIcon} color="text-blue-600" trend="+12% this month" />
-        <StatWidget title="Documents" value={stats.totalDocuments} icon={MasterPolicyIcon} color="text-purple-600" trend="+5 today" />
-        <StatWidget title="Pro Members" value={stats.proUsers} icon={ShieldCheckIcon} color="text-green-600" />
-        <StatWidget title="Pending Invoices" value="-" icon={FileIcon} color="text-orange-500" trend="Check Inbox" />
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <Card className="p-6 h-96 flex flex-col justify-center items-center text-gray-400">
-          <p>User Growth Chart Placeholder</p>
-        </Card>
-        <Card className="p-6 h-96 flex flex-col justify-center items-center text-gray-400">
-          <p>Revenue Activity Placeholder</p>
-        </Card>
-      </div>
-    </div>
-  );
-
-  return (
-    <div className="flex h-screen bg-gray-50 font-sans overflow-hidden">
-      {/* SIDEBAR */}
-      <div className="w-64 bg-slate-900 text-white flex flex-col shadow-xl z-20">
-        <div className="h-16 flex items-center px-6 border-b border-slate-800">
-          <ShieldCheckIcon className="w-8 h-8 text-indigo-500 mr-2" />
-          <span className="font-bold text-xl tracking-tight">HR CoPilot</span>
+  const DashboardOverview = () => {
+    const { navigateTo } = useUIContext();
+    return (
+      <div className="space-y-8">
+        <div className="flex justify-between items-center">
+          <h2 className="text-3xl font-bold text-gray-800">Dashboard Overview</h2>
+          <div className="text-sm text-gray-500">Last updated: {new Date().toLocaleTimeString()}</div>
         </div>
 
-        <nav className="flex-1 py-6 px-3 space-y-1 overflow-y-auto custom-scrollbar">
-          <div className="px-3 mb-2 text-xs font-semibold text-slate-500 uppercase tracking-wider">Main</div>
-          {NAV_ITEMS.map((item) => (
-            <button
-              key={item.id}
-              onClick={() => setActiveTab(item.id as AdminTab)}
-              className={`w-full flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 group ${activeTab === item.id
-                ? 'bg-indigo-600 text-white shadow-md'
-                : 'text-slate-300 hover:bg-slate-800 hover:text-white'
-                }`}
-            >
-              <item.icon className={`w-5 h-5 mr-3 transition-colors ${activeTab === item.id ? 'text-white' : 'text-slate-400 group-hover:text-white'}`} />
-              {item.label}
-            </button>
-          ))}
-        </nav>
+        {/* HIGH IMPACT PITCH CARD */}
+        <Card className="p-1 px-8 py-10 bg-gradient-to-br from-indigo-900 via-slate-900 to-black text-white relative overflow-hidden group border-none shadow-2xl">
+          <div className="absolute inset-0 bg-grid-white/[0.05] bg-[size:20px_20px]" />
+          <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/20 blur-3xl -mr-32 -mt-32 group-hover:bg-indigo-500/30 transition-all duration-700" />
 
-        <div className="p-4 border-t border-slate-800">
-          <div className="flex items-center gap-3 px-2 mb-4">
-            <div className="h-8 w-8 rounded-full bg-indigo-500 flex items-center justify-center text-xs font-bold">AD</div>
-            <div className="overflow-hidden">
-              <p className="text-sm font-medium text-white truncate">{user?.email}</p>
-              <p className="text-xs text-slate-400">Super Admin</p>
+          <div className="relative z-10 flex flex-col md:flex-row justify-between items-center gap-8">
+            <div className="text-center md:text-left">
+              <span className="px-3 py-1 bg-indigo-500/20 text-indigo-300 text-[10px] font-black uppercase tracking-widest rounded-full mb-4 inline-block border border-indigo-500/30">
+                Strategic Asset
+              </span>
+              <h3 className="text-4xl font-black tracking-tighter mb-2">Live Stakeholder Pitch</h3>
+              <p className="text-indigo-200/60 max-w-md text-sm font-medium">
+                Immersive, cinematic pitch visualization designed for Business Owners and Investors. Optimized for board-room presentations.
+              </p>
             </div>
-          </div>
-          <button onClick={handleLogout} className="w-full flex items-center justify-center px-4 py-2 border border-slate-700 rounded-lg text-sm text-slate-300 hover:bg-slate-800 hover:text-white transition-colors">
-            Sign Out
-          </button>
-        </div>
-      </div>
 
-      {/* MAIN CONTENT */}
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden bg-gray-50/50">
-        {/* TOP BAR */}
-        <header className="h-16 bg-white/80 backdrop-blur-md border-b border-gray-200 flex items-center justify-between px-8 sticky top-0 z-10">
-          <div className="flex items-center text-gray-400 text-sm">
-            <HomeIcon className="w-4 h-4 mr-2" />
-            <span className="mx-2">/</span>
-            <span className="font-medium text-gray-800 capitalize">{activeTab}</span>
-          </div>
-          <div className="flex items-center gap-4">
-            <button className="relative p-2 text-gray-400 hover:text-gray-600 transition-colors">
-              <span className="absolute top-1.5 right-1.5 h-2 w-2 bg-red-500 rounded-full border border-white"></span>
-              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg>
+            <button
+              onClick={() => navigateTo('pitch')}
+              className="px-8 py-4 bg-white text-indigo-950 font-black rounded-2xl hover:bg-indigo-50 active:scale-95 transition-all shadow-xl shadow-indigo-500/20 flex items-center gap-3 group/btn whitespace-nowrap"
+            >
+              <TrendingUpIcon className="w-5 h-5 group-hover/btn:scale-110 transition-transform" />
+              Launch Pitch Visualizer
             </button>
           </div>
-        </header>
+        </Card>
 
-        {/* SCROLLABLE CONTENT */}
-        <main className="flex-1 overflow-y-auto p-8 relative">
-          <div className="max-w-7xl mx-auto pb-12">
-            {activeTab === 'dashboard' && <DashboardOverview />}
-            {activeTab === 'requests' && <OrderRequestList userEmail={user?.email || ''} />}
-            {activeTab === 'support' && <SupportTicketsDesk />}
-            {activeTab === 'users' && (
-              <UserList
-                users={paginatedUsers.data}
-                pageInfo={paginatedUsers.pageInfo}
-                onNext={onNextUsers}
-                onPrev={onPrevUsers}
-                onViewUser={handleViewUser}
-                isLoading={isFetchingUsers}
-                onSearch={onSearchUsers}
-                onRunRetention={onRunRetention}
-              />
-            )}
-            {activeTab === 'waitlist' && <WaitlistTable />}
-            {activeTab === 'analytics' && <DocumentAnalytics documents={paginatedDocuments.data} pageInfo={paginatedDocuments.pageInfo} onNext={onNextDocs} onPrev={onPrevDocs} isLoading={isFetchingDocs} />}
-            {activeTab === 'transactions' && <TransactionLog transactions={transactionsForUserPage} usersPageInfo={paginatedUsers.pageInfo} onNext={onNextUsers} onPrev={onPrevUsers} isLoading={isFetchingUsers} />}
-            {activeTab === 'pricing' && <PricingManager />}
-            {/* For brevity, other components would be similar Card-based implementations */}
-            {activeTab === 'coupons' && <CouponManager coupons={coupons} adminActions={adminActions} />}
-            {activeTab === 'billing' && <BillingHub />}
-          </div>
-        </main>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <StatWidget title="Total Users" value={stats.totalUsers} icon={UserIcon} color="text-blue-600" trend="+12% this month" />
+          <StatWidget title="Documents" value={stats.totalDocuments} icon={MasterPolicyIcon} color="text-purple-600" trend="+5 today" />
+          <StatWidget title="Pro Members" value={stats.proUsers} icon={ShieldCheckIcon} color="text-green-600" />
+          <StatWidget title="Pending Invoices" value="-" icon={FileIcon} color="text-orange-500" trend="Check Inbox" />
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          <Card className="p-6 h-96 flex flex-col justify-center items-center text-gray-400">
+            <p>User Growth Chart Placeholder</p>
+          </Card>
+          <Card className="p-6 h-96 flex flex-col justify-center items-center text-gray-400">
+            <p>Revenue Activity Placeholder</p>
+          </Card>
+        </div>
       </div>
+    );
 
-      {activeUser && <AdminUserDetailModal isOpen={!!activeUser} onClose={() => setSelectedUser(null)} user={activeUser} adminActions={adminActions} />}
-    </div>
-  );
-};
+    return (
+      <div className="flex h-screen bg-gray-50 font-sans overflow-hidden">
+        {/* SIDEBAR */}
+        <div className="w-64 bg-slate-900 text-white flex flex-col shadow-xl z-20">
+          <div className="h-16 flex items-center px-6 border-b border-slate-800">
+            <ShieldCheckIcon className="w-8 h-8 text-indigo-500 mr-2" />
+            <span className="font-bold text-xl tracking-tight">HR CoPilot</span>
+          </div>
 
-export default AdminDashboard;
+          <nav className="flex-1 py-6 px-3 space-y-1 overflow-y-auto custom-scrollbar">
+            <div className="px-3 mb-2 text-xs font-semibold text-slate-500 uppercase tracking-wider">Main</div>
+            {NAV_ITEMS.map((item) => (
+              <button
+                key={item.id}
+                onClick={() => setActiveTab(item.id as AdminTab)}
+                className={`w-full flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 group ${activeTab === item.id
+                  ? 'bg-indigo-600 text-white shadow-md'
+                  : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                  }`}
+              >
+                <item.icon className={`w-5 h-5 mr-3 transition-colors ${activeTab === item.id ? 'text-white' : 'text-slate-400 group-hover:text-white'}`} />
+                {item.label}
+              </button>
+            ))}
+          </nav>
+
+          <div className="p-4 border-t border-slate-800">
+            <div className="flex items-center gap-3 px-2 mb-4">
+              <div className="h-8 w-8 rounded-full bg-indigo-500 flex items-center justify-center text-xs font-bold">AD</div>
+              <div className="overflow-hidden">
+                <p className="text-sm font-medium text-white truncate">{user?.email}</p>
+                <p className="text-xs text-slate-400">Super Admin</p>
+              </div>
+            </div>
+            <button onClick={handleLogout} className="w-full flex items-center justify-center px-4 py-2 border border-slate-700 rounded-lg text-sm text-slate-300 hover:bg-slate-800 hover:text-white transition-colors">
+              Sign Out
+            </button>
+          </div>
+        </div>
+
+        {/* MAIN CONTENT */}
+        <div className="flex-1 flex flex-col min-w-0 overflow-hidden bg-gray-50/50">
+          {/* TOP BAR */}
+          <header className="h-16 bg-white/80 backdrop-blur-md border-b border-gray-200 flex items-center justify-between px-8 sticky top-0 z-10">
+            <div className="flex items-center text-gray-400 text-sm">
+              <HomeIcon className="w-4 h-4 mr-2" />
+              <span className="mx-2">/</span>
+              <span className="font-medium text-gray-800 capitalize">{activeTab}</span>
+            </div>
+            <div className="flex items-center gap-4">
+              <button className="relative p-2 text-gray-400 hover:text-gray-600 transition-colors">
+                <span className="absolute top-1.5 right-1.5 h-2 w-2 bg-red-500 rounded-full border border-white"></span>
+                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg>
+              </button>
+            </div>
+          </header>
+
+          {/* SCROLLABLE CONTENT */}
+          <main className="flex-1 overflow-y-auto p-8 relative">
+            <div className="max-w-7xl mx-auto pb-12">
+              {activeTab === 'dashboard' && <DashboardOverview />}
+              {activeTab === 'requests' && <OrderRequestList userEmail={user?.email || ''} />}
+              {activeTab === 'support' && <SupportTicketsDesk />}
+              {activeTab === 'users' && (
+                <UserList
+                  users={paginatedUsers.data}
+                  pageInfo={paginatedUsers.pageInfo}
+                  onNext={onNextUsers}
+                  onPrev={onPrevUsers}
+                  onViewUser={handleViewUser}
+                  isLoading={isFetchingUsers}
+                  onSearch={onSearchUsers}
+                  onRunRetention={onRunRetention}
+                />
+              )}
+              {activeTab === 'waitlist' && <WaitlistTable />}
+              {activeTab === 'analytics' && <DocumentAnalytics documents={paginatedDocuments.data} pageInfo={paginatedDocuments.pageInfo} onNext={onNextDocs} onPrev={onPrevDocs} isLoading={isFetchingDocs} />}
+              {activeTab === 'transactions' && <TransactionLog transactions={transactionsForUserPage} usersPageInfo={paginatedUsers.pageInfo} onNext={onNextUsers} onPrev={onPrevUsers} isLoading={isFetchingUsers} />}
+              {activeTab === 'pricing' && <PricingManager />}
+              {/* For brevity, other components would be similar Card-based implementations */}
+              {activeTab === 'coupons' && <CouponManager coupons={coupons} adminActions={adminActions} />}
+              {activeTab === 'billing' && <BillingHub />}
+            </div>
+          </main>
+        </div>
+
+        {activeUser && <AdminUserDetailModal isOpen={!!activeUser} onClose={() => setSelectedUser(null)} user={activeUser} adminActions={adminActions} />}
+      </div>
+    );
+  };
+
+  export default AdminDashboard;

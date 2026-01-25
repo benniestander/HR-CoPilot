@@ -46,6 +46,7 @@ const ConsultantLandingPage = lazy(() => import('./components/ConsultantLandingP
 const ConsultantSignUp = lazy(() => import('./components/ConsultantSignUp'));
 const PolicyLibrary = lazy(() => import('./components/seo/PolicyLibrary'));
 const PolicyDetailLanding = lazy(() => import('./components/seo/PolicyDetailLanding'));
+const PitchVisualizer = lazy(() => import('./components/PitchVisualizer'));
 
 const AuthHeader = ({ isAdminHeader = false, handleStartOver, handleShowProfile }: { isAdminHeader?: boolean; handleStartOver: () => void; handleShowProfile: () => void }) => {
     const {
@@ -681,6 +682,14 @@ const AppContent: React.FC = () => {
     const renderPage = () => {
         if (isLoading) {
             return <FullPageLoader />;
+        }
+
+        if (user && isAdmin && currentView === 'pitch') {
+            return (
+                <Suspense fallback={<FullPageLoader />}>
+                    <PitchVisualizer />
+                </Suspense>
+            );
         }
 
         if (user && isAdmin) {
